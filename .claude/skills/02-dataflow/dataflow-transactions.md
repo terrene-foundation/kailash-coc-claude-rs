@@ -1,0 +1,95 @@
+---
+name: dataflow-transactions
+description: "DataFlow distributed transactions. Use when DataFlow transactions, saga, distributed transactions, 2PC, or transaction coordination."
+---
+
+# DataFlow Distributed Transactions
+
+Distributed transaction patterns with saga and two-phase commit support.
+
+> **Skill Metadata**
+> Category: `dataflow`
+> Priority: `MEDIUM`
+> Related Skills: [`dataflow-crud-operations`](#), [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md)
+> Related Subagents: `dataflow-specialist` (complex transactions)
+
+## Quick Reference
+
+- **Saga**: Compensating transactions for rollback
+- **2PC**: Two-phase commit for ACID guarantees
+- **Pattern**: Use TransactionManagerNode or context managers
+
+## Core Pattern
+
+```python
+import kailash
+
+builder = kailash.WorkflowBuilder()
+
+# Distributed transaction with saga pattern
+builder.add_node("TransactionManagerNode", "payment_flow", {
+    "transaction_type": "saga",
+    "steps": [
+        {
+            "node": "PaymentCreateNode",
+            "compensation": "PaymentRollbackNode"
+        },
+        {
+            "node": "OrderUpdateNode",
+            "compensation": "OrderRevertNode"
+        },
+        {
+            "node": "InventoryUpdateNode",
+            "compensation": "InventoryRestoreNode"
+        }
+    ],
+    "timeout": 30,
+    "retry_attempts": 3
+})
+```
+
+## Transaction Patterns
+
+### Saga Pattern
+
+```python
+builder.add_node("TransactionManagerNode", "saga", {
+    "transaction_type": "saga",
+    "steps": [
+        {"node": "Step1Node", "compensation": "Undo1Node"},
+        {"node": "Step2Node", "compensation": "Undo2Node"}
+    ]
+})
+```
+
+### Two-Phase Commit
+
+```python
+builder.add_node("TransactionManagerNode", "2pc", {
+    "transaction_type": "two_phase_commit",
+    "steps": [...]
+})
+```
+
+## Async Transaction Nodes
+
+Transaction nodes are `AsyncNode` subclasses. Use `async_run()` instead of `run()`:
+
+```python
+# Transaction nodes require async execution
+result = await transaction_node.async_run(context)
+```
+
+When using `kailash.Runtime`, transaction nodes are executed natively in the async pipeline. With `kailash.Runtime`, they are automatically wrapped in the thread pool.
+
+## Quick Tips
+
+- Use saga for long-running transactions
+- Use 2PC for strong consistency
+- Define compensation actions
+- Set appropriate timeouts
+- Transaction nodes are AsyncNode -- use `async_run()` not `run()`
+
+## Keywords for Auto-Trigger
+
+<!-- Trigger Keywords: DataFlow transactions, saga, distributed transactions, 2PC, transaction coordination, compensating transactions -->

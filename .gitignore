@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+!scripts/hooks/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.jbeval/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Workspace session notes (per-session, not versioned)
+**/.session-notes
+
+# Per-project learning data (generated at runtime)
+.claude/learning/
+.claude/rules/learned-instincts.md
+
+# Internal docs (not for distribution)
+/docs/01-kailash-vibe-cc-internals/
+
+# Generated script outputs
+**/scripts/data/
+**/scripts/outputs/
+**/scripts/*.log

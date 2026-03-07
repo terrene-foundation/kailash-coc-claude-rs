@@ -1,0 +1,82 @@
+# /db - DataFlow Quick Reference
+
+## Purpose
+
+Load the DataFlow skill for zero-config database operations with automatic model-to-node generation.
+
+## Step 0: Verify Project Uses Kailash DataFlow
+
+Before loading DataFlow patterns, check that this project uses Kailash DataFlow:
+
+- Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`
+- Look for `import kailash` in source files
+
+If not found, inform the user: "This project doesn't appear to use Kailash DataFlow. These patterns may not apply. Continue anyway?"
+
+## Quick Reference
+
+| Command     | Action                                     |
+| ----------- | ------------------------------------------ |
+| `/db`       | Load DataFlow patterns and database basics |
+| `/db model` | Show @df.model decorator patterns          |
+| `/db crud`  | Show CRUD operation patterns               |
+| `/db bulk`  | Show bulk operation patterns               |
+
+## What You Get
+
+- @df.model decorator patterns
+- Auto-generated nodes (11 per SQL model, 8 for MongoDB)
+- CRUD, bulk operations, transactions
+- Multi-tenancy and multi-instance patterns
+- PostgreSQL, SQLite, MongoDB support
+
+## Quick Pattern
+
+All DataFlow types are available directly from `import kailash`:
+
+```python
+import kailash
+
+# DataFlow types
+df = kailash.DataFlow("sqlite:///app.db")
+model = kailash.ModelDefinition(
+    name="User",
+    fields=[
+        kailash.FieldDef("id", kailash.FieldType.Integer, primary_key=True),
+        kailash.FieldDef("name", kailash.FieldType.String),
+        kailash.FieldDef("email", kailash.FieldType.String),
+    ],
+)
+
+# FilterCondition for queries
+filter = kailash.FilterCondition("name", "eq", "Alice")
+```
+
+## Critical Gotchas
+
+| Rule                                         | Why                               |
+| -------------------------------------------- | --------------------------------- |
+| Primary key MUST be named `id`               | DataFlow convention requirement   |
+| NEVER manually set `created_at`/`updated_at` | Auto-managed fields               |
+| CreateNode uses FLAT params                  | Not nested under `data`           |
+| UpdateNode uses `filter` + `fields`          | Different from CreateNode pattern |
+| DataFlow is NOT an ORM                       | It generates workflow nodes       |
+
+## Agent Teams
+
+When working with DataFlow, deploy:
+
+- **dataflow-specialist** — Database operations, auto-generated nodes, bulk operations
+- **testing-specialist** — Real database test fixtures (NO MOCKING)
+
+## Related Commands
+
+- `/sdk` - Core SDK patterns
+- `/api` - Nexus multi-channel deployment
+- `/ai` - Kaizen AI agents
+- `/test` - Testing strategies
+- `/validate` - Project compliance checks
+
+## Skill Reference
+
+This command loads: `.claude/skills/02-dataflow/SKILL.md`

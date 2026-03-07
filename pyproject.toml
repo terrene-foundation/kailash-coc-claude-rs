@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-kailash-project"  # TODO: Replace with your project name
+version = "1.0.0"
+description = "A Kailash SDK project (Rust-backed)"  # TODO: Replace with your project description
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}  # TODO: Replace with your info
+]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    # Kailash Enterprise (Rust-backed, all-in-one: Core SDK + DataFlow + Nexus + Kaizen + Enterprise)
+    "kailash-enterprise>=2.0.0",
+    # CLI Framework
+    "click>=8.0",
+    "rich>=13.0.0",
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "structlog>=23.1.0",
+]
+
+[project.optional-dependencies]
+ml = [
+    # PyTorch - On Windows, install separately: pip install torch --index-url https://download.pytorch.org/whl/cu118
+    "torch>=2.7.1",
+]
+dev = [
+    # Testing (pytest>=7.2.0 removes vulnerable py dependency)
+    "pytest>=7.2.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21.0",
+    # Linting & Formatting
+    "black>=23.0",
+    "isort>=5.12.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    # Security & Pre-commit
+    "detect-secrets>=1.5.0",
+    "pre-commit>=4.2.0",
+]
+
+[project.urls]
+# TODO: Replace with your project URLs
+# "Homepage" = "https://github.com/your-org/your-project"
+# "Bug Tracker" = "https://github.com/your-org/your-project/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests*", ".*", "__pycache__*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312", "py313"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
