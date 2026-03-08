@@ -128,12 +128,13 @@ import kailash
 
 server = kailash.McpServer("my-server", "1.0.0")
 
-def my_tool(param: str) -> dict:
-    return {"result": f"Processed: {param}"}
+# Tool handler receives a dict, not typed params
+def my_tool(args: dict) -> dict:
+    return {"result": f"Processed: {args.get('param', '')}"}
 
 server.register_tool("my_tool", "Process a parameter", my_tool)
 
-server.run(transport="stdio")
+# NOTE: McpServer has no run() method. Use NexusApp to serve MCP tools.
 ```
 
 ## CRITICAL Warnings
