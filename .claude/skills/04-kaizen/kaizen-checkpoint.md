@@ -39,12 +39,13 @@ data = checkpoint.to_json()
 Dict-backed storage for testing and development. Data is lost when the process exits.
 
 ```python
+import os
 from kailash import AgentCheckpoint, InMemoryCheckpointStorage
 
 storage = InMemoryCheckpointStorage()
 
 # Save a checkpoint (returns UUID)
-checkpoint = AgentCheckpoint("assistant", "gpt-4o")
+checkpoint = AgentCheckpoint("assistant", os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"))
 checkpoint.memory_snapshot = {"key": "value"}
 checkpoint_id = storage.save(checkpoint)
 
@@ -66,12 +67,13 @@ storage.delete(checkpoint_id)
 JSON file-backed storage. Each checkpoint is stored as `{base_dir}/{checkpoint_id}.json`.
 
 ```python
+import os
 from kailash import AgentCheckpoint, FileCheckpointStorage
 
 storage = FileCheckpointStorage("/tmp/agent-checkpoints")
 
 # Save (returns UUID)
-checkpoint = AgentCheckpoint("researcher", "gpt-4o")
+checkpoint = AgentCheckpoint("researcher", os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"))
 checkpoint.metadata = {"task": "market research"}
 checkpoint_id = storage.save(checkpoint)
 
