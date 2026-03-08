@@ -5,33 +5,44 @@ description: "Flutter + Kailash integration. Use when asking 'flutter integratio
 
 # Flutter + Kailash Integration
 
+> **Skill Metadata**
+> Category: `frontend`
+> Priority: `LOW`
+> SDK Version: `0.9.25+`
+
 ## Quick Setup
 
-### 1. Backend API (Python)
+### 1. Backend API (Rust)
 
-```python
-from kailash.nexus import NexusApp
-import kailash
-import os
+```rust
+use kailash_nexus::{NexusApp, Preset};
+use kailash_nexus::handler::Handler;
+use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+use kailash_core::value::{Value, ValueMap};
+use std::sync::Arc;
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "chat", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
-    "prompt": "{{input.message}}",
-})
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
 
-app = NexusApp(preset="standard")
+    let registry = Arc::new(NodeRegistry::default());
+    let mut builder = WorkflowBuilder::new();
+    builder.add_node("LLMNode", "chat", ValueMap::from([
+        ("provider".into(), Value::String("openai".into())),
+        ("model".into(), Value::String(
+            std::env::var("DEFAULT_LLM_MODEL").expect("DEFAULT_LLM_MODEL in .env").into()
+        )),
+        ("prompt".into(), Value::String("{{input.message}}".into())),
+    ]));
+    let workflow = builder.build(&registry)?;
 
-@app.handler("execute")
-async def execute(message: str) -> dict:
-    result = rt.execute(wf, {"message": message})
-    return result["results"]["chat"]
+    let app = NexusApp::new()
+        .preset(Preset::Standard)
+        .handler("/execute", Handler::from_workflow(workflow, registry));
 
-app.start()  # Serves on port 3000
+    app.serve("0.0.0.0:3000").await?;
+    Ok(())
+}
 ```
 
 ### 2. Flutter Frontend

@@ -31,9 +31,9 @@ app = NexusApp()
 @app.handler("/process")
 def process_handler(request):
     rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg), parameters=request)
+    return rt.execute(builder.build(reg), inputs=request)
 
-app.run(host="0.0.0.0", port=8000)  # Production-ready
+app.run(host="0.0.0.0", port=3000)  # Production-ready
 ```
 
 **Dockerfile**:
@@ -48,7 +48,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8000
+EXPOSE 3000
 
 CMD ["python", "app.py"]
 ```
@@ -190,7 +190,7 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # Start API with Nexus
 from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(NexusConfig(port=8000, host="0.0.0.0"))
+app = NexusApp(NexusConfig(port=3000, host="0.0.0.0"))
 app.start()
 ```
 
@@ -203,7 +203,7 @@ services:
   workflow-api:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       - ENVIRONMENT=production
       - API_URL=${API_URL}
@@ -212,7 +212,7 @@ services:
       - .env.production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -1,312 +1,47 @@
+# Nexus Skills Index
+
+Skills for `kailash-nexus` -- the multi-channel deployment platform built on axum + tower.
+
+Source: `crates/kailash-nexus/src/`
+
 ---
-name: nexus
-description: "Kailash Nexus - zero-config multi-channel platform for deploying workflows as API + CLI + MCP simultaneously. Use when asking about 'Nexus', 'multi-channel', 'platform deployment', 'API deployment', 'CLI deployment', 'MCP deployment', 'unified sessions', 'workflow deployment', 'production deployment', 'API gateway', 'session management', 'health monitoring', 'enterprise platform', 'plugins', 'event system', or 'workflow registration'."
----
 
-# Kailash Nexus - Multi-Channel Platform Framework
+## Skill Files
 
-Nexus is a zero-config multi-channel platform built on Kailash Core SDK that deploys workflows as API + CLI + MCP simultaneously.
+| File                     | Description                                                                                   | Use When                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `nexus-quickstart.md`    | Getting started with Nexus: handler registration, presets, starting servers                   | First-time setup, basic API creation                                   |
+| `nexus-preset-system.md` | Preset system overview and Nexus configuration                                                | Choosing presets, configuring Nexus                                    |
+| `nexus-auth-plugin.md`   | JWT authentication, RBAC middleware, per-user rate limiting, AuthError types                  | Adding auth, role-based access, JWT tokens, tenant isolation           |
+| `nexus-middleware.md`    | Tower middleware composition: CORS, rate limit, body limit, security headers, logging, custom | Configuring middleware stack, creating custom middleware               |
+| `nexus-mcp-channel.md`   | MCP SSE/HTTP/stdio transports, McpServer, tool/resource registration                          | AI agent integration, Claude Desktop, MCP protocol                     |
+| `nexus-sessions.md`      | Request-scoped session data via JWT claims and axum extensions                                | User identity in handlers, request context, tenant context             |
+| `nexus-agentui.md`       | SSE-based real-time agent event streaming, AgentEvent, broadcast channel                      | Agent-to-UI streaming, live agent monitoring, frontend SSE integration |
+| `create-mcp-server.md`   | Step-by-step MCP server creation guide                                                        | Building an MCP server from scratch                                    |
 
-## Features
+## Quick Navigation
 
-Nexus transforms workflows into a complete platform with:
-
-- **Zero Configuration**: Deploy workflows instantly without boilerplate code
-- **Multi-Channel Access**: API, CLI, and MCP from single deployment
-- **Unified Sessions**: Consistent session management across all channels
-- **Enterprise Features**: Health monitoring, plugins, event system, comprehensive logging
-- **DataFlow Integration**: Automatic CRUD API generation from database models
-- **Production Ready**: Deployment patterns, monitoring, troubleshooting guides
-- **Multi-Channel Platform**: Workflow-based platform without manual route definition
-- **Async-First**: Uses kailash.Runtime by default for optimal performance
-
-## Quick Start
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-
-# Create app with custom port (or use defaults: host=0.0.0.0, port=3000)
-app = NexusApp(config=NexusConfig(port=8000))
-
-# Register handler - deployed to all channels at once
-@app.handler(name="greet", description="Greet a user")
-async def greet(name: str) -> dict:
-    return {"message": f"Hello, {name}!"}
-
-# Start the server (no arguments - host/port come from NexusConfig)
-app.start()
-
-# Now available via:
-# - HTTP API: POST http://localhost:8000/api/greet
-# - CLI: nexus run greet --name "World"
-# - MCP: Connect via MCP client (Claude Desktop, etc.)
-```
-
-## Reference Documentation
-
-### Getting Started
-
-- **[nexus-quickstart](nexus-quickstart.md)** - Quick start guide
-- **[nexus-installation](nexus-installation.md)** - Installation and setup
-- **[nexus-architecture](nexus-architecture.md)** - Architecture overview
-- **[README](README.md)** - Framework overview
-- **[nexus-comparison](nexus-comparison.md)** - Nexus vs alternatives
-
-### Core Concepts
-
-- **[nexus-workflow-registration](nexus-workflow-registration.md)** - Registering workflows
-- **[nexus-multi-channel](nexus-multi-channel.md)** - Multi-channel architecture
-- **[nexus-sessions](nexus-sessions.md)** - Session management
-- **[nexus-config-options](nexus-config-options.md)** - Configuration options
-
-### Channel-Specific Patterns
-
-- **[nexus-api-patterns](nexus-api-patterns.md)** - HTTP API patterns
-- **[nexus-api-input-mapping](nexus-api-input-mapping.md)** - API input handling
-- **[nexus-cli-patterns](nexus-cli-patterns.md)** - CLI usage patterns
-- **[nexus-mcp-channel](nexus-mcp-channel.md)** - MCP channel configuration
-
-### Integration
-
-- **[nexus-dataflow-integration](nexus-dataflow-integration.md)** - DataFlow + Nexus patterns
-- **[nexus-plugins](nexus-plugins.md)** - Plugin system
-- **[nexus-event-system](nexus-event-system.md)** - Event-driven architecture
-
-### Production & Operations
-
-- **[nexus-production-deployment](nexus-production-deployment.md)** - Production deployment
-- **[nexus-health-monitoring](nexus-health-monitoring.md)** - Health checks and monitoring
-- **[nexus-enterprise-features](nexus-enterprise-features.md)** - Enterprise capabilities
-- **[nexus-troubleshooting](nexus-troubleshooting.md)** - Common issues and solutions
-
-### Additional Skills
-
-- **[nexus-handler-support](nexus-handler-support.md)** - `@app.handler()` decorator for direct function registration
-- **[nexus-auth-plugin](nexus-auth-plugin.md)** - NexusAuthPlugin unified auth (JWT, RBAC, SSO, rate limiting, tenant, audit)
-- **[golden-patterns-catalog](golden-patterns-catalog.md)** - Top 7 production-validated codegen patterns
-- **[codegen-decision-tree](codegen-decision-tree.md)** - Decision tree, anti-patterns, scaffolding templates
+- **"How do I create an API?"** -> `nexus-quickstart.md`
+- **"Which preset should I use?"** -> `nexus-preset-system.md` or `nexus-middleware.md` (Preset Matrix)
+- **"How do I add JWT auth?"** -> `nexus-auth-plugin.md`
+- **"How do I add RBAC?"** -> `nexus-auth-plugin.md`
+- **"How do I configure CORS?"** -> `nexus-middleware.md`
+- **"How do I rate limit?"** -> `nexus-middleware.md` (global) or `nexus-auth-plugin.md` (per-user)
+- **"How do I add security headers?"** -> `nexus-middleware.md`
+- **"How do I create custom middleware?"** -> `nexus-middleware.md` (Section 7)
+- **"How do I expose handlers as MCP tools?"** -> `nexus-mcp-channel.md`
+- **"How do I run an MCP stdio server?"** -> `nexus-mcp-channel.md` or `create-mcp-server.md`
+- **"How do I integrate with Claude Desktop?"** -> `nexus-mcp-channel.md` (Section 7)
+- **"How do I get user identity in a handler?"** -> `nexus-sessions.md`
+- **"How do I stream agent events to a UI?"** -> `nexus-agentui.md`
+- **"What AgentEvent types exist?"** -> `nexus-agentui.md` (Section 3)
+- **"How do I connect a React frontend to SSE?"** -> `nexus-agentui.md` (Section 7)
 
 ## Key Concepts
 
-### Zero-Config Platform
-
-Nexus eliminates boilerplate:
-
-- **No manual routes** - Automatic API generation from workflows
-- **No CLI arg parsing** - Automatic CLI creation
-- **No MCP server setup** - Automatic MCP integration
-- **Unified deployment** - One command for all channels
-
-### Multi-Channel Architecture
-
-Single deployment, three access methods:
-
-1. **HTTP API**: RESTful JSON endpoints
-2. **CLI**: Command-line interface
-3. **MCP**: Model Context Protocol server
-
-### Unified Sessions
-
-Consistent session management:
-
-- Cross-channel session tracking
-- Session state persistence
-- Session-scoped workflows
-- Concurrent session support
-
-### Enterprise Features
-
-Production-ready capabilities:
-
-- Health monitoring endpoints
-- Plugin system for extensibility
-- Event system for integrations
-- Comprehensive logging and metrics
-- Correct channel initialization flow
-- Proper workflow registration
-
-## When to Use This Skill
-
-Use Nexus when you need to:
-
-- Deploy workflows as production platforms
-- Provide multiple access methods (API/CLI/MCP)
-- Build enterprise platforms quickly
-- Auto-generate CRUD APIs (with DataFlow)
-- Build multi-channel platforms quickly
-- Create multi-channel applications
-- Deploy AI agent platforms (with Kaizen)
-
-## Integration Patterns
-
-### With DataFlow (Database-Backed Handlers)
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-import kailash
-
-# Initialize DataFlow
-df = kailash.DataFlow("postgresql://user:pass@localhost/db")
-
-@df.model
-class User:
-    id: str
-    name: str
-
-# Create Nexus app and register database-backed handlers
-app = NexusApp(config=NexusConfig(port=8000))
-
-@app.handler(name="create_user", description="Create a new user")
-async def create_user(name: str) -> dict:
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("User_Create", "create", {"data": {"name": name}})
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["create"]["result"]
-
-app.start()
-```
-
-### With Kaizen (Agent Platform)
-
-```python
-from kailash.nexus import NexusApp
-from kailash.kaizen import BaseAgent
-
-# Deploy agents via all channels using handlers
-app = NexusApp()
-
-@app.handler(name="agent_chat", description="Chat with AI agent")
-async def agent_chat(message: str) -> dict:
-    agent = BaseAgent()
-    result = agent.execute(message)
-    return {"response": result.get("output", "")}
-
-app.start()  # Agents accessible via API, CLI, and MCP
-```
-
-### With Core SDK (Custom Workflows)
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-import kailash
-
-app = NexusApp(config=NexusConfig(port=8000))
-
-# Register workflow execution as handlers
-@app.handler(name="process_data", description="Run data processing workflow")
-async def process_data(input_text: str) -> dict:
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'processed': True}"
-    })
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["process"]["result"]
-
-app.start()
-```
-
-### Standalone Platform
-
-```python
-from kailash.nexus import NexusApp, NexusConfig, Preset
-
-# Complete platform with enterprise preset and custom config
-app = NexusApp(
-    config=NexusConfig(host="0.0.0.0", port=8000),
-    preset="enterprise",  # or Preset.enterprise()
-)
-
-# Add middleware
-app.add_cors(origins=["https://app.example.com"])
-app.add_rate_limit(max_requests=100, window_secs=60)
-
-# Register handlers
-@app.handler(name="status", description="Platform status")
-async def status() -> dict:
-    return app.health_check()
-
-app.start()  # Host/port configured via NexusConfig
-```
-
-## Critical Rules
-
-- ✅ Use Nexus for workflow platforms
-- ✅ Register workflows, not individual routes
-- ✅ Leverage unified sessions across channels
-- ✅ Enable health monitoring in production
-- ✅ Use plugins for custom behavior
-- ✅ Nexus uses kailash.Runtime by default (correct for Docker)
-- ❌ NEVER bypass Nexus with raw framework routes
-- ❌ NEVER implement manual API/CLI/MCP servers when Nexus can do it
-- ❌ NEVER skip health checks in production
-
-## Deployment Patterns
-
-### Development
-
-```python
-from kailash.nexus import NexusApp
-
-app = NexusApp()  # Defaults: host=0.0.0.0, port=3000
-
-@app.handler(name="hello", description="Hello world")
-async def hello(name: str = "World") -> dict:
-    return {"message": f"Hello, {name}!"}
-
-app.start()
-```
-
-### Production (Docker)
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-
-app = NexusApp(
-    config=NexusConfig(host="0.0.0.0", port=8000),
-    preset="enterprise",
-)
-app.add_cors(origins=["https://app.example.com"])
-app.add_rate_limit(max_requests=100, window_secs=60)
-
-# Register production handlers...
-
-app.start()
-```
-
-### With Load Balancer
-
-```bash
-# Deploy multiple Nexus instances behind nginx/traefik
-docker-compose up --scale nexus=3
-```
-
-## Channel Comparison
-
-| Feature       | API  | CLI       | MCP         |
-| ------------- | ---- | --------- | ----------- |
-| **Access**    | HTTP | Terminal  | MCP Clients |
-| **Input**     | JSON | Args/JSON | Structured  |
-| **Output**    | JSON | Text/JSON | Structured  |
-| **Sessions**  | ✓    | ✓         | ✓           |
-| **Auth**      | ✓    | ✓         | ✓           |
-| **Streaming** | ✓    | ✓         | ✓           |
-
-## Related Skills
-
-- **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
-- **[02-dataflow](../dataflow/SKILL.md)** - Auto CRUD API generation
-- **[04-kaizen](../kaizen/SKILL.md)** - AI agent deployment
-- **[05-kailash-mcp](../05-kailash-mcp/SKILL.md)** - MCP channel details
-- **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
-
-## Support
-
-For Nexus-specific questions, invoke:
-
-- `nexus-specialist` - Nexus implementation and deployment
-- `deployment-specialist` - Production deployment patterns
-- `framework-advisor` - When to use Nexus vs other approaches
+- **Handler pattern**: Register async functions via `ClosureHandler::new()` or `ClosureHandler::with_params()`
+- **Three channels**: HTTP API (`/api/{name}`), CLI (auto-generated via clap), MCP (JSON-RPC 2.0)
+- **Preset system**: `Preset::None` through `Preset::Enterprise` for one-line middleware configuration
+- **Auth is separate from middleware**: JWT/RBAC layers are applied independently from the middleware stack
+- **No dedicated session store**: Stateless sessions via JWT claims in request extensions
+- **AgentUI**: Broadcast-based SSE streaming with late-client buffering

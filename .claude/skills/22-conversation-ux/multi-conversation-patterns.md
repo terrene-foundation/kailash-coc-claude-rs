@@ -1422,7 +1422,7 @@ User types: "In conversation Q2 Sales, you showed..."
 
 df = kailash.DataFlow()
 
-@df.model
+@db.model
 class Conversation:
     id: str  # UUID
     user_id: str  # Foreign key
@@ -1437,7 +1437,7 @@ class Conversation:
     tags: List[str]
     folder_id: str | None
 
-@df.model
+@db.model
 class ConversationTurn:
     id: str  # UUID
     conversation_id: str  # Foreign key
@@ -1448,7 +1448,7 @@ class ConversationTurn:
     citations: List[dict] | None  # Citation data (JSON)
     created_at: datetime
 
-@df.model
+@db.model
 class ConversationContext:
     id: str
     conversation_id: str

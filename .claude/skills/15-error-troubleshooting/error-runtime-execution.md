@@ -24,7 +24,7 @@ rt.execute(builder.build(reg), inputs={"node": {"param": "value"}})
 rt.execute(builder.build(reg), overrides={"node": {"param": "value"}})
 
 # ✅ Fix: Use 'parameters'
-rt.execute(builder.build(reg), parameters={"node": {"param": "value"}})
+rt.execute(builder.build(reg), inputs={"node": {"param": "value"}})
 ```
 
 ### Result Access

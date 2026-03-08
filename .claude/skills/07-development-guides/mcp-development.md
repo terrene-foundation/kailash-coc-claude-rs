@@ -122,7 +122,7 @@ result = {
     # Execute workflow
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), parameters={
+    result = rt.execute(builder.build(reg), inputs={
         "processor": {"input_data": input_data}
     })
 
@@ -198,7 +198,7 @@ server.run(transport="stdio")
 
 ```python
 # Best for: Web integrations, REST APIs
-server.run(transport="http", host="0.0.0.0", port=8000)
+server.run(transport="http", host="0.0.0.0", port=3000)
 ```
 
 **WebSocket**:

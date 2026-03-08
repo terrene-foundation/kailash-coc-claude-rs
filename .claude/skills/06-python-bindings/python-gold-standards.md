@@ -1,8 +1,10 @@
 # Python Binding Gold Standards
 
-Compliance checklist for code using `kailash-enterprise`.
+Compliance checklist for code using the Rust-backed kailash Python package.
 
-## 1. Registry Creation
+## v2 API Standards (MUST follow for all new code)
+
+### 1. Registry Creation
 
 ```python
 # GOLD STANDARD
@@ -14,7 +16,7 @@ registry = kailash.NodeRegistry()
 - One registry per application (reuse across workflows)
 - Register all custom callbacks before creating Runtime
 
-## 2. Workflow Building
+### 2. Workflow Building
 
 ```python
 # GOLD STANDARD
@@ -30,7 +32,7 @@ workflow = builder.build(registry)  # registry REQUIRED
 - 4-parameter connections: source_node, source_output, target_node, target_input
 - Always pass registry to `build()`
 
-## 3. Execution
+### 3. Execution
 
 ```python
 # GOLD STANDARD
@@ -43,9 +45,11 @@ metadata = result["metadata"]
 
 - Runtime requires registry
 - `execute()` returns a dict with keys: `"results"`, `"run_id"`, `"metadata"`
+- Access node outputs via `result["results"]["node_id"]["output_key"]`
+- `run_id` is a unique string identifier for the execution
 - Reuse runtime across executions
 
-## 4. Custom Nodes
+### 4. Custom Nodes
 
 ```python
 # GOLD STANDARD
@@ -65,24 +69,25 @@ registry.register_callback(
 - Plain dict input, plain dict output
 - Register before creating Runtime
 - Use `threading.Lock` for stateful callbacks
+- Type name should end with "Node" by convention
 
-## 5. Import Patterns
+### 5. Import Patterns
 
 ```python
-# GOLD STANDARD -- core
+# GOLD STANDARD — core
 import kailash
 
-# GOLD STANDARD -- frameworks
+# GOLD STANDARD — frameworks
 from kailash.dataflow import DataFlowConfig, ModelDefinition, FieldType
 from kailash.enterprise import RbacEvaluator, AbacEvaluator, Role, Permission
-from kailash.kaizen import LlmClient, ToolRegistry, ToolDef, ToolParam
-from kailash.nexus import Nexus, NexusConfig, HandlerParam
+from kailash.kaizen import LlmClient, ToolRegistry, ToolDef, ToolParam, Agent, AgentConfig
+from kailash.nexus import Nexus, NexusConfig, HandlerParam, MiddlewareConfig
 
 # NEVER
 from kailash._kailash import ...  # internal module
 ```
 
-## 6. Error Handling
+### 6. Error Handling
 
 ```python
 # GOLD STANDARD
@@ -91,14 +96,18 @@ try:
 except RuntimeError as e:
     logger.error("Workflow failed: %s", e)
     raise
+except TypeError as e:
+    logger.error("Invalid config type: %s", e)
+    raise
 ```
 
 - Catch `RuntimeError` for workflow execution failures
-- Catch `TypeError` for invalid config values
+- Catch `TypeError` for invalid config values (non-serializable types)
 - Catch `ValueError` for invalid node configurations
-- Never silently swallow errors
+- Never silently swallow errors (`except: pass`)
+- Log errors with context
 
-## 7. Environment Variables
+### 7. Environment Variables
 
 ```python
 # GOLD STANDARD
@@ -107,10 +116,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 api_key = os.environ["OPENAI_API_KEY"]  # never hardcode
-model = os.environ["LLM_MODEL"]  # from .env
+model = os.environ["LLM_MODEL"]  # from .env, never hardcode model names
 ```
 
-## 8. Testing
+- All API keys from environment
+- All model names from environment
+- `.env` is the single source of truth
+- Never commit `.env` to git
+
+### 8. Testing
 
 ```python
 # GOLD STANDARD
@@ -129,21 +143,48 @@ class TestMyWorkflow:
         result = self.runtime.execute(workflow, {"data": "test"})
         assert "n" in result["results"]
         assert isinstance(result["run_id"], str)
+
+    def test_custom_node(self):
+        # Fresh registry+runtime for custom node (register before Runtime)
+        registry = kailash.NodeRegistry()
+        def upper(inputs):
+            return {"result": inputs["text"].upper()}
+        registry.register_callback("UpperNode", upper, ["text"], ["result"])
+        runtime = kailash.Runtime(registry)
+        # ... build and execute
 ```
 
 - Real execution, no mocking of kailash internals
+- One registry/runtime per test class (or function)
 - Assert on actual results
+- Test error cases too
+
+## DataFlow Standards
+
+- Never manually set `created_at`/`updated_at`
+- Primary key must be named `id`
+- `Create{Model}` uses flat params; `Update{Model}` uses `filter` + `fields`
+- One DataFlow instance per database connection
+- String IDs preserved (no UUID conversion)
+
+## Framework Integration Standards
+
+- Import frameworks from their namespaced modules
+- Don't mix v0.12 and v2 patterns in the same file
+- Use compat layer only during migration, not for new code
+- All compat patterns emit DeprecationWarning — this is expected
 
 ## Anti-Patterns (NEVER do these)
 
-| Anti-Pattern                             | Gold Standard                            |
-| ---------------------------------------- | ---------------------------------------- |
-| `builder.build()` without registry       | `builder.build(registry)`                |
-| `results, run_id = runtime.execute(...)` | `result = runtime.execute(...)` (dict)   |
-| `from kailash._kailash import X`         | `import kailash`                         |
-| `MyNode()` class instantiation           | `builder.add_node("MyNode", "id", {})`   |
-| `builder.connect("a", "b")` (2 params)   | `builder.connect("a", "out", "b", "in")` |
-| Async callback                           | Synchronous callback                     |
-| Register after Runtime                   | Register before Runtime                  |
-| Hardcoded API key                        | `os.environ["API_KEY"]`                  |
-| Mocking kailash internals in tests       | Real execution                           |
+| Anti-Pattern                             | Gold Standard                                                                    |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `builder.build()` without registry       | `builder.build(registry)`                                                        |
+| `results, run_id = runtime.execute(...)` | `result = runtime.execute(...)` (dict with `results`, `run_id`, `metadata` keys) |
+| `from kailash._kailash import X`         | `import kailash`                                                                 |
+| `MyNode()` class instantiation           | `builder.add_node("MyNode", "id", {})`                                           |
+| `builder.connect("a", "b")` (2 params)   | `builder.connect("a", "out", "b", "in")`                                         |
+| Async callback                           | Synchronous callback                                                             |
+| Register after Runtime                   | Register before Runtime                                                          |
+| Hardcoded API key                        | `os.environ["API_KEY"]`                                                          |
+| `except: pass`                           | `except RuntimeError as e: log(e)`                                               |
+| Mocking kailash internals in tests       | Real execution                                                                   |

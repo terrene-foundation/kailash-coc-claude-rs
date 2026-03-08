@@ -1,11 +1,11 @@
 ---
 name: gold-parameter-passing
-description: "Parameter passing standard with three methods, explicit parameter declaration, parameter scoping, and enterprise security patterns. Use when asking 'parameter standard', 'parameter gold', 'parameter validation', 'parameter security', or 'parameter compliance'."
+description: "Parameter passing standard for the Kailash Rust SDK with three methods: node configuration, workflow connections, and runtime inputs. Use when asking 'parameter standard', 'parameter gold', 'parameter validation', 'parameter security', or 'parameter compliance'."
 ---
 
 # Gold Standard: Parameter Passing
 
-Parameter passing compliance standard with three methods, automatic unwrapping, and security patterns.
+Parameter passing compliance standard with three methods for the Kailash Rust SDK.
 
 > **Skill Metadata**
 > Category: `gold-standards`
@@ -22,219 +22,194 @@ Parameter passing compliance standard with three methods, automatic unwrapping, 
 
 ### Method 1: Node Configuration (Most Reliable)
 
-```python
-import kailash
+```rust
+use kailash_core::WorkflowBuilder;
+use kailash_core::value::{Value, ValueMap};
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv",
-    "delimiter": ",",
-    "has_header": True
-})
+let mut builder = WorkflowBuilder::new();
+builder.add_node("CSVReaderNode", "reader", ValueMap::from([
+    ("file_path".into(), Value::String("data.csv".into())),
+    ("delimiter".into(), Value::String(",".into())),
+    ("has_header".into(), Value::Bool(true)),
+]));
 ```
 
 **Use when**: Static values, test fixtures, default settings
 
 ### Method 2: Workflow Connections (Dynamic Data Flow)
 
-```python
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
-builder.add_node("DataTransformerNode", "transformer", {})
+```rust
+builder.add_node("CSVReaderNode", "reader", ValueMap::from([
+    ("file_path".into(), Value::String("data.csv".into())),
+]));
+builder.add_node("DataMapperNode", "transformer", ValueMap::new());
 
-# Pass data between nodes (4-parameter syntax)
-builder.connect("reader", "data", "transformer", "input_data")
+// Pass data between nodes (4-parameter syntax)
+builder.connect("reader", "data", "transformer", "input_data");
 ```
 
 **Use when**: Dynamic data flow, pipelines, transformations
 
-### Method 3: Runtime Parameters (User Input)
+### Method 3: Runtime Inputs (User Input)
 
-```python
+```rust
+use kailash_core::{Runtime, RuntimeConfig, NodeRegistry};
+use std::sync::Arc;
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(
-    builder.build(reg),
-    parameters={
-        "reader": {"file_path": "custom.csv"},
-        "transformer": {"operation": "normalize"}
-    }
-)
+let registry = Arc::new(NodeRegistry::default());
+let workflow = builder.build(&registry)?;
+let runtime = Runtime::new(RuntimeConfig::default(), registry);
+
+// Pass inputs at execution time
+let inputs = ValueMap::from([
+    ("file_path".into(), Value::String("custom.csv".into())),
+    ("operation".into(), Value::String("normalize".into())),
+]);
+
+let result = runtime.execute(&workflow, inputs).await?;
 ```
 
 **Use when**: User input, environment overrides, dynamic values
 
-## Parameter Scoping
+## Explicit Parameter Declaration (Node Trait)
 
-**Node-specific parameters are automatically unwrapped:**
+Custom nodes must declare parameters explicitly via `input_params()` and `output_params()`:
 
-```python
-# What you pass to runtime:
-parameters = {
-    "api_key": "global-key",      # Global param (all nodes)
-    "node1": {"value": 10},        # Node-specific for node1
-    "node2": {"value": 20}         # Node-specific for node2
+```rust
+use kailash_core::{Node, NodeError, ExecutionContext};
+use kailash_core::node::{ParamDef, ParamType};
+use kailash_core::value::{Value, ValueMap};
+use std::pin::Pin;
+use std::future::Future;
+
+pub struct CustomNode {
+    input_params: Vec<ParamDef>,
+    output_params: Vec<ParamDef>,
 }
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-rt.execute(builder.build(reg), parameters=parameters)
-
-# What node1 receives (unwrapped automatically):
-{
-    "api_key": "global-key",       # Global param
-    "value": 10                     # Unwrapped from nested dict
+impl CustomNode {
+    pub fn new() -> Self {
+        Self {
+            input_params: vec![
+                ParamDef::new("file_path", ParamType::String, true),   // Required
+                ParamDef::new("delimiter", ParamType::String, false),   // Optional
+            ],
+            output_params: vec![ParamDef::new("data", ParamType::Any, false)],
+        }
+    }
 }
-# node1 does NOT receive node2's parameters (isolated)
-```
 
-**Scoping Rules:**
+impl Node for CustomNode {
+    fn type_name(&self) -> &str { "CustomNode" }
 
-1. **Parameters filtered by node ID**: Only relevant params passed to each node
-2. **Node-specific params unwrapped**: Contents extracted from nested dict
-3. **Global params included**: Top-level non-node-ID keys go to all nodes
-4. **Other nodes' params excluded**: Prevents parameter leakage
+    fn input_params(&self) -> &[ParamDef] {
+        &self.input_params
+    }
 
-## Explicit Parameter Declaration (Security)
+    fn output_params(&self) -> &[ParamDef] {
+        &self.output_params
+    }
 
-Custom nodes must declare input and output parameters explicitly via `register_callback()`:
+    fn execute(
+        &self,
+        inputs: ValueMap,
+        _ctx: &ExecutionContext,
+    ) -> Pin<Box<dyn Future<Output = Result<ValueMap, NodeError>> + Send + '_>> {
+        Box::pin(async move {
+            let file_path = inputs.get("file_path")
+                .and_then(|v| v.as_str())
+                .ok_or(NodeError::MissingInput { name: "file_path".to_string() })?;
 
-```python
-reg = kailash.NodeRegistry()
+            let delimiter = inputs.get("delimiter")
+                .and_then(|v| v.as_str())
+                .unwrap_or(",");
 
-def csv_processor(inputs):
-    """Process CSV file with explicit parameter handling."""
-    file_path = inputs["file_path"]        # Required - must be provided
-    delimiter = inputs.get("delimiter", ",")  # Optional with default
-    return {"data": process_file(file_path, delimiter)}
-
-# Declare ALL expected inputs and outputs at registration time
-reg.register_callback(
-    "CSVProcessor",
-    csv_processor,
-    ["file_path", "delimiter"],   # input parameter names (explicit declaration)
-    ["data"]                       # output parameter names
-)
-
-# Pass parameters via config dict
-builder.add_node("CSVProcessor", "reader", {
-    "file_path": "data.csv",
-    "delimiter": ","
-})
+            let data = process_file(file_path, delimiter)?;
+            Ok(ValueMap::from([("data".into(), data)]))
+        })
+    }
+}
 ```
 
 **Why explicit declaration?**
 
-- **Security**: Only declared inputs are passed to the handler
+- **Security**: Prevents parameter injection attacks
 - **Compliance**: Enables parameter tracking and auditing
-- **Debugging**: Clear parameter expectations at registration time
+- **Debugging**: Clear parameter expectations via `input_params()`
 - **Testing**: Testable parameter contracts
-- **Isolation**: Automatic scoping prevents data leakage
-
-## Parameter Naming
-
-### Using "metadata" as a Parameter Name
-
-You can use `metadata` as a parameter name in custom nodes:
-
-```python
-reg = kailash.NodeRegistry()
-
-def custom_handler(inputs):
-    data = inputs["data"]
-    metadata = inputs.get("metadata")
-    processed = data.upper()
-    return {"data": processed, "metadata": metadata}
-
-reg.register_callback(
-    "CustomNode",
-    custom_handler,
-    ["data", "metadata"],       # "metadata" is a valid parameter name
-    ["data", "metadata"]
-)
-
-# Pass metadata via config dict
-builder.add_node("CustomNode", "node1", {
-    "data": "hello",
-    "metadata": {"source": "api", "version": 2}
-})
-```
-
-### Reserved Names
-
-The only reserved parameter name is `_node_id`:
-
-```python
-# ❌ Do not use _node_id as input or output name
-reg.register_callback("MyNode", handler, ["_node_id"], ["result"])
-```
+- **Validation**: `builder.build(&registry)?` validates connections against declared params
 
 ## Common Pitfalls
 
-### Pitfall 1: Empty Input Declaration
+### Pitfall 1: Missing Required Input Handling
 
-```python
-# WRONG - No inputs declared
-reg.register_callback("BadNode", handler, [], ["result"])
-# Handler receives empty inputs dict!
+```rust
+// ❌ WRONG - panics on missing input
+fn execute(&self, inputs: ValueMap, _ctx: &ExecutionContext) -> ... {
+    Box::pin(async move {
+        let value = inputs["key"].clone(); // Panics if key missing!
+        Ok(ValueMap::from([("result".into(), value)]))
+    })
+}
 
-# CORRECT - Explicit input declaration
-reg.register_callback("GoodNode", handler, ["config"], ["result"])
+// ✅ CORRECT - use .get() with proper error
+fn execute(&self, inputs: ValueMap, _ctx: &ExecutionContext) -> ... {
+    Box::pin(async move {
+        let value = inputs.get("key")
+            .ok_or(NodeError::MissingInput { name: "key".to_string() })?;
+        Ok(ValueMap::from([("result".into(), value.clone())]))
+    })
+}
 ```
 
-### Pitfall 2: Using Class-Based Node Pattern (Does NOT Exist)
+### Pitfall 2: Type Mismatches
 
-```python
-# WRONG - No Node base class, no get_parameters(), no NodeParameter in Rust binding
-class MyNode(Node):                         # ❌ Node class doesn't exist
-    def get_parameters(self):               # ❌ get_parameters() doesn't exist
-        return {"param": NodeParameter(...)}  # ❌ NodeParameter doesn't exist
+```rust
+// ❌ WRONG - assumes type without checking
+let count = inputs.get("count").unwrap().as_i64().unwrap();
 
-# CORRECT - Use register_callback()
-def my_handler(inputs):
-    return {"result": inputs.get("param", "")}
-
-reg.register_callback("MyNode", my_handler, ["param"], ["result"])
+// ✅ CORRECT - check type and provide error context
+let count = inputs.get("count")
+    .and_then(|v| v.as_i64())
+    .ok_or_else(|| NodeError::ExecutionFailed {
+        message: "count must be an integer".to_string(),
+        source: None,
+    })?;
 ```
 
-## Validation Errors
+## Build-Time Validation
 
-**Validation failures now raise ValueError:**
-
-```python
-try:
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-except ValueError as e:
-    print(f"Configuration error: {e}")
-
-try:
-    builder.build(reg)  # Validates parameters
-except ValueError as e:  # Missing required parameters
-    print(f"Parameter error: {e}")
+```rust
+// build() validates the workflow DAG, connections, and node types
+let registry = Arc::new(NodeRegistry::default());
+match builder.build(&registry) {
+    Ok(workflow) => {
+        // Workflow is valid — safe to execute
+        let result = runtime.execute(&workflow, inputs).await?;
+    }
+    Err(e) => {
+        // Build errors: missing nodes, invalid connections, cycles
+        tracing::error!(error = %e, "workflow validation failed");
+        return Err(e.into());
+    }
+}
 ```
 
 ## Related Patterns
 
-- **For runtime execution**: See [`runtime-execution`](../01-core-sdk/runtime-execution.md)
-- **For workflow basics**: See [`workflow-quickstart`](../01-core-sdk/workflow-quickstart.md)
-- **For quick reference**: See [`param-passing-quick`](../01-core-sdk/param-passing-quick.md)
-
-## Documentation References
-
-### Internal Implementation
-
-- `src/kailash/runtime/local.py:1621-1640` - Parameter scoping implementation
+- **For workflow basics**: See [`CLAUDE.md`](../../../../CLAUDE.md) (Essential Patterns section)
+- **For custom nodes**: See [`gold-custom-nodes`](gold-custom-nodes.md)
+- **For error handling**: See [`gold-error-handling`](gold-error-handling.md)
 
 ## Quick Tips
 
 - Use Method 1 (node configuration) for tests - most reliable
 - Use Method 2 (connections) for dynamic data flow between nodes
-- Use Method 3 (runtime parameters) for user input and overrides
-- Always declare inputs/outputs explicitly via `register_callback()`
-- Parameter scoping prevents data leakage automatically
-- Validation errors raise ValueError
+- Use Method 3 (runtime inputs) for user input and overrides
+- Always declare parameters explicitly in custom nodes via `input_params()`
+- Use `?` operator for error propagation, never `unwrap()` in production
+- `builder.build(&registry)?` is the validation boundary
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: parameter standard, parameter gold, parameter validation, parameter security, parameter scoping, parameter compliance, parameter isolation, unwrap parameters -->
+<!-- Trigger Keywords: parameter standard, parameter gold, parameter validation, parameter security, parameter scoping, parameter compliance, parameter isolation, ValueMap parameters -->

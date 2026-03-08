@@ -2,11 +2,15 @@
 
 Use the 4 framework modules from Python: DataFlow, Enterprise, Kaizen, Nexus.
 
+## Usage
+
+`/python-framework-bindings` -- Quick reference for all framework Python APIs
+
 ---
 
 ## Overview
 
-Full Python bindings are available for all 4 Kailash frameworks. Each module exposes Rust-backed PyO3 types for performance-critical operations and pure-Python compat helpers for ergonomic patterns familiar to Python SDK users.
+Phase 12 added full Python bindings for all 4 Kailash frameworks. Each module exposes Rust-backed PyO3 types for performance-critical operations and pure-Python compat helpers for ergonomic patterns familiar to Python SDK users.
 
 | Module         | Rust PyO3 Types | Python Compat Helpers | Import                               |
 | -------------- | --------------- | --------------------- | ------------------------------------ |
@@ -15,7 +19,7 @@ Full Python bindings are available for all 4 Kailash frameworks. Each module exp
 | **Kaizen**     | 18              | 17+                   | `from kailash.kaizen import ...`     |
 | **Nexus**      | 10              | 8                     | `from kailash.nexus import ...`      |
 
-All Rust types are exposed through the public `kailash` module and framework subpackages (`kailash.dataflow`, `kailash.kaizen`, etc.). Never import from the internal `kailash._kailash` extension module directly.
+All Rust types are imported from the compiled `kailash._kailash` extension module. Python compat helpers are pure Python wrappers that build on top.
 
 ---
 
@@ -55,12 +59,10 @@ class User:
 
 # The decorator attaches a ModelDefinition instance:
 print(User._model_definition)
-# ModelDefinition(name="User", table="users", fields=6)  # 4 declared + 2 auto-timestamps
+# ModelDefinition(name='User', table='users', fields=4)
 ```
 
-Supported type annotations: `int`, `str`, `float`, `bool`, `datetime.datetime`, and `Optional[T]` variants. Using unsupported types (e.g., `list`, `dict`) raises `TypeError: unsupported type annotation`.
-
-> **Note**: `FieldDef` has no public constructor — field definitions are created internally by `@db.model` and `ModelDefinition.field()`. To add fields programmatically: `model.field(name, field_type, primary_key=False, nullable=False, required=False, soft_delete=False, default_value=None)`. `FieldType` variants are lowercase class methods: `FieldType.integer()`, `FieldType.text()`, `FieldType.real()`, `FieldType.boolean()`, `FieldType.float()`, `FieldType.json()`, `FieldType.timestamp()`, `FieldType.uuid()`.
+Supported type annotations: `int`, `str`, `float`, `bool`, `datetime.datetime`, and `Optional[T]` variants.
 
 ### Filter Builder (F)
 
@@ -142,9 +144,6 @@ from kailash.enterprise import set_audit_logger, get_audit_logger
 from kailash.enterprise import set_current_user, get_current_user
 from kailash.enterprise import set_current_tenant, get_current_tenant
 from kailash.enterprise import clear_context
-
-# Phase 17 -- Compliance, Policy, Tokens, SSO
-from kailash.enterprise import ComplianceManager, PolicyEngine, TokenManager, SSOProvider
 ```
 
 ### RBAC Setup
@@ -318,14 +317,7 @@ from kailash.kaizen.pipelines import (
     EnsemblePipeline,
     SupervisorPipeline,
 )
-
-# Phase 17 -- Structured Output, Multi-Agent, Observability
-from kailash.kaizen import StructuredOutput
-from kailash.kaizen import SupervisorAgent, WorkerAgent
-from kailash.kaizen import ObservabilityManager, MetricsCollector
 ```
-
-> **Known Issue**: OrchestrationRuntime.run() is a stub -- returns config dict instead of executing agents.
 
 ### BaseAgent (Subclass Pattern)
 
@@ -348,8 +340,6 @@ result = agent.execute("Hi there")
 # {"response": "Hello! You said: Hi there"}
 ```
 
-> **Known Issue**: BaseAgent.execute() currently raises NotImplementedError if not overridden. Pre-built agents (SimpleQAAgent, etc.) return static strings instead of making LLM calls. Use kailash.kaizen.Agent (Rust-backed) for actual LLM interaction.
-
 Class-level attributes can also be overridden via kwargs:
 
 ```python
@@ -368,14 +358,11 @@ class ToolAgent(BaseAgent):
         return {"response": f"Processed: {input_text}"}
 
 agent = ToolAgent()
-import ast
-
-# SECURITY: Never use eval() on user input -- use ast.literal_eval() for safe
-# evaluation of literal expressions (numbers, strings, lists, dicts, booleans).
 agent.register_tool(
     "calculate",
-    lambda args: {"result": ast.literal_eval(args.get("expression", "0"))},
-    description="Evaluate a literal expression safely",
+    # SECURITY: Never use eval() on user input. Use ast.literal_eval() for safe parsing.
+    lambda args: {"result": __import__('ast').literal_eval(args.get("expression", "0"))},
+    description="Evaluate a math expression",
     params=[
         {"name": "expression", "param_type": "string", "required": True},
     ],
@@ -400,8 +387,6 @@ agent.set_memory(memory)
 shared = SharedMemory()
 shared.store("global_config", {"key": "value"})
 ```
-
-> **Important**: Memory methods are store()/recall()/remove(), NOT set()/get()/delete().
 
 Note: the retrieval method is `recall()`, not `retrieve()`.
 
@@ -520,30 +505,6 @@ result = pipeline.run("Process this")
 
 Multi-channel deployment platform. Backend: axum + tower (Rust).
 
-> **Known Issue**: MCP Server (McpServer) has no transport bindings exposed to Python. Cannot serve MCP requests from Python.
-
-### McpServer
-
-```python
-from kailash.nexus import McpServer, HandlerParam
-
-# Both args required
-server = McpServer("my-server", "1.0.0")
-
-# Register tools (name, description, params)
-server.register_tool(
-    "search",
-    "Search for items",
-    [HandlerParam("query", "string", required=True)],
-)
-
-print(server.name)         # "my-server"
-print(server.version)      # "1.0.0"
-print(server.tool_count()) # 1
-```
-
-> **Note**: McpServer cannot serve requests — no transport bindings are exposed to Python. Use it for tool registration and metadata only.
-
 ### Imports
 
 ```python
@@ -560,13 +521,6 @@ from kailash.nexus import NexusAuthPlugin, SessionInfo, SessionStore
 
 # Python compat -- Middleware helpers
 from kailash.nexus import preset_to_middleware, cors, rate_limit
-
-# Phase 17 -- PluginManager, EventBus, WorkflowRegistry
-from kailash.nexus import PluginManager, EventBus, WorkflowRegistry
-
-# Phase 17 -- MCP Application
-from kailash.mcp import McpApplication, prompt_argument
-from kailash.nexus.mcp import STDIO, SSE, HTTP
 ```
 
 ### NexusApp with @handler() Decorator
@@ -639,7 +593,7 @@ from kailash.nexus import NexusAuthPlugin, SessionStore, JwtConfig, RbacConfig
 # Auth configuration bundle
 auth = NexusAuthPlugin(
     jwt=JwtConfig("secret-at-least-32-bytes-long!!"),
-    rbac=RbacConfig(roles={"admin": ["*"], "user": ["read"]}),
+    rbac=RbacConfig(["admin", "user"]),
     tenant_header="X-Tenant-ID",
 )
 
@@ -673,7 +627,7 @@ def search(query, limit=10):
     return {"query": query, "limit": limit}
 ```
 
-`HandlerParam` has `name` and `required` attributes but NOT `param_type`.
+`HandlerParam` accepts `param_type` as a constructor argument (e.g., `"string"`, `"integer"`, `"float"`, `"bool"`, `"object"`, `"array"`, `"any"`) but only exposes `name` and `required` as readable Python attributes. The `param_type` value is used internally for API documentation, CLI argument generation, and MCP tool schema but cannot be read back from the object.
 
 ---
 
@@ -764,43 +718,39 @@ class SecureAgent(BaseAgent):
 
 ### Enterprise Types
 
-| Type                      | Layer  | Purpose                                     |
-| ------------------------- | ------ | ------------------------------------------- |
-| `RbacEvaluator`           | Rust   | Role-based access control evaluator         |
-| `Role`                    | Rust   | Role definition with permissions            |
-| `Permission`              | Rust   | Resource + action permission                |
-| `User`                    | Rust   | User with roles                             |
-| `AbacPolicy`              | Rust   | Attribute-based access control policy       |
-| `AbacEvaluator`           | Rust   | ABAC evaluator (16 operators)               |
-| `AuditLogger`             | Rust   | Structured audit event logging              |
-| `AuditFilter`             | Rust   | Filter audit log entries                    |
-| `AccessDecision`          | Rust   | Access decision result                      |
-| `RbacPolicy`              | Rust   | RBAC policy definition                      |
-| `RbacPolicyBuilder`       | Rust   | Builder for RBAC policies                   |
-| `RoleBuilder`             | Rust   | Builder for roles                           |
-| `SecurityClassification`  | Rust   | Data classification level                   |
-| `EnterpriseContext`       | Rust   | Enterprise-wide context                     |
-| `TenantStatus`            | Rust   | Tenant status enum                          |
-| `TenantInfo`              | Rust   | Tenant metadata                             |
-| `EnterpriseTenantContext` | Rust   | Tenant context for enterprise               |
-| `TenantRegistry`          | Rust   | Registry of tenants                         |
-| `ComplianceManager`       | Rust   | Regulatory compliance evaluation (P17)      |
-| `PolicyEngine`            | Rust   | Fine-grained policy eval + versioning (P17) |
-| `TokenManager`            | Rust   | JWT/opaque/API key token lifecycle (P17)    |
-| `SSOProvider`             | Rust   | SSO integration (OIDC/SAML) (P17)           |
-| `CombinedEvaluator`       | Python | Unified RBAC + ABAC evaluator               |
-| `requires_permission`     | Python | RBAC gate decorator                         |
-| `audit_action`            | Python | Audit trail decorator                       |
-| `tenant_scoped`           | Python | Tenant injection decorator                  |
-| `set_current_user`        | Python | Set user in context (contextvars)           |
-| `get_current_user`        | Python | Get user from context                       |
-| `set_current_tenant`      | Python | Set tenant in context                       |
-| `get_current_tenant`      | Python | Get tenant from context                     |
-| `clear_context`           | Python | Reset user and tenant to None               |
-| `set_evaluator`           | Python | Set module-level RBAC evaluator             |
-| `get_evaluator`           | Python | Get module-level RBAC evaluator             |
-| `set_audit_logger`        | Python | Set module-level audit logger               |
-| `get_audit_logger`        | Python | Get module-level audit logger               |
+| Type                      | Layer  | Purpose                               |
+| ------------------------- | ------ | ------------------------------------- |
+| `RbacEvaluator`           | Rust   | Role-based access control evaluator   |
+| `Role`                    | Rust   | Role definition with permissions      |
+| `Permission`              | Rust   | Resource + action permission          |
+| `User`                    | Rust   | User with roles                       |
+| `AbacPolicy`              | Rust   | Attribute-based access control policy |
+| `AbacEvaluator`           | Rust   | ABAC evaluator (16 operators)         |
+| `AuditLogger`             | Rust   | Structured audit event logging        |
+| `AuditFilter`             | Rust   | Filter audit log entries              |
+| `AccessDecision`          | Rust   | Access decision result                |
+| `RbacPolicy`              | Rust   | RBAC policy definition                |
+| `RbacPolicyBuilder`       | Rust   | Builder for RBAC policies             |
+| `RoleBuilder`             | Rust   | Builder for roles                     |
+| `SecurityClassification`  | Rust   | Data classification level             |
+| `EnterpriseContext`       | Rust   | Enterprise-wide context               |
+| `TenantStatus`            | Rust   | Tenant status enum                    |
+| `TenantInfo`              | Rust   | Tenant metadata                       |
+| `EnterpriseTenantContext` | Rust   | Tenant context for enterprise         |
+| `TenantRegistry`          | Rust   | Registry of tenants                   |
+| `CombinedEvaluator`       | Python | Unified RBAC + ABAC evaluator         |
+| `requires_permission`     | Python | RBAC gate decorator                   |
+| `audit_action`            | Python | Audit trail decorator                 |
+| `tenant_scoped`           | Python | Tenant injection decorator            |
+| `set_current_user`        | Python | Set user in context (contextvars)     |
+| `get_current_user`        | Python | Get user from context                 |
+| `set_current_tenant`      | Python | Set tenant in context                 |
+| `get_current_tenant`      | Python | Get tenant from context               |
+| `clear_context`           | Python | Reset user and tenant to None         |
+| `set_evaluator`           | Python | Set module-level RBAC evaluator       |
+| `get_evaluator`           | Python | Get module-level RBAC evaluator       |
+| `set_audit_logger`        | Python | Set module-level audit logger         |
+| `get_audit_logger`        | Python | Get module-level audit logger         |
 
 ### Kaizen Types
 
@@ -844,11 +794,6 @@ class SecureAgent(BaseAgent):
 | `RouterPipeline`            | Python | Input-based routing pipeline        |
 | `EnsemblePipeline`          | Python | Ensemble (voting/best) pipeline     |
 | `SupervisorPipeline`        | Python | Supervisor-worker pipeline          |
-| `StructuredOutput`          | Python | Typed agent output schema (P17)     |
-| `SupervisorAgent`           | Python | Supervisor for multi-agent (P17)    |
-| `WorkerAgent`               | Python | Worker for multi-agent (P17)        |
-| `ObservabilityManager`      | Python | Agent observability hub (P17)       |
-| `MetricsCollector`          | Python | Agent metrics collection (P17)      |
 
 ### Nexus Types
 
@@ -871,16 +816,30 @@ class SecureAgent(BaseAgent):
 | `preset_to_middleware` | Python | Convert preset name to MiddlewareConfig |
 | `cors`                 | Python | CORS middleware helper                  |
 | `rate_limit`           | Python | Rate limit middleware helper            |
-| `PluginManager`        | Rust   | Plugin lifecycle manager (P17)          |
-| `EventBus`             | Rust   | Pub/sub event system (P17)              |
-| `WorkflowRegistry`     | Rust   | Standalone workflow registry (P17)      |
 
-### MCP Types (Phase 17)
+---
 
-| Type              | Layer  | Purpose                          |
-| ----------------- | ------ | -------------------------------- |
-| `McpApplication`  | Python | Decorator-based MCP server (P17) |
-| `prompt_argument` | Python | Prompt argument helper (P17)     |
-| `STDIO`           | Rust   | STDIO transport constant (P17)   |
-| `SSE`             | Rust   | SSE transport constant (P17)     |
-| `HTTP`            | Rust   | HTTP transport constant (P17)    |
+## Source Files
+
+| File                                                              | Purpose                                      |
+| ----------------------------------------------------------------- | -------------------------------------------- |
+| `bindings/kailash-python/python/kailash/__init__.py`              | Root package, all re-exports from `_kailash` |
+| `bindings/kailash-python/python/kailash/dataflow/__init__.py`     | DataFlow module entry                        |
+| `bindings/kailash-python/python/kailash/dataflow/model.py`        | `@db.model` decorator                        |
+| `bindings/kailash-python/python/kailash/dataflow/filter.py`       | `F` filter builder                           |
+| `bindings/kailash-python/python/kailash/dataflow/tenancy.py`      | `with_tenant` context manager                |
+| `bindings/kailash-python/python/kailash/enterprise/__init__.py`   | Enterprise module entry                      |
+| `bindings/kailash-python/python/kailash/enterprise/combined.py`   | `CombinedEvaluator`                          |
+| `bindings/kailash-python/python/kailash/enterprise/context.py`    | Context variables                            |
+| `bindings/kailash-python/python/kailash/enterprise/decorators.py` | Decorators                                   |
+| `bindings/kailash-python/python/kailash/kaizen/__init__.py`       | Kaizen module entry                          |
+| `bindings/kailash-python/python/kailash/kaizen/agent.py`          | `BaseAgent`                                  |
+| `bindings/kailash-python/python/kailash/kaizen/hooks.py`          | `HookManager`                                |
+| `bindings/kailash-python/python/kailash/kaizen/signature.py`      | `Signature` system                           |
+| `bindings/kailash-python/python/kailash/kaizen/control.py`        | `InterruptManager`, `ControlProtocol`        |
+| `bindings/kailash-python/python/kailash/kaizen/agents/`           | 7 agent subclasses                           |
+| `bindings/kailash-python/python/kailash/kaizen/pipelines/`        | 5 pipeline patterns                          |
+| `bindings/kailash-python/python/kailash/nexus/__init__.py`        | Nexus module entry                           |
+| `bindings/kailash-python/python/kailash/nexus/app.py`             | `NexusApp`                                   |
+| `bindings/kailash-python/python/kailash/nexus/auth.py`            | Auth helpers                                 |
+| `bindings/kailash-python/python/kailash/nexus/middleware.py`      | Middleware helpers                           |

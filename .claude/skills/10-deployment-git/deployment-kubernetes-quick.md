@@ -33,43 +33,38 @@ spec:
         - name: app
           image: my-kailash-app:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
           env:
-            - name: RUNTIME_TYPE
-              value: "async"
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: kailash-secrets
                   key: openai-api-key
-            - name: DEFAULT_LLM_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: kailash-config
-                  key: default-llm-model
             - name: DATABASE_URL
               valueFrom:
-                configMapKeyRef:
-                  name: kailash-config
+                secretKeyRef:
+                  name: kailash-secrets
                   key: database-url
+            - name: RUNTIME_TYPE
+              value: "async"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "128Mi"
+              cpu: "100m"
             limits:
               memory: "512Mi"
               cpu: "500m"
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
-            initialDelaySeconds: 30
+              port: 3000
+            initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
-              port: 8000
-            initialDelaySeconds: 5
+              port: 3000
+            initialDelaySeconds: 3
             periodSeconds: 5
 ```
 
@@ -87,7 +82,7 @@ spec:
     app: kailash-app
   ports:
     - port: 80
-      targetPort: 8000
+      targetPort: 3000
 ```
 
 ### ConfigMap
@@ -99,26 +94,22 @@ kind: ConfigMap
 metadata:
   name: kailash-config
 data:
-  database-url: postgresql://user@db:5432/mydb
-  default-llm-model: gpt-4o # Set model via config, not hardcoded in code
+  environment: production
+  log-level: info
 ```
 
 ### Secret
 
 ```yaml
-# secret.yaml
-# EXAMPLE ONLY — never commit real credentials.
-# In production use a secrets manager (Vault, AWS Secrets Manager, SOPS)
-# or create secrets from literals: kubectl create secret generic ...
+# secret.yaml — EXAMPLE ONLY, use `kubectl create secret` or external secrets manager in production
 apiVersion: v1
 kind: Secret
 metadata:
   name: kailash-secrets
 type: Opaque
 data:
-  # Values below are placeholders. Generate real secrets with:
-  #   echo -n "your-real-key" | base64
   openai-api-key: <base64-encoded-key>
+  database-url: <base64-encoded-url>   # e.g. base64 of postgresql://user:pass@db:5432/mydb
 ```
 
 ## Deployment Commands
@@ -141,13 +132,21 @@ kubectl logs -f deployment/kailash-app
 kubectl scale deployment kailash-app --replicas=5
 ```
 
+## Kailash Framework Notes
+
+- **Nexus** serves on port 3000 by default with a built-in `/health` endpoint
+- **DataFlow** requires `DATABASE_URL` — pass via Secret, not ConfigMap
+- **Kaizen** agents may need `OPENAI_API_KEY` or other LLM provider keys
+- **RUNTIME_TYPE=async** is recommended for all Kailash deployments (Rust async runtime)
+- Rust binary cold-starts in ~10ms — set low `initialDelaySeconds` on probes
+
 ## Best Practices
 
-1. **Health checks** - Liveness and readiness probes
-2. **Resource limits** - Set memory/CPU limits
-3. **Secrets** - Use Kubernetes secrets for sensitive data
-4. **ConfigMaps** - For configuration
-5. **Horizontal scaling** - Multiple replicas
+1. **Health checks** - Liveness and readiness probes (Nexus provides `/health`)
+2. **Resource limits** - Set memory/CPU limits (Rust binaries are lightweight: 128Mi-512Mi typical)
+3. **Secrets** - Use Kubernetes secrets or external secrets manager (Vault, AWS Secrets Manager) for credentials
+4. **ConfigMaps** - For non-sensitive configuration only
+5. **Horizontal scaling** - Multiple replicas with HPA
 6. **Rolling updates** - Zero-downtime deployments
 
 <!-- Trigger Keywords: kubernetes deployment, k8s kailash, kubernetes setup, k8s workflows -->

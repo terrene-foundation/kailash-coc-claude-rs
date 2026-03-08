@@ -1,342 +1,144 @@
----
-name: workflow-quickstart
-description: "Create basic Kailash workflows with WorkflowBuilder. Use when asking 'create workflow', 'workflow template', 'basic workflow', 'how to start', 'workflow setup', 'make workflow', 'build workflow', or 'new workflow'."
----
+# Workflow Quickstart Skill
 
-# Workflow Quick Start
+The fastest path to a running Kailash workflow.
 
-Create basic Kailash workflows using WorkflowBuilder pattern with string-based nodes and 4-parameter connections.
+## Usage
 
-> **Skill Metadata**
-> Category: `core-sdk`
-> Priority: `CRITICAL`
-> Related Skills: [`connection-patterns`](../connection-patterns.md), [`node-patterns-common`](../node-patterns-common.md), [`runtime-execution`](../runtime-execution.md), [`param-passing-quick`](../param-passing-quick.md)
-> Related Subagents: `pattern-expert` (complex workflows), `sdk-navigator` (finding nodes)
+`/workflow-quickstart` -- Generate a complete working workflow with NodeRegistry, WorkflowBuilder, and Runtime
 
-## Quick Reference
+## The Essential Pattern
 
-- **Import**: `import kailash` -- Rust-backed, all types from one import
-- **Pattern**: `WorkflowBuilder() -> add_node() -> connect() -> build()`
-- **CRITICAL**: Always call `.build()` before execution
-- **Node API**: String-based (e.g., `"CSVProcessorNode"`) not instance-based
+```rust
+use kailash_core::{WorkflowBuilder, NodeRegistry, Runtime, RuntimeConfig};
+use kailash_core::nodes::system::register_system_nodes;
+use kailash_core::nodes::transform::register_transform_nodes;
+use kailash_value::{Value, ValueMap};
+use std::sync::Arc;
 
-## Basic Workflow
+dotenvy::dotenv().ok();
 
-Available via `pip install kailash-enterprise`. All types come from a single `import kailash`.
+// 1. Build a NodeRegistry with the nodes you need
+let mut registry = NodeRegistry::new();
+register_system_nodes(&mut registry);     // NoOpNode, LogNode, HandlerNode
+register_transform_nodes(&mut registry);  // TextTransformNode, JSONTransformNode, etc.
+// Add more: register_http_nodes, register_ai_nodes, etc.
+let registry = Arc::new(registry);
 
-```python
-import kailash
+// 2. Build your workflow (validation happens at build() time)
+let mut builder = WorkflowBuilder::new();
+builder
+    .add_node("TextTransformNode", "uppercase", {
+        let mut config = ValueMap::new();
+        config.insert(Arc::from("operation"), Value::String(Arc::from("uppercase")));
+        config
+    })
+    .add_node("LogNode", "log", ValueMap::new())
+    .connect("uppercase", "result", "log", "data");  // source_node, source_output, target_node, target_input
 
-# 1. Create registry and builder
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+let workflow = builder.build(&registry)?;  // Validates types, resolves connections
 
-# 2. Add nodes (string-based, ALWAYS)
-builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"
-})
+// 3. Execute (async -- primary path)
+let runtime = Runtime::new(RuntimeConfig::default(), Arc::clone(&registry));
 
-builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'count': len(data)}"
-})
+let mut inputs = ValueMap::new();
+inputs.insert(Arc::from("text"), Value::String(Arc::from("hello world")));
 
-# 3. Connect nodes (4 parameters: source, source_output, target, target_input)
-builder.connect("reader", "data", "processor", "data")
+let result = runtime.execute(&workflow, inputs).await?;
+// result.run_id: String  -- unique run identifier
+// result.results: HashMap<String, ValueMap>  -- per-node outputs
 
-# 4. Build workflow (pass registry for validation)
-wf = builder.build(reg)
-
-# 5. Execute
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
-
-# result is a dict: {"results": {...}, "run_id": "...", "metadata": {...}}
-print(result["results"]["processor"]["count"])
+let uppercase_output = &result.results["uppercase"];
+println!("Result: {:?}", uppercase_output.get("result"));
 ```
 
-## Common Use Cases
+## Sync Execution (CLI/scripts)
 
-- **Data Processing**: Read files, transform data, write results
-- **API Integration**: Fetch data from APIs, process, store in database
-- **AI Workflows**: LLM agents with pre/post-processing steps
-- **ETL Pipelines**: Extract, transform, load data workflows
-- **Business Logic**: Multi-step business processes
-
-## Enhanced API Patterns
-
-### Auto ID Generation
-
-```python
-builder = kailash.WorkflowBuilder()
-
-# Auto-generate node IDs for rapid prototyping
-reader_id = builder.add_node_auto_id("CSVProcessorNode", {"file_path": "data.csv"})
-processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)"})
-
-# Use returned IDs for connections
-builder.connect(reader_id, "result", processor_id, "input_data")
+```rust
+// When you don't have an async context (e.g., in main() without #[tokio::main])
+let result = runtime.execute_sync(&workflow, inputs)?;
+// Same ExecutionResult -- just runs synchronously via internal tokio runtime
 ```
 
-### Flexible API Styles
+## Quick Template: 2-Node Pipeline
 
-All these patterns are equivalent and work correctly:
+```rust
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenvy::dotenv().ok();
 
-```python
-# 1. Current/Preferred Pattern
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "..."})
+    let mut registry = NodeRegistry::new();
+    register_system_nodes(&mut registry);
+    register_transform_nodes(&mut registry);
+    let registry = Arc::new(registry);
 
-# 2. Keyword-Only Pattern
-builder.add_node(node_type="EmbeddedPythonNode", node_id="processor", config={"code": "..."})
+    let mut builder = WorkflowBuilder::new();
+    builder
+        .add_node("TextTransformNode", "step1", {
+            let mut c = ValueMap::new();
+            c.insert(Arc::from("operation"), Value::String(Arc::from("uppercase")));
+            c
+        })
+        .add_node("LogNode", "step2", ValueMap::new())
+        .connect("step1", "result", "step2", "data");
 
-# 3. Mixed Pattern (common in existing code)
-builder.add_node("EmbeddedPythonNode", node_id="processor", config={"code": "..."})
+    let workflow = builder.build(&registry)?;
+    let runtime = Runtime::new(RuntimeConfig::default(), registry);
 
-# 4. Auto ID Pattern (returns generated ID)
-processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "..."})
+    let mut inputs = ValueMap::new();
+    inputs.insert(Arc::from("text"), Value::String(Arc::from("hello")));
+
+    let result = runtime.execute(&workflow, inputs).await?;
+    println!("Run ID: {}", result.run_id);
+    println!("Outputs: {:?}", result.results);
+    Ok(())
+}
 ```
 
-## Key Parameters / Options
+## Accessing Results
 
-### add_node(node_type, node_id, config)
+```rust
+let result = runtime.execute(&workflow, inputs).await?;
 
-| Parameter   | Type | Required | Description                                               |
-| ----------- | ---- | -------- | --------------------------------------------------------- |
-| `node_type` | str  | Yes      | Node class name as string (e.g., "CSVProcessorNode")      |
-| `node_id`   | str  | Yes\*    | Unique identifier for this node (\*optional with auto-ID) |
-| `config`    | dict | Yes      | Node configuration parameters                             |
+// Access output from a specific node
+if let Some(node_output) = result.results.get("my_node_id") {
+    if let Some(value) = node_output.get("output_key") {
+        println!("Got: {:?}", value);
+    }
+}
 
-### connect(source, source_output, target, target_input)
-
-| Parameter       | Type | Required | Description                   |
-| --------------- | ---- | -------- | ----------------------------- |
-| `source`        | str  | Yes      | Source node ID                |
-| `source_output` | str  | Yes      | Output field name from source |
-| `target`        | str  | Yes      | Target node ID                |
-| `target_input`  | str  | Yes      | Input field name on target    |
-
-## Common Mistakes
-
-### ❌ Mistake 1: Missing .build() Call
-
-```python
-# Wrong - missing .build()
-result = rt.execute(workflow)  # ERROR!
+// Iterate all node results
+for (node_id, outputs) in &result.results {
+    println!("Node '{}' produced {:?}", node_id, outputs.keys().collect::<Vec<_>>());
+}
 ```
 
-### ✅ Fix: Always Call .build()
+## RuntimeConfig Options
 
-```python
-# Correct
-result = rt.execute(builder.build(reg))  # ✓
+```rust
+let config = RuntimeConfig {
+    debug: true,                                          // Enable debug logging
+    enable_cycles: false,                                 // Allow cyclic workflows
+    max_concurrent_nodes: 8,                              // Semaphore-controlled parallelism
+    conditional_execution: ConditionalMode::SkipBranches, // Skip unmet branches
+    connection_validation: ValidationMode::Strict,         // Strict connection checking
+    ..RuntimeConfig::default()
+};
 ```
 
-### ❌ Mistake 2: Wrong Connection Parameters (Only 3)
+## Common Node Types (Quick Reference)
 
-```python
-# Wrong - only 3 parameters (deprecated)
-builder.connect("reader", "processor", "data")
+| Node Type           | Inputs                                   | Outputs                       | Notes                         |
+| ------------------- | ---------------------------------------- | ----------------------------- | ----------------------------- |
+| `NoOpNode`          | `data`                                   | `data`                        | Pass-through                  |
+| `LogNode`           | `data`, `level?`                         | `data`                        | Logs and passes through       |
+| `TextTransformNode` | `text`, `operation`                      | `result`                      | uppercase/lowercase/trim/etc. |
+| `JSONTransformNode` | `data`, `expression`                     | `result`                      | JMESPath transforms           |
+| `ConditionalNode`   | `condition`, `true_data?`, `false_data?` | `true_output`, `false_output` | Branch                        |
+| `SwitchNode`        | `value`, `cases`                         | `case_*`                      | Multi-branch                  |
+| `MergeNode`         | `inputs` (array)                         | `merged`                      | Combine streams               |
+
+## Verify
+
+```bash
+PATH="./.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- --nocapture 2>&1
 ```
-
-### ✅ Fix: Use 4 Parameters
-
-```python
-# Correct - 4 parameters (source + output → target + input)
-builder.connect("reader", "data", "processor", "data")
-```
-
-### ❌ Mistake 3: Instance-Based Nodes
-
-```python
-# Wrong - node classes are not importable in the Rust-backed package
-# from kailash.nodes import CSVProcessorNode  # ERROR: no such module
-builder.add_node("reader", CSVProcessorNode(file_path="data.csv"))
-```
-
-### ✅ Fix: String-Based Nodes
-
-```python
-# Correct - string-based (production pattern)
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
-```
-
-### ❌ Mistake 4: Wrong Execution Pattern
-
-```python
-# Wrong - builder doesn't have execute() method
-builder.execute(rt)  # ERROR!
-```
-
-### ✅ Fix: Runtime Executes Workflow
-
-```python
-# Correct - runtime executes workflow
-rt.execute(builder.build(reg))  # ✓
-```
-
-## Related Patterns
-
-- **For node connections**: [`connection-patterns`](../connection-patterns.md)
-- **For parameter passing**: [`param-passing-quick`](../param-passing-quick.md)
-- **For runtime options**: [`runtime-execution`](../runtime-execution.md)
-- **For common nodes**: [`node-patterns-common`](../node-patterns-common.md)
-- **For cyclic workflows**: [`workflow-pattern-cyclic`](../../09-workflow-patterns/workflow-pattern-cyclic.md)
-- **For code templates**: See `14-code-templates/` skills
-
-## When to Escalate to Subagent
-
-Use `pattern-expert` subagent when:
-
-- Implementing complex cyclic workflows
-- Designing multi-path conditional logic
-- Debugging advanced parameter passing issues
-- Creating custom nodes from scratch
-- Optimizing workflow performance
-
-Use `sdk-navigator` subagent when:
-
-- Need to find specific nodes for your use case
-- Looking for workflow examples in specific domains (finance, healthcare, etc.)
-- Exploring advanced features and enterprise patterns
-
-## Documentation References
-
-### Primary Sources
-
-- **Essential Pattern**: [`CLAUDE.md` (lines 106-137)](../../../CLAUDE.md#L106-L137)
-
-## Examples
-
-### Example 1: Simple CSV Processing
-
-```python
-import kailash
-
-reg = kailash.NodeRegistry()
-
-builder = kailash.WorkflowBuilder()
-
-# Read CSV file
-builder.add_node("CSVProcessorNode", "read_data", {
-    "file_path": "input.csv"
-})
-
-# Transform data with EmbeddedPythonNode
-builder.add_node("EmbeddedPythonNode", "transform", {
-    "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-df['total'] = df['quantity'] * df['price']
-result = df.to_dict('records')
-"""
-})
-
-# Write results
-builder.add_node("FileWriterNode", "write_data", {
-    "file_path": "output.csv"
-})
-
-# Connect the pipeline
-builder.connect("read_data", "data", "transform", "data")
-builder.connect("transform", "result", "write_data", "data")
-
-# Execute
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-print(f"Processed {len(result["results"]['transform']['result']['result'])} records")  # Nested 'result' keys
-```
-
-### Example 2: Data Processing ETL
-
-```python
-builder = kailash.WorkflowBuilder()
-
-# Extract (simulate data source)
-builder.add_node("EmbeddedPythonNode", "extract", {
-    "code": "result = {'data': [{'amount': 150}, {'amount': 50}, {'amount': 200}]}"
-})
-
-# Transform (filter and process)
-builder.add_node("EmbeddedPythonNode", "transform", {
-    "code": """
-data = input_data.get('data', [])
-filtered = [item for item in data if item.get('amount', 0) > 100]
-transformed = [{'id': i, 'total': item['amount'] * 1.1} for i, item in enumerate(filtered)]
-result = transformed
-"""
-})
-
-# Load (save results)
-builder.add_node("EmbeddedPythonNode", "load", {
-    "code": "result = {'saved': len(input_data), 'status': 'complete'}"
-})
-
-# Connect the pipeline
-builder.connect("extract", "result", "transform", "input_data")
-builder.connect("transform", "result", "load", "input_data")
-
-# Execute
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-print(f"Processed {result["results"]['load']['result']['saved']} items")
-```
-
-### Example 3: API Data Collection
-
-```python
-builder = kailash.WorkflowBuilder()
-
-# Fetch from API
-builder.add_node("HTTPRequestNode", "fetch_data", {
-    "url": "https://api.example.com/data",
-    "method": "GET",
-    "headers": {"Authorization": "Bearer TOKEN"}
-})
-
-# Process response
-builder.add_node("EmbeddedPythonNode", "extract", {
-    "code": """
-import json
-data = json.loads(response)
-result = [item for item in data['items'] if item['active']]
-"""
-})
-
-# Store in database
-builder.add_node("SQLQueryNode", "store", {
-    "connection_string": "postgresql://localhost/db",
-    "query": "INSERT INTO data_table (json_data) VALUES (:data)",
-    "params": {"data": "${extract.result}"}
-})
-
-builder.connect("fetch_data", "response", "extract", "response")
-builder.connect("extract", "result", "store", "data")
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-```
-
-## Troubleshooting
-
-| Issue                                                                 | Cause                                               | Solution                                                                      |
-| --------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `AttributeError: 'WorkflowBuilder' object has no attribute 'execute'` | Calling `.execute()` on workflow instead of runtime | Use `rt.execute(builder.build(reg))` — see `15-error-troubleshooting/` skills |
-| `Node 'X' not found in workflow`                                      | Node ID mismatch in connections                     | Verify node IDs match exactly between `add_node()` and `connect()`            |
-| `TypeError: connect() takes 5 positional arguments but 4 were given`  | Using old 3-parameter syntax                        | Update to 4 parameters: `(source, source_output, target, target_input)`       |
-| `ValidationError: Missing required parameter 'X'`                     | Node config missing required fields                 | Check node documentation or use `node-patterns-common` for examples           |
-
-## Quick Tips
-
-- 💡 **Always build first**: Call `.build()` before `.execute()` - this is the #1 mistake
-- 💡 **String-based nodes**: Use `"CSVProcessorNode"` (string), not `CSVProcessorNode()` (instance)
-- 💡 **Unique node IDs**: Each node needs a unique ID within the workflow (or use auto-ID)
-- 💡 **4-parameter connections**: Source (node + output) → Target (node + input)
-- 💡 **Nested output access**: Use dot notation: `"result.data"` for nested fields
-- 💡 **Check examples**: Browse the workflow pattern skills for domain-specific examples
-
-## Version Notes
-
-- Rust-backed engine via `import kailash`
-- String-based nodes are the production pattern
-- Auto ID generation available for rapid prototyping
-
-<!-- Trigger Keywords: create workflow, workflow template, basic workflow, how to start, workflow setup, make workflow, build workflow, new workflow, workflow example, workflow quickstart, WorkflowBuilder, workflow pattern, create kailash workflow, how to create workflow -->

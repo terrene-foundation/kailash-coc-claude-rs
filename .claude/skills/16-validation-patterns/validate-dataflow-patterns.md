@@ -12,12 +12,12 @@ description: "Validate DataFlow compliance patterns. Use when asking 'validate d
 ## DataFlow Compliance Checks
 
 ```python
-# ✅ CORRECT: Use @df.model decorator
+# ✅ CORRECT: Use @db.model decorator
 import kailash
 
 df = kailash.DataFlow("sqlite:///app.db")
 
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -32,7 +32,7 @@ class User:
 
 ## Validation Rules
 
-1. **Use @df.model** - Not manual SQL
+1. **Use @db.model** - Not manual SQL
 2. **Use generated nodes** - UserCreateNode, UserReadNode
 3. **String IDs** - Required for all models
 4. **No direct SQLAlchemy** - DataFlow handles it

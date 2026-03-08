@@ -89,7 +89,7 @@ result = rt.execute(workflow)  # ❌ Missing .build(reg)
 ```python
 # ✅ VALID
 rt.execute(builder.build(reg))
-rt.execute(builder.build(reg), parameters={...})
+rt.execute(builder.build(reg), inputs={...})
 
 # ❌ INVALID
 workflow.execute(runtime)
