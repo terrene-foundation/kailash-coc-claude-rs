@@ -1,63 +1,91 @@
-# Resource Registry
+# Resource Sharing Patterns
 
-You are an expert in resource registry patterns for sharing resources across workflows in Kailash SDK.
+Share resources (database connections, caches, state) across workflow nodes using standard Python patterns.
 
-## Core Responsibilities
+## Core Pattern: Module-Level Resources
 
-### 1. Resource Registry Pattern
+The Kailash SDK does not have a `ResourceRegistry` class. Instead, use standard Python patterns for resource sharing:
 
 ```python
 import kailash
 
-# Global resource registry
-registry = kailash.ResourceRegistry()
+# Module-level shared resources
+db_connection = None
+cache_client = None
 
-# Register shared database connection
-registry.register("db_connection", database_connection)
+def init_resources():
+    global db_connection, cache_client
+    import sqlite3
+    db_connection = sqlite3.connect("app.db")
+    cache_client = {}  # or redis.Redis()
 
-# Register shared cache
-registry.register("cache", redis_client)
-
-# Use in workflow
+# Use in workflow via EmbeddedPythonNode
+builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "use_resource", {
     "code": """
-# Access shared resource
-db = registry.get("db_connection")
-cache = registry.get("cache")
-
-# Use resources
-data = db.query("SELECT * FROM users")
-cache.set("users", data)
-
-result = {'users': data}
+# EmbeddedPythonNode has its own Python interpreter
+# Pass resources via workflow inputs instead
+result = {'processed': True, 'data': input_data}
 """,
     "output_vars": ["result"]
 })
 ```
 
-### 2. Resource Lifecycle Management
+## Pattern: Pass Resources via Inputs
 
 ```python
-class ManagedResource:
-    def __enter__(self):
-        # Acquire resource
-        return self.resource
+import kailash
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Release resource
-        self.cleanup()
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
 
-# Register managed resource
-registry.register("managed_db", ManagedResource())
+# Fetch data in one node, pass to another via connections
+builder.add_node("SQLQueryNode", "db_query", {
+    "connection_string": "sqlite:///app.db",
+    "query": "SELECT * FROM users"
+})
+
+builder.add_node("EmbeddedPythonNode", "process", {
+    "code": "result = {'count': len(rows)}",
+    "output_vars": ["result"]
+})
+
+builder.connect("db_query", "rows", "process", "rows")
+
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
+```
+
+## Pattern: Custom Node with Shared State
+
+```python
+import kailash
+import threading
+
+class SharedCache:
+    def __init__(self):
+        self.data = {}
+        self.lock = threading.Lock()
+
+    def __call__(self, inputs):
+        with self.lock:
+            key = inputs.get("key", "default")
+            if "value" in inputs:
+                self.data[key] = inputs["value"]
+            return {"cached": self.data.get(key)}
+
+cache = SharedCache()
+reg = kailash.NodeRegistry()
+reg.register_callback("CacheNode", cache, ["key", "value"], ["cached"])
 ```
 
 ## When to Engage
 
-- User asks about "resource registry", "shared resources", "registry pattern"
-- User needs to share resources
-- User wants resource management
+- User asks about "shared resources", "resource sharing", "connection pooling"
+- User needs to share state between nodes
+- User wants database connections reused across workflows
 
 ## Integration with Other Skills
 
 - Route to **production-deployment-guide** for deployment
-- Route to **advanced-features** for advanced patterns
+- Route to **sdk-fundamentals** for basic concepts

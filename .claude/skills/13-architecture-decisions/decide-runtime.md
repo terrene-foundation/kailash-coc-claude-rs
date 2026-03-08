@@ -86,10 +86,7 @@ result = rt.execute(builder.build(reg))
 - Connection validation between node inputs/outputs
 - Run ID generation and execution metadata
 
-**ParameterHandlingMixin Not Used**:
-Runtime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
-
-The shared architecture ensures consistent behavior, with the only differences being execution model and async-specific optimizations.
+The unified runtime ensures consistent behavior across all deployment contexts.
 
 ## Parallelism
 
@@ -159,8 +156,8 @@ from kailash.nexus import NexusApp
 
 app = NexusApp()
 
-@app.handler()
-def execute_workflow(data):
+@app.handler("execute_workflow", description="Execute a workflow")
+def execute_workflow(data: str) -> dict:
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
     # ... build workflow ...
@@ -184,21 +181,21 @@ def test_workflow():
 
 ## Migration Between Runtimes
 
-Both runtimes share the same configuration parameters:
+Configuration via `RuntimeConfig` (keyword arguments, not a dict):
 
 ```python
-# Configuration works identically for both
-config = {
-    "debug": True,
-    "enable_cycles": True,
-    "conditional_execution": True,
-    "connection_validation": "strict",  # or "warn" or "off"
-    "content_aware_success_detection": True
-}
+import kailash
 
-# Create runtime with registry
+config = kailash.RuntimeConfig(
+    debug=True,
+    enable_cycles=True,
+    conditional_execution="skip",         # "skip" or "evaluate_all"
+    connection_validation="strict",       # "strict", "warn", or "off"
+    max_concurrent_nodes=4,
+)
+
 reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+rt = kailash.Runtime(reg, config)
 ```
 
 ## Related Patterns

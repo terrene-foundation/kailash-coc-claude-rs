@@ -179,9 +179,6 @@ def test_workflow():
     result = rt.execute(builder.build(reg))
 
     assert result["results"]["test_node"]["outputs"]["test"] == "passed"
-
-    # Get validation metrics if needed
-    metrics = rt.get_validation_metrics()
 ```
 
 ## When to Engage

@@ -47,14 +47,7 @@ Use `kailash.Runtime(reg)` for all contexts (async, sync, Docker, CLI).
 - **Level-based parallelism**: Nodes at the same DAG level execute concurrently
 - **Validation**: Workflow structure validated at `builder.build(reg)` time
 
-`kailash.Runtime` also provides validation helpers:
-
-- get_validation_metrics(): Public API for validation metrics
-- reset_validation_metrics(): Public API for metrics reset
-- \_generate_enhanced_validation_error(): Enhanced error messages
-- \_build_connection_context(): Connection context for errors
-
-**ParameterHandlingMixin Not Used**: kailash.Runtime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
+Validation happens at `builder.build(reg)` time — there are no separate validation methods on Runtime.
 
 Usage:
 
@@ -72,8 +65,7 @@ result = rt.execute(builder.build(reg), inputs={})
 
 - **Level-Based Parallelism**: Executes independent nodes concurrently within dependency levels
 - **Concurrency Control**: Semaphore-based limits
-- **Resource Integration**: Integrated ResourceRegistry for connection pooling
-- **Performance Tracking**: WorkflowAnalyzer and ExecutionMetrics for profiling
+- **Performance Tracking**: Execution metadata (total_duration_ms, nodes_executed, node_durations_ms)
 
 ### 5. Parameter Passing
 

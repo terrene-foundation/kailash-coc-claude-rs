@@ -396,6 +396,10 @@ sso = SSOProvider({
     "metadata_url": os.environ["SSO_METADATA_URL"],
     "issuer": os.environ["SSO_ISSUER"],
     "scopes": ["openid", "profile", "email"],
+    "attribute_mapping": {
+        "user_id": "sub", "email": "email",
+        "name": "name", "roles": "groups",
+    },
 })
 login_url = sso.login_url()  # no args -- uses redirect_uri from config
 ```
@@ -406,7 +410,15 @@ login_url = sso.login_url()  # no args -- uses redirect_uri from config
 from kailash.nexus import PluginManager
 
 pm = PluginManager()
-pm.load("auth-plugin", config={"secret": os.environ["AUTH_PLUGIN_SECRET"]})
+
+# Plugin must implement: name() -> str, on_register()
+# Optional: dependencies(), on_unload(), on_reload(), health_check() -> str
+class AuthPlugin:
+    def name(self): return "auth-plugin"
+    def on_register(self): pass
+    def health_check(self): return "healthy"
+
+pm.load(AuthPlugin())  # load() takes a plugin object, not (name, config)
 assert pm.is_loaded("auth-plugin")
 pm.reload("auth-plugin")
 health = pm.health_check_all()
@@ -416,12 +428,25 @@ pm.unload("auth-plugin")
 ## Nexus: WorkflowRegistry
 
 ```python
+import kailash
 from kailash.nexus import WorkflowRegistry
 
-registry = WorkflowRegistry()
-registry.register("my-workflow", {"steps": [...]})
-wf = registry.get("my-workflow")
-result = registry.execute("my-workflow", {"input": "data"})
+# Build a workflow first
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("NoOpNode", "n", {})
+workflow = builder.build(reg)
+
+# Register it
+wr = WorkflowRegistry()
+wr.register("my-workflow", workflow, description="My workflow")
+
+# Get metadata (returns dict or None)
+info = wr.get("my-workflow")  # {"name", "description", "registered_at", "node_count"}
+
+# Execute by name (requires a Runtime instance)
+rt = kailash.Runtime(reg)
+result = wr.execute("my-workflow", rt, {"input": "data"})
 ```
 
 ## Nexus: EventBus
@@ -430,7 +455,8 @@ result = registry.execute("my-workflow", {"input": "data"})
 from kailash.nexus import EventBus
 
 bus = EventBus()
-bus.subscribe("user.created", lambda data: print(data))
+bus.on("user.created", lambda data: print(data))  # type-specific subscription
+bus.subscribe(lambda data: print(data))            # subscribe to ALL events
 bus.publish("user.created", {"user_id": "123"})
 ```
 

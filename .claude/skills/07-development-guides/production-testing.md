@@ -278,7 +278,7 @@ async def test_async_api_calls():
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg), inputs={})
 
-    assert "api_call" in results
+    assert "api_call" in result["results"]
     assert result["results"]["api_call"]["status_code"] == 200
 ```
 
@@ -321,22 +321,22 @@ def test_comprehensive_workflow_coverage():
     rt = kailash.Runtime(reg)
 
     # Test high path
-    results_high, _ = rt.execute(builder.build(reg), inputs={
+    result_high = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 75}
     })
-    assert results_high["high_path"]["outputs"]["category"] == "high"
+    assert result_high["results"]["high_path"]["outputs"]["category"] == "high"
 
     # Test low path
-    results_low, _ = rt.execute(builder.build(reg), inputs={
+    result_low = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 25}
     })
-    assert results_low["low_path"]["outputs"]["category"] == "low"
+    assert result_low["results"]["low_path"]["outputs"]["category"] == "low"
 
     # Test boundary
-    results_boundary, _ = rt.execute(builder.build(reg), inputs={
+    result_boundary = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 50}
     })
-    assert results_boundary["low_path"]["outputs"]["category"] == "low"
+    assert result_boundary["results"]["low_path"]["outputs"]["category"] == "low"
 ```
 
 ### 8. Production Test Best Practices
@@ -372,7 +372,7 @@ except ZeroDivisionError:
     reg = kailash.NodeRegistry()
 
     rt = kailash.Runtime(reg)
-    results, _ = rt.execute(builder.build(reg), inputs={
+    result = rt.execute(builder.build(reg), inputs={
         "risky_op": {"divisor": 0}
     })
 
@@ -388,7 +388,7 @@ def test_workflow_performance():
     start_time = time.time()
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
-    results, _ = rt.execute(builder.build(reg))
+    result = rt.execute(builder.build(reg))
     execution_time = time.time() - start_time
 
     assert execution_time < 5.0  # Should complete in under 5 seconds
