@@ -163,14 +163,21 @@ print(policy.max_retries)     # 3
 
 ## OrchestrationResult
 
-All orchestration methods return a dict:
+**`OrchestrationRuntime.run()`** and **`MultiAgentOrchestrator.orchestrate()`** return DIFFERENT dicts:
 
 ```python
+# OrchestrationRuntime.run() returns:
 result = runtime.run("input")
+# - "input"        -- The input string (str)
+# - "strategy"     -- Strategy name: "sequential", "parallel", "hierarchical" (str)
+# - "agent_count"  -- Number of registered agents (int)
+# - "agents"       -- List of agent names (list[str])
+# - "results"      -- Per-agent status dicts keyed by name (dict)
 
-# result is a dict with keys:
+# MultiAgentOrchestrator.orchestrate() returns:
+result = orchestrator.orchestrate("input")
 # - "final_output"     -- Last agent's response or aggregation (str)
-# - "agent_results"    -- Per-agent results in execution order (dict)
+# - "agent_results"    -- Per-agent AgentResult dicts (dict)
 # - "total_tokens"     -- Sum of all agents' tokens (int)
 # - "total_iterations" -- Number of agent invocations (int)
 # - "duration_ms"      -- Wall-clock duration (int)

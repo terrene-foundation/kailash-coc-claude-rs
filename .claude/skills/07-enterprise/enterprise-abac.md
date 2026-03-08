@@ -67,7 +67,7 @@ policy.id  # "business_hours"
 | `is_null`      | Attribute is null/absent                | `True`                         |
 | `is_not_null`  | Attribute is present and non-null       | `True`                         |
 | `between`      | Value within range (inclusive)          | `[9, 17]`                      |
-| `any_of`       | At least one element matches            | `["admin", "moderator"]`       |
+| `not_contains` | String/array does not contain element   | `"restricted"`                 |
 
 ## AbacEvaluator
 
