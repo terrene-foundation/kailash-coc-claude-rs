@@ -41,7 +41,7 @@ result = {"result": f"Processed with {my_param}"}
 # Execute with runtime parameters
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "my_node": {"my_param": "custom_value", "threshold": 0.9}
 })
 ```

@@ -21,7 +21,7 @@ feature/user-authentication
 feature/payment-integration
 
 # Release branches
-release/v0.1.0
+release/v2.1.0
 
 # Hotfix branches
 hotfix/critical-bug
@@ -30,7 +30,6 @@ hotfix/critical-bug
 ## Workflow
 
 ### 1. Start New Feature
-
 ```bash
 # Create feature branch from develop
 git checkout develop
@@ -44,7 +43,6 @@ git push origin feature/my-feature
 ```
 
 ### 2. Create Pull Request
-
 ```bash
 # Use gh CLI
 gh pr create --base develop --title "Add new feature" --body "Description..."
@@ -53,7 +51,6 @@ gh pr create --base develop --title "Add new feature" --body "Description..."
 ```
 
 ### 3. Merge to Develop
-
 ```bash
 # After PR approval
 git checkout develop
@@ -62,23 +59,22 @@ git push origin develop
 ```
 
 ### 4. Release
-
 ```bash
 # Create release branch
-git checkout -b release/v0.1.0 develop
+git checkout -b release/v2.1.0 develop
 
 # Update version numbers, CHANGELOG
-git commit -m "chore: Prepare v0.1.0 release"
+git commit -m "chore: Prepare v2.1.0 release"
 
 # Merge to main
 git checkout main
-git merge release/v0.1.0
-git tag v0.1.0
+git merge release/v2.1.0
+git tag v2.1.0
 git push origin main --tags
 
 # Merge back to develop
 git checkout develop
-git merge release/v0.1.0
+git merge release/v2.1.0
 ```
 
 ## Commit Message Format

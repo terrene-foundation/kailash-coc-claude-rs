@@ -2,10 +2,6 @@
 
 All 139 built-in Rust nodes are available by string type name in the Python binding.
 
-## Usage
-
-`/python-available-nodes` — Complete list of node categories and type names
-
 ---
 
 ## How Nodes Are Used in Python
@@ -33,16 +29,15 @@ builder.add_node("SQLQueryNode", "query")             # SQL
 
 ## Node Categories
 
-### System (2 nodes)
+### System (3 nodes)
 
 Basic infrastructure nodes.
 
-| Type Name  | Description                                         |
-| ---------- | --------------------------------------------------- |
-| `NoOpNode` | No-op passthrough — passes inputs through unchanged |
-| `LogNode`  | Log a message or value to the tracing output        |
-
-> **Note**: `HandlerNode` exists in kailash-core but is not registered in the default Python binding registry.
+| Type Name     | Description                                         |
+| ------------- | --------------------------------------------------- |
+| `HandlerNode` | Generic passthrough/handler                         |
+| `NoOpNode`    | No-op passthrough — passes inputs through unchanged |
+| `LogNode`     | Log a message or value to the tracing output        |
 
 ### Control Flow (8 nodes)
 
@@ -59,9 +54,9 @@ Workflow branching, looping, and coordination.
 | `ErrorHandlerNode` | Catch and handle errors from upstream nodes     |
 | `WaitNode`         | Delay execution for a specified duration        |
 
-### Transform (9 nodes)
+### Transform (8 nodes)
 
-Data transformation and manipulation. 8 from kailash-core + 1 from kailash-nodes.
+Data transformation and manipulation.
 
 | Type Name              | Description                                                        |
 | ---------------------- | ------------------------------------------------------------------ |
@@ -99,7 +94,7 @@ Database access via sqlx.
 | `DatabaseConnectionNode` | Manage database connection lifecycle                 |
 | `SQLTransactionNode`     | Execute multiple statements in a transaction         |
 
-### File I/O (5 nodes)
+### File I/O (7 nodes)
 
 Read and write files in various formats.
 
@@ -109,9 +104,9 @@ Read and write files in various formats.
 | `FileWriterNode`      | Write text or binary files                        |
 | `CSVProcessorNode`    | Parse and generate CSV (csv crate)                |
 | `DirectoryReaderNode` | List files in a directory (walkdir)               |
+| `ExcelReaderNode`     | Read .xlsx and .xls files (calamine)              |
+| `PDFReaderNode`       | Extract text from PDFs (pdf-extract)              |
 | `XMLParserNode`       | Parse and generate XML, limited XPath (quick-xml) |
-
-> **Note**: `ExcelReaderNode` and `PDFReaderNode` require the `excel` and `pdf` Cargo features respectively, which are not enabled in the default Python binding build.
 
 ### AI / LLM (9 nodes)
 
@@ -307,7 +302,7 @@ Document database with aggregation.
 | ------------------- | ----------------------------------------------------------- |
 | `DocumentStoreNode` | CRUD and aggregation pipeline via pluggable DocumentBackend |
 
-### ABAC (Enterprise — 1 node)
+### ABAC (Enterprise -- 1 node)
 
 Attribute-based access control.
 
@@ -340,7 +335,7 @@ for t in all_types:
 
 ---
 
-## Framework Python APIs (Added in Phase 12)
+## Framework Python APIs
 
 All four framework modules are available as Python classes (61 Rust PyO3 types + ~32 Python compat helpers):
 
@@ -372,7 +367,7 @@ builder = kailash.WorkflowBuilder()
 
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model":    os.environ.get("LLM_MODEL", "gpt-5"), # read from .env in production
+    "model":    os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "api_key":  os.environ["OPENAI_API_KEY"],        # NEVER hardcode
 })
 

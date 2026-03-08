@@ -1,237 +1,279 @@
 ---
-name: enterprise-tokens
-description: "Token lifecycle management: JWT, opaque, API key. Use when asking 'create JWT', 'token manager', 'API key', 'opaque token', 'token validation', 'token revocation', 'token rotation'."
+skill: enterprise-tokens
+description: "TokenManager for JWT, opaque, and API key token lifecycle management. Use when asking about 'token manager', 'JWT', 'opaque token', 'API key', 'token validation', 'token refresh', 'token revocation', or 'token lifecycle'."
+priority: MEDIUM
+tags: [enterprise, tokens, jwt, api-key, authentication, token-lifecycle]
 ---
 
-# Enterprise Token Management
+# Enterprise Token Manager
 
-Token lifecycle management via `TokenManager` -- supports JWT (HMAC-SHA256), opaque, and API key tokens with validation, refresh, revocation, and rotation policies.
+Manage JWT, opaque, and API key token lifecycles with validation, refresh, and revocation.
 
-## Rust API
+## Quick Reference
 
-Source: `crates/kailash-enterprise/src/token/manager.rs`
+- **TokenManager**: Core class for creating, validating, refreshing, and revoking tokens
+- **Token Types**: JWT (stateless), opaque (random), API key (long-lived)
+- **Lifecycle**: Create, validate, refresh, revoke, list active tokens
+- **TTL**: Configurable time-to-live in seconds for all token types
 
-### Creating a TokenManager
-
-```rust
-use kailash_enterprise::token::{TokenManager, TokenConfig, TokenClaims};
-
-let config = TokenConfig::new("my-secret-that-is-at-least-32-bytes-long!");
-let mgr = TokenManager::new(config);
-```
-
-Config options (builder pattern):
-
-```rust
-use kailash_enterprise::token::{TokenConfig, RotationPolicy};
-
-let config = TokenConfig::new("my-secret-that-is-at-least-32-bytes-long!")
-    .with_issuer("my-app")
-    .with_default_ttl_secs(3600)       // 1 hour default
-    .with_refresh_ttl_secs(7200)       // 2 hour refresh
-    .with_api_key_prefix("myapp_")     // default: "kailash_"
-    .with_rotation_policy(RotationPolicy::OnRefresh);
-```
-
-### Creating Tokens
-
-All `create_*` methods take `TokenClaims`:
-
-```rust
-use kailash_enterprise::token::TokenClaims;
-
-let claims = TokenClaims::new("user-1")
-    .with_scope("read")
-    .with_scope("write")
-    .with_issuer("my-app")
-    .with_audience("api")
-    .with_custom("org_id", serde_json::json!("org-1"));
-
-// JWT (HMAC-SHA256 signed, contains dots)
-let jwt_token = mgr.create_jwt(claims.clone())?;
-
-// Opaque (32-byte random hex)
-let opaque_token = mgr.create_opaque(claims.clone())?;
-
-// API key (prefix + random hex)
-let api_key = mgr.create_api_key(claims)?;
-assert!(api_key.value.starts_with("kailash_"));
-```
-
-### Validating Tokens
-
-```rust
-use kailash_enterprise::token::TokenValidation;
-
-match mgr.validate(&token.value) {
-    TokenValidation::Valid(claims) => {
-        println!("Subject: {}", claims.subject);
-        println!("Scopes: {:?}", claims.scopes);
-    },
-    TokenValidation::Expired => println!("Token has expired"),
-    TokenValidation::Revoked => println!("Token was revoked"),
-    TokenValidation::Invalid(reason) => println!("Invalid: {reason}"),
-}
-```
-
-### Refresh and Revocation
-
-```rust
-// Refresh (extends TTL or rotates based on policy)
-let refreshed = mgr.refresh(&token.value)?;
-
-// Revoke
-mgr.revoke(&token.value)?;
-assert!(mgr.is_revoked(&token.value));
-
-// Revoked tokens cannot be refreshed
-assert!(mgr.refresh(&token.value).is_err());
-
-// List active (non-revoked, non-expired) tokens
-let active = mgr.list_active();
-```
-
-### Rotation Policies
-
-- `RotationPolicy::None` -- refresh extends TTL, keeps same token value
-- `RotationPolicy::OnRefresh` -- refresh creates new token, revokes old one
-
-```rust
-let config = TokenConfig::new("secret-at-least-32-bytes-for-hmac-sha256!")
-    .with_rotation_policy(RotationPolicy::OnRefresh);
-let mgr = TokenManager::new(config);
-
-let original = mgr.create_jwt(TokenClaims::new("user"))?;
-let refreshed = mgr.refresh(&original.value)?;
-
-// New value, old one revoked
-assert_ne!(refreshed.value, original.value);
-assert!(mgr.is_revoked(&original.value));
-```
-
-## Python API
-
-Source: `bindings/kailash-python/src/enterprise.rs` (`PyTokenManager`)
-
-### Creating a TokenManager
+## Import
 
 ```python
-from kailash import TokenManager
-
-mgr = TokenManager({
-    "secret": "my-secret-at-least-32-bytes-long-for-security",
-    "default_ttl_secs": 3600,
-    "refresh_ttl_secs": 7200,
-    "api_key_prefix": "myapp_",
-    "rotation_policy": "none",   # or "on_refresh"
-    "issuer": "my-app",
-})
+from kailash.enterprise import TokenManager
 ```
 
-The config dict requires `secret` (str). All other keys are optional.
-
-### Creating Tokens
-
-`create_jwt`, `create_opaque`, and `create_api_key` all take a **claims dict**:
+## Basic Usage
 
 ```python
-# Claims dict -- "subject" is required, all others optional
-claims = {
-    "subject": "user-1",
-    "scopes": ["read", "write"],
-    "issuer": "my-app",
-    "audience": "api",
-    "custom": {"org_id": "org-1"},
-}
+import os
+from kailash.enterprise import TokenManager
 
-token = mgr.create_jwt(claims)
-# Returns a dict:
-# {
-#     "value": "eyJ...",
+# Create a TokenManager with a config dict (secret from env)
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create a JWT token
+token = tm.create_jwt({"subject": "user-123", "scopes": ["read", "write"]})
+
+# Validate the token
+info = tm.validate(token["value"])
+assert info["claims"]["subject"] == "user-123"
+assert info["status"] == "valid"
+```
+
+## Token Types
+
+### JWT Tokens
+
+Stateless, self-contained tokens with claims:
+
+```python
+from kailash.enterprise import TokenManager
+
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create a JWT with subject, scopes, and TTL
+jwt = tm.create_jwt("user-123", ["read", "write", "admin"], ttl_secs=3600)
+
+# Validate returns token info
+info = tm.validate(jwt)
+# info: {
+#     "subject": "user-123",
+#     "scopes": ["read", "write", "admin"],
 #     "token_type": "jwt",
-#     "claims": {"subject": "user-1", "scopes": ["read", "write"], ...},
-#     "created_at": "2026-03-08T...",
-#     "expires_at": "2026-03-08T...",
+#     ...
 # }
-
-opaque = mgr.create_opaque({"subject": "svc-1"})
-api_key = mgr.create_api_key({"subject": "app-1", "scopes": ["api"]})
 ```
 
-### Validating Tokens
+### Opaque Tokens
+
+Random, server-tracked tokens:
 
 ```python
-result = mgr.validate(token["value"])
-# Returns a dict:
-# {"status": "valid", "claims": {"subject": "user-1", ...}}
-# {"status": "expired"}
-# {"status": "revoked"}
-# {"status": "invalid", "reason": "..."}
+from kailash.enterprise import TokenManager
 
-assert result["status"] == "valid"
-assert result["claims"]["subject"] == "user-1"
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create an opaque token
+opaque = tm.create_opaque("user-456", ["read"], ttl_secs=1800)
+
+# Validate
+info = tm.validate(opaque)
+assert info["subject"] == "user-456"
+assert info["token_type"] == "opaque"
 ```
 
-### Refresh and Revocation
+### API Key Tokens
+
+Long-lived tokens for service-to-service communication:
 
 ```python
-refreshed = mgr.refresh(token["value"])
-mgr.revoke(token["value"])
-assert mgr.is_revoked(token["value"])
+from kailash.enterprise import TokenManager
 
-active = mgr.list_active()  # list of token dicts
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create an API key with longer TTL
+api_key = tm.create_api_key("service-account-1", ["read", "write"], ttl_secs=86400 * 365)
+
+# Validate
+info = tm.validate(api_key)
+assert info["subject"] == "service-account-1"
+assert info["token_type"] == "api_key"
 ```
 
-## Common Patterns
-
-### Service-to-Service Authentication
+## Token Validation
 
 ```python
-mgr = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+from kailash.enterprise import TokenManager
 
-# Issue a service token
-svc_token = mgr.create_opaque({
-    "subject": "payment-service",
-    "scopes": ["process_payments", "read_orders"],
-})
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+token = tm.create_jwt("user-123", ["read"], ttl_secs=3600)
 
-# Validate incoming request
-result = mgr.validate(request_token)
-if result["status"] != "valid":
-    raise AuthError("Invalid token")
-if "process_payments" not in result["claims"]["scopes"]:
-    raise AuthError("Insufficient scope")
+# Validate returns a dict with token info
+info = tm.validate(token)
+
+# Validation result fields
+info["subject"]     # "user-123" -- who the token belongs to
+info["scopes"]      # ["read"] -- what the token allows
+info["token_type"]  # "jwt", "opaque", or "api_key"
 ```
 
-### API Key Management
+## Token Refresh
 
 ```python
-mgr = TokenManager({
-    "secret": os.environ["TOKEN_SECRET"],
-    "api_key_prefix": "sk_live_",
-})
+from kailash.enterprise import TokenManager
 
-key = mgr.create_api_key({
-    "subject": "customer-123",
-    "scopes": ["api"],
-    "custom": {"plan": "pro"},
-})
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-# key["value"] starts with "sk_live_"
+# Create initial token
+token = tm.create_jwt("user-123", ["read", "write"], ttl_secs=3600)
+
+# Refresh the token -- returns a new token with extended TTL
+new_token = tm.refresh(token)
+
+# Validate the new token
+info = tm.validate(new_token)
+assert info["subject"] == "user-123"
 ```
 
-## Security Notes
+## Token Revocation
 
-- JWT signing uses HMAC-SHA256; secrets should be at least 32 bytes
-- Opaque token and API key validation uses constant-time comparison (prevents timing attacks)
-- The signing secret is never exposed in Debug output (shows `[REDACTED]`)
-- TokenManager is `Send + Sync` -- safe for concurrent use
+```python
+from kailash.enterprise import TokenManager
 
-## Source Files
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-- `crates/kailash-enterprise/src/token/manager.rs` -- `TokenManager`
-- `crates/kailash-enterprise/src/token/mod.rs` -- `TokenConfig`, `TokenClaims`, `Token`, `TokenValidation`, `RotationPolicy`
-- `crates/kailash-enterprise/src/token/store.rs` -- `TokenStore` trait, `InMemoryTokenStore`
-- `bindings/kailash-python/src/enterprise.rs` -- `PyTokenManager`
+# Create a token
+token = tm.create_jwt("user-123", ["read"], ttl_secs=3600)
 
-<!-- Trigger Keywords: JWT, token manager, create JWT, API key, opaque token, token validation, token revocation, token refresh, rotation policy, TokenManager, TokenClaims -->
+# Revoke the token
+tm.revoke(token)
+
+# Revoked tokens fail validation
+# tm.validate(token) -- raises or returns error/None
+```
+
+## List Active Tokens
+
+```python
+from kailash.enterprise import TokenManager
+
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create several tokens
+t1 = tm.create_jwt("user-1", ["read"], ttl_secs=3600)
+t2 = tm.create_jwt("user-2", ["write"], ttl_secs=3600)
+t3 = tm.create_opaque("user-3", ["admin"], ttl_secs=1800)
+
+# List all active tokens
+active = tm.list_active()
+# Returns list of active token info dicts
+```
+
+## Token Expiration
+
+Tokens automatically expire based on their TTL:
+
+```python
+from kailash.enterprise import TokenManager
+import time
+
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+
+# Create a short-lived token (1 second)
+token = tm.create_jwt("user-123", ["read"], ttl_secs=1)
+
+# Valid immediately
+info = tm.validate(token)
+assert info["subject"] == "user-123"
+
+# After expiration
+time.sleep(2)
+# tm.validate(token) -- fails because token has expired
+```
+
+## Production Pattern
+
+```python
+import os
+from kailash.enterprise import TokenManager
+
+def create_token_manager():
+    """Create a production token manager."""
+    secret = os.environ["TOKEN_SECRET"]
+    return TokenManager({"secret": secret, "default_ttl_secs": 3600})
+
+def authenticate_request(tm, token):
+    """Authenticate a request using token validation."""
+    try:
+        info = tm.validate(token)
+        return {
+            "authenticated": True,
+            "user_id": info["subject"],
+            "scopes": info["scopes"],
+            "token_type": info["token_type"],
+        }
+    except Exception:
+        return {"authenticated": False}
+
+def issue_token(tm, user_id, scopes, token_type="jwt"):
+    """Issue a new token for a user."""
+    ttl = int(os.getenv("TOKEN_TTL_SECS", "3600"))
+
+    if token_type == "jwt":
+        return tm.create_jwt(user_id, scopes, ttl_secs=ttl)
+    elif token_type == "opaque":
+        return tm.create_opaque(user_id, scopes, ttl_secs=ttl)
+    elif token_type == "api_key":
+        api_key_ttl = int(os.getenv("API_KEY_TTL_SECS", "31536000"))
+        return tm.create_api_key(user_id, scopes, ttl_secs=api_key_ttl)
+    else:
+        raise ValueError(f"Unknown token type: {token_type}")
+
+# Usage
+tm = create_token_manager()
+token = issue_token(tm, "alice", ["read", "write"])
+auth = authenticate_request(tm, token)
+```
+
+## Integration with Nexus
+
+```python
+import os
+from kailash.enterprise import TokenManager
+from kailash.nexus import NexusApp
+
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"], "default_ttl_secs": 3600})
+app = NexusApp()
+
+@app.handler(name="login", description="Authenticate and receive token")
+async def login(username: str, password: str) -> dict:
+    # Validate credentials (implement your own logic)
+    user_id = authenticate_user(username, password)
+    if not user_id:
+        return {"error": "Invalid credentials"}
+
+    token = tm.create_jwt(user_id, ["read", "write"], ttl_secs=3600)
+    return {"token": token, "user_id": user_id}
+
+@app.handler(name="protected", description="Protected endpoint")
+async def protected(token: str) -> dict:
+    info = tm.validate(token)
+    return {"user": info["subject"], "scopes": info["scopes"]}
+```
+
+## Best Practices
+
+1. **Use environment variables for secrets** -- Never hardcode the secret key
+2. **Choose appropriate token types** -- JWT for stateless APIs, opaque for server-tracked sessions, API keys for services
+3. **Set reasonable TTLs** -- Short for user sessions (1h), long for API keys (1y)
+4. **Implement token refresh** -- Avoid forcing re-authentication for active users
+5. **Revoke on logout/compromise** -- Always revoke tokens when sessions end
+6. **Monitor active tokens** -- Use `list_active()` to track token usage
+
+## Related Skills
+
+- [enterprise-sso](enterprise-sso.md) - Single Sign-On integration
+- [enterprise-policy](enterprise-policy.md) - Policy-based access control
+- [python-framework-bindings](../06-python-bindings/python-framework-bindings.md) - Enterprise type reference
+
+<!-- Trigger Keywords: token manager, JWT, opaque token, API key, token validation, token refresh, token revocation, token lifecycle, authentication token -->

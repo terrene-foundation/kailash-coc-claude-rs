@@ -1,285 +1,291 @@
-# Connection Patterns Skill
+---
+name: connection-patterns
+description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'connect', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', 'dot notation', or 'workflow connections'."
+---
 
-Node connection patterns for the Kailash WorkflowBuilder.
+# Connection Patterns
 
-## Usage
+Essential patterns for connecting workflow nodes using the 4-parameter connection syntax with data flow mapping.
 
-`/connection-patterns` -- Reference for builder.connect(), fan-out, fan-in, branching, and loop patterns
+> **Skill Metadata**
+> Category: `core-sdk`
+> Priority: `CRITICAL`
 
-## Basic Connection
+## Quick Reference
 
-```rust
-// builder.connect(source_node_id, source_output, target_node_id, target_input)
-builder.connect("uppercase", "result", "log", "data");
-//               ^source     ^output   ^target  ^input
+- **Syntax**: `connect(source, source_output, target, target_input)`
+- **CRITICAL**: Always use 4 parameters (source + output → target + input)
+- **Dot Notation**: Access nested fields: `"result.metrics.accuracy"`
+- **Fan-Out**: One source → multiple targets
+- **Fan-In**: Multiple sources → one target
+
+## Core Pattern
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+
+builder = kailash.WorkflowBuilder()
+
+# Add nodes
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+
+# ✅ CORRECT: 4-parameter connection
+builder.connect("reader", "data", "processor", "data")
+#                      ^source  ^output   ^target    ^input
+
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
 ```
 
-The four arguments:
+## Common Use Cases
 
-1. `source_node_id` -- ID of the node producing the value
-2. `source_output` -- Name of the output field on the source node
-3. `target_node_id` -- ID of the node consuming the value
-4. `target_input` -- Name of the input field on the target node
+- **Linear Pipeline**: Sequential data processing
+- **Conditional Routing**: Split data based on conditions
+- **Fan-Out**: Broadcast data to multiple processors
+- **Fan-In**: Merge data from multiple sources
+- **Nested Data Access**: Extract specific fields from complex outputs
 
-## Common Input/Output Names by Node Category
+## Connection Types
 
-| Node Type           | Outputs                       | Inputs                                 |
-| ------------------- | ----------------------------- | -------------------------------------- |
-| `TextTransformNode` | `result`                      | `text`, `operation`                    |
-| `JSONTransformNode` | `result`                      | `data`, `expression`                   |
-| `LogNode`           | `data`                        | `data`, `level`                        |
-| `NoOpNode`          | `data`                        | `data`                                 |
-| `ConditionalNode`   | `true_output`, `false_output` | `condition`, `true_data`, `false_data` |
-| `SwitchNode`        | `case_<value>`                | `value`, `cases`                       |
-| `MergeNode`         | `merged`                      | `inputs` (array)                       |
-| `LoopNode`          | `iteration`, `final`          | `items`, `current`                     |
-| `LLMNode`           | `response`, `usage`           | `prompt`, `system`                     |
-| `HTTPRequestNode`   | `response`, `status`          | `url`, `method`, `body`                |
-| `SQLQueryNode`      | `rows`, `count`               | `query`, `params`                      |
-| `FileReaderNode`    | `content`, `metadata`         | `path`                                 |
+### Type 1: Direct Mapping (Most Common)
 
-## Fan-Out (One Output to Multiple Inputs)
+```python
+builder = kailash.WorkflowBuilder()
 
-Route a single node's output to several downstream nodes. Each downstream node receives the same value.
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "input.csv"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("JSONTransformNode", "writer", {"file_path": "output.json"})
 
-```rust
-builder
-    // Source node
-    .add_node("HTTPRequestNode", "fetch", config)
-
-    // Two consumers of the same output
-    .add_node("JSONTransformNode", "parse_name", {
-        let mut c = ValueMap::new();
-        c.insert(Arc::from("expression"), Value::String(Arc::from("@.name")));
-        c
-    })
-    .add_node("JSONTransformNode", "parse_email", {
-        let mut c = ValueMap::new();
-        c.insert(Arc::from("expression"), Value::String(Arc::from("@.email")));
-        c
-    })
-    .add_node("LogNode", "audit", ValueMap::new())
-
-    // Fan-out: "response" output goes to three different nodes
-    .connect("fetch", "response", "parse_name", "data")
-    .connect("fetch", "response", "parse_email", "data")
-    .connect("fetch", "response", "audit", "data");
+# Sequential connections
+builder.connect("reader", "data", "processor", "data")
+builder.connect("processor", "result", "writer", "data")
 ```
 
-**DAG topology:**
+### Type 2: Port Name Mapping
 
-```
-fetch → parse_name
-      → parse_email
-      → audit
-```
+```python
+# Different port names - explicit mapping
+builder.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}"})
 
-## Fan-In (Multiple Outputs to One Input via MergeNode)
-
-Combine outputs from parallel nodes into a single stream using `MergeNode`.
-
-```rust
-builder
-    // Parallel processors (same level in DAG)
-    .add_node("LLMNode", "summarize", summarize_config)
-    .add_node("LLMNode", "classify", classify_config)
-    .add_node("SentimentNode", "sentiment", ValueMap::new())
-
-    // MergeNode combines all inputs into an array
-    .add_node("MergeNode", "combine", ValueMap::new())
-    .add_node("JSONTransformNode", "aggregate", aggregate_config)
-
-    // Fan-in: multiple outputs → MergeNode "inputs" field (receives array)
-    // Note: MergeNode accumulates all connected inputs into Value::Array
-    .connect("summarize", "response", "combine", "inputs")
-    .connect("classify", "response", "combine", "inputs")
-    .connect("sentiment", "result", "combine", "inputs")
-
-    // Continue after merge
-    .connect("combine", "merged", "aggregate", "data");
+# Map 'response' output to 'data' input
+builder.connect("api", "response", "process", "data")
 ```
 
-**DAG topology:**
+### Type 3: Dot Notation for Nested Data
 
-```
-summarize ↘
-classify  → combine → aggregate
-sentiment ↗
-```
+```python
+# Extract nested fields from complex outputs
+builder.add_node("EmbeddedPythonNode", "analyzer", {
+    "code": """
+result = {
+    'summary': 'Analysis complete',
+    'metrics': {
+        'accuracy': 0.95,
+        'confidence': 0.87
+    },
+    'metadata': {
+        'timestamp': '2024-01-01',
+        'version': '1.0'
+    }
+}
+"""
+})
 
-## ConditionalNode Branching
+builder.add_node("EmbeddedPythonNode", "reporter", {
+    "code": "result = f'Accuracy: {accuracy}'"
+})
 
-Route execution based on a boolean condition. Only one branch executes (with `ConditionalMode::SkipBranches`, the default).
-
-```rust
-builder
-    .add_node("ConditionalNode", "check_auth", ValueMap::new())
-    .add_node("LLMNode", "process_premium", premium_config)
-    .add_node("TextTransformNode", "process_basic", basic_config)
-    .add_node("LogNode", "result_log", ValueMap::new())
-
-    // Feed the condition (must be Value::Bool) and optional branch data
-    // The workflow inputs map feeds into the first level of nodes
-    // "condition" input accepts a bool
-
-    // True branch: premium path
-    .connect("check_auth", "true_output", "process_premium", "prompt")
-    // False branch: basic path
-    .connect("check_auth", "false_output", "process_basic", "text")
-
-    // Both branches converge at the log
-    .connect("process_premium", "response", "result_log", "data")
-    .connect("process_basic", "result", "result_log", "data");
+# Extract nested field
+builder.connect("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
 ```
 
-**Note**: With `ConditionalMode::SkipBranches`, the unmet branch's nodes are skipped entirely. With `ConditionalMode::EvaluateAll`, both branches execute regardless.
+### Type 4: Fan-Out (One-to-Many)
 
-```rust
-// ConditionalNode inputs:
-//   "condition"  -- Value::Bool (required)
-//   "true_data"  -- Optional data to pass through to true_output
-//   "false_data" -- Optional data to pass through to false_output
-//
-// ConditionalNode outputs:
-//   "true_output"  -- emitted when condition == true
-//   "false_output" -- emitted when condition == false
+```python
+# Send same data to multiple processors
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 
-let mut condition_config = ValueMap::new();
-// No config needed -- condition comes from runtime inputs
+# Parallel processors
+builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}"})
+builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': True}"})
+builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}"})
+
+# Fan-out: reader → multiple targets
+builder.connect("reader", "data", "validator", "data")
+builder.connect("reader", "data", "logger", "data")
+builder.connect("reader", "data", "analyzer", "data")
 ```
 
-## SwitchNode Multi-Branch
+### Type 5: Fan-In with MergeNode
 
-Route to one of N branches based on a value match.
+```python
+# Combine multiple data sources
+builder.add_node("CSVProcessorNode", "source1", {"file_path": "data1.csv"})
+builder.add_node("JSONTransformNode", "source2", {"file_path": "data2.json"})
+builder.add_node("HTTPRequestNode", "source3", {"url": "https://api.example.com"})
 
-```rust
-builder
-    .add_node("SwitchNode", "route", {
-        let mut c = ValueMap::new();
-        // Define cases as an array of case values
-        c.insert(Arc::from("cases"), Value::Array(vec![
-            Value::String(Arc::from("pdf")),
-            Value::String(Arc::from("csv")),
-            Value::String(Arc::from("json")),
-        ]));
-        c
-    })
-    .add_node("PDFReaderNode", "handle_pdf", ValueMap::new())
-    .add_node("CSVProcessorNode", "handle_csv", ValueMap::new())
-    .add_node("JSONTransformNode", "handle_json", ValueMap::new())
+builder.add_node("MergeNode", "merger", {})
 
-    // SwitchNode generates outputs named "case_<value>"
-    .connect("route", "case_pdf", "handle_pdf", "path")
-    .connect("route", "case_csv", "handle_csv", "path")
-    .connect("route", "case_json", "handle_json", "data");
+# Fan-in: multiple sources → merger
+builder.connect("source1", "data", "merger", "input1")
+builder.connect("source2", "data", "merger", "input2")
+builder.connect("source3", "response", "merger", "input3")
+
+# Process merged data
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}"})
+builder.connect("merger", "result", "processor", "data")
 ```
 
-## LoopNode Feedback Connections
+### Type 6: Multi-Input Processing
 
-Process items in a collection iteratively. `LoopNode` emits one item per iteration.
+```python
+# Custom multi-input node
+builder.add_node("CSVProcessorNode", "customers", {"file_path": "customers.csv"})
+builder.add_node("CSVProcessorNode", "orders", {"file_path": "orders.csv"})
 
-```rust
-builder
-    // LoopNode iterates over an array input
-    .add_node("LoopNode", "loop", ValueMap::new())
-    .add_node("LLMNode", "process_item", item_config)
-    .add_node("LogNode", "log_item", ValueMap::new())
+builder.add_node("EmbeddedPythonNode", "join", {
+    "code": """
+customers_data = customers if customers else []
+orders_data = orders if orders else []
 
-    // "iteration" output: current item value (emitted each iteration)
-    // "final" output: emitted once after all iterations complete
-    .connect("loop", "iteration", "process_item", "prompt")
-    .connect("process_item", "response", "log_item", "data");
+# Join logic
+result = {
+    'customers': len(customers_data),
+    'orders': len(orders_data),
+    'combined': customers_data + orders_data
+}
+"""
+})
 
-// LoopNode inputs:
-//   "items" -- Value::Array (required) -- the collection to iterate
-//   "current" -- (internal feedback, do not connect manually)
-//
-// LoopNode outputs:
-//   "iteration" -- Value of current item (emitted per iteration)
-//   "final"     -- All iteration results collected (emitted once at end)
+# Multiple inputs to same node
+builder.connect("customers", "data", "join", "customers")
+builder.connect("orders", "data", "join", "orders")
 ```
 
-## Linear Pipeline (Most Common Pattern)
+### Type 7: Complex Nested Extraction
 
-```rust
-builder
-    .add_node("FileReaderNode", "read", ValueMap::new())
-    .add_node("JSONTransformNode", "transform", transform_config)
-    .add_node("LLMNode", "analyze", analyze_config)
-    .add_node("FileWriterNode", "write", ValueMap::new())
-    .connect("read", "content", "transform", "data")
-    .connect("transform", "result", "analyze", "prompt")
-    .connect("analyze", "response", "write", "content");
+```python
+builder.add_node("LLMNode", "llm", {
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "system_prompt": "Analyze data"
+})
+
+builder.add_node("EmbeddedPythonNode", "metrics_reporter", {
+    "code": """
+report = {
+    'accuracy': accuracy,
+    'summary': summary,
+    'confidence': confidence
+}
+result = report
+"""
+})
+
+# Extract multiple nested fields
+builder.connect("llm", "result.metrics.accuracy", "metrics_reporter", "accuracy")
+builder.connect("llm", "result.summary", "metrics_reporter", "summary")
+builder.connect("llm", "result.confidence", "metrics_reporter", "confidence")
 ```
 
-## Parallel Processing (Level-Based Execution)
+## Common Mistakes
 
-Nodes at the same topological level run concurrently. Create parallel paths by having multiple nodes depend on the same upstream node but not on each other.
+### ❌ Mistake 1: Using 3-Parameter Syntax (Deprecated)
 
-```rust
-builder
-    .add_node("FileReaderNode", "source", ValueMap::new())
-
-    // These three have no dependency on each other -- run in parallel at Level 1
-    .add_node("LLMNode", "llm_summary", summary_config)
-    .add_node("JSONTransformNode", "extract_meta", meta_config)
-    .add_node("HashingNode", "compute_hash", ValueMap::new())
-
-    // All three feed into final aggregator at Level 2
-    .add_node("MergeNode", "aggregate", ValueMap::new())
-
-    .connect("source", "content", "llm_summary", "prompt")
-    .connect("source", "content", "extract_meta", "data")
-    .connect("source", "content", "compute_hash", "data")
-
-    .connect("llm_summary", "response", "aggregate", "inputs")
-    .connect("extract_meta", "result", "aggregate", "inputs")
-    .connect("compute_hash", "hash", "aggregate", "inputs");
+```python
+# Wrong - Old 3-parameter syntax
+builder.connect("reader", "processor", "data")  # DEPRECATED
 ```
 
-**Execution levels:**
+### ✅ Fix: Use 4-Parameter Syntax
 
-```
-Level 0: [source]
-Level 1: [llm_summary, extract_meta, compute_hash]  <-- parallel
-Level 2: [aggregate]
-```
-
-## Workflow Inputs → First Nodes
-
-Global workflow inputs (passed to `runtime.execute`) are automatically available to all nodes in Level 0 (nodes with no incoming connections). The field names in the input `ValueMap` match the node's input parameter names.
-
-```rust
-// Workflow with two root nodes, both consuming from global inputs
-builder
-    .add_node("TextTransformNode", "upper", upper_config)
-    .add_node("JSONTransformNode", "parse", parse_config)
-    // No .connect() needed for root nodes -- they receive from global inputs
-
-    // Global inputs must contain both "text" (for upper) and "data" (for parse)
-    ;
-
-let mut inputs = ValueMap::new();
-inputs.insert(Arc::from("text"), Value::String(Arc::from("hello")));
-inputs.insert(Arc::from("data"), Value::Object(BTreeMap::new()));
-runtime.execute(&workflow, inputs).await?;
+```python
+# Correct - Modern 4-parameter syntax
+builder.connect("reader", "data", "processor", "data")
 ```
 
-## Error: Connection to Non-Existent Node
+### ❌ Mistake 2: Wrong Port Names
 
-`builder.build(&registry)?` catches connection errors at build time:
-
-```rust
-builder
-    .add_node("LogNode", "log", ValueMap::new())
-    .connect("nonexistent", "output", "log", "data");  // Error at build()
-
-let workflow = builder.build(&registry);
-// Err(BuildError::NodeNotFound { id: "nonexistent" })
+```python
+# Wrong - Using non-existent ports
+builder.connect("csv_reader", "output", "processor", "input")  # Error
 ```
 
-## Verify
+### ✅ Fix: Use Correct Port Names
 
-```bash
-PATH="./.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- connection --nocapture 2>&1
+```python
+# Correct - CSVProcessorNode outputs to 'data' port
+builder.connect("csv_reader", "data", "processor", "data")
 ```
+
+### ❌ Mistake 3: Missing Dot Notation for Nested Data
+
+```python
+# Wrong - Trying to pass entire result when you need one field
+builder.connect("analyzer", "result", "reporter", "accuracy")  # Gets dict, not number
+```
+
+### ✅ Fix: Use Dot Notation
+
+```python
+# Correct - Extract specific field
+builder.connect("analyzer", "result.accuracy", "reporter", "accuracy")
+```
+
+### ❌ Mistake 4: Incorrect Node IDs
+
+```python
+# Wrong - Node ID mismatch
+builder.add_node("CSVProcessorNode", "csv_reader", {})
+builder.connect("reader", "data", "processor", "data")  # Error: 'reader' not found
+```
+
+### ✅ Fix: Match Node IDs Exactly
+
+```python
+# Correct - Consistent node IDs
+builder.add_node("CSVProcessorNode", "csv_reader", {})
+builder.connect("csv_reader", "data", "processor", "data")
+```
+
+## Related Patterns
+
+- **For workflow creation**: See [`workflow-quickstart`](#)
+- **For parameter passing**: See [`param-passing-quick`](#)
+- **For node patterns**: See [`node-patterns-common`](#)
+- **For cyclic workflows**: See [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md)
+
+## When to Escalate to Subagent
+
+Use `pattern-expert` subagent when:
+
+- Designing complex connection patterns
+- Implementing advanced data flow
+- Debugging connection issues
+- Optimizing workflow architecture
+
+Use `sdk-navigator` subagent when:
+
+- Finding node port names
+- Understanding node input/output structure
+- Resolving connection errors
+
+## Quick Tips
+
+- 💡 **Always 4 parameters**: Source node + output port → Target node + input port
+- 💡 **Check port names**: Verify ports exist on nodes before connecting
+- 💡 **Use dot notation**: Access nested data with `"result.field.subfield"`
+- 💡 **Plan data flow**: Map out connections before coding
+- 💡 **Test incrementally**: Add connections one at a time, verify each works
+
+## Version Notes
+
+- 4-parameter connection syntax is the standard pattern
+- Dot notation is supported for nested field access
+
+## Keywords for Auto-Trigger
+
+<!-- Trigger Keywords: connect nodes, connect, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, dot notation, workflow connections, node connections, data mapping, connection patterns -->

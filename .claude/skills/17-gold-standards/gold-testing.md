@@ -1,6 +1,6 @@
 ---
 name: gold-testing
-description: "Gold standard for testing in the Kailash Rust SDK. Use when asking 'testing standard', 'testing best practices', or 'how to test'."
+description: "Gold standard for testing. Use when asking 'testing standard', 'testing best practices', or 'how to test'."
 ---
 
 # Gold Standard: Testing
@@ -12,178 +12,173 @@ description: "Gold standard for testing in the Kailash Rust SDK. Use when asking
 ## Testing Principles
 
 ### 1. Test-First Development
+```python
+import kailash
 
-```rust
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use std::sync::Arc;
+# ✅ Write test FIRST
+def test_user_workflow():
+    """Test user creation workflow."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EmbeddedPythonNode", "create", {
+        "code": "result = {'email': 'test@example.com', 'created': True}"
+    })
 
-// ✅ Write test FIRST
-#[tokio::test]
-async fn test_user_workflow() {
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("JSONTransformNode", "create", ValueMap::from([
-        ("expression".into(), Value::String("@".into())),
-    ]));
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
 
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("workflow build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
+    assert result["results"]["create"]["result"]["email"] == "test@example.com"
+    assert result["results"]["create"]["result"]["created"] is True
 
-    let inputs = ValueMap::from([
-        ("data".into(), Value::Object(ValueMap::from([
-            ("email".into(), Value::String("test@example.com".into())),
-            ("created".into(), Value::Bool(true)),
-        ]))),
-    ]);
-    let result = runtime.execute(&workflow, inputs).await.expect("execution failed");
-
-    assert!(result.results.contains_key("create"));
-}
-
-// Then implement the actual workflow
+# Then implement the actual workflow
 ```
 
 ### 2. 3-Tier Testing Strategy
 
-```rust
-// Tier 1: Unit (fast, in-memory)
-#[test]
-fn test_workflow_build() {
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("LogNode", "process", ValueMap::new());
+```python
+# Tier 1: Unit (fast, in-memory)
+def test_workflow_build():
+    """Test workflow construction."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EmbeddedPythonNode", "process", {"code": "result = 42"})
 
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry);
-    assert!(workflow.is_ok());
-}
+    reg = kailash.NodeRegistry()
+    assert builder.build(reg) is not None
 
-// Tier 2: Integration (real infrastructure — NO MOCKING)
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_database_integration() {
-    dotenvy::dotenv().ok();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
+# Tier 2: Integration (real infrastructure)
+def test_database_integration():
+    """Test with real PostgreSQL - NO MOCKING."""
+    from tests.utils.docker_config import get_postgres_connection_string
 
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("SQLQueryNode", "db", ValueMap::from([
-        ("connection_string".into(), Value::String(db_url.into())),
-        ("query".into(), Value::String("SELECT 1 as value".into())),
-        ("operation".into(), Value::String("select".into())),
-    ]));
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLDatabaseNode", "db", {
+        "connection_string": get_postgres_connection_string(),
+        "query": "SELECT 1 as value",
+        "operation": "select"
+    })
 
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-    let result = runtime.execute(&workflow, ValueMap::new()).await.expect("execution failed");
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
 
-    assert!(result.results.contains_key("db"));
-}
+    assert result["results"]["db"]["success"]
 
-// Tier 3: E2E (full system)
-#[tokio::test]
-#[cfg(feature = "e2e")]
-async fn test_full_pipeline() {
-    let mut builder = WorkflowBuilder::new();
-    // Build complete pipeline with real nodes...
-    // ...
+# Tier 3: E2E (full system)
+import pytest
 
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-    let result = runtime.execute(&workflow, ValueMap::new()).await.expect("execution failed");
+@pytest.mark.e2e
+@pytest.mark.requires_docker
+async def test_full_pipeline():
+    """Test complete pipeline."""
 
-    assert!(result.results.contains_key("extract"));
-}
+    workflow = build_complete_pipeline()
+
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(workflow)
+
+    assert result["results"]["extract"]["status"] == "success"
+    assert result["results"]["load"]["rows_inserted"] > 0
 ```
 
 ### 3. NO MOCKING (Tiers 2-3)
 
-```rust
-// ✅ GOOD: Real infrastructure in integration tests
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_database_operations() {
-    dotenvy::dotenv().ok();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
-    let pool = sqlx::PgPool::connect(&db_url).await.expect("connect failed");
+```python
+# ✅ GOOD: Real infrastructure in integration tests
+def test_database_operations():
+    """Use real Docker PostgreSQL."""
+    from tests.utils.docker_config import get_postgres_connection_string
 
-    let row = sqlx::query!("SELECT * FROM users LIMIT 1")
-        .fetch_optional(&pool)
-        .await
-        .expect("query failed");
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLDatabaseNode", "db", {
+        "connection_string": get_postgres_connection_string(),
+        "query": "SELECT * FROM users",
+        "operation": "select"
+    })
 
-    // Real query against real database
-    assert!(row.is_some() || row.is_none()); // Valid either way
-}
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
 
-// ❌ BAD: Using mockall in integration tests
-// #[automock]
-// trait Database { fn query(&self) -> Result<Vec<Row>>; }
-// fn test_database(mock: MockDatabase) { ... } // DON'T DO THIS
+    assert result["results"]["db"]["success"]
+
+# ❌ BAD: Mocking in integration tests
+# from unittest.mock import patch
+# @patch("sqlalchemy.create_engine")  # DON'T DO THIS
+# def test_database(mock_engine):
+#     mock_engine.return_value = {...}
 ```
 
 ### 4. Clear Test Names
 
-```rust
-// ✅ GOOD: Descriptive names
-#[test]
-fn test_user_creation_with_valid_email_succeeds() { /* ... */ }
+```python
+# ✅ GOOD: Descriptive names
+def test_user_creation_with_valid_email_succeeds():
+    pass
 
-#[test]
-fn test_user_creation_with_invalid_email_fails() { /* ... */ }
+def test_user_creation_with_invalid_email_fails():
+    pass
 
-#[test]
-fn test_workflow_execution_returns_results_and_run_id() { /* ... */ }
+def test_workflow_execution_with_runtime_returns_result_dict():
+    pass
 
-// ❌ BAD: Generic names
-// fn test_user_1() { }
-// fn test_workflow() { }
+# ❌ BAD: Generic names
+def test_user_1():
+    pass
+
+def test_workflow():
+    pass
 ```
 
 ### 5. Test Isolation
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+```python
+import pytest
 
-    /// Create a fresh WorkflowBuilder for each test.
-    fn new_builder() -> WorkflowBuilder {
-        WorkflowBuilder::new()
-    }
+@pytest.fixture
+def clean_builder():
+    """Each test gets fresh workflow builder."""
+    builder = kailash.WorkflowBuilder()
+    yield builder
+    # Cleanup if needed
 
-    /// Create a Runtime with default config.
-    fn new_runtime() -> (Runtime, Arc<NodeRegistry>) {
-        let registry = Arc::new(NodeRegistry::default());
-        let runtime = Runtime::new(RuntimeConfig::default(), registry.clone());
-        (runtime, registry)
-    }
+@pytest.fixture
+def runtime():
+    """Runtime instance with registry."""
+    reg = kailash.NodeRegistry()
+    return kailash.Runtime(reg)
 
-    #[tokio::test]
-    async fn test_one() {
-        let mut builder = new_builder();
-        builder.add_node("LogNode", "node", ValueMap::from([
-            ("message".into(), Value::String("one".into())),
-        ]));
-        let (runtime, registry) = new_runtime();
-        let workflow = builder.build(&registry).expect("build failed");
-        let result = runtime.execute(&workflow, ValueMap::new()).await.expect("exec failed");
-        assert!(result.results.contains_key("node"));
-    }
+def test_one(clean_builder, runtime):
+    """Isolated test with clean workflow."""
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1"})
+    reg = kailash.NodeRegistry()
+    result = runtime.execute(clean_builder.build(reg))
+    assert result["results"]["node"]["result"] == 1
 
-    #[tokio::test]
-    async fn test_two() {
-        let mut builder = new_builder();
-        builder.add_node("LogNode", "node", ValueMap::from([
-            ("message".into(), Value::String("two".into())),
-        ]));
-        let (runtime, registry) = new_runtime();
-        let workflow = builder.build(&registry).expect("build failed");
-        let result = runtime.execute(&workflow, ValueMap::new()).await.expect("exec failed");
-        assert!(result.results.contains_key("node"));
-    }
-}
+def test_two(clean_builder, runtime):
+    """Another isolated test with fresh workflow."""
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 2"})
+    reg = kailash.NodeRegistry()
+    result = runtime.execute(clean_builder.build(reg))
+    assert result["results"]["node"]["result"] == 2
+```
+
+### 6. Testing with Runtime
+
+```python
+def test_workflow_execution():
+    """Test workflow executes correctly."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EmbeddedPythonNode", "node", {
+        "code": "result = {'status': 'completed'}"
+    })
+
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+
+    assert result["results"]["node"]["result"]["status"] == "completed"
+    assert result["run_id"] is not None
 ```
 
 ## Testing Checklist
@@ -191,25 +186,20 @@ mod tests {
 - [ ] Test written before implementation (TDD)
 - [ ] All 3 tiers covered (unit, integration, E2E)
 - [ ] NO MOCKING in Tiers 2-3 (use real Docker services)
-- [ ] Clear, descriptive test names (snake_case)
-- [ ] Test isolation with helper functions
-- [ ] Tests run in CI/CD (`cargo test --workspace`)
-- [ ] 80%+ code coverage (`cargo tarpaulin` or `cargo llvm-cov`)
-- [ ] Error cases tested (assert `Result::is_err()`)
+- [ ] Clear, descriptive test names
+- [ ] Test isolation with fixtures
+- [ ] Tests run in CI/CD
+- [ ] 80%+ code coverage
+- [ ] Error cases tested
 - [ ] Edge cases tested
-- [ ] Real infrastructure via Docker (PostgreSQL, Redis)
-- [ ] Tests organized by feature gate (`#[cfg(feature = "integration")]`)
-
-## Documentation References
-
-### Primary Sources
-
-- [`CLAUDE.md`](../../../../CLAUDE.md) - Workspace architecture and testing commands
-- [`rules/testing.md`](../../../../rules/testing.md) - Testing rules
+- [ ] Runtime tested with NodeRegistry
+- [ ] Real infrastructure via Docker (PostgreSQL, Redis, Ollama)
+- [ ] Tests organized in correct tier (unit/, integration/, e2e/)
 
 ## Related Patterns
 
-- **Testing strategies**: [`test-3tier-strategy`](../../13-testing-strategies/test-3tier-strategy.md)
-- **Testing patterns**: [`testing-patterns`](../../13-testing-strategies/testing-patterns.md)
+- **Test organization**: [`test-organization`](../../07-development-guides/test-organization.md)
+- **Testing best practices**: [`testing-best-practices`](../../07-development-guides/testing-best-practices.md)
+- **Runtime execution**: [`runtime-execution`](../../01-core-sdk/runtime-execution.md)
 
 <!-- Trigger Keywords: testing standard, testing best practices, how to test, testing gold standard, test guidelines -->

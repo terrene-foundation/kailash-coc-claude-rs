@@ -44,7 +44,7 @@ result = {
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "custom_processor": {"input_data": "test data", "threshold": 50}
 })
 ```

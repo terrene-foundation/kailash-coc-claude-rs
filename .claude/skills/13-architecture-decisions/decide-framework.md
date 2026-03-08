@@ -75,7 +75,7 @@ result = rt.execute(builder.build(reg))
 
 **Key Features:**
 
-- `@db.model` decorator generates 11 nodes per model
+- `@df.model` decorator generates 11 nodes per model
 - MongoDB-style query syntax
 - Multi-tenancy, audit trails, compliance
 - Auto-migration system
@@ -87,7 +87,7 @@ result = rt.execute(builder.build(reg))
 
 df = kailash.DataFlow("postgresql://localhost/db")
 
-@db.model
+@df.model
 class User:
     name: str
     email: str
@@ -203,7 +203,7 @@ app = NexusApp()
 # Step 2: Create kailash.DataFlow (defaults work correctly)
 df = kailash.DataFlow("postgresql://localhost/db")
 
-@db.model
+@df.model
 class User:
     name: str
     email: str

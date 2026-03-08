@@ -1,288 +1,355 @@
 ---
-name: nexus-auth-plugin
-description: "Nexus auth plugin: JWT authentication, RBAC middleware, per-user rate limiting. Use when asking 'JWT auth', 'RBAC middleware', 'auth plugin', 'role-based access', 'auth extractor', 'AuthUser', 'JwtClaims', 'rate limit per user', or 'tenant isolation'."
+skill: nexus-auth-plugin
+description: NexusAuthPlugin unified authentication with JWT, RBAC, tenant isolation, rate limiting, and audit logging
+priority: HIGH
+tags: [nexus, auth, jwt, rbac, tenant, rate-limit, audit, sso]
 ---
 
-# Nexus Auth Plugin
+# NexusAuthPlugin - Unified Authentication
 
-JWT authentication, RBAC enforcement, and per-user rate limiting as composable Tower layers for axum routers.
+Complete auth package combining JWT, RBAC, rate limiting, tenant isolation, and audit logging into a single plugin.
 
-## Module Structure
+**Security Defaults**:
 
+- JwtConfig enforces **32-char minimum** for HS\* secrets (`ValueError` if shorter)
+- RBAC errors return generic "Forbidden" (no role/permission leakage)
+- SSO errors are sanitized (status-only to client, details logged server-side)
+- `create_access_token()` filters reserved claims from `extra_claims`
+
+## Quick Reference
+
+```python
+import os
+import kailash
+from kailash.nexus import NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 ```
-kailash_nexus::auth
-  jwt         -- JwtConfig, JwtClaims, JwtAuthLayer, AuthUser, create_jwt, decode_jwt
-  rbac        -- RbacConfig, RbacLayer (route-level permission enforcement)
-  rate_limit  -- AuthRateLimitConfig, AuthRateLimitLayer (per-user/per-tenant)
-  error       -- AuthError (WeakSecret, JwtInvalid, MissingAuth, Forbidden, etc.)
+
+## Factory Methods (Recommended)
+
+### Basic Auth (JWT + Audit)
+
+```python
+auth = NexusAuthPlugin.basic_auth(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # Must be >= 32 chars for HS256
+    audit=AuditConfig(backend="logging"),  # Optional, defaults to logging
+)
+app = NexusApp()
+app.add_plugin(auth)
 ```
 
-## 1. JWT Authentication
+### SaaS App (JWT + RBAC + Tenant + Audit)
+
+```python
+auth = NexusAuthPlugin.saas_app(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
+    rbac={
+        "admin": ["*"],
+        "user": ["read:*", "write:own"],
+    },
+    tenant_isolation=TenantConfig(
+        jwt_claim="tenant_id",
+        admin_role="super_admin",
+    ),
+    rbac_default_role="user",
+)
+```
+
+### Enterprise (All Features)
+
+```python
+auth = NexusAuthPlugin.enterprise(
+    jwt=JwtConfig(
+        secret=os.environ["JWT_SECRET"],  # >= 32 chars
+        issuer="https://your-domain.com",
+        audience="your-api",
+    ),
+    rbac={
+        "super_admin": ["*"],
+        "admin": {"permissions": ["admin:*"], "inherits": ["editor"]},
+        "editor": ["read:*", "write:*"],
+        "viewer": ["read:*"],
+    },
+    rate_limit=RateLimitConfig(
+        requests_per_minute=100,
+        burst_size=20,
+        backend="redis",
+        redis_url="redis://localhost:6379",
+    ),
+    tenant_isolation=TenantConfig(),
+    audit=AuditConfig(backend="logging", log_request_body=True),
+)
+```
+
+## Component Configurations
 
 ### JwtConfig
 
-Configure JWT validation. HS algorithms require a secret of at least 32 bytes.
+```python
+from kailash import JwtConfig
 
-```rust
-use kailash_nexus::auth::jwt::JwtConfig;
-use jsonwebtoken::Algorithm;
+# Symmetric (HS256) - secret MUST be >= 32 chars
+jwt = JwtConfig(
+    secret=os.environ["JWT_SECRET"],   # REQUIRED for HS*; >= 32 chars or ValueError
+    algorithm="HS256",                  # Default
+    exempt_paths=["/health", "/docs", "/auth/login"],
+    verify_exp=True,
+    leeway=0,                           # Seconds tolerance for exp/nbf
+)
 
-// Read secret from environment -- NEVER hardcode
-dotenvy::dotenv().ok();
-let secret = std::env::var("JWT_SECRET")
-    .map_err(|_| "JWT_SECRET must be set in .env")?;
+# Asymmetric (RS256) - Production
+jwt = JwtConfig(
+    algorithm="RS256",
+    public_key="-----BEGIN PUBLIC KEY-----...",
+    private_key="-----BEGIN PRIVATE KEY-----...",  # For token creation
+    issuer="https://auth.example.com",
+    audience="https://api.example.com",
+)
 
-let config = JwtConfig::new(&secret)
-    .with_algorithm(Algorithm::HS256)  // default
-    .with_expiry_secs(3600)            // default: 1 hour
-    .with_issuer("my-app")
-    .with_audience(vec!["api".to_string()])
-    .with_leeway_secs(60)             // clock skew tolerance
-    .with_required_claim("sub");
-
-// Validates secret strength (>= 32 bytes for HS algorithms)
-config.validate()?;
+# JWKS (SSO providers - Auth0, Okta, Azure AD)
+jwt = JwtConfig(
+    algorithm="RS256",
+    jwks_url="https://your-tenant.auth0.com/.well-known/jwks.json",
+    jwks_cache_ttl=3600,
+    issuer="https://your-tenant.auth0.com/",
+)
 ```
 
-### JwtClaims
+**Token Extraction Priority:**
 
-Token payload with built-in RBAC fields (`role`, `tenant_id`).
+1. `Authorization: Bearer <token>` header
+2. Cookie (if `token_cookie` configured)
+3. Query parameter (if `token_query_param` configured)
 
-```rust
-use kailash_nexus::auth::jwt::JwtClaims;
+### RBAC Roles
 
-let claims = JwtClaims::new("user-123")       // sub = user ID
-    .with_role("admin")                         // RBAC role
-    .with_tenant_id("tenant-456")               // multi-tenancy
-    .with_issuer("my-app")
-    .with_audience(vec!["api".to_string()])
-    .with_extra("org_id", serde_json::json!("org-1")); // custom claims
-
-// Create with custom expiry
-let short_lived = JwtClaims::with_expiry("user-123", 900); // 15 minutes
-```
-
-### Create and Decode Tokens
-
-```rust
-use kailash_nexus::auth::jwt::{JwtConfig, JwtClaims, create_jwt, decode_jwt};
-
-let config = JwtConfig::new(&secret);
-let claims = JwtClaims::new("user-123").with_role("admin");
-
-let token = create_jwt(&claims, &config)?;
-let decoded = decode_jwt(&token, &config)?;
-assert_eq!(decoded.sub, "user-123");
-assert_eq!(decoded.role.as_deref(), Some("admin"));
-```
-
-### JwtAuthLayer -- Tower Middleware
-
-Validates `Authorization: Bearer <token>` on every request. Injects `JwtClaims` into request extensions.
-
-```rust
-use kailash_nexus::auth::jwt::{JwtAuthLayer, JwtConfig};
-use axum::{Router, routing::get};
-
-let config = JwtConfig::new(&secret);
-let jwt_layer = JwtAuthLayer::new(config)?; // validates config eagerly
-
-let app = Router::new()
-    .route("/protected", get(protected_handler))
-    .layer(jwt_layer);
-```
-
-**Failure behavior:**
-
-- Missing `Authorization` header: HTTP 401
-- Invalid/expired token: HTTP 401
-
-### AuthUser Extractor
-
-Read authenticated claims in handler functions.
-
-```rust
-use kailash_nexus::auth::jwt::AuthUser;
-
-async fn protected_handler(AuthUser(claims): AuthUser) -> String {
-    format!("Hello, {}! Role: {:?}", claims.sub, claims.role)
+```python
+# Simple format: role -> list of permissions
+rbac = {
+    "admin": ["*"],
+    "editor": ["read:*", "write:articles", "write:comments"],
+    "viewer": ["read:*"],
 }
 
-async fn tenant_handler(AuthUser(claims): AuthUser) -> Result<String, kailash_nexus::auth::AuthError> {
-    let tenant = claims.tenant_id
-        .as_deref()
-        .ok_or(kailash_nexus::auth::AuthError::MissingTenant)?;
-    Ok(format!("Tenant: {tenant}"))
+# Full format with inheritance
+rbac = {
+    "super_admin": {"permissions": ["*"], "description": "Full access"},
+    "admin": {
+        "permissions": ["admin:*"],
+        "inherits": ["editor"],  # Gets all editor permissions too
+    },
+    "editor": {
+        "permissions": ["write:*"],
+        "inherits": ["viewer"],
+    },
+    "viewer": {"permissions": ["read:*"]},
 }
 ```
 
-## 2. RBAC Middleware
+**Permission Wildcards:**
 
-Route-level role-based access control. Reads `JwtClaims` from extensions (set by `JwtAuthLayer`) and checks permissions.
+- `"*"` - matches everything
+- `"read:*"` - matches `read:users`, `read:articles`, etc.
+- `"*:users"` - matches `read:users`, `write:users`, etc.
 
-### RbacConfig
+### TenantConfig
 
-```rust
-use kailash_nexus::auth::rbac::RbacConfig;
+```python
+from kailash.nexus import NexusAuthPlugin
 
-let rbac_config = RbacConfig::new()
-    // Define roles and their permissions
-    .with_role("admin", vec!["*".to_string()])                    // wildcard: all access
-    .with_role("editor", vec!["users.*".to_string()])             // resource wildcard
-    .with_role("viewer", vec!["users.read".to_string()])          // exact permission
-    // Map routes to required permissions ("METHOD /path" format)
-    .with_route_permission("GET /api/users", "users.read")
-    .with_route_permission("POST /api/users", "users.write")
-    .with_route_permission("DELETE /api/users/{id}", "users.delete")
-    // Default behavior for unmapped routes
-    .with_deny_by_default(true)                                   // default
-    .with_default_permission("base.access");                      // optional fallback
+tenant = TenantConfig(
+    tenant_id_header="X-Tenant-ID",      # Header for explicit tenant
+    jwt_claim="tenant_id",               # JWT claim name
+    fallback_to_user_org=True,           # Look up from user record
+    allow_admin_override=True,           # Super admins access any tenant
+    admin_role="super_admin",            # SINGULAR string, not list
+    exclude_paths=["/health", "/docs"],
+)
 ```
 
-**Permission matching:**
+### RateLimitConfig
 
-- `"*"` matches any permission (admin wildcard)
-- `"users.*"` matches `"users.read"`, `"users.write"`, etc.
-- `"users.read"` exact match only
-- Route patterns support `{param}` placeholders
+```python
+from kailash import AuthRateLimitConfig
 
-### Composing JWT + RBAC
-
-Layer order matters -- JWT must run before RBAC because RBAC reads claims from extensions.
-
-```rust
-use kailash_nexus::auth::{
-    jwt::{JwtAuthLayer, JwtConfig},
-    rbac::{RbacConfig, RbacLayer},
-};
-use axum::{Router, routing::get};
-
-let jwt_layer = JwtAuthLayer::new(JwtConfig::new(&secret))?;
-let rbac_layer = RbacLayer::new(
-    RbacConfig::new()
-        .with_role("admin", vec!["*".to_string()])
-        .with_role("user", vec!["data.read".to_string()])
-        .with_route_permission("GET /api/data", "data.read")
-        .with_route_permission("POST /api/data", "data.write"),
-);
-
-// Tower layers wrap outside-in: last .layer() is outermost
-// JWT runs first (outermost), then RBAC checks claims
-let app = Router::new()
-    .route("/api/data", get(data_handler))
-    .layer(rbac_layer)   // inner: checks permissions
-    .layer(jwt_layer);   // outer: validates token, sets claims
+rate_limit = RateLimitConfig(
+    requests_per_minute=100,
+    burst_size=20,
+    backend="memory",                    # or "redis"
+    redis_url="redis://localhost:6379",  # Required if backend="redis"
+    route_limits={
+        "/api/chat/*": {"requests_per_minute": 30},
+        "/api/auth/login": {"requests_per_minute": 10, "burst_size": 5},
+        "/health": None,                 # Disable for this route
+    },
+    include_headers=True,                # Add X-RateLimit-* headers
+    fail_open=True,                      # Allow when backend fails
+)
 ```
 
-**Failure behavior:**
+### AuditConfig
 
-- No claims in extensions (JWT layer missing): HTTP 403
-- Role lacks required permission: HTTP 403
-- Response body is generic `"Forbidden"` to avoid leaking role info
+```python
+from kailash.nexus import NexusAuthPlugin
 
-## 3. Per-User Rate Limiting
-
-Unlike the global `middleware::rate_limit`, this limits per authenticated user or per anonymous key.
-
-```rust
-use kailash_nexus::auth::rate_limit::{AuthRateLimitConfig, AuthRateLimitLayer};
-
-let rate_config = AuthRateLimitConfig::new()
-    .with_authenticated_rpm(2000)  // default: 1000/min
-    .with_anonymous_rpm(30)        // default: 60/min
-    .with_burst_size(100);         // default: 50 above limit
-
-let rate_layer = AuthRateLimitLayer::new(rate_config);
-
-// Compose with JWT for per-user identification
-let app = Router::new()
-    .route("/api/data", get(data_handler))
-    .layer(rate_layer)  // inner: rate limit
-    .layer(jwt_layer);  // outer: sets claims used for rate limit key
+audit = AuditConfig(
+    backend="logging",                   # or "dataflow"
+    log_level="INFO",
+    log_request_body=False,
+    log_response_body=False,
+    max_body_log_size=10 * 1024,         # 10KB
+    exclude_paths=["/health", "/metrics"],
+    exclude_methods=["OPTIONS"],
+    redact_headers=["Authorization", "Cookie", "X-API-Key"],
+    redact_fields=["password", "token", "secret", "api_key"],
+)
 ```
 
-**Behavior:**
+## Handler-Level Auth
 
-- Authenticated users keyed by `user:{sub}` from JWT claims
-- Anonymous users keyed by `"anonymous"` (shared pool)
-- Rate limit headers on every response: `x-ratelimit-limit`, `x-ratelimit-remaining`
-- HTTP 429 with `retry-after: 60` when exceeded
+Use `@app.handler()` with the auth plugin for role-based access:
 
-## 4. Full Auth Stack Example
+```python
+import kailash
+from kailash.nexus import NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
-```rust
-use kailash_nexus::auth::{
-    jwt::{AuthUser, JwtAuthLayer, JwtClaims, JwtConfig},
-    rbac::{RbacConfig, RbacLayer},
-    rate_limit::{AuthRateLimitConfig, AuthRateLimitLayer},
-};
-use axum::{Router, routing::get};
+from kailash.nexus import NexusApp
+app = NexusApp()
 
-dotenvy::dotenv().ok();
-let secret = std::env::var("JWT_SECRET")?;
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(["admin", "user"]),
+)
+app.add_plugin(auth)
 
-let jwt_layer = JwtAuthLayer::new(
-    JwtConfig::new(&secret)
-        .with_issuer("my-app")
-        .with_audience(vec!["api".to_string()]),
-)?;
+# Handlers are automatically protected by the auth plugin
+@app.handler("admin_dashboard", description="Admin-only dashboard")
+async def admin_dashboard() -> dict:
+    return {"admin": True}
 
-let rbac_layer = RbacLayer::new(
-    RbacConfig::new()
-        .with_role("admin", vec!["*".to_string()])
-        .with_role("user", vec!["users.read".to_string(), "orders.read".to_string()])
-        .with_route_permission("GET /api/users", "users.read")
-        .with_route_permission("GET /api/orders", "orders.read")
-        .with_route_permission("POST /api/admin", "admin.access"),
-);
-
-let rate_layer = AuthRateLimitLayer::new(
-    AuthRateLimitConfig::new()
-        .with_authenticated_rpm(1000)
-        .with_anonymous_rpm(60)
-        .with_burst_size(50),
-);
-
-// Layer order (inside-out): rate limit -> RBAC -> JWT
-let app = Router::new()
-    .route("/api/users", get(list_users))
-    .route("/api/orders", get(list_orders))
-    .route("/api/admin", get(admin_panel).post(admin_action))
-    .layer(rate_layer)   // innermost
-    .layer(rbac_layer)   // middle
-    .layer(jwt_layer);   // outermost
-
-async fn list_users(AuthUser(claims): AuthUser) -> String {
-    format!("Users for tenant: {:?}", claims.tenant_id)
-}
-
-async fn list_orders(AuthUser(claims): AuthUser) -> String {
-    format!("Orders for user: {}", claims.sub)
-}
-
-async fn admin_panel(AuthUser(claims): AuthUser) -> String {
-    format!("Admin: {}", claims.sub)
-}
-
-async fn admin_action(AuthUser(claims): AuthUser) -> String {
-    format!("Admin action by: {}", claims.sub)
-}
+@app.handler("public_info", description="Public info")
+async def public_info() -> dict:
+    return {"public": True}
 ```
 
-## 5. AuthError Types
+## Middleware Execution Order
 
-| Variant             | HTTP Status | When                                   |
-| ------------------- | ----------- | -------------------------------------- |
-| `WeakSecret`        | 500         | Secret < 32 bytes for HS algorithms    |
-| `JwtInvalid`        | 401         | Token expired, malformed, wrong secret |
-| `MissingAuth`       | 401         | No Authorization header                |
-| `Forbidden`         | 403         | RBAC permission denied                 |
-| `MissingTenant`     | 403         | No tenant_id in token/headers          |
-| `RateLimitExceeded` | 429         | Per-user rate limit exceeded           |
-| `SsoError`          | 500         | SSO provider failure                   |
-| `OAuthStateError`   | 400         | OAuth state mismatch or expired        |
-| `ConfigError`       | 500         | Auth plugin misconfiguration           |
+NexusAuthPlugin installs middleware in the correct order automatically:
 
-`AuthError` implements `IntoResponse` for direct use as axum error responses.
+```
+Request -> Audit -> RateLimit -> JWT -> Tenant -> RBAC -> Handler
+Response <- Audit <- RateLimit <- JWT <- Tenant <- RBAC <- Handler
+```
 
-<!-- Trigger Keywords: JWT, RBAC, authentication, authorization, auth plugin, JwtClaims, AuthUser, rate limit, per-user rate limit, tenant isolation, role-based access, token, bearer -->
+1. **Audit** (outermost) - Logs all requests/responses
+2. **RateLimit** - Blocks before authentication overhead
+3. **JWT** - Authenticates and populates `request.state.user`
+4. **Tenant** - Resolves tenant from JWT claims
+5. **RBAC** (innermost) - Resolves permissions from roles
+
+## Common Gotchas
+
+### Parameter Name Mismatches
+
+| Wrong           | Correct        | Component    |
+| --------------- | -------------- | ------------ |
+| `secret_key`    | `secret`       | JwtConfig    |
+| `exclude_paths` | `exempt_paths` | JwtConfig    |
+| `admin_roles`   | `admin_role`   | TenantConfig |
+
+### PEP 563 and Annotations
+
+```python
+# Avoid this in files that use runtime type inspection:
+from __future__ import annotations  # May break type resolution
+```
+
+### RBAC Requires JWT
+
+```python
+# This will raise ValueError:
+auth = NexusAuthPlugin(
+    rbac={"admin": ["*"]},  # Error: RBAC requires JWT
+)
+
+# Correct:
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
+    rbac={"admin": ["*"]},
+)
+```
+
+### RequirePermission Checks Both Sources
+
+`RequirePermission` checks:
+
+1. User's direct permissions (from JWT `permissions` claim)
+2. RBAC-resolved permissions (from roles via RBACMiddleware)
+
+If using RBAC, ensure RBACMiddleware is installed (NexusAuthPlugin does this automatically).
+
+## Token Creation
+
+```python
+# Get JWTMiddleware instance
+jwt_middleware = ...
+
+# Create access token
+access_token = jwt_middleware.create_access_token(
+    user_id="user123",
+    email="user@example.com",
+    roles=["editor"],
+    permissions=["write:articles"],
+    tenant_id="tenant456",
+    expires_minutes=30,
+)
+
+# Create refresh token
+refresh_token = jwt_middleware.create_refresh_token(
+    user_id="user123",
+    tenant_id="tenant456",
+    expires_days=7,
+)
+```
+
+## SSO Provider Examples
+
+### Auth0
+
+```python
+jwt = JwtConfig(
+    algorithm="RS256",
+    jwks_url="https://YOUR_DOMAIN.auth0.com/.well-known/jwks.json",
+    issuer="https://YOUR_DOMAIN.auth0.com/",
+    audience="YOUR_API_IDENTIFIER",
+)
+```
+
+### Azure AD
+
+```python
+jwt = JwtConfig(
+    algorithm="RS256",
+    jwks_url="https://login.microsoftonline.com/TENANT_ID/discovery/v2.0/keys",
+    issuer="https://login.microsoftonline.com/TENANT_ID/v2.0",
+    audience="YOUR_CLIENT_ID",
+)
+```
+
+### Google
+
+```python
+jwt = JwtConfig(
+    algorithm="RS256",
+    jwks_url="https://www.googleapis.com/oauth2/v3/certs",
+    issuer="https://accounts.google.com",
+    audience="YOUR_CLIENT_ID",
+)
+```
+
+## Related Skills
+
+- [nexus-enterprise-features](nexus-enterprise-features.md) - Enterprise deployment patterns
+- [nexus-security-best-practices](nexus-security-best-practices.md) - Security hardening
+- [nexus-production-deployment](nexus-production-deployment.md) - Production setup

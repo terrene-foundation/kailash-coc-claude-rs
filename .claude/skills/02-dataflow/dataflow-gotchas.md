@@ -1,337 +1,673 @@
 ---
 name: dataflow-gotchas
-description: "Common DataFlow pitfalls and mistakes quick reference. Use when asking 'DataFlow gotcha', 'common mistake', 'why is my create failing', 'why is update not working', 'primary key error', 'created_at error', 'soft delete behavior', 'DataFlow is not ORM', or 'sqlx compile-time'."
+description: "Common DataFlow mistakes and misunderstandings. Use when DataFlow issues, gotchas, common mistakes DataFlow, troubleshooting DataFlow, or DataFlow problems."
 ---
 
-# DataFlow Gotchas
+# DataFlow Common Gotchas
 
-Quick-reference of common kailash-dataflow pitfalls, all verified against
-the actual source in `crates/kailash-dataflow/src/`.
+Common misunderstandings and mistakes when using DataFlow, with solutions.
+
+> **Skill Metadata**
+> Category: `dataflow`
+> Priority: `HIGH`
+> Related Skills: [`dataflow-models`](#), [`dataflow-crud-operations`](#), [`dataflow-nexus-integration`](#)
+> Related Subagents: `dataflow-specialist` (complex troubleshooting)
+
+## Quick Reference
+
+- **✅ Docker**: `auto_migrate=True` works! DataFlow handles DDL internally
+- **⚠️ In-Memory SQLite**: `:memory:` databases use lazy creation (sync DDL skipped)
+- **🚨 Sync methods in async context (DF-501)**: Use `create_tables_async()` if needed
+- **🚨 Timestamp fields auto-stripped**: `created_at`/`updated_at` auto-removed with warning
+- **🔇 Logging configuration**: Use `LoggingConfig` for clean logs - `db = kailash.DataFlow(..., log_config=LoggingConfig.production())`
+- **soft_delete auto-filters**: Use `include_deleted=True` to see deleted records
+- **NOT an ORM**: DataFlow is workflow-native, not like SQLAlchemy
+- **Primary Key MUST be `id`**: NOT `user_id`, `model_id`, or anything else
+- **CreateNode ≠ UpdateNode**: Different parameter patterns (flat vs nested)
+- **Template Syntax**: DON'T use `${}` - conflicts with PostgreSQL
+- **Connections**: Use connections, NOT template strings
+- **Result Access**: ListNode → `records`, CountNode → `count`, ReadNode → record dict
+- **Use Nexus for APIs**: Register workflows with `NexusApp` via `@app.handler()`
+
+## Critical Gotchas
+
+### 🚨 #1 MOST COMMON: Auto-Managed Timestamp Fields (DF-104)
+
+**This WAS the #1 mistake - now auto-handled!**
+
+#### Current Behavior: Auto-Strip with Warning
+
+DataFlow now **automatically strips** `created_at` and `updated_at` fields and logs a warning:
+
+```python
+# This WORKS (with warning) - timestamps are auto-stripped
+async def update(self, id: str, data: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    data["updated_at"] = now  # ⚠️ Auto-stripped with warning
+
+    builder.add_node("ModelUpdateNode", "update", {
+        "filter": {"id": id},
+        "fields": data  # ✅ Works! updated_at is auto-stripped
+    })
+```
+
+**Warning Message**:
+
+```
+⚠️ AUTO-STRIPPED: Fields ['updated_at'] removed from update. DataFlow automatically
+manages created_at/updated_at timestamps. Remove these fields from your code to
+avoid this warning.
+```
+
+#### Best Practice (Avoid Warning)
+
+Remove timestamp fields from your code entirely:
+
+```python
+# ✅ BEST PRACTICE - No timestamp management needed
+async def update(self, id: str, data: dict) -> dict:
+    # Don't set timestamps - DataFlow handles it
+    builder.add_node("ModelUpdateNode", "update", {
+        "filter": {"id": id},
+        "fields": data  # DataFlow sets updated_at automatically
+    })
+```
+
+#### Auto-Managed Fields
+
+- `created_at` - Set automatically on record creation (CreateNode)
+- `updated_at` - Set automatically on every modification (UpdateNode)
+
+**Impact**: No DF-104 errors. Fields are auto-stripped with warning.
 
 ---
 
-## 1. Primary Key MUST Be Named `id`
+### 🚨 #2: Sync Methods in Async Context (DF-501) ⚠️ CRITICAL
 
-The `ModelDefinition` defaults to `"id"` as the primary key column. If no field
-has `.primary_key()` set, the system assumes `"id"`. Validation rejects models
-with no primary key.
+**This error occurs when using DataFlow in pytest-asyncio or any async framework!**
 
-```rust
-use kailash_dataflow::model::{ModelDefinition, FieldType};
+```
+RuntimeError: DF-501: Sync Method in Async Context
 
-// CORRECT
-let model = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::Text, |f| f.required());
+You called create_tables() from an async context (running event loop detected).
+Use create_tables_async() instead.
+```
 
-// WRONG: validation fails -- "model must have a primary key field"
-let bad = ModelDefinition::new("User", "users")
-    .field("name", FieldType::Text, |f| f.required());
-assert!(bad.validate().is_err());
+#### The Problem
 
-// WRONG: multiple primary keys -- "model must have exactly one primary key"
-let bad2 = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("code", FieldType::Text, |f| f.primary_key());
-assert!(bad2.validate().is_err());
+```python
+# ❌ WRONG - Sync method in async context
+async def startup():
+    db.create_tables()  # RuntimeError: DF-501!
+
+# ❌ WRONG - In pytest async fixture
+@pytest.fixture
+async def db_fixture():
+    db = kailash.DataFlow(":memory:")
+    db.create_tables()  # RuntimeError: DF-501!
+    yield db
+    db.close()  # Also fails!
+```
+
+#### The Fix
+
+```python
+# ✅ CORRECT - Use async methods in async context
+async def startup():
+    await db.create_tables_async()
+
+# ✅ CORRECT - pytest async fixtures
+@pytest.fixture
+async def db_fixture():
+    db = kailash.DataFlow(":memory:")
+    @db.model
+    class User:
+        id: str
+        name: str
+    await db.create_tables_async()
+    yield db
+    await db.close_async()
+```
+
+#### Async Methods Available
+
+| Sync Method                  | Async Method                       | When to Use                      |
+| ---------------------------- | ---------------------------------- | -------------------------------- |
+| `create_tables()`            | `create_tables_async()`            | Table creation in async contexts |
+| `close()`                    | `close_async()`                    | Connection cleanup               |
+| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Migration system                 |
+
+#### Sync Context Still Works
+
+```python
+# ✅ Sync methods work in sync context (CLI, scripts)
+if __name__ == "__main__":
+    db = kailash.DataFlow(":memory:")
+    db.create_tables()  # Works in sync context
+    db.close()
+```
+
+**Impact**: Immediate `RuntimeError` with clear message. Use async methods in async contexts.
+
+---
+
+### ✅ #2.5: Docker Deployment
+
+**`auto_migrate=True` works in Docker!**
+
+DataFlow handles table creation internally using synchronous DDL, completely bypassing event loop boundary issues.
+
+#### Zero-Config Docker Pattern
+
+```python
+import kailash
+from kailash.nexus import NexusApp
+
+# Zero-config: auto_migrate=True (default) now works!
+df = kailash.DataFlow("postgresql://...")
+
+@df.model  # Tables created immediately via sync DDL
+class User:
+    id: str
+    name: str
+
+reg = kailash.NodeRegistry()
+app = NexusApp()
+
+@app.handler()
+def create_user(name: str, email: str):
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("UserCreateNode", "create", {"name": name, "email": email})
+    rt = kailash.Runtime(reg)
+    return rt.execute(builder.build(reg))
+```
+
+#### How It Works
+
+- Table creation is handled synchronously by the Rust engine - no asyncio conflicts
+- Tables are created at model registration time
+- CRUD operations continue using async execution
+- No event loop conflicts because DDL and CRUD use separate execution paths
+
+#### ⚠️ In-Memory SQLite Limitation
+
+In-memory databases (`:memory:`) **cannot** use sync DDL because table creation creates a separate connection, which for `:memory:` means a different database. They automatically fall back to lazy table creation:
+
+```python
+# In-memory SQLite: Uses lazy creation (still works, just deferred)
+db = kailash.DataFlow(":memory:", auto_migrate=True)  # Tables created on first access
+```
+
+#### When to Use Each Pattern
+
+| Context                 | Pattern                       | Notes                      |
+| ----------------------- | ----------------------------- | -------------------------- |
+| **Docker/Nexus**        | `auto_migrate=True` (default) | ✅ Works                   |
+| **In-Memory SQLite**    | `auto_migrate=True`           | Uses lazy creation (works) |
+| **CLI Scripts**         | `auto_migrate=True` (default) | Works                      |
+| **pytest (sync/async)** | `auto_migrate=True` (default) | Works via sync DDL         |
+
+#### Alternative: Manual Control
+
+```python
+# For explicit control over table creation timing
+db = kailash.DataFlow("postgresql://...", auto_migrate=False)
+
+# Explicitly create tables when ready
+db.create_tables()
 ```
 
 ---
 
-## 2. NEVER Manually Set `created_at` / `updated_at`
+#### The Bug
 
-These fields are auto-managed when `.auto_timestamps()` is called. They are
-excluded from writable fields, so the query builder will reject them.
+Python treats empty dict `{}` as falsy, causing incorrect behavior in filter operations.
 
-```rust
-use kailash_dataflow::model::{ModelDefinition, FieldType};
+#### Symptoms (Before Fix)
 
-let model = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::Text, |f| f.required())
-    .auto_timestamps();
-
-// writable_fields() returns only ["name"] -- NOT id, created_at, updated_at
-let writable: Vec<&str> = model.writable_fields().iter().map(|f| f.name()).collect();
-assert_eq!(writable, vec!["name"]);
+```python
+# This would return ALL records instead of filtered records in older versions
+builder.add_node("UserListNode", "query", {
+    "filter": {"status": {"$ne": "inactive"}}
+})
+# Expected: 2 users (active only)
+# Actual (older versions): 3 users (ALL records)
 ```
 
-If you try to UPDATE `created_at` or `updated_at`, you get:
-`"column 'created_at' is not writable (primary key, auto-managed, or soft-delete)"`
+#### The Fix
 
-Timestamps are bound as RFC 3339 string parameters (`chrono::Utc::now().to_rfc3339()`),
-not SQL expressions. This ensures cross-database compatibility.
-
----
-
-## 3. CreateModel Uses FLAT Params; UpdateModel Uses filter+fields
-
-This is the most common source of confusion.
-
-**Create** -- inputs are flat field values at the top level:
-
-```rust
-use std::{collections::BTreeMap, sync::Arc};
-use kailash_value::Value;
-
-// CORRECT for CreateUser
-let mut inputs = BTreeMap::new();
-inputs.insert(Arc::from("name"), Value::String(Arc::from("Alice")));
-inputs.insert(Arc::from("email"), Value::String(Arc::from("alice@example.com")));
-// NOT nested under any key -- flat at the top level
+```bash
+pip install kailash-enterprise
 ```
 
-**Update** -- inputs are TWO nested objects: `filter` and `fields`:
+✅ All filter operators now work correctly:
 
-```rust
-use std::{collections::BTreeMap, sync::Arc};
-use kailash_value::Value;
+- $ne (not equal)
+- $nin (not in)
+- $in (in)
+- $not (logical NOT)
+- All comparison operators ($gt, $lt, $gte, $lte)
 
-// CORRECT for UpdateUser
-let mut filter = BTreeMap::new();
-filter.insert(Arc::from("id"), Value::Integer(1));
+#### Prevention Pattern
 
-let mut fields = BTreeMap::new();
-fields.insert(Arc::from("name"), Value::String(Arc::from("Alice Smith")));
+When checking if a parameter was provided:
 
-let mut inputs = BTreeMap::new();
-inputs.insert(Arc::from("filter"), Value::Object(filter));
-inputs.insert(Arc::from("fields"), Value::Object(fields));
+```python
+# ❌ WRONG - treats empty dict as "not provided"
+if filter_dict:
+    process_filter()
 
-// WRONG: passing flat params to Update
-// inputs.insert(Arc::from("name"), Value::String(Arc::from("Alice Smith")));
-// -> This will NOT work. Update requires filter+fields structure.
+# ✅ CORRECT - checks if key exists
+if "filter" in kwargs:
+    process_filter()
 ```
 
+#### Root Cause
+
+Two locations had truthiness bugs:
+
+1. ListNode at nodes.py:1810 - `if filter_dict:` → `if "filter" in kwargs:`
+2. BulkDeleteNode at bulk_delete.py:177 - `not filter_conditions` → `"filter" not in validated_inputs`
+
+#### Impact
+
+**High**: All query filtering was affected in older versions. Ensure you're using the latest DataFlow version.
+
 ---
 
-## 4. soft_delete Only Affects DELETE, But Also Filters SELECT/LIST
+### 0.1. Primary Key MUST Be Named 'id' ⚠️ HIGH IMPACT
 
-When a model has a `soft_delete` field:
+```python
+# WRONG - Custom primary key names FAIL
+@db.model
+class User:
+    user_id: str  # FAILS - DataFlow requires 'id'
+    name: str
 
-- **DELETE** generates `UPDATE SET deleted_at = NOW()` instead of `DELETE FROM`
-- **READ** (by id) adds `AND deleted_at IS NULL` to the WHERE clause
-- **LIST** adds `WHERE deleted_at IS NULL` to exclude soft-deleted records
-
-This means soft-deleted records are automatically excluded from reads and lists,
-but they remain in the database.
-
-```rust
-use kailash_dataflow::model::{ModelDefinition, FieldType};
-
-let model = ModelDefinition::new("Post", "posts")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("title", FieldType::Text, |f| f.required())
-    .field("deleted_at", FieldType::Timestamp, |f| f.nullable().soft_delete())
-    .auto_timestamps();
-
-assert!(model.has_soft_delete());
-assert_eq!(model.soft_delete_column(), Some("deleted_at"));
-
-// You cannot have more than one soft-delete column
-// -> "model must have at most one soft-delete column"
+# WRONG - Other variations also fail
+@db.model
+class Agent:
+    agent_id: str  # FAILS
+    model_id: str  # FAILS
 ```
 
----
+**Why**: DataFlow's auto-generated nodes expect `id` as the primary key field name.
 
-## 5. DataFlow Is NOT an ORM
+**Fix: Use 'id' Exactly**
 
-DataFlow generates workflow **nodes** that wrap sqlx queries. It does not:
-
-- Map Rust structs to database rows (no `#[derive(FromRow)]`)
-- Provide a query builder with method chaining (use `Value::Object` filters)
-- Handle migrations automatically (use `execute_raw()` or external tools)
-- Support lazy loading, eager loading, or relationships
-- Manage schema changes
-
-Each registered model produces 11 workflow nodes. Those nodes are used like
-any other node in a `WorkflowBuilder` pipeline.
-
-```rust
-use kailash_dataflow::prelude::*;
-use kailash_core::NodeRegistry;
-
-// DataFlow registers NODE FACTORIES, not ORM entities
-let mut df = DataFlow::new("sqlite::memory:").await?;
-df.register_model(model)?;
-
-let mut registry = NodeRegistry::default();
-df.register_nodes(&mut registry);
-// registry now has: CreateUser, ReadUser, UpdateUser, DeleteUser,
-//                   ListUser, UpsertUser, CountUser,
-//                   BulkCreateUser, BulkUpdateUser, BulkDeleteUser, BulkUpsertUser
+```python
+# CORRECT - Primary key MUST be 'id'
+@db.model
+class User:
+    id: str  # ✅ REQUIRED - must be exactly 'id'
+    name: str
 ```
 
----
+**Impact**: 10-20 minutes debugging if violated. Use `id` for all models, always.
 
-## 6. SQL Identifier Validation
+### 0.1. CreateNode vs UpdateNode Pattern Difference ⚠️ CRITICAL
 
-Model names, table names, and field names are validated as safe SQL identifiers.
-They must match `[a-zA-Z_][a-zA-Z0-9_]*`. This prevents SQL injection through
-identifier names.
-
-```rust
-use kailash_dataflow::model::{ModelDefinition, FieldType};
-
-// REJECTED: SQL injection in table name
-let bad = ModelDefinition::new("User", "users; DROP TABLE users")
-    .field("id", FieldType::Integer, |f| f.primary_key());
-assert!(bad.validate().is_err());
-// -> "invalid table name"
-
-// REJECTED: spaces in field name
-let bad = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("full name", FieldType::Text, |f| f.required());
-assert!(bad.validate().is_err());
-// -> "invalid field name"
-
-// REJECTED: Unicode characters
-let bad = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::Text, |f| f.required());
-// Model names like "User--" or table names like "cafe" are also rejected
+```python
+# WRONG - Applying CreateNode pattern to UpdateNode
+builder.add_node("UserUpdateNode", "update", {
+    "db_instance": "my_db",
+    "model_name": "User",
+    "id": "user_001",  # ❌ Individual fields don't work for UpdateNode
+    "name": "Alice",
+    "status": "active"
+})
+# Error: "column user_id does not exist" (misleading!)
 ```
 
----
+**Why**: CreateNode and UpdateNode use FUNDAMENTALLY DIFFERENT patterns:
 
-## 7. Filter Column Validation
+- **CreateNode**: Flat individual fields at top level
+- **UpdateNode**: Nested `filter` + `fields` dicts
 
-Filters validate that column names exist in the model. Unknown columns are
-rejected immediately, not silently ignored.
+**Fix: Use Correct Pattern**
 
-```rust
-use std::{collections::BTreeMap, sync::Arc};
-use kailash_dataflow::filter::parse_filter;
-use kailash_dataflow::model::{ModelDefinition, FieldType};
-use kailash_value::Value;
+```python
+# CreateNode: FLAT individual fields
+builder.add_node("UserCreateNode", "create", {
+    "db_instance": "my_db",
+    "model_name": "User",
+    "id": "user_001",  # ✅ Individual fields
+    "name": "Alice",
+    "email": "alice@example.com"
+})
 
-let model = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::Text, |f| f.required());
-
-// REJECTED: "nonexistent" is not a column in the model
-let mut filter = BTreeMap::new();
-filter.insert(Arc::from("nonexistent"), Value::Integer(1));
-let result = parse_filter(&Value::Object(filter), &model);
-assert!(result.is_err());
-// -> "unknown column: nonexistent"
+# UpdateNode: NESTED filter + fields
+builder.add_node("UserUpdateNode", "update", {
+    "db_instance": "my_db",
+    "model_name": "User",
+    "filter": {"id": "user_001"},  # ✅ Which records
+    "fields": {"name": "Alice Updated"}  # ✅ What to change
+    # ⚠️ Do NOT include created_at or updated_at - auto-managed!
+})
 ```
 
----
+**Impact**: 1-2 hours debugging if violated. Different patterns for different operations.
 
-## 8. Update Field Validation
+### 0.2. Auto-Managed Timestamp Fields ⚠️
 
-The `build_update` function validates that field keys in the `fields` object:
-
-1. Exist as columns in the model
-2. Are writable (not primary key, auto-managed, or soft-delete)
-
-```rust
-// These are REJECTED in UpdateUser fields:
-// "id"         -> "column 'id' is not writable (primary key, auto-managed, or soft-delete)"
-// "created_at" -> not writable (auto-managed)
-// "updated_at" -> not writable (auto-managed)
-// "deleted_at" -> not writable (soft-delete)
-// "unknown"    -> "unknown column in update fields: unknown"
+```python
+# WRONG - Including auto-managed fields
+builder.add_node("UserUpdateNode", "update", {
+    "filter": {"id": "user_001"},
+    "fields": {
+        "name": "Alice",
+        "updated_at": datetime.now()  # ❌ FAILS - auto-managed
+    }
+})
+# Error: "multiple assignments to same column 'updated_at'"
 ```
 
----
+**Why**: DataFlow automatically manages `created_at` and `updated_at` fields.
 
-## 9. ORDER BY Validation
+**Fix: Omit Auto-Managed Fields**
 
-The `ListUser` node validates that `order_by` refers to a real column.
-Unknown column names are rejected, not silently ignored.
-
-```rust
-// This will FAIL:
-// inputs.insert(Arc::from("order_by"), Value::String(Arc::from("nonexistent")));
-// -> "unknown column in ORDER BY: nonexistent"
-
-// SQL injection attempts in ORDER BY are also caught by identifier validation:
-// "name; DROP TABLE users" -> "invalid identifier in ORDER BY"
+```python
+# CORRECT - Omit auto-managed fields
+builder.add_node("UserUpdateNode", "update", {
+    "filter": {"id": "user_001"},
+    "fields": {
+        "name": "Alice"  # ✅ Only your fields
+        # created_at, updated_at auto-managed by DataFlow
+    }
+})
 ```
 
----
+**Impact**: 5-10 minutes debugging. Never manually set `created_at` or `updated_at`.
 
-## 10. LIMIT/OFFSET Are Parameterized
+### 1. DataFlow is NOT an ORM
 
-LIMIT and OFFSET values are bound as `?` parameters, never interpolated into
-the SQL string. This prevents SQL injection through pagination values.
+```python
+# WRONG - Models are not instantiable
+import kailash
+df = kailash.DataFlow()
 
-Default values: `limit = 100` (capped at 1000), `offset = 0`.
-Negative values are rejected: `"LIMIT must be non-negative"`.
+@df.model
+class User:
+    name: str
 
----
-
-## 11. Dialect-Specific Behavior
-
-DataFlow auto-detects the SQL dialect from the connection URL and adjusts
-query generation accordingly:
-
-| Feature            | SQLite                      | PostgreSQL                      | MySQL                     |
-| ------------------ | --------------------------- | ------------------------------- | ------------------------- |
-| Placeholders       | `?`                         | `$1, $2, ...` (auto-translated) | `?`                       |
-| Upsert             | `ON CONFLICT ... DO UPDATE` | `ON CONFLICT ... DO UPDATE`     | `ON DUPLICATE KEY UPDATE` |
-| Timestamps         | `?`                         | `?::TIMESTAMPTZ`                | `?`                       |
-| PK Retrieval       | `last_insert_rowid()`       | `RETURNING id`                  | `LAST_INSERT_ID()`        |
-| Auto Increment     | `AUTOINCREMENT`             | `SERIAL`                        | `AUTO_INCREMENT`          |
-| Identifier Quoting | `"name"`                    | `"name"`                        | `` `name` ``              |
-
-You do not need to handle dialect differences manually -- the `QueryDialect`
-enum dispatches automatically.
-
----
-
-## 12. `auto_timestamps()` Is Idempotent
-
-Calling `.auto_timestamps()` multiple times does not duplicate the
-`created_at`/`updated_at` fields. It checks for existing fields before adding.
-
-```rust
-use kailash_dataflow::model::{ModelDefinition, FieldType};
-
-let model = ModelDefinition::new("User", "users")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .auto_timestamps()
-    .auto_timestamps(); // safe -- no duplication
-
-let ts_count = model.fields().iter()
-    .filter(|f| f.name() == "created_at" || f.name() == "updated_at")
-    .count();
-assert_eq!(ts_count, 2); // exactly 2, not 4
+user = User(name="John")  # FAILS - not supported by design
+user.save()  # FAILS - no save() method
 ```
 
----
+**Why**: DataFlow is workflow-native, not object-oriented. Models are schemas, not classes.
 
-## 13. Empty Bulk Operations Are Rejected
+**Fix: Use Workflow Nodes**
 
-Bulk operations require at least one item/id. Empty inputs return an error:
-
-- `build_bulk_insert(&model, &[])` -> "bulk insert requires at least one item"
-- `build_bulk_delete(&model, &[])` -> "bulk delete requires at least one id"
-
-`BulkCreateNode` handles empty items gracefully by returning
-`{ created_count: 0, records: [] }` without hitting the database.
-
----
-
-## 14. Null Filter Returns Empty Conditions
-
-Passing `Value::Null` as a filter is valid and returns zero conditions
-(effectively no WHERE clause). Passing a non-object, non-null value is
-rejected: `"filter must be an object"`.
-
----
-
-## 15. $in Requires Array, $null Requires Bool
-
-```rust
-// WRONG: $in with non-array
-// {"name": {"$in": "alice"}} -> "$in requires an array value"
-
-// WRONG: $null with non-bool
-// {"age": {"$null": "yes"}} -> "$null requires a boolean value"
+```python
+builder = kailash.WorkflowBuilder()
+builder.add_node("UserCreateNode", "create", {
+    "name": "John"  # Correct pattern
+})
 ```
 
-<!-- Trigger Keywords: gotcha, pitfall, common mistake, primary key, created_at, updated_at, flat params, filter fields, soft delete, not ORM, SQL injection, identifier validation, ORDER BY validation, LIMIT OFFSET, dialect, auto_timestamps, bulk empty, null filter -->
+### 2. Template Syntax Conflicts with PostgreSQL
+
+```python
+# WRONG - ${} conflicts with PostgreSQL
+builder.add_node("OrderCreateNode", "create", {
+    "customer_id": "${create_customer.id}"  # FAILS with PostgreSQL
+})
+```
+
+**Fix: Use Workflow Connections**
+
+```python
+builder.add_node("OrderCreateNode", "create", {
+    "total": 100.0
+})
+builder.connect("create_customer", "id", "create", "customer_id")
+```
+
+### 3. Nexus Integration Blocks Startup
+
+```python
+# WRONG - dataflow_config does NOT exist in Nexus!
+db = kailash.DataFlow()
+app = NexusApp(dataflow_config={"integration": db})  # THIS WILL FAIL
+```
+
+**Fix: Use NexusApp and manual workflow registration**
+
+```python
+# auto_migrate=True works in Docker
+import kailash
+from kailash.nexus import NexusApp, NexusConfig
+
+df = kailash.DataFlow(
+    "postgresql://...",
+    auto_migrate=True,  # Default - works in all environments
+)
+
+# Create NexusApp and register workflows manually
+app = NexusApp(NexusConfig(port=8000))
+
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("ProductCreateNode", "create", {"name": "${input.name}"})
+app.register("create_product", builder.build(reg))
+```
+
+### 4. Wrong Result Access Pattern ⚠️
+
+Each node type returns results under specific keys:
+
+| Node Type      | Result Key                    | Example                                      |
+| -------------- | ----------------------------- | -------------------------------------------- |
+| **ListNode**   | `records`                     | `results["list"]["records"]` → list of dicts |
+| **CountNode**  | `count`                       | `results["count"]["count"]` → integer        |
+| **ReadNode**   | (direct)                      | `results["read"]` → dict or None             |
+| **CreateNode** | (direct)                      | `results["create"]` → created record         |
+| **UpdateNode** | (direct)                      | `results["update"]` → updated record         |
+| **UpsertNode** | `record`, `created`, `action` | `results["upsert"]["record"]` → record       |
+
+```python
+# WRONG - using generic "result" key
+result = rt.execute(builder.build(reg))
+records = result["results"]["list"]["result"]  # ❌ FAILS - wrong key
+
+# CORRECT - use proper key for node type
+records = result["results"]["list"]["records"]  # ✅ ListNode returns "records"
+count = result["results"]["count"]["count"]  # ✅ CountNode returns "count"
+record = result["results"]["read"]  # ✅ ReadNode returns dict directly
+```
+
+### 4.1 soft_delete Auto-Filters Queries
+
+**DataFlow auto-filters soft_delete models by default.**
+
+```python
+@db.model
+class Patient:
+    id: str
+    deleted_at: Optional[str] = None
+    __dataflow__ = {"soft_delete": True}
+
+# ✅ Auto-filters by default - excludes soft-deleted records
+builder.add_node("PatientListNode", "list", {"filter": {}})
+# Returns ONLY non-deleted patients (deleted_at IS NULL)
+
+# ✅ To include soft-deleted records, use include_deleted=True
+builder.add_node("PatientListNode", "list_all", {
+    "filter": {},
+    "include_deleted": True  # Returns ALL patients including deleted
+})
+
+# Also works with ReadNode and CountNode
+builder.add_node("PatientReadNode", "read", {
+    "id": "patient-123",
+    "include_deleted": True  # Return even if soft-deleted
+})
+
+builder.add_node("PatientCountNode", "count_active", {
+    "filter": {"status": "active"},
+    # Automatically excludes soft-deleted (no need to add deleted_at filter)
+})
+```
+
+**Behavior by Node Type**:
+| Node | Default | include_deleted=True |
+|------|---------|---------------------|
+| ListNode | Excludes deleted | Includes all |
+| CountNode | Counts non-deleted | Counts all |
+| ReadNode | Returns 404 if deleted | Returns record |
+
+**Note**: This matches industry standards (Django, Rails, Laravel) where soft_delete auto-filters by default.
+
+### 4.2 Sort/Order Parameters (Both Work) ⚠️
+
+DataFlow supports TWO sorting formats:
+
+```python
+# Format 1: order_by with prefix for direction
+builder.add_node("UserListNode", "list", {
+    "order_by": ["-created_at", "name"]  # - prefix = DESC
+})
+
+# Format 2: sort with explicit structure
+builder.add_node("UserListNode", "list", {
+    "sort": [
+        {"field": "created_at", "order": "desc"},
+        {"field": "name", "order": "asc"}
+    ]
+})
+
+# Format 3: order_by with dict structure
+builder.add_node("UserListNode", "list", {
+    "order_by": [{"created_at": -1}, {"name": 1}]  # -1 = DESC, 1 = ASC
+})
+```
+
+**All formats work.** Choose based on preference.
+
+### 5. String IDs (Fixed - Historical Issue)
+
+```python
+# HISTORICAL ISSUE (now fixed)
+@db.model
+class Session:
+    id: str  # String IDs were converted to int in older versions
+
+builder.add_node("SessionReadNode", "read", {
+    "id": "session-uuid-string"  # Failed in older versions
+})
+```
+
+**Fix: Ensure you have the latest kailash-enterprise version**
+
+```python
+# Fixed - string IDs now fully supported
+@db.model
+class Session:
+    id: str  # Fully supported
+
+builder.add_node("SessionReadNode", "read", {
+    "id": "session-uuid-string"  # Works perfectly
+})
+```
+
+### 6. VARCHAR(255) Content Limits (Fixed - Historical Issue)
+
+```python
+# HISTORICAL ISSUE (now fixed)
+@db.model
+class Article:
+    content: str  # Was VARCHAR(255) in older versions - truncated!
+
+# Long content failed or got truncated
+```
+
+**Fix: Automatic in Current Version**
+
+```python
+# Fixed - now TEXT type
+@db.model
+class Article:
+    content: str  # Unlimited content - TEXT type
+```
+
+### 7. DateTime Serialization (Fixed - Historical Issue)
+
+```python
+# HISTORICAL ISSUE (now fixed)
+from datetime import datetime
+
+builder.add_node("OrderCreateNode", "create", {
+    "due_date": datetime.now().isoformat()  # String failed validation in older versions
+})
+```
+
+**Fix: Use Native datetime Objects**
+
+```python
+from datetime import datetime
+
+builder.add_node("OrderCreateNode", "create", {
+    "due_date": datetime.now()  # Native datetime works
+})
+```
+
+### 8. Multi-Instance Context Isolation (Fixed - Historical Issue)
+
+```python
+# HISTORICAL ISSUE (now fixed)
+db_dev = kailash.DataFlow("sqlite:///dev.db")
+db_prod = kailash.DataFlow("postgresql://...")
+
+@db_dev.model
+class DevModel:
+    name: str
+
+# Model leaked to db_prod instance in older versions!
+```
+
+**Fix: Fixed (Proper Context Isolation)**
+
+```python
+# Fixed - proper isolation now enforced
+db_dev = kailash.DataFlow("sqlite:///dev.db")
+db_prod = kailash.DataFlow("postgresql://...")
+
+@db_dev.model
+class DevModel:
+    name: str
+# Only in db_dev, not in db_prod
+```
+
+## Documentation References
+
+### Primary Sources
+
+- **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L28-L72)
+
+## Related Patterns
+
+- **For models**: See [`dataflow-models`](#)
+- **For result access**: See [`dataflow-result-access`](#)
+- **For Nexus integration**: See [`dataflow-nexus-integration`](#)
+- **For connections**: See [`param-passing-quick`](#)
+
+## When to Escalate to Subagent
+
+Use `dataflow-specialist` when:
+
+- Complex workflow debugging
+- Performance optimization issues
+- Migration failures
+- Multi-database problems
+
+## Quick Tips
+
+- DataFlow is workflow-native, NOT an ORM
+- Use connections, NOT `${}` template syntax
+- Enable critical config for Nexus integration
+- Access results via `results["node"]["result"]`
+- Historical fixes: string IDs, TEXT type, datetime, multi-instance isolation
+
+## Keywords for Auto-Trigger
+
+<!-- Trigger Keywords: DataFlow issues, gotchas, common mistakes DataFlow, troubleshooting DataFlow, DataFlow problems, DataFlow errors, not working, DataFlow bugs -->

@@ -1,6 +1,6 @@
 # Python Binding Cheatsheet
 
-30+ copy-paste patterns for the Rust-backed kailash Python package (v2 API).
+30+ copy-paste patterns for the `kailash-enterprise` Python package.
 
 ## Basic Workflow
 
@@ -127,10 +127,10 @@ async def main():
     workflow = builder.build(registry)
     runtime = kailash.Runtime(registry)
 
-    # Native async — returns an awaitable (preferred)
+    # Native async (preferred)
     result = await runtime.execute_async(workflow, {"data": "hi"})
 
-    # Alternative — GIL-releasing sync via to_thread
+    # Alternative -- GIL-releasing sync via to_thread
     result = await asyncio.to_thread(runtime.execute, workflow, {"data": "hi"})
     print(result["results"])
 
@@ -224,14 +224,13 @@ class User:
 ```python
 from kailash.enterprise import RbacEvaluator, Role, Permission, User
 
-# RBAC uses builder pattern — Role(name), then chain .with_permission()
 evaluator = RbacEvaluator()
 role = Role("admin") \
     .with_permission(Permission("users", "read")) \
     .with_permission(Permission("users", "write"))
 evaluator.add_role(role)
 user = User("u1").with_role("admin")
-allowed = evaluator.check(user, "users", "read")  # RBAC: .check() returns bool
+allowed = evaluator.check(user, "users", "read")  # returns bool
 # allowed == True
 ```
 
@@ -240,11 +239,10 @@ allowed = evaluator.check(user, "users", "read")  # RBAC: .check() returns bool
 ```python
 from kailash.enterprise import AbacEvaluator, AbacPolicy
 
-# ABAC uses different evaluator — .evaluate() returns dict (not .check())
 policy = AbacPolicy("dept-access", "allow") \
     .with_subject_condition("department", "eq", "engineering")
 evaluator = AbacEvaluator([policy])
-result = evaluator.evaluate(                       # ABAC: .evaluate() returns dict
+result = evaluator.evaluate(
     subject={"department": "engineering"},
     resource={"type": "project"},
     action="read",
@@ -271,16 +269,6 @@ async def get_tenant_data():
     return {"data": []}
 ```
 
-## Kaizen: LLM Client
-
-```python
-from kailash.kaizen import LlmClient
-
-# LlmClient reads API keys from environment variables automatically
-# Set OPENAI_API_KEY, ANTHROPIC_API_KEY, etc. in .env
-client = LlmClient()
-```
-
 ## Kaizen: Tool Registry
 
 ```python
@@ -293,12 +281,12 @@ tools = ToolRegistry()
 tools.register(ToolDef(
     name="search",
     description="Search the web",
-    callback=search_impl,
+    handler=search_impl,
     params=[ToolParam(name="query", required=True)]
 ))
 ```
 
-## Kaizen: Python Compat (BaseAgent)
+## Kaizen: BaseAgent
 
 ```python
 import os
@@ -312,33 +300,12 @@ class MyAgent(BaseAgent):
         return {"response": f"Processed: {input_text}"}
 ```
 
-## Kaizen: Trust (EATP)
-
-```python
-from kailash.kaizen import TrustLevel, TrustPosture
-import kailash
-# Trust types available at top level:
-# kailash.EatpPosture, kailash.VerificationConfig, kailash.VerificationResult
-# kailash.ResourceUsageSnapshot, kailash.HumanCompetency
-# kailash.CompetencyRequirement, kailash.ComplianceStatus, kailash.ComplianceReport
-```
-
-## Nexus: Handler Params
-
-```python
-from kailash.nexus import HandlerParam
-
-# HandlerParam defines parameters for Nexus handlers
-param_name = HandlerParam(name="name", required=True)
-param_greeting = HandlerParam(name="greeting", required=False)
-```
-
-## Nexus: Python Compat (NexusApp)
+## Nexus: Handler
 
 ```python
 from kailash.nexus import NexusApp
 
-app = NexusApp()  # uses default NexusConfig
+app = NexusApp()
 
 @app.handler("greet", description="Greeting handler")
 async def greet(name: str, greeting: str = "Hello") -> dict:
@@ -360,13 +327,150 @@ sid = sessions.create("user-42", tenant_id="acme")
 info = sessions.get(sid)  # SessionInfo or None
 ```
 
-## Nexus: Middleware
+## Enterprise: ComplianceManager
 
 ```python
-from kailash.nexus import cors, rate_limit
+from kailash.enterprise import ComplianceManager
 
-cors_mw = cors(origins=["http://localhost:3000"])
-rate_mw = rate_limit(per_minute=60)
+cm = ComplianceManager()
+cm.add_framework("gdpr")
+cm.set_context({
+    "encryption_at_rest": True,
+    "encryption_in_transit": True,
+    "audit_logging_enabled": True,
+    "data_retention_configured": True,
+    "access_control_enabled": True,
+    "consent_tracking_enabled": True,
+    "data_deletion_capable": True,
+})
+result = cm.evaluate("gdpr")
+assert result["overall_status"] == "pass"
+```
+
+## Enterprise: PolicyEngine
+
+```python
+from kailash.enterprise import PolicyEngine
+
+pe = PolicyEngine()
+pe.add_policy({
+    "id": "admin_read",
+    "name": "Admin Read Access",
+    "effect": "allow",
+    "actions": ["read"],
+    "resources": ["documents/*"],
+    "conditions": {"role": "admin"},
+})
+result = pe.evaluate("admin_read", {
+    "user": {"user_id": "alice", "role": "admin"},
+    "action": "read",
+    "resource": "documents/report.pdf",
+})
+assert result == "allow"
+```
+
+## Enterprise: TokenManager
+
+```python
+import os
+from kailash.enterprise import TokenManager
+
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"], "default_ttl_secs": 3600})
+jwt = tm.create_jwt({"subject": "user-123", "scopes": ["read", "write"]})
+info = tm.validate(jwt["value"])
+assert info["claims"]["subject"] == "user-123"
+```
+
+## Enterprise: SSOProvider
+
+```python
+import os
+from kailash.enterprise import SSOProvider
+
+sso = SSOProvider({
+    "protocol": "oidc", "provider_name": "okta",
+    "client_id": os.environ["SSO_CLIENT_ID"],
+    "client_secret": os.environ["SSO_CLIENT_SECRET"],
+    "redirect_uri": "https://app.example.com/callback",
+    "metadata_url": os.environ["SSO_METADATA_URL"],
+    "issuer": os.environ["SSO_ISSUER"],
+    "scopes": ["openid", "profile", "email"],
+})
+login_url = sso.login_url()  # no args -- uses redirect_uri from config
+```
+
+## Nexus: PluginManager
+
+```python
+from kailash.nexus import PluginManager
+
+pm = PluginManager()
+pm.load("auth-plugin", config={"secret": os.environ["AUTH_PLUGIN_SECRET"]})
+assert pm.is_loaded("auth-plugin")
+pm.reload("auth-plugin")
+health = pm.health_check_all()
+pm.unload("auth-plugin")
+```
+
+## Nexus: WorkflowRegistry
+
+```python
+from kailash.nexus import WorkflowRegistry
+
+registry = WorkflowRegistry()
+registry.register("my-workflow", {"steps": [...]})
+wf = registry.get("my-workflow")
+result = registry.execute("my-workflow", {"input": "data"})
+```
+
+## Nexus: EventBus
+
+```python
+from kailash.nexus import EventBus
+
+bus = EventBus()
+bus.subscribe("user.created", lambda data: print(data))
+bus.publish("user.created", {"user_id": "123"})
+```
+
+## MCP: McpApplication
+
+```python
+from kailash.mcp import McpApplication, prompt_argument
+
+app = McpApplication("my-server", "1.0")
+
+@app.tool(name="search", description="Search the web")
+def search(query: str) -> str:
+    return f"Results for {query}"
+
+@app.resource(uri="config://settings", name="Settings")
+def get_settings() -> str:
+    return '{"theme": "dark"}'
+
+@app.prompt(name="summarize", description="Summarize text")
+def summarize_prompt(text: str) -> str:
+    return f"Please summarize: {text}"
+```
+
+## Kaizen: ObservabilityManager
+
+```python
+from kailash.kaizen import ObservabilityManager
+
+obs = ObservabilityManager()
+obs.record_execution(agent_name="my-agent", duration_ms=1250, success=True)
+stats = obs.get_stats("my-agent")
+```
+
+## Kaizen: MetricsCollector
+
+```python
+from kailash.kaizen import MetricsCollector
+
+metrics = MetricsCollector()
+metrics.record("agent.latency", 1.25, tags={"agent": "researcher"})
+summary = metrics.summary("agent.latency")
 ```
 
 ## Error Handling

@@ -8,7 +8,6 @@ description: "Frontend development patterns with Kailash. Use when asking 'front
 > **Skill Metadata**
 > Category: `frontend`
 > Priority: `MEDIUM`
-> SDK Version: `0.9.25+`
 
 ## Architecture Pattern
 
@@ -20,8 +19,8 @@ description: "Frontend development patterns with Kailash. Use when asking 'front
        │ HTTP/REST
        ▼
 ┌─────────────┐
-│  NexusApp   │  (Rust/Nexus)
-│   (axum)    │
+│  NexusApp    │  (Python/Kailash)
+│  (Nexus)    │
 └──────┬──────┘
        │
        ▼

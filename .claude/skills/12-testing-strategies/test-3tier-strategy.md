@@ -1,6 +1,6 @@
 ---
 name: test-3tier-strategy
-description: "3-tier testing strategy overview for the Kailash Rust SDK. Use when asking '3-tier testing', 'testing strategy', or 'test tiers'."
+description: "3-tier testing strategy overview. Use when asking '3-tier testing', 'testing strategy', or 'test tiers'."
 ---
 
 # 3-Tier Testing Strategy
@@ -13,53 +13,42 @@ description: "3-tier testing strategy overview for the Kailash Rust SDK. Use whe
 
 ### Tier 1: Unit Tests (Fast, In-Memory)
 
-```rust
-#[test]
-fn test_workflow_build() {
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("LLMNode", "llm", ValueMap::from([
-        ("prompt".into(), Value::String("test".into())),
-    ]));
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry);
-    assert!(workflow.is_ok());
-}
+```python
+def test_workflow_build():
+    """Test workflow construction"""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("LLMNode", "llm", {"prompt": "test"})
+    reg = kailash.NodeRegistry()
+    built = builder.build(reg)
+    assert built is not None
 ```
 
 ### Tier 2: Integration Tests (Real Infrastructure)
 
-```rust
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_llm_integration() {
-    dotenvy::dotenv().ok();
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("LLMNode", "llm", ValueMap::from([
-        ("provider".into(), Value::String("openai".into())),
-        ("model".into(), Value::String(std::env::var("OPENAI_MODEL").unwrap().into())),
-        ("prompt".into(), Value::String("Say hello".into())),
-    ]));
-
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("workflow build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-    let result = runtime.execute(&workflow, ValueMap::new()).await.expect("execution failed");
-
-    let response = result.results["llm"]["response"].as_str().unwrap();
-    assert!(response.to_lowercase().contains("hello"));
-}
+```python
+def test_llm_integration():
+    """Test with real OpenAI API"""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("LLMNode", "llm", {
+        "provider": "openai",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+        "prompt": "Say hello"
+    })
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    assert "hello" in result["results"]["llm"]["response"].lower()
 ```
 
 ### Tier 3: End-to-End Tests (Full System)
 
-```rust
-#[tokio::test]
-#[cfg(feature = "e2e")]
-async fn test_full_application() {
-    // Test API endpoint with real axum server
-    // Test database persistence with real sqlx pool
-    // Test external integrations with real services
-}
+```python
+@pytest.mark.e2e
+def test_full_application():
+    """Test complete application flow"""
+    # Test API endpoint
+    # Test database persistence
+    # Test external integrations
 ```
 
 ## Test Distribution
@@ -73,7 +62,7 @@ async fn test_full_application() {
 ✅ **Use real infrastructure** in Tiers 2-3:
 
 - Real OpenAI API calls
-- Real databases (SQLite/PostgreSQL via sqlx)
+- Real databases (SQLite/PostgreSQL)
 - Real file systems
 
 ❌ **No mocks** for:
@@ -82,25 +71,34 @@ async fn test_full_application() {
 - Databases
 - External APIs (in integration tests)
 
-## Test Execution
+## Runtime Parity Testing
 
-```bash
-# Tier 1: Unit tests (fast feedback)
-cargo test --workspace
+Test workflows against **both** Runtime and Runtime using shared fixtures:
 
-# Tier 2: Integration tests (real DBs, real APIs)
-cargo test --workspace --features integration
+```python
+import pytest
+import kailash
 
-# Tier 3: E2E tests (real everything)
-cargo test --workspace --features e2e
+def test_workflow_execution():
+    """Test workflow execution with Runtime."""
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    workflow = create_test_workflow()
 
-# Lint (no warnings allowed)
-cargo clippy --workspace -- -D warnings
+    result = rt.execute(workflow, parameters={"input": "data"})
+
+    assert result["results"]["output_node"]["result"] == expected_value
 ```
+
+**Key Features:**
+
+- Parametrized fixtures run same test on both runtimes
+- `execute_runtime()` helper normalizes parameters and return structures
+- Ensures identical behavior between sync and async runtimes
+- Located in `tests/shared/runtime/` directory
 
 ## Documentation
 
-- **Testing Rules**: [`rules/testing.md`](../../../../rules/testing.md)
-- **Workspace Root**: [`CLAUDE.md`](../../../../CLAUDE.md)
+- **Testing Guide**: [`sdk-contributors/5-testing/01-testing-strategy.md`](../../../../sdk-contributors/5-testing/01-testing-strategy.md)
 
 <!-- Trigger Keywords: 3-tier testing, testing strategy, test tiers, testing pyramid, unit tests, integration tests -->

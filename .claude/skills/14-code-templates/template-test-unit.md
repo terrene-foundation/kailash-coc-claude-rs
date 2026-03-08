@@ -90,7 +90,7 @@ else:
         rt = kailash.Runtime(reg)
 
         # Test with empty data
-        result = rt.execute(builder.build(reg), inputs={
+        result = rt.execute(builder.build(reg), parameters={
             "edge_test": {"data": []}
         })
 

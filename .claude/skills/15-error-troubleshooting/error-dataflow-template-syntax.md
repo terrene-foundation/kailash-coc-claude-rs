@@ -36,7 +36,7 @@ import kailash
 
 df = kailash.DataFlow()
 
-@db.model
+@df.model
 class Order:
     customer_id: int
     total: float
@@ -54,7 +54,7 @@ builder.add_node("OrderCreateNode", "create", {
 
 df = kailash.DataFlow()
 
-@db.model
+@df.model
 class Order:
     customer_id: int
     total: float
@@ -113,7 +113,7 @@ DataFlow nodes expect **native Python types**:
 ```python
 df = kailash.DataFlow()
 
-@db.model
+@df.model
 class Order:
     customer_id: int
     total: float
@@ -130,7 +130,7 @@ builder.add_node("OrderCreateNode", "create", {
 ```python
 df = kailash.DataFlow()
 
-@db.model
+@df.model
 class Order:
     customer_id: int
     total: float

@@ -56,7 +56,7 @@ builder.connect("form_data", "email", "create", "email")
 
 ```python
 # ✅ Provide at runtime execution
-rt.execute(builder.build(reg), inputs={
+rt.execute(builder.build(reg), parameters={
     "create": {"email": "alice@example.com"}
 })
 ```
@@ -130,7 +130,7 @@ builder.add_node("UserCreateNode", "create", {
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "create": {"email": "alice@example.com"}  # Provided at runtime
 })  # ✓ Works!
 ```

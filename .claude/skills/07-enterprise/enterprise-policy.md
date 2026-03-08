@@ -1,249 +1,327 @@
 ---
-name: enterprise-policy
-description: "Policy engine: RBAC + ABAC + custom expression rules with versioning and hot-reload. Use when asking 'policy engine', 'policy rules', 'combine strategy', 'policy versioning', 'policy rollback', 'custom expression'."
+skill: enterprise-policy
+description: "PolicyEngine for fine-grained policy evaluation, versioning, and rollback. Use when asking about 'policy engine', 'policy evaluation', 'policy versioning', 'policy rollback', 'access policy', or 'authorization policy'."
+priority: MEDIUM
+tags: [enterprise, policy, authorization, versioning, rollback, access-control]
 ---
 
 # Enterprise Policy Engine
 
-`PolicyEngine` provides unified policy management combining RBAC, ABAC, and custom expression rules. Supports CRUD, evaluation with combination strategies, versioning with hot-reload, and rollback.
+Fine-grained policy evaluation with versioning and rollback support.
 
-## Rust API
+## Quick Reference
 
-Source: `crates/kailash-enterprise/src/policy/engine.rs`
+- **PolicyEngine**: Core class for managing and evaluating access policies
+- **Policies**: Dict-based definitions with id, name, effect, actions, resources, conditions
+- **Versioning**: Automatic version tracking on policy reload
+- **Rollback**: Revert to previous policy versions
+- **Evaluation**: Check access with user context (user_id, role, action, resource)
 
-### Creating and Adding Policies
-
-```rust
-use kailash_enterprise::policy::engine::PolicyEngine;
-use kailash_enterprise::policy::types::*;
-use kailash_value::Value;
-
-let mut engine = PolicyEngine::new();
-
-// Policy with an RBAC rule
-let policy = Policy::new("admin-access", "Admin Access")
-    .with_rule(PolicyRule::Rbac {
-        role: "admin".to_string(),
-        resource: "users".to_string(),
-        action: "write".to_string(),
-    });
-
-engine.add_policy(policy)?;
-```
-
-### Rule Types
-
-Three rule types are supported:
-
-```rust
-// RBAC: checks user has a specific role for resource/action
-PolicyRule::Rbac {
-    role: "admin".to_string(),
-    resource: "users".to_string(),   // or "*" for wildcard
-    action: "write".to_string(),     // or "*" for wildcard
-}
-
-// ABAC: checks user attribute matches expected value
-PolicyRule::Abac {
-    attribute: "department".to_string(),
-    value: Value::from("engineering"),
-    resource: "users".to_string(),   // or "*" for wildcard
-}
-
-// Custom: sandboxed expression evaluated against context
-PolicyRule::Custom {
-    expression: "user.level >= 3".to_string(),
-}
-```
-
-### Combination Strategies
-
-Policies with multiple rules use a combination strategy:
-
-```rust
-let policy = Policy::new("mixed", "Mixed Policy")
-    .with_rule(PolicyRule::Rbac { role: "admin".into(), resource: "users".into(), action: "write".into() })
-    .with_rule(PolicyRule::Abac { attribute: "department".into(), value: Value::from("eng"), resource: "users".into() })
-    .with_rule(PolicyRule::Custom { expression: "user.level >= 3".into() })
-    .with_combination(CombineStrategy::AllMustPass);  // default
-```
-
-- `AllMustPass` -- all rules must pass (default)
-- `AnyMustPass` -- at least one rule must pass
-- `MajorityPass` -- more than 50% of rules must pass
-
-### Evaluating Policies
-
-```rust
-let ctx = AccessContext::new(
-    UserContext::new("alice")
-        .with_role("admin")
-        .with_attribute("department", Value::from("engineering"))
-        .with_attribute("level", Value::Integer(5)),
-    "users",
-    "write",
-);
-
-// Evaluate a single policy
-let decision = engine.evaluate("admin-access", &ctx);
-assert!(decision.is_allowed());
-
-// Evaluate all policies (all must allow)
-let decision = engine.evaluate_all(&ctx);
-```
-
-### Versioning and Hot-Reload
-
-```rust
-// Load initial policy
-engine.add_policy(Policy::new("rbac-admin", "Admin RBAC v1")
-    .with_rule(PolicyRule::Rbac { role: "admin".into(), resource: "users".into(), action: "write".into() }))?;
-
-// Hot-reload with new version
-let v2 = Policy::new("rbac-admin", "Admin RBAC v2")
-    .with_version("2.0")
-    .with_rule(PolicyRule::Rbac { role: "admin".into(), resource: "*".into(), action: "*".into() });
-engine.reload_policy("rbac-admin", v2)?;
-
-// Check version history
-let history = engine.policy_versions("rbac-admin");
-assert_eq!(history[0].version, "1.0");
-
-// Rollback to previous version
-engine.rollback_policy("rbac-admin", "1.0")?;
-```
-
-### Loading from JSON
-
-```rust
-let json = r#"{
-    "id": "json-policy",
-    "version": "1.0",
-    "name": "JSON Policy",
-    "description": "Loaded from JSON",
-    "rules": [
-        {"type": "rbac", "role": "admin", "resource": "users", "action": "write"}
-    ],
-    "combination": "all_must_pass",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
-}"#;
-engine.load_from_json(json)?;
-```
-
-## Python API
-
-Source: `bindings/kailash-python/src/enterprise.rs` (`PyPolicyEngine`)
-
-### Creating and Adding Policies
+## Import
 
 ```python
-from kailash import PolicyEngine
-
-engine = PolicyEngine()
-
-engine.add_policy({
-    "id": "admin-access",
-    "name": "Admin Access",
-    "rules": [
-        {"type": "rbac", "role": "admin", "resource": "users", "action": "write"}
-    ],
-    "combine": "all_must_pass",  # optional, default is all_must_pass
-})
+from kailash.enterprise import PolicyEngine
 ```
 
-Policy dict schema:
-
-- `id` (str, required): unique policy ID
-- `name` (str, required): human-readable name
-- `rules` (list[dict], required): list of rule dicts
-- `combine` (str, optional): `"all_must_pass"` | `"any_must_pass"` | `"majority_pass"`
-- `version` (str, optional): policy version (default `"1.0"`)
-- `description` (str, optional): description
-
-Rule dict format depends on `type`:
-
-- RBAC: `{"type": "rbac", "role": "admin", "resource": "users", "action": "write"}`
-- ABAC: `{"type": "abac", "attribute": "department", "value": "engineering", "resource": "users"}`
-- Custom: `{"type": "custom", "expression": "user.level >= 3"}`
-
-### Evaluating Policies
+## Basic Usage
 
 ```python
-result = engine.evaluate("admin-access", {
-    "user": {"user_id": "alice", "roles": ["admin"], "attributes": {}},
-    "resource": "users",
-    "action": "write",
-    "environment": {},
+from kailash.enterprise import PolicyEngine
+
+pe = PolicyEngine()
+
+# Add a policy
+pe.add_policy({
+    "id": "admin_read",
+    "name": "Admin Read Access",
+    "effect": "allow",
+    "actions": ["read"],
+    "resources": ["documents/*"],
+    "conditions": {"role": "admin"},
 })
-# Returns "allow" or {"deny": "reason"}
+
+# Evaluate the policy
+result = pe.evaluate("admin_read", {
+    "user": {"user_id": "alice", "role": "admin"},
+    "action": "read",
+    "resource": "documents/report.pdf",
+})
+
 assert result == "allow"
 ```
 
-### CRUD Operations
+## Policy Definition
+
+Policies are defined as dicts with the following keys:
 
 ```python
-# List policy IDs
-ids = engine.list_policies()
-
-# Get policy as dict
-policy = engine.get_policy("admin-access")
-
-# Remove policy
-engine.remove_policy("admin-access")
-
-# Load from JSON string
-engine.load_from_json('{"id": "json-pol", "name": "JSON", "rules": [...]}')
+policy = {
+    "id": "unique-policy-id",          # Required: unique identifier
+    "name": "Human-readable name",     # Required: descriptive name
+    "effect": "allow",                  # Required: "allow" or "deny"
+    "actions": ["read", "write"],       # Required: list of action strings
+    "resources": ["documents/*"],       # Required: list of resource patterns (* for wildcard)
+    "conditions": {"role": "admin"},    # Required: dict of conditions to match
+}
 ```
 
-### Versioning and Hot-Reload
+## Multiple Policies
 
 ```python
-# Hot-reload a policy
-engine.reload_policy("admin-access", {
-    "id": "admin-access",
-    "name": "Admin Access v2",
-    "version": "2.0",
-    "rules": [
-        {"type": "rbac", "role": "admin", "resource": "*", "action": "*"}
-    ],
+from kailash.enterprise import PolicyEngine
+
+pe = PolicyEngine()
+
+# Allow admin read access
+pe.add_policy({
+    "id": "admin_read",
+    "name": "Admin Read Access",
+    "effect": "allow",
+    "actions": ["read"],
+    "resources": ["documents/*"],
+    "conditions": {"role": "admin"},
 })
 
-# Get version history (list of version strings)
-versions = engine.policy_versions("admin-access")
+# Allow admin write access
+pe.add_policy({
+    "id": "admin_write",
+    "name": "Admin Write Access",
+    "effect": "allow",
+    "actions": ["write"],
+    "resources": ["documents/*"],
+    "conditions": {"role": "admin"},
+})
 
-# Rollback to a previous version
-engine.rollback_policy("admin-access", "1.0")
+# Deny all user delete actions
+pe.add_policy({
+    "id": "deny_delete",
+    "name": "Deny Delete",
+    "effect": "deny",
+    "actions": ["delete"],
+    "resources": ["*"],
+    "conditions": {},
+})
+```
+
+## Policy Management
+
+### Get a Policy
+
+```python
+policy = pe.get_policy("admin_read")
+# Returns the policy dict or None if not found
+```
+
+### List All Policies
+
+```python
+policies = pe.list_policies()
+# Returns list of policy ID strings (e.g., ["admin_read", "user_write"])
+```
+
+### Remove a Policy
+
+```python
+pe.remove_policy("admin_read")
+```
+
+## Evaluation
+
+### Single Policy Evaluation
+
+```python
+result = pe.evaluate("admin_read", {
+    "user": {"user_id": "alice", "role": "admin"},
+    "action": "read",
+    "resource": "documents/report.pdf",
+})
+# result: "allow" or "deny"
 ```
 
 ### Evaluate All Policies
 
 ```python
-result = engine.evaluate_all({
-    "user": {"user_id": "alice", "roles": ["admin"], "attributes": {}},
-    "resource": "users",
-    "action": "write",
-    "environment": {},
+results = pe.evaluate_all({
+    "user": {"user_id": "alice", "role": "admin"},
+    "action": "read",
+    "resource": "documents/report.pdf",
 })
+# Returns evaluation results across all policies
 ```
 
-## Custom Expressions
+### Context Structure
 
-Custom expression rules use a sandboxed evaluator supporting comparisons against user attributes:
+The evaluation context is a dict with these keys:
 
+```python
+context = {
+    "user": {
+        "user_id": "alice",          # User identifier
+        "role": "admin",             # User's role (matched against conditions)
+    },
+    "action": "read",                # Action being performed
+    "resource": "documents/file.pdf",# Resource being accessed
+}
 ```
-user.level >= 3
-user.department == "engineering"
-user.clearance > 2
+
+## Loading Policies from JSON
+
+```python
+import json
+from kailash.enterprise import PolicyEngine
+
+pe = PolicyEngine()
+
+# Load from a JSON structure with version, combination strategy, and rules
+policy_json = json.dumps({
+    "version": "1.0.0",
+    "combination": "deny_override",
+    "rules": [
+        {
+            "id": "admin_full",
+            "name": "Admin Full Access",
+            "effect": "allow",
+            "actions": ["read", "write", "delete"],
+            "resources": ["*"],
+            "conditions": {"role": "admin"},
+        },
+        {
+            "id": "user_read",
+            "name": "User Read Only",
+            "effect": "allow",
+            "actions": ["read"],
+            "resources": ["documents/*"],
+            "conditions": {"role": "user"},
+        },
+    ],
+})
+
+pe.load_from_json(policy_json)
 ```
 
-Expressions are validated at policy add time -- invalid expressions are rejected immediately.
+## Policy Versioning
 
-## Source Files
+Policies support automatic versioning when reloaded:
 
-- `crates/kailash-enterprise/src/policy/engine.rs` -- `PolicyEngine`
-- `crates/kailash-enterprise/src/policy/types.rs` -- `Policy`, `PolicyRule`, `CombineStrategy`, `PolicyDecision`, `AccessContext`, `UserContext`
-- `crates/kailash-enterprise/src/policy/expression.rs` -- `evaluate_expression`, `validate_expression`
-- `bindings/kailash-python/src/enterprise.rs` -- `PyPolicyEngine`
+```python
+from kailash.enterprise import PolicyEngine
 
-<!-- Trigger Keywords: policy engine, PolicyEngine, RBAC rule, ABAC rule, custom expression, combine strategy, all_must_pass, any_must_pass, majority_pass, policy versioning, policy rollback, hot-reload, AccessContext -->
+pe = PolicyEngine()
+
+# Load initial version
+pe.load_from_json(json.dumps({
+    "version": "1.0.0",
+    "combination": "deny_override",
+    "rules": [
+        {
+            "id": "admin_read",
+            "name": "Admin Read",
+            "effect": "allow",
+            "actions": ["read"],
+            "resources": ["*"],
+            "conditions": {"role": "admin"},
+        },
+    ],
+}))
+
+# Load updated version -- creates a new version automatically
+pe.load_from_json(json.dumps({
+    "version": "2.0.0",
+    "combination": "deny_override",
+    "rules": [
+        {
+            "id": "admin_read",
+            "name": "Admin Read (Updated)",
+            "effect": "allow",
+            "actions": ["read", "list"],
+            "resources": ["*"],
+            "conditions": {"role": "admin"},
+        },
+    ],
+}))
+
+# Version 2.0.0 is now active
+```
+
+## Policy Rollback
+
+Roll back to a previous policy version using `rollback_policy(policy_id, version)`:
+
+```python
+import json
+from kailash.enterprise import PolicyEngine
+
+pe = PolicyEngine()
+
+# Load version 1
+pe.load_from_json(json.dumps({
+    "version": "1.0.0",
+    "combination": "deny_override",
+    "rules": [{"id": "r1", "name": "Rule 1", "effect": "allow", "actions": ["read"], "resources": ["*"], "conditions": {}}],
+}))
+
+# Load version 2
+pe.load_from_json(json.dumps({
+    "version": "2.0.0",
+    "combination": "deny_override",
+    "rules": [{"id": "r1", "name": "Rule 1 Updated", "effect": "deny", "actions": ["write"], "resources": ["*"], "conditions": {}}],
+}))
+
+# Roll back policy "r1" to version 1.0
+pe.rollback_policy("r1", "1.0")
+
+# Check version history
+versions = pe.policy_versions("r1")
+# Returns list of version strings
+```
+
+## Production Pattern
+
+```python
+import os
+import json
+from kailash.enterprise import PolicyEngine
+
+def create_policy_engine():
+    """Create and configure a production policy engine."""
+    pe = PolicyEngine()
+
+    # Load policies from a file
+    policy_path = os.getenv("POLICY_FILE", "policies.json")
+    with open(policy_path) as f:
+        pe.load_from_json(f.read())
+
+    return pe
+
+def check_access(pe, user_id, role, action, resource):
+    """Check if a user has access to perform an action on a resource."""
+    context = {
+        "user": {"user_id": user_id, "role": role},
+        "action": action,
+        "resource": resource,
+    }
+
+    results = pe.evaluate_all(context)
+    return results
+
+# Usage
+pe = create_policy_engine()
+access = check_access(pe, "alice", "admin", "read", "documents/report.pdf")
+```
+
+## Best Practices
+
+1. **Use deny_override combination** -- Deny policies always take precedence
+2. **Version all policy changes** -- Use `load_from_json()` with version for traceability
+3. **Test rollback** -- Use `rollback_policy(id, version)` and verify before deploying changes
+4. **Least privilege** -- Default to deny, explicitly allow required actions
+5. **Use resource wildcards carefully** -- `*` grants broad access
+6. **Externalize policies** -- Load from files or config services, not hardcoded
+
+## Related Skills
+
+- [enterprise-compliance](enterprise-compliance.md) - Compliance framework evaluation
+- [enterprise-tokens](enterprise-tokens.md) - Token lifecycle management
+- [python-framework-bindings](../06-python-bindings/python-framework-bindings.md) - Enterprise RBAC/ABAC types
+
+<!-- Trigger Keywords: policy engine, policy evaluation, policy versioning, policy rollback, access policy, authorization policy, fine-grained access control -->

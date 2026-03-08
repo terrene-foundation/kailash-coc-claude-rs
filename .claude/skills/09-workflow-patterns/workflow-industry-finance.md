@@ -8,70 +8,54 @@ description: "Finance industry workflows (payments, fraud, compliance). Use when
 > **Skill Metadata**
 > Category: `industry-workflows`
 > Priority: `MEDIUM`
-> SDK Version: `0.9.25+`
 
 ## Pattern: Payment Processing with Fraud Detection
 
-```rust
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use std::sync::Arc;
+```python
+import kailash
 
-let registry = Arc::new(NodeRegistry::default());
-let mut builder = WorkflowBuilder::new();
+builder = kailash.WorkflowBuilder()
 
-// 1. Validate payment details
-builder.add_node("DataValidationNode", "validate", ValueMap::from([
-    ("input".into(), Value::String("{{input.payment}}".into())),
-    ("schema".into(), Value::Object(ValueMap::from([
-        ("amount".into(), Value::String("decimal".into())),
-        ("card_number".into(), Value::String("credit_card".into())),
-    ]))),
-]));
+# 1. Validate payment details
+builder.add_node("DataValidationNode", "validate", {
+    "input": "{{input.payment}}",
+    "schema": {"amount": "decimal", "card_number": "credit_card"}
+})
 
-// 2. Fraud check
-builder.add_node("HTTPRequestNode", "fraud_check", ValueMap::from([
-    ("url".into(), Value::String("https://api.fraudcheck.com/analyze".into())),
-    ("method".into(), Value::String("POST".into())),
-    ("body".into(), Value::String("{{validate.valid_data}}".into())),
-]));
+# 2. Fraud check
+builder.add_node("APICallNode", "fraud_check", {
+    "url": "https://api.fraudcheck.com/analyze",
+    "method": "POST",
+    "body": "{{validate.valid_data}}"
+})
 
-// 3. Risk assessment
-builder.add_node("ConditionalNode", "assess_risk", ValueMap::from([
-    ("condition".into(), Value::String("{{fraud_check.risk_score}}".into())),
-    ("branches".into(), Value::Object(ValueMap::from([
-        ("low".into(), Value::String("process_payment".into())),
-        ("medium".into(), Value::String("manual_review".into())),
-        ("high".into(), Value::String("reject_payment".into())),
-    ]))),
-]));
+# 3. Risk assessment
+builder.add_node("ConditionalNode", "assess_risk", {
+    "condition": "{{fraud_check.risk_score}}",
+    "branches": {
+        "low": "process_payment",
+        "medium": "manual_review",
+        "high": "reject_payment"
+    }
+})
 
-// 4. Process payment
-builder.add_node("HTTPRequestNode", "process_payment", ValueMap::from([
-    ("url".into(), Value::String("https://api.paymentgateway.com/charge".into())),
-    ("method".into(), Value::String("POST".into())),
-    ("body".into(), Value::String("{{validate.valid_data}}".into())),
-]));
+# 4. Process payment
+builder.add_node("APICallNode", "process_payment", {
+    "url": "https://api.paymentgateway.com/charge",
+    "method": "POST",
+    "body": "{{validate.valid_data}}"
+})
 
-// 5. Record transaction
-builder.add_node("DatabaseExecuteNode", "record", ValueMap::from([
-    ("query".into(), Value::String(
-        "INSERT INTO transactions (amount, status, timestamp) VALUES (?, ?, NOW())".into()
-    )),
-    ("parameters".into(), Value::Array(vec![
-        Value::String("{{input.amount}}".into()),
-        Value::String("completed".into()),
-    ])),
-]));
+# 5. Record transaction
+builder.add_node("DatabaseExecuteNode", "record", {
+    "query": "INSERT INTO transactions (amount, status, timestamp) VALUES (?, ?, NOW())",
+    "parameters": ["{{input.amount}}", "completed"]
+})
 
-builder.connect("validate", "valid_data", "fraud_check", "body");
-builder.connect("fraud_check", "risk_score", "assess_risk", "condition");
-builder.connect("assess_risk", "output_low", "process_payment", "body");
-builder.connect("process_payment", "result", "record", "parameters");
-
-let workflow = builder.build(&registry)?;
-let runtime = Runtime::new(RuntimeConfig::default(), registry);
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
+builder.connect("validate", "valid_data", "fraud_check", "body")
+builder.connect("fraud_check", "risk_score", "assess_risk", "condition")
+builder.connect("assess_risk", "output_low", "process_payment", "body")
+builder.connect("process_payment", "result", "record", "parameters")
 ```
 
 <!-- Trigger Keywords: finance workflow, payment processing, fraud detection, financial compliance -->

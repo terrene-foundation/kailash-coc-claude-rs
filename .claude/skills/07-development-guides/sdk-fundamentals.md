@@ -41,14 +41,21 @@ result = rt.execute(builder.build(reg), inputs={})
 
 Use `kailash.Runtime(reg)` for all contexts (async, sync, Docker, CLI).
 
-**Architecture Note**: `kailash.Runtime` is a single unified runtime backed by the Rust `Runtime` struct. It handles:
+**Architecture Note**: kailash.Runtime inherits from BaseRuntime and uses 3 shared mixins:
 
-- **Workflow validation**: Structure checks, connection validation, cycle detection at `builder.build(reg)` time
-- **DAG execution**: Level-based parallel execution via tokio (nodes at the same DAG level run concurrently)
-- **Cycle execution**: CyclicWorkflowExecutor handles workflows with cycles (LoopNode, RetryNode)
-- **Conditional execution**: SwitchNode branching with node skipping
+- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
+- **ValidationMixin**: Workflow structure validation (5 methods)
+  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
+  - \_validate_connection_contracts(): Validates connection parameter contracts
+  - \_validate_conditional_execution_prerequisites(): Validates conditional execution setup
+  - \_validate_switch_results(): Validates switch node results
+  - \_validate_conditional_execution_results(): Validates conditional execution results
+- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
+  - Pattern detection and cycle detection
+  - Node skipping and hierarchical execution
+  - Conditional workflow orchestration
 
-`kailash.Runtime` provides validation helpers:
+kailash.Runtime also provides 4 validation helpers:
 
 - get_validation_metrics(): Public API for validation metrics
 - reset_validation_metrics(): Public API for metrics reset
@@ -79,7 +86,7 @@ result = rt.execute(builder.build(reg), inputs={})
 ### 5. Parameter Passing
 
 - Static parameters: Set in `add_node()` call
-- Dynamic parameters: Pass in `rt.execute(builder.build(reg), inputs={})`
+- Dynamic parameters: Pass in `rt.execute(builder.build(reg), parameters={})`
 - Input connections: Connect outputs to inputs via `connect()`
 
 ### 6. Common Mistakes to Avoid

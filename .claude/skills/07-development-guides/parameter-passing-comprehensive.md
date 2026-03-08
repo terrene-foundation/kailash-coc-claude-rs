@@ -18,7 +18,7 @@ builder.add_node("HTTPRequestNode", "api_call", {
 **2. Dynamic Parameters (Runtime)**
 
 ```python
-rt.execute(builder.build(reg), inputs={
+rt.execute(builder.build(reg), parameters={
     "api_call": {"url": "https://different-api.com"}
 })
 ```
@@ -81,7 +81,7 @@ result = {'config': config}
 })
 
 # Provide via runtime
-rt.execute(builder.build(reg), inputs={
+rt.execute(builder.build(reg), parameters={
     "complex": {
         "db_host": "localhost",
         "db_port": 5432,
@@ -116,7 +116,7 @@ result = {"result": "validated"}
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "validated_node": {"api_url": "https://api.example.com", "timeout": 30}
 })
 ```

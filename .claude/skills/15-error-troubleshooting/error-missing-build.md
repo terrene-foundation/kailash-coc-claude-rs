@@ -77,10 +77,10 @@ rt.execute(builder.build(reg))
 
 ```python
 # ❌ WRONG - parameters without .build()
-rt.execute(workflow, inputs={"node": {"param": "value"}})  # ERROR!
+rt.execute(workflow, parameters={"node": {"param": "value"}})  # ERROR!
 
 # ✅ CORRECT - .build() before parameters
-rt.execute(builder.build(reg), inputs={"node": {"param": "value"}})
+rt.execute(builder.build(reg), parameters={"node": {"param": "value"}})
 ```
 
 ### Variation 4: Storing Workflow Without .build()

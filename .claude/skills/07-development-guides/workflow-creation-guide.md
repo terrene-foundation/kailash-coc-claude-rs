@@ -34,7 +34,7 @@ builder.connect("processor", "result", "validator", "data")
 # Step 4: Execute - ALWAYS call .build()
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)  # For CLI/scripts
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "processor": {"input_data": {"value": 100}}
 })
 
@@ -95,7 +95,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+result = rt.execute(builder.build(reg), parameters={
     "api_call": {"url": "https://different-api.com/data"}
 })
 ```

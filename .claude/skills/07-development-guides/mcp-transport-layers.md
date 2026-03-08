@@ -24,7 +24,7 @@ if __name__ == "__main__":
     server.run(
         transport="http",
         host="0.0.0.0",
-        port=3000
+        port=8000
     )
 ```
 
@@ -55,7 +55,7 @@ builder.add_node("IterativeLLMNode", "agent", {
         {
             "name": "api-server",
             "transport": "http",
-            "url": "http://localhost:3000"
+            "url": "http://localhost:8000"
         },
         {
             "name": "realtime-server",

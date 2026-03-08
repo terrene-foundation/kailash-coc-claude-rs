@@ -1,6 +1,6 @@
 ---
 name: deployment-docker-quick
-description: "Docker deployment quick start for Rust binaries. Use when asking 'docker deployment', 'containerize kailash', or 'docker setup'."
+description: "Docker deployment quick start. Use when asking 'docker deployment', 'containerize kailash', or 'docker setup'."
 ---
 
 # Docker Deployment Quick Start
@@ -9,68 +9,71 @@ description: "Docker deployment quick start for Rust binaries. Use when asking '
 > Category: `deployment`
 > Priority: `HIGH`
 
-## Multi-Stage Dockerfile
+## Dockerfile
 
 ```dockerfile
-# Stage 1: Build
-FROM rust:1.82-slim AS builder
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy workspace manifests for dependency caching
-COPY Cargo.toml Cargo.lock ./
-COPY crates/ crates/
+# Copy application
+COPY . .
 
-# Build release binary
-RUN cargo build --release --bin my-service
-
-# Stage 2: Runtime (minimal image)
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y \
-    ca-certificates libssl3 curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Non-root user
-RUN useradd -r -s /bin/false appuser
+# Non-root user for security
+RUN useradd --create-home appuser
 USER appuser
 
-COPY --from=builder /app/target/release/my-service /usr/local/bin/
+# Use async runtime (Docker-optimized)
+ENV RUNTIME_TYPE=async
 
-# Expose API port (Nexus default: 3000)
-EXPOSE 3000
+# Expose API port
+EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:3000/health || exit 1
+# Health check using python (curl not available on slim images)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-CMD ["my-service"]
+# Run with async runtime
+CMD ["python", "app.py"]
 ```
 
 ## Application Setup
 
-```rust
-// src/main.rs
-use kailash_nexus::prelude::*;
-use serde_json::json;
+```python
+# app.py
+import kailash
+import os
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv().ok();
+builder = kailash.WorkflowBuilder()
+builder.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
+    "prompt": "{{input.message}}"
+})
 
-    let mut app = Nexus::new().preset(Preset::Standard);
+# Deploy with NexusApp
+from kailash.nexus import NexusApp
 
-    app.handler("greet", |name: String| async move {
-        Ok(json!({ "message": format!("Hello, {}!", name) }))
-    });
+app = NexusApp()
 
-    app.start().await?;
-    Ok(())
-}
+@app.handler("chat")
+def handle_chat(message: str):
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("LLMNode", "chat", {
+        "provider": "openai",
+        "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
+        "prompt": message
+    })
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["chat"]
+
+app.run(host="0.0.0.0", port=8000)
 ```
 
 ## Build and Run
@@ -80,13 +83,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 docker build -t my-kailash-app .
 
 # Run container
-docker run -p 3000:3000 \
+docker run -p 8000:8000 \
   -e OPENAI_API_KEY=${OPENAI_API_KEY} \
-  -e DATABASE_URL=${DATABASE_URL} \
+  -e DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL} \
   my-kailash-app
 
 # Access API
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 ## Docker Compose
@@ -96,14 +99,14 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - RUNTIME_TYPE=async
     depends_on:
-      db:
-        condition: service_healthy
+      - db
 
   db:
     image: postgres:15
@@ -113,11 +116,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:
@@ -133,32 +131,11 @@ docker-compose logs -f app
 
 ## Production Considerations
 
-1. **Multi-stage builds** - Final image ~50MB vs ~2GB for build stage
-2. **Static linking** - Use `x86_64-unknown-linux-musl` target for fully static binaries
-3. **Non-root user** - Security best practice
-4. **Health checks** - `/health` endpoint via Nexus
-5. **Environment variables** - All secrets from .env or Docker secrets
+1. **Use Runtime** - Default in NexusApp
+2. **Environment variables** - For secrets
+3. **Health checks** - `/health` endpoint
+4. **Multi-stage builds** - Smaller images
+5. **Non-root user** - Security best practice
 6. **Volume mounts** - For persistent data
-7. **Cold start** - Rust binary starts in ~10ms (vs seconds for Python)
 
-## Static Binary with Alpine
-
-```dockerfile
-FROM rust:1.82-alpine AS builder
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static
-WORKDIR /app
-COPY . .
-RUN cargo build --release --target x86_64-unknown-linux-musl
-
-FROM alpine:3.19
-RUN apk add --no-cache ca-certificates && \
-    adduser -D -s /bin/false appuser
-USER appuser
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/my-service /usr/local/bin/
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget -qO- http://localhost:3000/health || exit 1
-CMD ["my-service"]
-```
-
-<!-- Trigger Keywords: docker deployment, containerize kailash, docker setup, kailash docker, multi-stage build, rust docker -->
+<!-- Trigger Keywords: docker deployment, containerize kailash, docker setup, kailash docker -->
