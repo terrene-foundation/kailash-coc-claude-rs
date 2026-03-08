@@ -5,6 +5,7 @@ Save and restore agent state using `AgentCheckpoint` and checkpoint storage back
 ## API
 
 ```python
+import os
 from kailash import AgentCheckpoint, InMemoryCheckpointStorage, FileCheckpointStorage
 
 # Create a checkpoint
@@ -29,6 +30,7 @@ checkpoint.metadata = {"progress": 0.5, "step": "analysis"}
 Dict-backed storage for testing and development. Data is lost when the process exits.
 
 ```python
+import os
 storage = InMemoryCheckpointStorage()
 
 # Save
@@ -52,6 +54,7 @@ storage.delete(checkpoint_id)
 JSON file-backed storage. Each checkpoint is stored as `{base_dir}/{checkpoint_id}.json`.
 
 ```python
+import os
 storage = FileCheckpointStorage("/tmp/agent-checkpoints")
 
 # Save

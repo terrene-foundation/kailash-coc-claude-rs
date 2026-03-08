@@ -70,6 +70,7 @@ mc.reset()
 Creates and manages hierarchical spans.
 
 ```python
+import os
 from kailash import TracingManager
 
 tm = TracingManager()

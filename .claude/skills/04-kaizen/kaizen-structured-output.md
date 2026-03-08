@@ -53,7 +53,7 @@ schema2 = OutputSchema.from_json('{"type": "object", "properties": {"name": {"ty
 
 Parse raw LLM text and validate against a schema:
 
-```python
+````python
 from kailash import StructuredOutput
 
 # Create with a JSON schema dict or OutputSchema
@@ -73,7 +73,7 @@ assert result == {"name": "Bob"}
 # Handles embedded JSON in surrounding text
 result = so.parse('The result is {"name": "Charlie"} as expected.')
 assert result == {"name": "Charlie"}
-```
+````
 
 ## With OutputSchema
 
@@ -104,6 +104,7 @@ result = so.parse('{"topic": "AI", "sentiment": "positive", "entities": ["GPT", 
 Re-prompt the LLM when parse/validation fails:
 
 ```python
+import os
 from kailash import StructuredOutput, LlmClient
 
 # LlmClient auto-detects provider from env (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)

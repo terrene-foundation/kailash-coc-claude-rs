@@ -5,6 +5,7 @@ Token usage and budget management via `CostTracker`.
 ## CostTracker API
 
 ```python
+import os
 from kailash.kaizen import CostTracker
 
 ct = CostTracker()

@@ -178,6 +178,7 @@ builder.connect("increment_retry", "outputs", "api_call", "url")  # Loop!
 ## Pattern 4: Iterative Refinement
 
 ```python
+import os
 import kailash
 
 builder = kailash.WorkflowBuilder()

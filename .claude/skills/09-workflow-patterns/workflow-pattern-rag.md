@@ -197,6 +197,7 @@ builder.connect("rerank_all", "reranked", "generate", "prompt")
 ## Pattern 4: Conversational RAG with Memory
 
 ```python
+import os
 builder = kailash.WorkflowBuilder()
 
 # 1. Load conversation history

@@ -17,6 +17,7 @@ class ChainOfThought(Signature):
 ## Agent
 
 ```python
+import os
 import json
 from kailash.kaizen import BaseAgent
 
