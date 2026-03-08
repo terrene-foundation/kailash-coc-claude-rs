@@ -1,11 +1,11 @@
 ---
 name: switchnode-patterns
-description: "Conditional data routing with SwitchNode using conditions and operators. Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
+description: "Conditional data routing with SwitchNode (multi-case) and ConditionalNode (true/false). Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
 ---
 
-# SwitchNode Conditional Routing
+# SwitchNode & ConditionalNode Routing
 
-SwitchNode Conditional Routing guide with patterns, examples, and best practices.
+Guide to conditional routing with SwitchNode (multi-case matching) and ConditionalNode (true/false branching).
 
 > **Skill Metadata**
 > Category: `core-sdk`
@@ -13,84 +13,53 @@ SwitchNode Conditional Routing guide with patterns, examples, and best practices
 
 ## Quick Reference
 
-- **Primary Use**: SwitchNode Conditional Routing
+- **SwitchNode**: Multi-case routing. Config: `cases` (Object mapping values to branch names), `default_branch` (optional). Input: `condition` (value to match). Outputs: `matched` (branch name), `data` (forwarded).
+- **ConditionalNode**: True/false branching. Config: `condition` (expression). Outputs: `true_output`, `false_output`.
 - **Category**: core-sdk
 - **Priority**: HIGH
-- **Trigger Keywords**: SwitchNode, conditional routing, if else workflow, route data, conditional logic
 
-## Core Pattern
+## SwitchNode Pattern (Multi-Case Routing)
 
 ```python
 import kailash
 
 reg = kailash.NodeRegistry()
-
-# Basic SwitchNode conditional routing
 builder = kailash.WorkflowBuilder()
 
+# SwitchNode matches the "condition" input against case keys
 builder.add_node("SwitchNode", "switch", {
-    "condition_field": "status",
-    "operator": "==",
-    "value": "active"
+    "cases": {"active": "active_handler", "inactive": "inactive_handler"},
+    "default_branch": "inactive_handler"
 })
 
-# Connect both branches
-builder.connect("switch", "true_output", "active_processor", "input")
-builder.connect("switch", "false_output", "inactive_processor", "input")
+# SwitchNode outputs: "matched" (branch name string) and "data" (forwarded input)
+builder.connect("source", "status", "switch", "condition")
+builder.connect("switch", "data", "active_processor", "input")
 
-# Use skip_branches mode for best performance
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
-## ⚠️ Dot Notation: Execution Mode Dependent
+## ConditionalNode Pattern (True/False Branching)
 
-SwitchNode outputs are **mutually exclusive** - when `true_output` has data, `false_output` is `None`, and vice versa.
-
-### ✅ skip_branches Mode (Recommended)
-**Dot notation works perfectly** - inactive branches are automatically skipped:
+For simple true/false branching, use **ConditionalNode** instead of SwitchNode:
 
 ```python
-# Dot notation on SwitchNode outputs
-builder.connect("switch", "true_output.name", "processor", "name")
-builder.connect("switch", "false_output.name", "alt_processor", "name")
-
-# Use skip_branches mode (default for new code)
-rt = kailash.Runtime(reg)
-# Only the active branch executes - inactive is skipped intelligently
-```
-
-**Why it works**: Runtime detects `None` values and skips nodes automatically.
-
-### ⚠️ route_data Mode
-**Avoid dot notation** - connect full output and extract fields in node code:
-
-```python
-# Connect full output (no dot notation)
-builder.connect("switch", "true_output", "processor", "data")
-
-# Extract field INSIDE node code
-builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": """
-if data is not None:
-    name = data.get('name', 'Unknown')
-    result = f'Processing: {name}'
-else:
-    result = 'No data (inactive branch)'
-"""
+builder.add_node("ConditionalNode", "check", {
+    "condition": "score > 80"
 })
 
-rt = kailash.Runtime(reg)
+# ConditionalNode outputs: "true_output" and "false_output"
+builder.connect("check", "true_output", "high_handler", "data")
+builder.connect("check", "false_output", "low_handler", "data")
 ```
-
-**Why avoid**: Accessing `None.field_name` fails navigation. Node receives empty input and raises NameError.
 
 ## Common Use Cases
 
-- **Switchnode-Patterns Workflows**: Pre-built patterns for common use cases with best practices built-in
-- **Composition Patterns**: Combine multiple workflows, create reusable sub-workflows, build complex orchestrations
-- **Error Handling**: Built-in retry logic, fallback paths, compensation actions for resilient workflows
-- **Performance Optimization**: Parallel execution, batch operations, async patterns for high-throughput processing
+- **Multi-case routing**: Route by status, type, or category using SwitchNode `cases`
+- **Binary branching**: True/false decisions using ConditionalNode
+- **Default handling**: Always set `default_branch` on SwitchNode for unmatched cases
+- **Error Handling**: Route errors to dedicated handlers
 - **Production Readiness**: Health checks, monitoring, logging, metrics collection for enterprise deployments
 
 ## Related Patterns
@@ -109,9 +78,10 @@ Use specialized subagents when:
 
 ## Quick Tips
 
-- 💡 **Tip 1**: Always follow SwitchNode Conditional Routing best practices
-- 💡 **Tip 2**: Test patterns incrementally
-- 💡 **Tip 3**: Reference documentation for details
+- SwitchNode `cases` maps condition values to branch names -- the `condition` input is matched against case keys
+- SwitchNode outputs are `matched` (branch name) and `data` (forwarded input) -- NOT `true_output`/`false_output`
+- For true/false branching, use ConditionalNode instead of SwitchNode
+- Always set `default_branch` on SwitchNode to handle unmatched conditions
 
 ## Keywords for Auto-Trigger
 

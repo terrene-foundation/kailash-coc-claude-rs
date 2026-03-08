@@ -30,7 +30,7 @@ builder.add_node("HTTPRequestNode", "api", {
 ### 2. SQL Injection Prevention
 ```python
 # ✅ GOOD: Parameterized queries
-builder.add_node("DatabaseQueryNode", "query", {
+builder.add_node("SQLQueryNode", "query", {
     "query": "SELECT * FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })
@@ -56,7 +56,7 @@ builder.add_node("DataValidationNode", "validate", {
 ### 4. Authentication & Authorization
 ```python
 # ✅ GOOD: Check permissions
-builder.add_node("DatabaseQueryNode", "check_auth", {
+builder.add_node("SQLQueryNode", "check_auth", {
     "query": "SELECT role FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })

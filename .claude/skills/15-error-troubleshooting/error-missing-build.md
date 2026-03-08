@@ -33,7 +33,7 @@ The workflow is not a built artifact yet - it's still in builder mode. Workflows
 
 ```python
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
@@ -44,7 +44,7 @@ result = rt.execute(workflow)  # ❌ ERROR!
 
 ```python
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
@@ -123,9 +123,9 @@ rt.execute(my_workflow)
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 # ❌ All these are WRONG:
 reg = kailash.NodeRegistry()
@@ -141,9 +141,9 @@ results = workflow.run()  # No .run() method
 ```python
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 # ✅ CORRECT execution pattern
 reg = kailash.NodeRegistry()

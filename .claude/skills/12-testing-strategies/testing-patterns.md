@@ -79,13 +79,13 @@ def test_complete_data_processing_pipeline():
     builder = kailash.WorkflowBuilder()
 
     # Data pipeline
-    builder.add_node("CSVProcessorNode", "ingest", {"file_path": "tests/fixtures/real_data.csv"})
+    builder.add_node("CSVProcessorNode", "ingest", {"action": "read", "source_path": "tests/fixtures/real_data.csv"})
     builder.add_node("DataValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
     builder.add_node("DataTransformerNode", "transform", {"operations": ["clean_names"]})
     builder.add_node("UserBatchCreateNode", "store", {"batch_size": 100})
 
     # Connect pipeline
-    builder.connect("ingest", "data", "validate", "input_data")
+    builder.connect("ingest", "rows", "validate", "input_data")
     builder.connect("validate", "validated", "transform", "raw_data")
     builder.connect("transform", "transformed", "store", "user_data")
 

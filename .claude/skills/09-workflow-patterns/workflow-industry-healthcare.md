@@ -23,13 +23,13 @@ builder.add_node("HTTPRequestNode", "authenticate", {
 })
 
 # 2. Check HIPAA authorization
-builder.add_node("DatabaseQueryNode", "check_access", {
+builder.add_node("SQLQueryNode", "check_access", {
     "query": "SELECT role FROM healthcare_staff WHERE id = ? AND hipaa_certified = TRUE",
     "parameters": ["{{authenticate.user_id}}"]
 })
 
 # 3. Fetch patient record (encrypted)
-builder.add_node("DatabaseQueryNode", "fetch_record", {
+builder.add_node("SQLQueryNode", "fetch_record", {
     "query": "SELECT encrypted_data FROM patient_records WHERE patient_id = ?",
     "parameters": ["{{input.patient_id}}"]
 })

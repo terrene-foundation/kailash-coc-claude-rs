@@ -52,9 +52,9 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
-builder.connect("reader", "data", "process", "data")
+builder.connect("reader", "rows", "process", "data")
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)

@@ -26,7 +26,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 ```python
 # ✅ CORRECT: Parameterized queries
-builder.add_node("DatabaseQueryNode", "query", {
+builder.add_node("SQLQueryNode", "query", {
     "query": "SELECT * FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })

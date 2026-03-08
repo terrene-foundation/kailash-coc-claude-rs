@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Load customer data
-builder.add_node("DatabaseQueryNode", "load_customer", {
+builder.add_node("SQLQueryNode", "load_customer", {
     "query": "SELECT * FROM customers WHERE id = ?",
     "parameters": ["{{input.customer_id}}"]
 })

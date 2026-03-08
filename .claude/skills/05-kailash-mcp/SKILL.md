@@ -209,7 +209,7 @@ def analyze_tool(text: str) -> str:
 ## Version Compatibility
 
 - **MCP Specification**: Latest
-- **Python**: 3.8+
+- **Python**: 3.10+
 - **Transports**: stdio, SSE, HTTP
 
 ## Related Skills

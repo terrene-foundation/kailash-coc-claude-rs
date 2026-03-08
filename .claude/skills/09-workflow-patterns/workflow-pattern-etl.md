@@ -31,7 +31,8 @@ builder = kailash.WorkflowBuilder()
 
 # 1. EXTRACT: Read CSV
 builder.add_node("CSVProcessorNode", "extract", {
-    "file_path": "data/customers.csv",
+    "action": "read",
+    "source_path": "data/customers.csv",
     "delimiter": ",",
     "encoding": "utf-8"
 })
@@ -79,13 +80,13 @@ builder.add_node("SQLQueryNode", "load", {
 
 # 6. Error handling: Log invalid rows
 builder.add_node("FileWriterNode", "log_errors", {
-    "file_path": "logs/invalid_rows.csv",
+    "path": "logs/invalid_rows.csv",
     "data": "{{validate.invalid_data}}",
     "headers": ["row", "error", "data"]
 })
 
 # Connect nodes
-builder.connect("extract", "data", "validate", "input")
+builder.connect("extract", "rows", "validate", "input")
 builder.connect("validate", "valid_data", "clean", "input")
 builder.connect("clean", "data", "enrich_location", "body")
 builder.connect("enrich_location", "enriched_data", "load", "parameters")
@@ -105,7 +106,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. EXTRACT: Read from source DB
-builder.add_node("DatabaseQueryNode", "extract_source", {
+builder.add_node("SQLQueryNode", "extract_source", {
     "connection": "source_db",
     "query": """
         SELECT id, name, email, created_at

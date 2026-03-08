@@ -26,6 +26,7 @@ import kailash
 ## HTTP Nodes
 
 ### HTTPRequestNode
+
 ```python
 import kailash
 
@@ -43,18 +44,20 @@ builder.add_node("HTTPRequestNode", "api_call", {
 ```
 
 ### AsyncHTTPRequestNode
+
 ```python
 builder.add_node("AsyncHTTPRequestNode", "async_api", {
     "url": "https://api.example.com/users",
     "method": "POST",
     "json": {"name": "John", "email": "john@example.com"},
-    "timeout": 30
+    "timeout_ms": 30000
 })
 ```
 
 ## REST Nodes
 
 ### RESTClientNode
+
 ```python
 builder.add_node("RESTClientNode", "rest_api", {
     "base_url": "https://api.example.com",
@@ -67,6 +70,7 @@ builder.add_node("RESTClientNode", "rest_api", {
 ## GraphQL Nodes
 
 ### GraphQLClientNode
+
 ```python
 builder.add_node("GraphQLClientNode", "graphql", {
     "url": "https://api.example.com/graphql",

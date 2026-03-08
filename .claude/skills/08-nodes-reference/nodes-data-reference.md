@@ -19,9 +19,9 @@ Complete reference for file I/O and data processing nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available data nodes: CSVProcessorNode, FileWriterNode,
-#   JSONTransformNode, JSONTransformNode, TextReaderNode, ExcelReaderNode,
-#   DocumentProcessorNode (Multi-format support)
+# Available data nodes: CSVProcessorNode, FileWriterNode, FileReaderNode,
+#   JSONTransformNode (expression-based transform), ExcelReaderNode (feature: excel),
+#   PDFReaderNode (feature: pdf), XMLParserNode
 ```
 
 ## CSV Nodes
@@ -33,7 +33,8 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data/users.csv",
+    "action": "read",
+    "source_path": "data/users.csv",
     "delimiter": ",",
     "encoding": "utf-8"
 })
@@ -43,7 +44,7 @@ builder.add_node("CSVProcessorNode", "reader", {
 
 ```python
 builder.add_node("FileWriterNode", "writer", {
-    "file_path": "output/results.csv",
+    "path": "output/results.csv",
     "data": [],  # From previous node
     "headers": ["id", "name", "email"]
 })
@@ -51,49 +52,63 @@ builder.add_node("FileWriterNode", "writer", {
 
 ## JSON Nodes
 
-### JSONTransformNode
+### JSONTransformNode (Expression-Based Transform)
+
+JSONTransformNode transforms JSON data using dot-notation path expressions. It does NOT read or write files.
+
+- **Input**: `data` (required) -- the data to transform
+- **Input**: `expression` (required) -- dot-notation path expression (e.g., `"@.name"`, `"@.items[0]"`)
+- **Output**: `result` -- the transformed data
 
 ```python
-builder.add_node("JSONTransformNode", "json_reader", {
-    "file_path": "config/settings.json",
-    "encoding": "utf-8"
+builder.add_node("JSONTransformNode", "extract_name", {
+    "expression": "@.users[0].name"
+})
+builder.connect("source", "data", "extract_name", "data")
+# Output: result contains the extracted value
+```
+
+### FileReaderNode (Read JSON Files)
+
+To read JSON files, use FileReaderNode:
+
+```python
+builder.add_node("FileReaderNode", "json_reader", {
+    "path": "config/settings.json"
 })
 ```
 
-### JSONTransformNode
+### FileWriterNode (Write JSON Files)
+
+To write JSON files, use FileWriterNode:
 
 ```python
-builder.add_node("JSONTransformNode", "json_writer", {
-    "file_path": "output/data.json",
-    "data": {},  # From previous node
-    "indent": 2
+builder.add_node("FileWriterNode", "json_writer", {
+    "path": "output/data.json"
 })
 ```
 
 ## Document Processing
 
-### DocumentProcessorNode ⭐
+### PDFReaderNode ⭐
 
 ```python
-# Multi-format document processing (PDF, DOCX, MD, HTML, RTF, TXT)
-builder.add_node("DocumentProcessorNode", "doc_processor", {
+# PDF document processing (use PDFReaderNode for PDF files)
+builder.add_node("PDFReaderNode", "doc_processor", {
     "file_path": "documents/report.pdf",
-    "extract_metadata": True,
-    "preserve_structure": True,
-    "page_numbers": True
+    "extract_metadata": True
 })
 ```
 
-**Supported Formats**: PDF, DOCX, Markdown, HTML, RTF, TXT
+**Supported Formats**: PDF (feature-gated, requires `pdf` feature)
 
 ## Text Nodes
 
-### TextReaderNode
+### FileReaderNode (for text files)
 
 ```python
-builder.add_node("TextReaderNode", "text_reader", {
-    "file_path": "data/content.txt",
-    "encoding": "utf-8"
+builder.add_node("FileReaderNode", "text_reader", {
+    "path": "data/content.txt"
 })
 ```
 

@@ -38,7 +38,7 @@ builder = kailash.WorkflowBuilder()
 
 # Read CSV
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"
+    "action": "read", "source_path": "data.csv"
 })
 
 # Process
@@ -52,12 +52,12 @@ result = {'count': len(df), 'summary': df.describe().to_dict()}
 
 # Write output
 builder.add_node("FileWriterNode", "writer", {
-    "file_path": "output.csv"
+    "path": "output.csv"
 })
 
 # Connect (4-parameter syntax: source, source_output, target, target_input)
-builder.connect("reader", "data", "process", "data")
-builder.connect("process", "result", "writer", "data")
+builder.connect("reader", "rows", "process", "data")
+builder.connect("process", "result", "writer", "content")
 ```
 
 ## When to Engage

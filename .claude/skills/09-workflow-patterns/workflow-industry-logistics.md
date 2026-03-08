@@ -30,7 +30,7 @@ builder.add_node("HTTPRequestNode", "route_optimization", {
 })
 
 # 3. Assign to driver
-builder.add_node("DatabaseQueryNode", "find_driver", {
+builder.add_node("SQLQueryNode", "find_driver", {
     "query": "SELECT id FROM drivers WHERE status = 'available' AND location_near(?, 50) LIMIT 1",
     "parameters": ["{{input.origin}}"]
 })

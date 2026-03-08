@@ -11,20 +11,21 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# Route to read replica for queries
+# Route to read replica for queries — SwitchNode matches condition input against case keys
 builder.add_node("SwitchNode", "query_router", {
-    "cases": [
-        {"condition": "query_type == 'SELECT'", "target": "read_replica"},
-        {"condition": "query_type in ['INSERT', 'UPDATE', 'DELETE']", "target": "primary_db"}
-    ]
+    "cases": {"SELECT": "read_replica", "INSERT": "primary_db", "UPDATE": "primary_db", "DELETE": "primary_db"},
+    "default_branch": "primary_db"
 })
+# Connect query_type as the condition input
+builder.connect("source", "query_type", "query_router", "condition")
+# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
-builder.add_node("SQLReaderNode", "read_replica", {
+builder.add_node("SQLQueryNode", "read_replica", {
     "connection_string": "${READ_REPLICA_URL}",
     "query": query
 })
 
-builder.add_node("SQLReaderNode", "primary_db", {
+builder.add_node("SQLQueryNode", "primary_db", {
     "connection_string": "${PRIMARY_DB_URL}",
     "query": query
 })

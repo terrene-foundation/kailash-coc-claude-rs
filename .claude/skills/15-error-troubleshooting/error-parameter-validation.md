@@ -19,7 +19,7 @@ Fix parameter validation errors including missing required inputs, wrong paramet
 Node 'create' missing required inputs: ['email']
 ValueError: Missing required parameter 'X'
 ValueError: Invalid validation mode 'invalid'
-Required parameter 'file_path' not provided
+Required parameter 'source_path' not provided
 Parameter validation failed for node 'X'
 ```
 
@@ -167,8 +167,9 @@ builder.add_node("HTTPRequestNode", "api", {
 ```python
 # Some parameters are optional (have defaults)
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"  # Required
-    # has_header: optional (defaults to True)
+    "action": "read",        # Required
+    "source_path": "data.csv"  # Required
+    # has_headers: optional (defaults to True)
     # delimiter: optional (defaults to ",")
 })
 ```

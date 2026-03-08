@@ -25,6 +25,8 @@ Three methods to pass parameters to nodes in Kailash SDK workflows.
 
 ## Core Pattern
 
+> **Note**: Some node names below (e.g., EmailNode, UserLookupNode) are hypothetical examples to illustrate parameter passing patterns. For real node names, see `node-patterns-common` or query `NodeRegistry().list_types()`. Real equivalents include `EmailSenderNode`, `EmbeddedPythonNode`, etc.
+
 ```python
 import kailash
 
@@ -33,14 +35,16 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Method 1: Node Configuration (static values)
-builder.add_node("EmailNode", "send", {
+builder.add_node("EmailSenderNode", "send", {
     "to": "user@example.com",
     "subject": "Welcome"
 })
 
 # Method 2: Workflow Connection (dynamic from another node)
-builder.add_node("UserLookupNode", "lookup", {"user_id": 123})
-builder.connect("lookup", "email", "send", "to")
+builder.add_node("EmbeddedPythonNode", "lookup", {
+    "code": "result = {'email': 'user@example.com'}"
+})
+builder.connect("lookup", "result.email", "send", "to")
 
 # Method 3: Runtime Parameter (override at execution)
 rt = kailash.Runtime(reg)
@@ -85,10 +89,15 @@ rt.execute(builder.build(reg), inputs=parameters)
 **Use when**: Values known at design time
 
 ```python
-builder.add_node("UserCreateNode", "create", {
-    "name": "Alice",
-    "email": "alice@example.com",
-    "active": True
+# Example: configure a node with all values known at design time
+builder.add_node("EmbeddedPythonNode", "create", {
+    "code": """
+result = {
+    'name': name,
+    'email': email,
+    'active': active
+}
+"""
 })
 ```
 
@@ -104,14 +113,16 @@ builder.add_node("UserCreateNode", "create", {
 **Use when**: Values come from other nodes
 
 ```python
-builder.add_node("FormDataNode", "form", {})
-builder.add_node("UserCreateNode", "create", {
-    "name": "Alice"
+builder.add_node("EmbeddedPythonNode", "form", {
+    "code": "result = {'email_field': 'alice@example.com'}"
+})
+builder.add_node("EmbeddedPythonNode", "create", {
+    "code": "result = {'name': 'Alice', 'email': email}"
     # 'email' comes from connection
 })
 
 # 4-parameter syntax: source, source_output, target, target_input
-builder.connect("form", "email_field", "create", "email")
+builder.connect("form", "result.email_field", "create", "email")
 ```
 
 **Advantages:**
@@ -126,8 +137,8 @@ builder.connect("form", "email_field", "create", "email")
 **Use when**: Values determined at execution time
 
 ```python
-builder.add_node("ReportNode", "generate", {
-    "template": "monthly"
+builder.add_node("EmbeddedPythonNode", "generate", {
+    "code": "result = {'report': f'Report from {start_date} to {end_date}'}"
     # 'start_date' and 'end_date' from runtime
 })
 
@@ -144,9 +155,9 @@ rt.execute(builder.build(reg), inputs={
 ### ❌ Mistake: Missing Required Parameter
 
 ```python
-builder.add_node("UserCreateNode", "create", {
-    "name": "Alice"
-    # ERROR: Missing required 'email'!
+builder.add_node("HTTPRequestNode", "fetch", {
+    "method": "GET"
+    # ERROR: Missing required 'url'!
 })
 ```
 
@@ -154,17 +165,17 @@ builder.add_node("UserCreateNode", "create", {
 
 ```python
 # Method 1: Add to config
-builder.add_node("UserCreateNode", "create", {
-    "name": "Alice",
-    "email": "alice@example.com"
+builder.add_node("HTTPRequestNode", "fetch", {
+    "url": "https://api.example.com/data",
+    "method": "GET"
 })
 
 # OR Method 2: Connect from another node
-builder.connect("form", "email", "create", "email")
+builder.connect("source", "api_url", "fetch", "url")
 
 # OR Method 3: Provide at runtime
 rt.execute(builder.build(reg), inputs={
-    "create": {"email": "alice@example.com"}
+    "fetch": {"url": "https://api.example.com/data"}
 })
 ```
 

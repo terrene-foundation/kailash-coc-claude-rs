@@ -18,7 +18,15 @@ AI agent framework for building intelligent agents with kailash-enterprise.
 | [kaizen-rag-agent](kaizen-rag-agent.md)                     | RAG agent implementation                           |
 | [kaizen-cost-tracking](kaizen-cost-tracking.md)             | LLM cost tracking and budget management            |
 | [kaizen-streaming](kaizen-streaming.md)                     | Streaming agent responses                          |
-| [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol                            |
+| [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol (cards & registry)         |
+| [kaizen-a2a](kaizen-a2a.md)                                 | A2A messaging, discovery, and delegation           |
+| [kaizen-checkpoint](kaizen-checkpoint.md)                   | Checkpoint/resume with known issues & interrupts   |
+| [kaizen-quickstart](kaizen-quickstart.md)                   | First agent in 5 minutes                           |
+| [kaizen-llm-providers](kaizen-llm-providers.md)             | LlmClient, provider detection, mock testing        |
+| [kaizen-memory](kaizen-memory.md)                           | SessionMemory, SharedMemory, PersistentMemory      |
+| [kaizen-tools](kaizen-tools.md)                             | ToolDef, ToolRegistry, ToolParam, handler pattern  |
+| [kaizen-orchestration](kaizen-orchestration.md)             | OrchestrationRuntime, strategies, AgentExecutor    |
+| [create-agent](create-agent.md)                             | Scaffold a new agent (template skill)              |
 
 ## Core API
 

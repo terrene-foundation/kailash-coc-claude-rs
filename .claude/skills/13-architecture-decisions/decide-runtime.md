@@ -60,25 +60,27 @@ result = rt.execute(builder.build(reg))
 
 ## Runtime Details
 
-| Feature | Value |
-|---------|-------|
-| **Execution Model** | Handles both sync and async |
-| **Best For** | All contexts (CLI, Docker, NexusApp, APIs) |
-| **Return Value** | `dict` with `results`, `run_id`, `metadata` |
-| **Method** | `rt.execute(builder.build(reg))` |
-| **Context** | Any | Any |
+| Feature             | Value                                       |
+| ------------------- | ------------------------------------------- | --- |
+| **Execution Model** | Handles both sync and async                 |
+| **Best For**        | All contexts (CLI, Docker, NexusApp, APIs)  |
+| **Return Value**    | `dict` with `results`, `run_id`, `metadata` |
+| **Method**          | `rt.execute(builder.build(reg))`            |
+| **Context**         | Any                                         | Any |
 
 ## Shared Architecture
 
 `kailash.Runtime` is a single unified Rust-backed runtime:
 
 **Core Capabilities**:
+
 - Workflow execution via `rt.execute(wf)` and `rt.execute(wf, inputs={...})`
 - Level-based parallelism: nodes at the same DAG level execute concurrently
 - Result type: dict with keys `"results"`, `"run_id"`, `"metadata"`
 - Workflow validation happens at `builder.build(reg)` time (not at runtime)
 
 **Key Features**:
+
 - Cycle detection and execution support
 - Conditional execution and branching (SwitchNode)
 - Connection validation between node inputs/outputs
@@ -89,28 +91,13 @@ Runtime uses WorkflowParameterInjector for enterprise parameter handling instead
 
 The shared architecture ensures consistent behavior, with the only differences being execution model and async-specific optimizations.
 
-## Runtime-Specific Features
+## Parallelism
 
-Runtime extends Runtime with async-optimized capabilities:
+The single `kailash.Runtime` handles parallelism automatically:
 
-### Automatic Strategy Selection
-
-Runtime automatically chooses the optimal execution strategy:
-
-**Pure Async Strategy**:
-- When: All nodes are AsyncNode subclasses
-- Benefit: Maximum concurrency, fastest execution
-- Example: Workflows with EmbeddedPythonNode, async HTTP calls
-
-**Mixed Strategy**:
-- When: Combination of sync and async nodes
-- Benefit: Balanced performance, wide compatibility
-- Example: Most real-world workflows
-
-**Sync-Only Strategy**:
-- When: All sync nodes
-- Benefit: Compatibility with existing workflows
-- Example: Legacy workflows without async nodes
+- No separate "AsyncNode" class — all nodes implement the same async `Node` trait
+- Nodes at the same DAG level execute concurrently (via tokio::spawn)
+- The Runtime chooses the optimal execution strategy based on the DAG structure
 
 ### Level-Based Parallelism
 
@@ -223,9 +210,11 @@ rt = kailash.Runtime(reg)
 ## Documentation References
 
 ### Primary Sources
+
 - [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
 
 ### Internal Architecture
+
 - `kailash.Runtime` is a single Rust-backed runtime (PyO3 binding)
 - No separate sync/async split -- one unified runtime handles both
 

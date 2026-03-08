@@ -16,7 +16,7 @@ Complete guide for installing the Kailash SDK using pip, poetry, virtual environ
 - **Basic Install**: `pip install kailash-enterprise`
 - **Poetry**: `poetry add kailash-enterprise`
 - **With All Dependencies**: `pip install kailash-enterprise`
-- **Python Requirement**: 3.8+
+- **Python Requirement**: 3.10+
 - **Verify**: Import `WorkflowBuilder` and `kailash.Runtime`
 
 ## Core Pattern
@@ -94,16 +94,16 @@ pip install -r requirements.txt
 
 ### ❌ Mistake 1: Missing Python Version
 ```bash
-# Wrong - Python 3.7 or earlier
-python --version  # Python 3.7.x (unsupported)
+# Wrong - Python 3.9 or earlier
+python --version  # Python 3.9.x (unsupported)
 pip install kailash-enterprise  # May fail
 ```
 
-### ✅ Fix: Use Python 3.8+
+### ✅ Fix: Use Python 3.10+
 ```bash
-# Correct - Python 3.8 or later
-python3.8 --version  # Python 3.8.x or higher
-python3.8 -m pip install kailash-enterprise
+# Correct - Python 3.10 or later
+python3.10 --version  # Python 3.10.x or higher
+python3.10 -m pip install kailash-enterprise
 ```
 
 ### ❌ Mistake 2: ImportError After Installation
@@ -181,13 +181,13 @@ Use `deployment-specialist` subagent when:
 |-------|-------|----------|
 | `ImportError: No module named 'kailash'` | Wrong Python environment | Verify: `pip list \| grep kailash`, reinstall if needed |
 | `ModuleNotFoundError: pydantic` | Missing dependencies | Install: `pip install kailash-enterprise` |
-| `Python version incompatible` | Python < 3.8 | Upgrade to Python 3.8+ |
+| `Python version incompatible` | Python < 3.10 | Upgrade to Python 3.10+ |
 | Docker services not starting | Port conflicts or Docker issues | Run: `docker-compose down -v && docker-compose up -d` |
 
 ## Quick Tips
 
 - 💡 **Use virtual environments**: Isolate project dependencies to avoid conflicts
-- 💡 **Check Python version first**: Ensure Python 3.8+ before installation
+- 💡 **Check Python version first**: Ensure Python 3.10+ before installation
 - 💡 **Install with [all] for development**: Get all optional dependencies upfront
 - 💡 **Verify installation immediately**: Run test workflow to confirm setup
 - 💡 **Use poetry for teams**: Better dependency management and reproducibility

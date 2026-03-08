@@ -33,7 +33,7 @@ builder = kailash.WorkflowBuilder()
 
 # 2. Add nodes (string-based, ALWAYS)
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"
+    "action": "read", "source_path": "data.csv"
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
@@ -41,7 +41,7 @@ builder.add_node("EmbeddedPythonNode", "processor", {
 })
 
 # 3. Connect nodes (4 parameters: source, source_output, target, target_input)
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 # 4. Build workflow (pass registry for validation)
 wf = builder.build(reg)
@@ -70,7 +70,7 @@ print(result["results"]["processor"]["count"])
 builder = kailash.WorkflowBuilder()
 
 # Auto-generate node IDs for rapid prototyping
-reader_id = builder.add_node_auto_id("CSVProcessorNode", {"file_path": "data.csv"})
+reader_id = builder.add_node_auto_id("CSVProcessorNode", {"action": "read", "source_path": "data.csv"})
 processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)"})
 
 # Use returned IDs for connections
@@ -86,7 +86,7 @@ All these patterns are equivalent and work correctly:
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "..."})
 
 # 2. Keyword-Only Pattern
-builder.add_node(node_type="EmbeddedPythonNode", node_id="processor", config={"code": "..."})
+builder.add_node(type_name="EmbeddedPythonNode", node_id="processor", config={"code": "..."})
 
 # 3. Mixed Pattern (common in existing code)
 builder.add_node("EmbeddedPythonNode", node_id="processor", config={"code": "..."})
@@ -97,13 +97,13 @@ processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "..."})
 
 ## Key Parameters / Options
 
-### add_node(node_type, node_id, config)
+### add_node(type_name, node_id, config)
 
 | Parameter   | Type | Required | Description                                               |
 | ----------- | ---- | -------- | --------------------------------------------------------- |
-| `node_type` | str  | Yes      | Node class name as string (e.g., "CSVProcessorNode")      |
+| `type_name` | str  | Yes      | Node class name as string (e.g., "CSVProcessorNode")      |
 | `node_id`   | str  | Yes\*    | Unique identifier for this node (\*optional with auto-ID) |
-| `config`    | dict | Yes      | Node configuration parameters                             |
+| `config`    | dict | No       | Node configuration parameters (defaults to None)          |
 
 ### connect(source, source_output, target, target_input)
 
@@ -141,7 +141,7 @@ builder.connect("reader", "processor", "data")
 
 ```python
 # Correct - 4 parameters (source + output → target + input)
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 ```
 
 ### ❌ Mistake 3: Instance-Based Nodes
@@ -149,14 +149,14 @@ builder.connect("reader", "data", "processor", "data")
 ```python
 # Wrong - node classes are not importable in the Rust-backed package
 # from kailash.nodes import CSVProcessorNode  # ERROR: no such module
-builder.add_node("reader", CSVProcessorNode(file_path="data.csv"))
+builder.add_node("reader", CSVProcessorNode(source_path="data.csv"))
 ```
 
 ### ✅ Fix: String-Based Nodes
 
 ```python
 # Correct - string-based (production pattern)
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 ```
 
 ### ❌ Mistake 4: Wrong Execution Pattern
@@ -217,7 +217,7 @@ builder = kailash.WorkflowBuilder()
 
 # Read CSV file
 builder.add_node("CSVProcessorNode", "read_data", {
-    "file_path": "input.csv"
+    "action": "read", "source_path": "input.csv"
 })
 
 # Transform data with EmbeddedPythonNode
@@ -232,12 +232,12 @@ result = df.to_dict('records')
 
 # Write results
 builder.add_node("FileWriterNode", "write_data", {
-    "file_path": "output.csv"
+    "path": "output.csv"
 })
 
 # Connect the pipeline
-builder.connect("read_data", "data", "transform", "data")
-builder.connect("transform", "result", "write_data", "data")
+builder.connect("read_data", "rows", "transform", "data")
+builder.connect("transform", "result", "write_data", "content")
 
 # Execute
 rt = kailash.Runtime(reg)
@@ -308,7 +308,7 @@ builder.add_node("SQLQueryNode", "store", {
     "params": {"data": "${extract.result}"}
 })
 
-builder.connect("fetch_data", "response", "extract", "response")
+builder.connect("fetch_data", "body", "extract", "response")
 builder.connect("extract", "result", "store", "data")
 
 rt = kailash.Runtime(reg)

@@ -67,7 +67,7 @@ builder.add_node("HTTPRequestNode", "notify_webhook", {
 })
 
 builder.connect("auth", "access_token", "get_user", "token")
-builder.connect("get_user", "data", "update_profile", "user_data")
+builder.connect("get_user", "body", "update_profile", "user_data")
 builder.connect("update_profile", "result", "notify_webhook", "body")
 
 wf = builder.build(reg)
@@ -109,9 +109,9 @@ builder.add_node("MergeNode", "merge_results", {
 })
 
 # No connections between parallel nodes - they run simultaneously
-builder.connect("api_weather", "data", "merge_results", "weather_data")
-builder.connect("api_news", "data", "merge_results", "news_data")
-builder.connect("api_events", "data", "merge_results", "events_data")
+builder.connect("api_weather", "body", "merge_results", "weather_data")
+builder.connect("api_news", "body", "merge_results", "news_data")
+builder.connect("api_events", "body", "merge_results", "events_data")
 ```
 
 ## Pattern 3: GraphQL API Integration

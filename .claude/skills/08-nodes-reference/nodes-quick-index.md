@@ -34,8 +34,8 @@ Quick reference to all 115+ tested and validated Kailash workflow nodes.
 import kailash
 
 # File operation nodes (string-based):
-#   CSVProcessorNode, FileWriterNode, JSONTransformNode, JSONTransformNode,
-#   TextReaderNode, ExcelReaderNode
+#   CSVProcessorNode, FileWriterNode, FileReaderNode, JSONTransformNode,
+#   ExcelReaderNode (feature: excel), PDFReaderNode (feature: pdf), XMLParserNode
 
 # Database nodes (string-based):
 #   SQLQueryNode (Production recommended)
@@ -44,7 +44,7 @@ import kailash
 #   SQLDatabaseNode (Simple queries)
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 ```
 
 ### 🤖 AI/ML (20+ nodes)

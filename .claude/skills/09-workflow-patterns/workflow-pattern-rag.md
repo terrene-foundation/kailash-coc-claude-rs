@@ -31,7 +31,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Load document
-builder.add_node("DocumentProcessorNode", "load_doc", {
+builder.add_node("PDFReaderNode", "load_doc", {
     "file_path": "{{input.document_path}}",
     "extract_metadata": True
 })
@@ -215,7 +215,7 @@ builder.connect("rerank_all", "documents", "generate", "context")
 builder = kailash.WorkflowBuilder()
 
 # 1. Load conversation history
-builder.add_node("DatabaseQueryNode", "load_history", {
+builder.add_node("SQLQueryNode", "load_history", {
     "query": """
         SELECT role, content FROM messages
         WHERE conversation_id = ?

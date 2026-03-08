@@ -63,8 +63,8 @@ import kailash
 ```python
 # Nodes are referenced by string name -- no imports needed
 builder.add_node("EmbeddedPythonNode", "code", {"code": "result = {'ok': True}"})
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
-builder.add_node("SwitchNode", "switch", {"conditions": [...]})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
+builder.add_node("SwitchNode", "switch", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
 builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
 ```
 
@@ -138,14 +138,14 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"
+    "action": "read", "source_path": "data.csv"
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'count': len(data)}"
 })
 
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -169,7 +169,7 @@ builder.add_node("EmbeddedPythonNode", "process", {
     "code": "result = {'status': 'processed'}"
 })
 
-builder.connect("api_call", "response", "process", "data")
+builder.connect("api_call", "body", "process", "data")
 
 # Execute workflow
 rt = kailash.Runtime(reg)
@@ -186,14 +186,14 @@ builder = kailash.WorkflowBuilder()
 
 # All nodes are string-based -- no separate imports needed
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv"
+    "action": "read", "source_path": "data.csv"
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'count': len(data) if data else 0}"
 })
 
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))

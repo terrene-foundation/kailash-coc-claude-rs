@@ -26,51 +26,53 @@ import kailash
 ## Switch Node
 
 ### SwitchNode
+
+SwitchNode matches the `condition` input against `cases` keys and routes to the matching branch.
+
+- **Config**: `cases` (Object mapping condition values to branch names), `default_branch` (optional String)
+- **Input**: `condition` (String, required) -- the value to match against cases
+- **Input**: `data` (Any, optional) -- data to forward
+- **Outputs**: `matched` (String -- the branch name), `data` (forwarded input)
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# Boolean routing (true_output/false_output)
-builder.add_node("SwitchNode", "router", {
-    "condition_field": "score",
-    "operator": ">=",
-    "value": 80
-})
-
-# Multi-case routing (case_X outputs)
+# Multi-case routing with SwitchNode
 builder.add_node("SwitchNode", "status_router", {
-    "condition_field": "status",
-    "cases": ["active", "inactive", "pending"]
+    "cases": {"active": "active_handler", "inactive": "inactive_handler", "pending": "pending_handler"},
+    "default_branch": "inactive_handler"
 })
+
+# Connect condition input and use outputs
+builder.connect("source", "status", "status_router", "condition")
+builder.connect("status_router", "data", "next_step", "input")
+# status_router "matched" output contains the branch name string
 ```
 
-### ⚠️ Dot Notation Limitation
+### ConditionalNode (True/False Branching)
 
-SwitchNode outputs are **mutually exclusive** (one is always `None`). Dot notation behavior depends on execution mode:
+For simple true/false branching, use **ConditionalNode** instead of SwitchNode:
 
-**✅ skip_branches mode** (recommended): Dot notation works - inactive branches skipped
 ```python
 import kailash
 
-builder.connect("router", "true_output.name", "processor", "name")
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-```
+builder = kailash.WorkflowBuilder()
 
-**⚠️ route_data mode**: Avoid dot notation - connect full output
-```python
-import kailash
+builder.add_node("ConditionalNode", "router", {
+    "condition": "score >= 80"
+})
 
-builder.connect("router", "true_output", "processor", "data")
-# Extract field in code: name = data.get('name') if data else None
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+# ConditionalNode outputs: "true_output" and "false_output"
+builder.connect("router", "true_output", "high_processor", "data")
+builder.connect("router", "false_output", "low_processor", "data")
 ```
 
 ## Merge Node
 
 ### MergeNode
+
 ```python
 builder.add_node("MergeNode", "combine", {
     "strategy": "all",  # or "any", "first"
@@ -81,6 +83,7 @@ builder.add_node("MergeNode", "combine", {
 ## Conditional Router
 
 ### ConditionalRouterNode
+
 ```python
 builder.add_node("ConditionalRouterNode", "conditional", {
     "filter": [
@@ -94,6 +97,7 @@ builder.add_node("ConditionalRouterNode", "conditional", {
 ## Loop Nodes
 
 ### LoopNode
+
 ```python
 builder.add_node("LoopNode", "loop", {
     "iterations": 5,
@@ -102,6 +106,7 @@ builder.add_node("LoopNode", "loop", {
 ```
 
 ### WhileNode
+
 ```python
 builder.add_node("WhileNode", "while_loop", {
     "condition": "count < 100",

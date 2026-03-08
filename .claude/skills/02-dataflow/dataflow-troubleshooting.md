@@ -5,6 +5,7 @@ Troubleshoot common issues when using DataFlow with the Rust-backed Python bindi
 ## Issue 1: Unsupported Type Annotation
 
 **Error**:
+
 ```
 TypeError: unsupported type annotation: <class 'list'>; expected int, str, float, bool, datetime.datetime, or Optional[T]
 ```
@@ -35,6 +36,7 @@ class Config:
 ## Issue 2: DataFlow Connection Failed
 
 **Error**:
+
 ```
 RuntimeError: DataFlow connection failed: database error: error returned from database: (code: 14) unable to open database file
 ```
@@ -42,6 +44,7 @@ RuntimeError: DataFlow connection failed: database error: error returned from da
 **Cause**: SQLite file path doesn't exist or the directory is not writable.
 
 **Fix**:
+
 ```python
 import os
 from kailash.dataflow import DataFlow
@@ -59,6 +62,7 @@ df = DataFlow("sqlite://:memory:")
 ## Issue 3: FieldDef Has No Constructor
 
 **Error**:
+
 ```
 TypeError: No constructor defined for FieldDef
 ```
@@ -78,20 +82,21 @@ md.field("active", FieldType.boolean())
 
 `FieldType` variants are **lowercase class methods** (not uppercase attributes):
 
-| Method                | Type       |
-| --------------------- | ---------- |
-| `FieldType.integer()` | Integer    |
-| `FieldType.text()`    | Text/Varchar |
-| `FieldType.real()`    | Real/Double |
-| `FieldType.float()`   | Float      |
-| `FieldType.boolean()` | Boolean    |
-| `FieldType.json()`    | JSON       |
-| `FieldType.timestamp()` | Timestamp |
-| `FieldType.uuid()`    | UUID       |
+| Method                  | Type         |
+| ----------------------- | ------------ |
+| `FieldType.integer()`   | Integer      |
+| `FieldType.text()`      | Text/Varchar |
+| `FieldType.real()`      | Real/Double  |
+| `FieldType.float()`     | Float        |
+| `FieldType.boolean()`   | Boolean      |
+| `FieldType.json()`      | JSON         |
+| `FieldType.timestamp()` | Timestamp    |
+| `FieldType.uuid()`      | UUID         |
 
 ## Issue 4: Workflow Build Failed — Unknown Node Type
 
 **Error**:
+
 ```
 RuntimeError: workflow build failed: unknown node type: UserCreateNode
 ```
@@ -118,6 +123,7 @@ wf = builder.build(reg)
 ## Issue 5: Invalid Connection — Target Node Does Not Exist
 
 **Error**:
+
 ```
 RuntimeError: workflow build failed: invalid connection from node_a.result to node_b.input: target node 'node_b' does not exist in the workflow
 ```
@@ -130,7 +136,7 @@ RuntimeError: workflow build failed: invalid connection from node_a.result to no
 builder = kailash.WorkflowBuilder()
 
 # Add ALL nodes first
-builder.add_node("SwitchNode", "router", {"condition": "type"})
+builder.add_node("SwitchNode", "router", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
 builder.add_node("MergeNode", "combiner", {})
 
 # Then connect
@@ -140,6 +146,7 @@ builder.connect("router", "result", "combiner", "input")
 ## Issue 6: Cycle Detected
 
 **Error**:
+
 ```
 RuntimeError: workflow build failed: cycle detected involving nodes: a, b
 ```
@@ -151,6 +158,7 @@ RuntimeError: workflow build failed: cycle detected involving nodes: a, b
 ## Issue 7: Node Execution Failed — No Matching Case
 
 **Error**:
+
 ```
 RuntimeError: workflow execution failed: node 'sw' failed -> node execution failed: no matching case for condition '"x > 5"' and no default branch configured
 ```
@@ -161,13 +169,15 @@ RuntimeError: workflow execution failed: node 'sw' failed -> node execution fail
 
 ```python
 builder.add_node("SwitchNode", "router", {
-    "condition": "status",
     "cases": {
         "active": "process_active",
         "inactive": "process_inactive"
     },
-    "default": "process_default"  # Always set a default
+    "default_branch": "process_default"  # Always set a default
 })
+# Connect the condition input (the value to match against case keys)
+builder.connect("source", "status", "router", "condition")
+# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 ```
 
 ## Issue 8: Duplicate Node IDs (Silent Overwrite)
@@ -180,7 +190,7 @@ builder.add_node("SwitchNode", "router", {
 
 ```python
 builder = kailash.WorkflowBuilder()
-builder.add_node("SwitchNode", "step1", {"condition": "a"})
+builder.add_node("SwitchNode", "step1", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
 
 # Check before adding
 existing = builder.get_node_ids()
@@ -195,21 +205,21 @@ if "step1" in existing:
 - [ ] All node IDs are unique in the builder
 - [ ] All connection targets exist (added via `add_node` before `connect`)
 - [ ] No cyclic connections (use LoopNode instead)
-- [ ] SwitchNode has a `default` branch
+- [ ] SwitchNode has a `default_branch` configured
 - [ ] Using `FieldType.text()` (lowercase method), not `FieldType.Text` (no such attribute)
 - [ ] Using `builder.connect()` with 4 positional args, not keyword args
 
 ## Pure Python SDK vs Rust Binding Differences
 
-| Feature | Pure Python SDK | Rust Binding |
-| --- | --- | --- |
-| Auto-generated CRUD nodes | Yes (11 per model) | No — use SQLQueryNode |
-| Inspector / DebugAgent | Yes | No |
-| CLI commands (`dataflow validate`) | Yes | No |
-| DF-XXX error codes | Yes | RuntimeError messages |
-| `DataFlow(url, test_mode=True)` | Yes | No `test_mode` param |
-| Schema cache metrics | Yes | No |
-| ExpressDataFlow | Yes | No |
+| Feature                            | Pure Python SDK    | Rust Binding          |
+| ---------------------------------- | ------------------ | --------------------- |
+| Auto-generated CRUD nodes          | Yes (11 per model) | No — use SQLQueryNode |
+| Inspector / DebugAgent             | Yes                | No                    |
+| CLI commands (`dataflow validate`) | Yes                | No                    |
+| DF-XXX error codes                 | Yes                | RuntimeError messages |
+| `DataFlow(url, test_mode=True)`    | Yes                | No `test_mode` param  |
+| Schema cache metrics               | Yes                | No                    |
+| ExpressDataFlow                    | Yes                | No                    |
 
 ## Related
 

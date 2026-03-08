@@ -20,7 +20,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Load data
-builder.add_node("CSVProcessorNode", "load", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "load", {"action": "read", "source_path": "data.csv"})
 
 # 2. Remove duplicates
 builder.add_node("DeduplicateNode", "dedupe", {
@@ -50,7 +50,7 @@ builder.add_node("AggregateNode", "aggregate", {
     "aggregations": {"count": "COUNT(*)", "avg_age": "AVG(age)"}
 })
 
-builder.connect("load", "data", "dedupe", "input")
+builder.connect("load", "rows", "dedupe", "input")
 builder.connect("dedupe", "data", "validate", "input")
 builder.connect("validate", "valid_data", "clean", "input")
 builder.connect("clean", "data", "aggregate", "input")

@@ -43,9 +43,9 @@ import kailash
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
-builder.connect("reader", "data", "process", "data")
+builder.connect("reader", "rows", "process", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -102,11 +102,11 @@ workflow.run()
 
 ```python
 # ✅ VALID - String-based
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "..."})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "..."})
 builder.add_node("EmbeddedPythonNode", "process", {"code": "..."})
 
 # ❌ INVALID - Instance-based (deprecated)
-builder.add_node("reader", CSVProcessorNode(file_path="..."))
+builder.add_node("reader", CSVProcessorNode(source_path="..."))
 builder.add_node("process", EmbeddedPythonNode(code="..."))
 ```
 
@@ -115,7 +115,7 @@ builder.add_node("process", EmbeddedPythonNode(code="..."))
 ```python
 # ✅ VALID - 4 parameters
 builder.connect("source", "output", "target", "input")
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 
 # ❌ INVALID - 3 parameters (deprecated)
 builder.connect("source", "target", "data")
@@ -143,7 +143,7 @@ from kailash.nodes.data import CSVProcessorNode  # No such module
 # ✅ VALID
 CSVProcessorNode, LLMNode, HTTPRequestNode, EmbeddedPythonNode
 builder.add_node(), builder.connect(), builder.build(reg)
-file_path="...", has_header=True, connection_string="..."
+source_path="...", has_headers=True, connection_string="..."
 
 # ❌ INVALID
 CSVReader, LLMAgent, HTTPRequest, PythonCode

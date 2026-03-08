@@ -29,11 +29,11 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Add nodes
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
 
 # ✅ CORRECT: 4-parameter connection
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 #                      ^source  ^output   ^target    ^input
 
 rt = kailash.Runtime(reg)
@@ -55,12 +55,12 @@ result = rt.execute(builder.build(reg))
 ```python
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "input.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "input.csv"})
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
-builder.add_node("JSONTransformNode", "writer", {"file_path": "output.json"})
+builder.add_node("FileWriterNode", "writer", {"path": "output.json"})
 
 # Sequential connections
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 builder.connect("processor", "result", "writer", "data")
 ```
 
@@ -71,8 +71,8 @@ builder.connect("processor", "result", "writer", "data")
 builder.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
 builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}"})
 
-# Map 'response' output to 'data' input
-builder.connect("api", "response", "process", "data")
+# Map 'body' output to 'data' input
+builder.connect("api", "body", "process", "data")
 ```
 
 ### Type 3: Dot Notation for Nested Data
@@ -107,7 +107,7 @@ builder.connect("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
 
 ```python
 # Send same data to multiple processors
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 
 # Parallel processors
 builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}"})
@@ -115,25 +115,25 @@ builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': T
 builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}"})
 
 # Fan-out: reader → multiple targets
-builder.connect("reader", "data", "validator", "data")
-builder.connect("reader", "data", "logger", "data")
-builder.connect("reader", "data", "analyzer", "data")
+builder.connect("reader", "rows", "validator", "data")
+builder.connect("reader", "rows", "logger", "data")
+builder.connect("reader", "rows", "analyzer", "data")
 ```
 
 ### Type 5: Fan-In with MergeNode
 
 ```python
 # Combine multiple data sources
-builder.add_node("CSVProcessorNode", "source1", {"file_path": "data1.csv"})
-builder.add_node("JSONTransformNode", "source2", {"file_path": "data2.json"})
+builder.add_node("CSVProcessorNode", "source1", {"action": "read", "source_path": "data1.csv"})
+builder.add_node("FileReaderNode", "source2", {"path": "data2.json"})
 builder.add_node("HTTPRequestNode", "source3", {"url": "https://api.example.com"})
 
 builder.add_node("MergeNode", "merger", {})
 
 # Fan-in: multiple sources → merger
-builder.connect("source1", "data", "merger", "input1")
+builder.connect("source1", "rows", "merger", "input1")
 builder.connect("source2", "data", "merger", "input2")
-builder.connect("source3", "response", "merger", "input3")
+builder.connect("source3", "body", "merger", "input3")
 
 # Process merged data
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}"})
@@ -144,8 +144,8 @@ builder.connect("merger", "result", "processor", "data")
 
 ```python
 # Custom multi-input node
-builder.add_node("CSVProcessorNode", "customers", {"file_path": "customers.csv"})
-builder.add_node("CSVProcessorNode", "orders", {"file_path": "orders.csv"})
+builder.add_node("CSVProcessorNode", "customers", {"action": "read", "source_path": "customers.csv"})
+builder.add_node("CSVProcessorNode", "orders", {"action": "read", "source_path": "orders.csv"})
 
 builder.add_node("EmbeddedPythonNode", "join", {
     "code": """
@@ -162,8 +162,8 @@ result = {
 })
 
 # Multiple inputs to same node
-builder.connect("customers", "data", "join", "customers")
-builder.connect("orders", "data", "join", "orders")
+builder.connect("customers", "rows", "join", "customers")
+builder.connect("orders", "rows", "join", "orders")
 ```
 
 ### Type 7: Complex Nested Extraction
@@ -204,7 +204,7 @@ builder.connect("reader", "processor", "data")  # DEPRECATED
 
 ```python
 # Correct - Modern 4-parameter syntax
-builder.connect("reader", "data", "processor", "data")
+builder.connect("reader", "rows", "processor", "data")
 ```
 
 ### ❌ Mistake 2: Wrong Port Names
@@ -217,8 +217,8 @@ builder.connect("csv_reader", "output", "processor", "input")  # Error
 ### ✅ Fix: Use Correct Port Names
 
 ```python
-# Correct - CSVProcessorNode outputs to 'data' port
-builder.connect("csv_reader", "data", "processor", "data")
+# Correct - CSVProcessorNode outputs to 'rows' port
+builder.connect("csv_reader", "rows", "processor", "data")
 ```
 
 ### ❌ Mistake 3: Missing Dot Notation for Nested Data
@@ -240,7 +240,7 @@ builder.connect("analyzer", "result.accuracy", "reporter", "accuracy")
 ```python
 # Wrong - Node ID mismatch
 builder.add_node("CSVProcessorNode", "csv_reader", {})
-builder.connect("reader", "data", "processor", "data")  # Error: 'reader' not found
+builder.connect("reader", "rows", "processor", "data")  # Error: 'reader' not found
 ```
 
 ### ✅ Fix: Match Node IDs Exactly
@@ -248,7 +248,7 @@ builder.connect("reader", "data", "processor", "data")  # Error: 'reader' not fo
 ```python
 # Correct - Consistent node IDs
 builder.add_node("CSVProcessorNode", "csv_reader", {})
-builder.connect("csv_reader", "data", "processor", "data")
+builder.connect("csv_reader", "rows", "processor", "data")
 ```
 
 ## Related Patterns

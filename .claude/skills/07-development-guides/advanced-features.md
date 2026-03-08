@@ -36,13 +36,11 @@ result = {
 """
 })
 
-# Check continuation
-builder.add_node("SwitchNode", "check", {
-    "cases": [
-        {"condition": "continue == True", "target": "process"},
-        {"condition": "continue == False", "target": "output"}
-    ]
+# Check continuation — use ConditionalNode for true/false branching
+builder.add_node("ConditionalNode", "check", {
+    "condition": "continue == True"
 })
+# ConditionalNode outputs: "true_output" (loops back) and "false_output" (exits)
 
 # Connections
 builder.connect("init", "process", "result", "data")
@@ -137,13 +135,14 @@ except Exception as e:
 """
 })
 
-# Route based on status
+# Route based on status — SwitchNode matches condition input against case keys
 builder.add_node("SwitchNode", "error_router", {
-    "cases": [
-        {"condition": "status == 'success'", "target": "success_handler"},
-        {"condition": "status == 'error'", "target": "error_handler"}
-    ]
+    "cases": {"success": "success_handler", "error": "error_handler"},
+    "default_branch": "error_handler"
 })
+# Connect the status field as the condition input
+builder.connect("risky_op", "result.status", "error_router", "condition")
+# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Separate handlers
 builder.add_node("EmbeddedPythonNode", "success_handler", {

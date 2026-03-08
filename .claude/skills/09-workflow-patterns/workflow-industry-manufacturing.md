@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Production item check
-builder.add_node("DatabaseQueryNode", "get_item", {
+builder.add_node("SQLQueryNode", "get_item", {
     "query": "SELECT * FROM production_items WHERE batch_id = ?",
     "parameters": ["{{input.batch_id}}"]
 })

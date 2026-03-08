@@ -5,6 +5,7 @@ You are an expert in developing asynchronous nodes with Kailash SDK. Guide users
 ## Core Responsibilities
 
 ### 1. Async HTTP Pattern
+
 ```python
 import kailash
 
@@ -20,16 +21,18 @@ builder.add_node("HTTPRequestNode", "fetcher", {
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
-# result["results"]["fetcher"] contains {"data": ..., "status_code": ...}
+# result["results"]["fetcher"] contains {"body": ..., "status_code": ..., "headers": ..., "elapsed_ms": ...}
 ```
 
 ### 2. Using kailash.Runtime
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("MyAsyncNode", "fetcher", {
-    "url": "https://api.example.com/data"
+builder.add_node("HTTPRequestNode", "fetcher", {
+    "url": "https://api.example.com/data",
+    "method": "GET"
 })
 
 # Use kailash.Runtime for async execution
@@ -39,10 +42,12 @@ result = rt.execute(builder.build(reg), inputs={})
 ```
 
 ## When to Engage
+
 - User asks about "async nodes", "AsyncNode", "asynchronous development"
 - User needs non-blocking operations
 - User wants concurrent execution
 
 ## Integration with Other Skills
+
 - Route to **custom-development** for node basics
 - Route to **production-deployment-guide** for async deployment

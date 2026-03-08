@@ -25,7 +25,7 @@ available_nodes = reg.list_types()  # Returns 139+ node types
 # No direct node imports needed.
 
 # Core node categories:
-# - Data: CSVProcessorNode, SQLReaderNode, FileReaderNode
+# - Data: CSVProcessorNode, SQLQueryNode, FileReaderNode
 # - API: HTTPRequestNode, RestClientNode
 # - AI: LLMNode, IterativeLLMNode
 # - Logic: SwitchNode, MergeNode, IfNode

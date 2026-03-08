@@ -27,9 +27,10 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv",
+    "action": "read",
+    "source_path": "data.csv",
     "delimiter": ",",
-    "has_header": True
+    "has_headers": True
 })
 ```
 
@@ -38,11 +39,11 @@ builder.add_node("CSVProcessorNode", "reader", {
 ### Method 2: Workflow Connections (Dynamic Data Flow)
 
 ```python
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("DataTransformerNode", "transformer", {})
 
 # Pass data between nodes (4-parameter syntax)
-builder.connect("reader", "data", "transformer", "input_data")
+builder.connect("reader", "rows", "transformer", "input_data")
 ```
 
 **Use when**: Dynamic data flow, pipelines, transformations
@@ -56,7 +57,7 @@ rt = kailash.Runtime(reg)
 result = rt.execute(
     builder.build(reg),
     inputs={
-        "reader": {"file_path": "custom.csv"},
+        "reader": {"source_path": "custom.csv"},
         "transformer": {"operation": "normalize"}
     }
 )

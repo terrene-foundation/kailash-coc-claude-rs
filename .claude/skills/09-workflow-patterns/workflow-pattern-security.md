@@ -20,7 +20,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Validate credentials
-builder.add_node("DatabaseQueryNode", "check_user", {
+builder.add_node("SQLQueryNode", "check_user", {
     "query": "SELECT id, password_hash, role FROM users WHERE email = ?",
     "parameters": ["{{input.email}}"]
 })

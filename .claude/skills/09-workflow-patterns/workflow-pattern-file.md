@@ -49,14 +49,14 @@ builder.add_node("MergeNode", "merge_results", {
 
 # 4. Write consolidated output
 builder.add_node("FileWriterNode", "write_output", {
-    "file_path": "data/output/consolidated.csv",
+    "path": "data/output/consolidated.csv",
     "data": "{{merge_results.combined}}",
     "headers": ["id", "name", "value"]
 })
 
 builder.connect("list_files", "files", "process_files", "input")
 builder.connect("process_files", "results", "merge_results", "inputs")
-builder.connect("merge_results", "combined", "write_output", "data")
+builder.connect("merge_results", "combined", "write_output", "content")
 
 reg = kailash.NodeRegistry()
 
@@ -72,7 +72,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Read PDF document
-builder.add_node("DocumentProcessorNode", "extract_pdf", {
+builder.add_node("PDFReaderNode", "extract_pdf", {
     "file_path": "{{input.pdf_path}}",
     "extract_metadata": True,
     "preserve_structure": True,
@@ -98,21 +98,15 @@ builder.add_node("LLMNode", "analyze_document", {
     "prompt": "Summarize this document: {{extract_text.text}}"
 })
 
-# 5. Save results
-builder.add_node("JSONTransformNode", "save_results", {
-    "file_path": "output/{{input.pdf_name}}_analysis.json",
-    "data": {
-        "metadata": "{{extract_pdf.metadata}}",
-        "tables": "{{extract_tables.tables}}",
-        "summary": "{{analyze_document.response}}"
-    },
-    "indent": 2
+# 5. Save results — use FileWriterNode for writing files
+builder.add_node("FileWriterNode", "save_results", {
+    "path": "output/{{input.pdf_name}}_analysis.json"
 })
 
 builder.connect("extract_pdf", "content", "extract_tables", "input")
 builder.connect("extract_pdf", "content", "extract_text", "input")
 builder.connect("extract_text", "text", "analyze_document", "prompt")
-builder.connect("analyze_document", "response", "save_results", "data")
+builder.connect("analyze_document", "response", "save_results", "content")
 ```
 
 ## Pattern 3: File Format Conversion
@@ -134,10 +128,11 @@ builder.add_node("ConditionalNode", "detect_format", {
 
 # 2. Read different formats
 builder.add_node("CSVProcessorNode", "read_csv", {
-    "file_path": "{{input.file_path}}"
+    "action": "read",
+    "source_path": "{{input.file_path}}"
 })
 
-builder.add_node("JSONTransformNode", "read_json", {
+builder.add_node("FileReaderNode", "read_json", {
     "file_path": "{{input.file_path}}"
 })
 
@@ -147,7 +142,7 @@ builder.add_node("ExcelReaderNode", "read_excel", {
 
 # 3. Normalize to common format
 builder.add_node("TransformNode", "normalize", {
-    "input": "{{read_csv.data || read_json.data || read_excel.data}}",
+    "input": "{{read_csv.rows || read_json.data || read_excel.data}}",
     "transformation": "normalize_to_dict_list()"
 })
 
@@ -188,7 +183,7 @@ builder.add_node("FileValidateNode", "validate", {
 })
 
 # 3. Process document
-builder.add_node("DocumentProcessorNode", "process", {
+builder.add_node("PDFReaderNode", "process", {
     "file_path": "{{validate.file_path}}"
 })
 

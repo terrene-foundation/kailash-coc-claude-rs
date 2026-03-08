@@ -20,7 +20,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Read document
-builder.add_node("DocumentProcessorNode", "read_invoice", {
+builder.add_node("PDFReaderNode", "read_invoice", {
     "file_path": "{{input.invoice_path}}"
 })
 

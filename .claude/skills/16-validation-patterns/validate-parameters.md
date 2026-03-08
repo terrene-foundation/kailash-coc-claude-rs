@@ -95,9 +95,9 @@ registry.register_callback(
 ### Missing Required Parameters
 
 ```python
-# Error: Missing 'file_path'
+# Error: Missing 'action' and 'source_path'
 builder.add_node("CSVProcessorNode", "reader", {
-    "delimiter": ","  # file_path is required!
+    "delimiter": ","  # action and source_path are required!
 })
 # Raises: WorkflowValidationError
 ```
@@ -117,7 +117,8 @@ builder.add_node("FilterNode", "filter", {
 ```python
 # Error: Unknown parameter 'unknown_param'
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "data.csv",
+    "action": "read",
+    "source_path": "data.csv",
     "unknown_param": "value"  # Not defined in node contract
 })
 # Raises: WorkflowValidationError
@@ -129,9 +130,9 @@ The builder validates connection contracts at build time:
 
 ```python
 # Valid: Output type matches input type
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("DataTransformerNode", "transformer", {})
-builder.connect("reader", "data", "transformer", "input_data")
+builder.connect("reader", "rows", "transformer", "input_data")
 
 # Invalid: Type mismatch
 # builder.connect("reader", "metadata", "transformer", "input_data")

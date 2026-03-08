@@ -88,7 +88,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Load all items
-builder.add_node("DatabaseQueryNode", "load_items", {
+builder.add_node("SQLQueryNode", "load_items", {
     "query": "SELECT id, data FROM items WHERE processed = FALSE",
     "batch_size": 100
 })
@@ -141,7 +141,7 @@ builder.add_node("SetVariableNode", "init_retry", {
 builder.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/operation",
     "method": "POST",
-    "timeout": 30
+    "timeout_ms": 30000
 })
 
 # 3. Check success

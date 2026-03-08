@@ -25,13 +25,14 @@ import kailash
 ## File Reader
 
 ### FileReaderNode
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("FileReaderNode", "reader", {
-    "file_path": "/path/to/file.txt",
+    "path": "/path/to/file.txt",
     "encoding": "utf-8"
 })
 ```
@@ -39,9 +40,10 @@ builder.add_node("FileReaderNode", "reader", {
 ## File Writer
 
 ### FileWriterNode
+
 ```python
 builder.add_node("FileWriterNode", "writer", {
-    "file_path": "/path/to/output.txt",
+    "path": "/path/to/output.txt",
     "content": "File content here",
     "mode": "w"  # 'w' (write) or 'a' (append)
 })
@@ -50,6 +52,7 @@ builder.add_node("FileWriterNode", "writer", {
 ## Directory Operations
 
 ### DirectoryReaderNode
+
 ```python
 builder.add_node("DirectoryReaderNode", "dir_reader", {
     "directory_path": "/path/to/directory",

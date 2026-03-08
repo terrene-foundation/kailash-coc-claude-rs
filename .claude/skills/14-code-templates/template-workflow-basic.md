@@ -137,8 +137,8 @@ def create_etl_workflow(input_file: str, output_file: str, reg):
 
     # Extract
     builder.add_node("CSVProcessorNode", "extract", {
-        "file_path": input_file,
-        "has_header": True
+        "action": "read",
+        "source_path": input_file
     })
 
     # Transform
@@ -154,13 +154,12 @@ result = df.to_dict('records')
 
     # Load
     builder.add_node("FileWriterNode", "load", {
-        "file_path": output_file,
-        "include_header": True
+        "path": output_file
     })
 
     # Connect pipeline
-    builder.connect("extract", "data", "transform", "data")
-    builder.connect("transform", "result", "load", "data")
+    builder.connect("extract", "rows", "transform", "data")
+    builder.connect("transform", "result", "load", "content")
 
     return builder.build(reg)
 
@@ -183,13 +182,13 @@ Replace placeholders with actual node types based on your needs:
 
 | Need               | Node Type            | Example Config                                                                  |
 | ------------------ | -------------------- | ------------------------------------------------------------------------------- |
-| **Read CSV**       | `CSVProcessorNode`   | `{"file_path": "data.csv"}`                                                     |
-| **Read JSON**      | `JSONTransformNode`  | `{"file_path": "data.json"}`                                                    |
+| **Read CSV**       | `CSVProcessorNode`   | `{"action": "read", "source_path": "data.csv"}`                                 |
+| **Read JSON**      | `FileReaderNode`     | `{"path": "data.json"}`                                                         |
 | **API Call**       | `HTTPRequestNode`    | `{"url": "https://...", "method": "GET"}`                                       |
 | **Database Query** | `SQLQueryNode`       | `{"connection_string": "...", "query": "..."}`                                  |
 | **LLM Processing** | `LLMNode`            | `{"provider": "openai", "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")}` |
 | **Custom Logic**   | `EmbeddedPythonNode` | `{"code": "result = {...}"}`                                                    |
-| **Write CSV**      | `FileWriterNode`     | `{"file_path": "output.csv"}`                                                   |
+| **Write CSV**      | `FileWriterNode`     | `{"path": "output.csv"}`                                                        |
 
 ### Step 2: Define Data Flow
 

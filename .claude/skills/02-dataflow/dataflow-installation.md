@@ -19,7 +19,7 @@ pip install kailash-enterprise
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.10+
 - **SQL Databases**: SQLite (included), PostgreSQL 12+, MySQL 5.7+/8.0+
 - **Document Database**: MongoDB 4.4+ (optional, for MongoDB support)
 - **Vector Search**: PostgreSQL with pgvector extension (optional, for semantic search)

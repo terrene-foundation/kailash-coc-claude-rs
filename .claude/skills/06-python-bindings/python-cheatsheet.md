@@ -140,13 +140,13 @@ asyncio.run(main())
 ## Conditional Workflow (SwitchNode)
 
 ```python
+# SwitchNode matches the "condition" input against case keys
 builder.add_node("SwitchNode", "switch", {
-    "conditions": [
-        {"field": "status", "operator": "eq", "value": "active"}
-    ]
+    "cases": {"active": "active_handler", "inactive": "inactive_handler"},
+    "default_branch": "inactive_handler"
 })
-builder.connect("input", "data", "switch", "data")
-# SwitchNode routes to "matched" or "default" outputs
+builder.connect("input", "status", "switch", "condition")
+# SwitchNode outputs: "matched" (branch name string) and "data" (forwarded input)
 ```
 
 ## HTTP Request
@@ -188,8 +188,9 @@ builder.add_node("FileReaderNode", "reader", {
 
 ```python
 builder.add_node("CSVProcessorNode", "csv", {
-    "file_path": "data.csv",
-    "has_header": True
+    "action": "read",
+    "source_path": "data.csv",
+    "has_headers": True
 })
 ```
 

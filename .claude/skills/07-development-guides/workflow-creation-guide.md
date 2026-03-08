@@ -64,15 +64,24 @@ builder.connect("processor", "result", "validator", "data")
 builder.connect("processor", "result", "logger", "log_data")
 ```
 
-**Conditional Routing**:
+**Conditional Routing (SwitchNode -- multi-case)**:
 
 ```python
+# SwitchNode matches the "condition" input against case keys
 builder.add_node("SwitchNode", "router", {
-    "cases": [
-        {"condition": "value > 100", "target": "high_processor"},
-        {"condition": "value <= 100", "target": "low_processor"}
-    ]
+    "cases": {"high": "high_processor", "low": "low_processor"},
+    "default_branch": "low_processor"
 })
+# Outputs: "matched" (branch name) and "data" (forwarded)
+```
+
+**Conditional Routing (ConditionalNode -- true/false)**:
+
+```python
+builder.add_node("ConditionalNode", "router", {
+    "condition": "value > 100"
+})
+# Outputs: "true_output" and "false_output"
 ```
 
 ### 4. Parameter Management

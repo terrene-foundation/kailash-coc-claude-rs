@@ -23,7 +23,7 @@ builder.add_node("SQLQueryNode", "create_order", {
 })
 
 # 2. Check inventory
-builder.add_node("DatabaseQueryNode", "check_inventory", {
+builder.add_node("SQLQueryNode", "check_inventory", {
     "query": "SELECT quantity FROM inventory WHERE product_id = ?",
     "parameters": ["{{input.product_id}}"]
 })

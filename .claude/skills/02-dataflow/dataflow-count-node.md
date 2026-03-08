@@ -147,11 +147,15 @@ builder.add_node("CartItemCountNode", "item_count", {
     "filter": {"cart_id": "cart-123"}
 })
 
-builder.add_node("SwitchNode", "check_empty", {
-    "condition": result["results"]["item_count"]["count"] > 0,
-    "true_output": "proceed_checkout",
-    "false_output": "show_empty_cart"
+# Use ConditionalNode for true/false branching based on count
+builder.add_node("ConditionalNode", "check_empty", {
+    "condition": "count > 0"
 })
+
+# ConditionalNode outputs: "true_output" and "false_output"
+builder.connect("item_count", "count", "check_empty", "count")
+builder.connect("check_empty", "true_output", "proceed_checkout", "data")
+builder.connect("check_empty", "false_output", "show_empty_cart", "data")
 ```
 
 ### 5. Multi-Tenant Counts

@@ -85,7 +85,7 @@ def test_database_workflow_integration(test_database):
     """Test workflow with real database - NO MOCKS."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("SQLReaderNode", "reader", {
+    builder.add_node("SQLQueryNode", "reader", {
         "connection_string": "sqlite:///:memory:",
         "query": "SELECT * FROM test_data"
     })
@@ -99,7 +99,7 @@ result = {
 """
     })
 
-    builder.connect("reader", "processor", "data", "data")
+    builder.connect("reader", "data", "processor", "data")  # SQLQueryNode outputs "data"
 
     reg = kailash.NodeRegistry()
 
@@ -109,7 +109,7 @@ result = {
     })
 
     assert result["results"]["processor"]["result"]["count"] > 0
-    assert "test" in results["processor"]["result"]["values"]
+    assert "test" in result["results"]["processor"]["result"]["values"]
 
 def test_api_workflow_integration():
     """Test workflow with real API - NO MOCKS."""
@@ -131,7 +131,7 @@ result = {
 """
     })
 
-    builder.connect("api_call", "validator", "response", "response")
+    builder.connect("api_call", "body", "validator", "response")
 
     reg = kailash.NodeRegistry()
 
@@ -154,7 +154,8 @@ def test_complete_etl_pipeline():
 
     # Extract
     builder.add_node("CSVProcessorNode", "extract", {
-        "file_path": "tests/data/test_input.csv"
+        "action": "read",
+        "source_path": "tests/data/test_input.csv"
     })
 
     # Transform
@@ -173,12 +174,12 @@ result = {'transformed_data': df.to_dict('records')}
 
     # Load
     builder.add_node("FileWriterNode", "load", {
-        "file_path": "tests/output/test_output.csv"
+        "path": "tests/output/test_output.csv"
     })
 
     # Connections
-    builder.connect("extract", "transform", "data", "data")
-    builder.connect("transform", "load", "result", "data")
+    builder.connect("extract", "rows", "transform", "data")
+    builder.connect("transform", "result", "load", "content")
 
     # Execute
     reg = kailash.NodeRegistry()
@@ -286,12 +287,14 @@ def test_comprehensive_workflow_coverage():
         "code": "result = {'value': input_value}"
     })
 
-    builder.add_node("SwitchNode", "router", {
-        "cases": [
-            {"condition": "value > 50", "target": "high_path"},
-            {"condition": "value <= 50", "target": "low_path"}
-        ]
+    # ConditionalNode for true/false branching
+    builder.add_node("ConditionalNode", "router", {
+        "condition": "value > 50"
     })
+    # ConditionalNode outputs: "true_output" → high_path, "false_output" → low_path
+    builder.connect("input", "result", "router", "data")
+    builder.connect("router", "true_output", "high_path", "value")
+    builder.connect("router", "false_output", "low_path", "value")
 
     builder.add_node("EmbeddedPythonNode", "high_path", {
         "code": "result = {'category': 'high', 'value': value}"

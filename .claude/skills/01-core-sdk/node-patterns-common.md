@@ -15,7 +15,7 @@ Copy-paste ready templates for the most frequently used Kailash SDK nodes with w
 
 - **EmbeddedPythonNode**: Custom Python logic, most flexible
 - **CSVProcessorNode**: Read CSV files with pandas
-- **JSONTransformNode**: Write JSON output
+- **JSONTransformNode**: Transform JSON data with expressions
 - **HTTPRequestNode**: API calls (GET/POST)
 - **LLMNode**: AI/LLM integration
 - **SwitchNode**: Conditional routing
@@ -59,9 +59,10 @@ builder = kailash.WorkflowBuilder()
 
 # Read CSV file
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "input.csv",
+    "action": "read",
+    "source_path": "input.csv",
     "delimiter": ",",
-    "has_header": True
+    "has_headers": True
 })
 
 # Process data
@@ -76,11 +77,11 @@ result = df.to_dict('records')
 
 # Write results
 builder.add_node("FileWriterNode", "writer", {
-    "file_path": "output.csv"
+    "path": "output.csv"
 })
 
-builder.connect("reader", "data", "process", "data")
-builder.connect("process", "result", "writer", "data")
+builder.connect("reader", "rows", "process", "data")
+builder.connect("process", "result", "writer", "content")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -127,14 +128,14 @@ builder.add_node("HTTPRequestNode", "api_get", {
     "url": "https://api.example.com/data",
     "method": "GET",
     "headers": {"Authorization": "Bearer TOKEN"},
-    "timeout": 30
+    "timeout_ms": 30000
 })
 
 # Process response
 builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 import json
-data = json.loads(response) if isinstance(response, str) else response
+data = json.loads(body) if isinstance(body, str) else body
 result = {
     'items': data.get('items', []),
     'count': len(data.get('items', []))
@@ -142,7 +143,7 @@ result = {
 """
 })
 
-builder.connect("api_get", "response", "process", "response")
+builder.connect("api_get", "body", "process", "body")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -187,7 +188,7 @@ rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
-### Pattern 5: Conditional Routing with SwitchNode
+### Pattern 5: Conditional Routing with ConditionalNode
 
 ```python
 builder = kailash.WorkflowBuilder()
@@ -197,11 +198,9 @@ builder.add_node("EmbeddedPythonNode", "source", {
     "code": "result = {'score': 85, 'type': 'test'}"
 })
 
-# Router
-builder.add_node("SwitchNode", "router", {
-    "condition_field": "score",
-    "operator": ">",
-    "value": 80
+# ConditionalNode for true/false branching
+builder.add_node("ConditionalNode", "router", {
+    "condition": "score > 80"
 })
 
 # High score handler
@@ -215,8 +214,8 @@ builder.add_node("EmbeddedPythonNode", "low_handler", {
 })
 
 builder.connect("source", "result", "router", "data")
-builder.connect("router", "true", "high_handler", "score")
-builder.connect("router", "false", "low_handler", "score")
+builder.connect("router", "true_output", "high_handler", "score")
+builder.connect("router", "false_output", "low_handler", "score")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -229,7 +228,7 @@ builder = kailash.WorkflowBuilder()
 
 # Source data
 builder.add_node("CSVProcessorNode", "reader", {
-    "file_path": "users.csv"
+    "action": "read", "source_path": "users.csv"
 })
 
 # Transform
@@ -246,14 +245,13 @@ result = df.to_dict('records')
 """
 })
 
-# Output
-builder.add_node("JSONTransformNode", "output", {
-    "file_path": "transformed.json",
-    "indent": 2
+# Output — use FileWriterNode for writing files
+builder.add_node("FileWriterNode", "output", {
+    "path": "transformed.json"
 })
 
-builder.connect("reader", "data", "transform", "data")
-builder.connect("transform", "result", "output", "data")
+builder.connect("reader", "rows", "transform", "data")
+builder.connect("transform", "result", "output", "content")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -309,8 +307,8 @@ builder.connect("csv_reader", "output", "processor", "input")
 ### ✅ Fix: Use Correct Port Names
 
 ```python
-# Correct - CSVProcessorNode outputs to 'data' port
-builder.connect("csv_reader", "data", "processor", "data")
+# Correct - CSVProcessorNode outputs to 'rows' port
+builder.connect("csv_reader", "rows", "processor", "data")
 ```
 
 ## Related Patterns
@@ -326,7 +324,7 @@ builder.connect("csv_reader", "data", "processor", "data")
 Use `sdk-navigator` subagent when:
 
 - Finding specific nodes for your use case
-- Exploring all 110+ available nodes
+- Exploring all 139+ available nodes
 - Understanding node capabilities
 
 Use `pattern-expert` subagent when:

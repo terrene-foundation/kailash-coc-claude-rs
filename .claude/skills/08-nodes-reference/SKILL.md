@@ -142,12 +142,13 @@ df = kailash.DataFlow("sqlite:///app.db")
 ### Conditional Logic
 
 ```python
+# SwitchNode matches the "condition" input against case keys
 builder.add_node("SwitchNode", "router", {
-    "conditions": [
-        {"name": "path_a", "condition": "$input.type == 'A'"},
-        {"name": "path_b", "condition": "$input.type == 'B'"}
-    ]
+    "cases": {"A": "path_a_handler", "B": "path_b_handler"},
+    "default_branch": "path_a_handler"
 })
+# Connect: builder.connect("source", "type", "router", "condition")
+# Outputs: "matched" (branch name) and "data" (forwarded)
 ```
 
 ## CRITICAL Gotchas
