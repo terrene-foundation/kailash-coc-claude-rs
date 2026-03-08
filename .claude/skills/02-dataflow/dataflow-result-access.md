@@ -27,9 +27,9 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     name: str
     email: str

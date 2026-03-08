@@ -30,15 +30,17 @@ def create_validation_workflow():
     reg = kailash.NodeRegistry()
     return builder.build(reg)
 
-# Use in multiple workflows
-main_workflow.add_sub_workflow("validation", create_validation_workflow())
+# Reuse builder pattern in multiple workflows
+validation_wf = create_validation_workflow()
 ```
 
 ### 3. Error Handling
 ```python
-# ✅ GOOD: Explicit error paths
-workflow.add_error_handler("api_call", "log_error")
-workflow.add_error_handler("api_call", "notify_admin")
+# ✅ GOOD: Use RetryNode for error handling
+builder.add_node("RetryNode", "api_retry", {
+    "max_retries": 3, "retry_delay_ms": 1000
+})
+builder.connect("api_retry", "output", "log_error", "input")
 ```
 
 ### 4. Clear Naming

@@ -63,18 +63,18 @@ app.register("github-user", builder.build(reg))
 
 ```bash
 # Execute workflow
-curl -X POST http://localhost:8000/workflows/github-user/execute \
+curl -X POST http://localhost:3000/workflows/github-user/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"username": "octocat"}}'
 
 # Get workflow schema
-curl http://localhost:8000/workflows/github-user/schema
+curl http://localhost:3000/workflows/github-user/schema
 
 # Get OpenAPI docs
-curl http://localhost:8000/docs
+curl http://localhost:3000/docs
 
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 **Configuration**:
@@ -194,7 +194,7 @@ Sessions work across all channels:
 ```python
 # Create session in API
 response = requests.post(
-    "http://localhost:8000/workflows/process/execute",
+    "http://localhost:3000/workflows/process/execute",
     json={"inputs": {"step": 1}},
     headers={"X-Session-ID": "session-123"}
 )
@@ -218,7 +218,7 @@ import subprocess
 class MultiChannelTester:
     def test_api(self, workflow_name, inputs):
         response = requests.post(
-            f"http://localhost:8000/workflows/{workflow_name}/execute",
+            f"http://localhost:3000/workflows/{workflow_name}/execute",
             json={"inputs": inputs}
         )
         return response.json()

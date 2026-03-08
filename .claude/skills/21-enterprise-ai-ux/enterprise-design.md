@@ -404,7 +404,7 @@ class ChartWidget extends StatelessWidget {
     ],
     "rows": [
       { "name": "Product A", "revenue": 123000, "growth": 0.23 },
-      { "name": "Product B", "revenue": 98000, "growth": 0.15 }
+      { "name": "Product B", "revenue": 93000, "growth": 0.15 }
     ],
     "pagination": {
       "page": 1,

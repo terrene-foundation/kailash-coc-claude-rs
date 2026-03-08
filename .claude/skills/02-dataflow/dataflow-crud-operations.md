@@ -112,9 +112,9 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     name: str
     email: str
@@ -591,9 +591,9 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     name: str
     email: str
@@ -678,9 +678,7 @@ class Customer:
     name: str
     email: str
 
-    __dataflow__ = {
-        'soft_delete': True  # Enable soft deletes
-    }
+    deleted_at: Optional[str] = None  # Soft delete support
 
 builder = kailash.WorkflowBuilder()
 

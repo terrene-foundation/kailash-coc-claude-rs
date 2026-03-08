@@ -25,7 +25,7 @@ def test_python_code_node_execution():
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), parameters={
+    result = rt.execute(builder.build(reg), inputs={
         "test_node": {"input_value": 10}
     })
 
@@ -104,7 +104,7 @@ result = {
     reg = kailash.NodeRegistry()
 
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), parameters={
+    result = rt.execute(builder.build(reg), inputs={
         "reader": {"connection_string": "sqlite:///:memory:"}
     })
 
@@ -306,19 +306,19 @@ def test_comprehensive_workflow_coverage():
     rt = kailash.Runtime(reg)
 
     # Test high path
-    results_high, _ = rt.execute(builder.build(reg), parameters={
+    results_high, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 75}
     })
     assert results_high["high_path"]["result"]["category"] == "high"
 
     # Test low path
-    results_low, _ = rt.execute(builder.build(reg), parameters={
+    results_low, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 25}
     })
     assert results_low["low_path"]["result"]["category"] == "low"
 
     # Test boundary
-    results_boundary, _ = rt.execute(builder.build(reg), parameters={
+    results_boundary, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 50}
     })
     assert results_boundary["low_path"]["result"]["category"] == "low"
@@ -356,7 +356,7 @@ except ZeroDivisionError:
     reg = kailash.NodeRegistry()
 
     rt = kailash.Runtime(reg)
-    results, _ = rt.execute(builder.build(reg), parameters={
+    results, _ = rt.execute(builder.build(reg), inputs={
         "risky_op": {"divisor": 0}
     })
 

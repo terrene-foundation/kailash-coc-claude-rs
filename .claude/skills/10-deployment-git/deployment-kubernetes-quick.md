@@ -33,7 +33,7 @@ spec:
         - name: app
           image: my-kailash-app:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
           env:
             - name: RUNTIME_TYPE
               value: "async"
@@ -62,13 +62,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
 ```
@@ -87,7 +87,7 @@ spec:
     app: kailash-app
   ports:
     - port: 80
-      targetPort: 8000
+      targetPort: 3000
 ```
 
 ### ConfigMap

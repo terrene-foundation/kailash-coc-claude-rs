@@ -207,7 +207,7 @@ def test_double_value_workflow(input_value, expected, workflow_builder, registry
 
     result = runtime.execute(
         workflow_builder.build(registry),
-        parameters={"double": {"input_val": input_value}}
+        inputs={"double": {"input_val": input_value}}
     )
 
     assert result["results"]["double"]["result"]["value"] == expected

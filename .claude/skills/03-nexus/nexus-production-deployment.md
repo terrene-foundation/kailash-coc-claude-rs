@@ -26,11 +26,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose ports
-EXPOSE 8000 3001
+EXPOSE 3000 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 # Run application
 CMD ["python", "app.py"]
@@ -52,7 +52,7 @@ from kailash.nexus import NexusApp, NexusConfig
 
 # Production configuration
 app = NexusApp(NexusConfig(
-    port=int(os.getenv("PORT", "8000")),
+    port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
 
@@ -77,7 +77,7 @@ docker build -t nexus-app:latest .
 # Run container
 docker run -d \
   --name nexus \
-  -p 8000:8000 \
+  -p 3000:3000 \
   -p 3001:3001 \
   -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
   -e REDIS_URL="redis://redis:6379" \
@@ -88,7 +88,7 @@ docker run -d \
 docker logs -f nexus
 
 # Check health
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 ### Docker Compose
@@ -101,7 +101,7 @@ services:
   nexus:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
       - "3001:3001"
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
@@ -111,7 +111,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -287,7 +287,7 @@ reg = kailash.NodeRegistry()
 
 # Production configuration with all security features
 app = NexusApp(NexusConfig(
-    port=int(os.getenv("PORT", "8000")),
+    port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
 
@@ -324,11 +324,11 @@ COPY . .
 ENV NEXUS_ENV=production
 
 # Expose ports
-EXPOSE 8000 3001
+EXPOSE 3000 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 # Run with production settings
 CMD ["python", "app.py"]
@@ -343,7 +343,7 @@ services:
   nexus:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
       - "3001:3001"
     environment:
       # Security
@@ -357,7 +357,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -462,7 +462,7 @@ spec:
         - name: nexus
           image: nexus-app:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
               name: api
             - containerPort: 3001
               name: mcp
@@ -489,13 +489,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
 ```
@@ -513,8 +513,8 @@ spec:
     app: nexus
   ports:
     - name: api
-      port: 8000
-      targetPort: 8000
+      port: 3000
+      targetPort: 3000
     - name: mcp
       port: 3001
       targetPort: 3001
@@ -547,7 +547,7 @@ spec:
               service:
                 name: nexus
                 port:
-                  number: 8000
+                  number: 3000
 ```
 
 ### ConfigMap
@@ -731,13 +731,13 @@ signal.signal(signal.SIGINT, graceful_shutdown)
 
 ```bash
 # Metrics endpoint
-curl http://nexus:8000/metrics
+curl http://nexus:3000/metrics
 
 # Add to Prometheus config
 scrape_configs:
   - job_name: 'nexus'
     static_configs:
-      - targets: ['nexus:8000']
+      - targets: ['nexus:3000']
 ```
 
 ### Grafana Dashboard

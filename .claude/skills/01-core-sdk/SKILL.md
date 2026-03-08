@@ -99,26 +99,20 @@ builder.connect("read_file", "content", "transform", "input")
 
 ### Runtime Architecture
 
-`kailash.Runtime` is backed by BaseRuntime with shared capabilities:
+`kailash.Runtime` is a single Rust-backed unified runtime:
 
-**BaseRuntime Foundation**:
+**Core Capabilities**:
 
-- 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
-- Execution metadata management
-- Common initialization and validation modes (strict, warn, off)
+- Workflow execution via `rt.execute(wf)` and `rt.execute(wf, inputs={...})`
+- Level-based parallelism: nodes at the same DAG level execute concurrently
+- Result type: dict with keys `"results"`, `"run_id"`, `"metadata"`
+- Validation happens at `builder.build(reg)` time
 
-**Shared Mixins**:
+**Key Features**:
 
-- **CycleExecutionMixin**: Cyclic workflow execution with validation
-- **ValidationMixin**: Workflow structure validation (5 methods)
-- **ConditionalExecutionMixin**: Conditional execution and branching with SwitchNode support
-
-**Runtime Features**:
-
-- WorkflowAnalyzer for optimal execution strategy
-- Level-based parallelism for concurrent execution
-- Thread pool for sync nodes without blocking
-- Semaphore control to prevent resource exhaustion
+- Cycle detection and execution support
+- Conditional execution and branching (SwitchNode)
+- Connection validation between node inputs/outputs
 
 ## Critical Rules
 

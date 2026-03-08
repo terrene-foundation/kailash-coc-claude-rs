@@ -51,11 +51,14 @@ from kailash.enterprise import TokenManager
 
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-# Create a JWT with subject, scopes, and TTL
-jwt = tm.create_jwt("user-123", ["read", "write", "admin"], ttl_secs=3600)
+# Create a JWT -- claims is a dict with "subject" (required) and optional keys
+jwt = tm.create_jwt({
+    "subject": "user-123",
+    "scopes": ["read", "write", "admin"],
+})
 
 # Validate returns token info
-info = tm.validate(jwt)
+info = tm.validate(jwt["value"])
 # info: {
 #     "subject": "user-123",
 #     "scopes": ["read", "write", "admin"],
@@ -73,11 +76,11 @@ from kailash.enterprise import TokenManager
 
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-# Create an opaque token
-opaque = tm.create_opaque("user-456", ["read"], ttl_secs=1800)
+# Create an opaque token -- same claims dict pattern
+opaque = tm.create_opaque({"subject": "user-456", "scopes": ["read"]})
 
 # Validate
-info = tm.validate(opaque)
+info = tm.validate(opaque["value"])
 assert info["subject"] == "user-456"
 assert info["token_type"] == "opaque"
 ```
@@ -91,11 +94,11 @@ from kailash.enterprise import TokenManager
 
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-# Create an API key with longer TTL
-api_key = tm.create_api_key("service-account-1", ["read", "write"], ttl_secs=86400 * 365)
+# Create an API key -- same claims dict pattern
+api_key = tm.create_api_key({"subject": "service-account-1", "scopes": ["read", "write"]})
 
 # Validate
-info = tm.validate(api_key)
+info = tm.validate(api_key["value"])
 assert info["subject"] == "service-account-1"
 assert info["token_type"] == "api_key"
 ```
@@ -106,10 +109,10 @@ assert info["token_type"] == "api_key"
 from kailash.enterprise import TokenManager
 
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
-token = tm.create_jwt("user-123", ["read"], ttl_secs=3600)
+token = tm.create_jwt({"subject": "user-123", "scopes": ["read"]})
 
-# Validate returns a dict with token info
-info = tm.validate(token)
+# Validate takes the token value string, returns a dict with token info
+info = tm.validate(token["value"])
 
 # Validation result fields
 info["subject"]     # "user-123" -- who the token belongs to
@@ -125,13 +128,13 @@ from kailash.enterprise import TokenManager
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
 # Create initial token
-token = tm.create_jwt("user-123", ["read", "write"], ttl_secs=3600)
+token = tm.create_jwt({"subject": "user-123", "scopes": ["read", "write"]})
 
-# Refresh the token -- returns a new token with extended TTL
-new_token = tm.refresh(token)
+# Refresh the token -- takes the token value string, returns a new token dict
+new_token = tm.refresh(token["value"])
 
 # Validate the new token
-info = tm.validate(new_token)
+info = tm.validate(new_token["value"])
 assert info["subject"] == "user-123"
 ```
 
@@ -143,13 +146,13 @@ from kailash.enterprise import TokenManager
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
 # Create a token
-token = tm.create_jwt("user-123", ["read"], ttl_secs=3600)
+token = tm.create_jwt({"subject": "user-123", "scopes": ["read"]})
 
-# Revoke the token
-tm.revoke(token)
+# Revoke the token -- takes the token value string
+tm.revoke(token["value"])
 
 # Revoked tokens fail validation
-# tm.validate(token) -- raises or returns error/None
+# tm.validate(token["value"]) -- raises or returns error/None
 ```
 
 ## List Active Tokens
@@ -159,10 +162,10 @@ from kailash.enterprise import TokenManager
 
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
-# Create several tokens
-t1 = tm.create_jwt("user-1", ["read"], ttl_secs=3600)
-t2 = tm.create_jwt("user-2", ["write"], ttl_secs=3600)
-t3 = tm.create_opaque("user-3", ["admin"], ttl_secs=1800)
+# Create several tokens -- all take a claims dict
+t1 = tm.create_jwt({"subject": "user-1", "scopes": ["read"]})
+t2 = tm.create_jwt({"subject": "user-2", "scopes": ["write"]})
+t3 = tm.create_opaque({"subject": "user-3", "scopes": ["admin"]})
 
 # List all active tokens
 active = tm.list_active()
@@ -171,24 +174,24 @@ active = tm.list_active()
 
 ## Token Expiration
 
-Tokens automatically expire based on their TTL:
+Tokens automatically expire based on their TTL (configured in TokenManager config):
 
 ```python
 from kailash.enterprise import TokenManager
 import time
 
-tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
+tm = TokenManager({"secret": os.environ["TOKEN_SECRET"], "default_ttl_secs": 1})
 
-# Create a short-lived token (1 second)
-token = tm.create_jwt("user-123", ["read"], ttl_secs=1)
+# Create a short-lived token (uses default_ttl_secs from config)
+token = tm.create_jwt({"subject": "user-123", "scopes": ["read"]})
 
 # Valid immediately
-info = tm.validate(token)
+info = tm.validate(token["value"])
 assert info["subject"] == "user-123"
 
 # After expiration
 time.sleep(2)
-# tm.validate(token) -- fails because token has expired
+# tm.validate(token["value"]) -- fails because token has expired
 ```
 
 ## Production Pattern
@@ -217,15 +220,14 @@ def authenticate_request(tm, token):
 
 def issue_token(tm, user_id, scopes, token_type="jwt"):
     """Issue a new token for a user."""
-    ttl = int(os.getenv("TOKEN_TTL_SECS", "3600"))
+    claims = {"subject": user_id, "scopes": scopes}
 
     if token_type == "jwt":
-        return tm.create_jwt(user_id, scopes, ttl_secs=ttl)
+        return tm.create_jwt(claims)
     elif token_type == "opaque":
-        return tm.create_opaque(user_id, scopes, ttl_secs=ttl)
+        return tm.create_opaque(claims)
     elif token_type == "api_key":
-        api_key_ttl = int(os.getenv("API_KEY_TTL_SECS", "31536000"))
-        return tm.create_api_key(user_id, scopes, ttl_secs=api_key_ttl)
+        return tm.create_api_key(claims)
     else:
         raise ValueError(f"Unknown token type: {token_type}")
 
@@ -252,7 +254,7 @@ async def login(username: str, password: str) -> dict:
     if not user_id:
         return {"error": "Invalid credentials"}
 
-    token = tm.create_jwt(user_id, ["read", "write"], ttl_secs=3600)
+    token = tm.create_jwt({"subject": user_id, "scopes": ["read", "write"]})
     return {"token": token, "user_id": user_id}
 
 @app.handler(name="protected", description="Protected endpoint")

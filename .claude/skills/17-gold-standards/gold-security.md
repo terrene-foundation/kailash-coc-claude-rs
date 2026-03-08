@@ -16,7 +16,7 @@ description: "Gold standard for security practices. Use when asking 'security st
 # ✅ GOOD: Environment variables
 import os
 
-builder.add_node("APICallNode", "api", {
+builder.add_node("HTTPRequestNode", "api", {
     "url": "https://api.example.com",
     "headers": {
         "Authorization": f"Bearer {os.getenv('API_KEY')}"

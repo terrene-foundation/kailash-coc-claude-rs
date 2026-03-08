@@ -39,7 +39,7 @@ import os
 app = NexusApp()  # Register workflows manually
 df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -97,7 +97,7 @@ from datetime import datetime
 
 df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     id: str                           # Primary key (MUST be named 'id')
     email: str                        # Required field
@@ -144,7 +144,7 @@ reg = kailash.NodeRegistry()
 import uuid
 
 # CRITICAL: These settings prevent blocking and slow startup
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
@@ -152,7 +152,7 @@ df = kailash.DataFlow(
     auto_migrate=True,  # Works in Docker
 )
 
-@df.model
+@db.model
 class Contact:
     id: str
     email: str
@@ -222,7 +222,7 @@ app = NexusApp()  # Register workflows manually
 # Configure auth plugin with CORRECT parameters
 auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(
-        secret=os.environ["JWT_SECRET"],       # CRITICAL: 'secret', NOT 'secret_key'
+        secret_key=os.environ["JWT_SECRET"],       # Must be >= 32 chars for HS256
         algorithm="HS256",
         exempt_paths=["/health", "/docs"],      # CRITICAL: 'exempt_paths', NOT 'exclude_paths'
     ),
@@ -264,18 +264,18 @@ app.start()
 
 ```python
 # Basic auth (JWT + audit)
-auth = kailash.NexusAuthPlugin.basic_auth(jwt=kailash.JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = kailash.NexusAuthPlugin.basic_auth(jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 
 # SaaS (JWT + RBAC + tenant + audit)
 auth = kailash.NexusAuthPlugin.saas_app(
-    jwt=kailash.JwtConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "user": ["read:*"]},
     tenant_isolation=kailash.TenantConfig(),
 )
 
 # Enterprise (all features)
 auth = kailash.NexusAuthPlugin.enterprise(
-    jwt=kailash.JwtConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
     rate_limit=kailash.RateLimitConfig(requests_per_minute=100, burst_size=20),
     tenant_isolation=kailash.TenantConfig(),
@@ -287,7 +287,7 @@ auth = kailash.NexusAuthPlugin.enterprise(
 
 | Wrong                                       | Correct                                     | Why                               |
 | ------------------------------------------- | ------------------------------------------- | --------------------------------- |
-| `JwtConfig(secret_key=...)`                 | `JwtConfig(secret=...)`                     | Parameter is named `secret`       |
+| `JwtConfig(secret=...)`                     | `JwtConfig(secret_key=...)`                     | Parameter is named `secret_key`   |
 | `JwtConfig(exclude_paths=[...])`            | `JwtConfig(exempt_paths=[...])`             | Parameter is named `exempt_paths` |
 | `TenantConfig(admin_roles=[...])`           | `TenantConfig(admin_role="super_admin")`    | Singular string, not list         |
 | `RBACConfig(roles={...})`                   | `rbac={"admin": ["*"], ...}`                | Plain dict, no RBACConfig class   |
@@ -695,7 +695,7 @@ Expose workflows as MCP tools for AI agent consumption.
 ```python
 import kailash
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 # Every registered handler automatically becomes an MCP tool
@@ -726,7 +726,7 @@ async def search_contacts(
     return {"contacts": results, "count": len(results)}
 
 app.start()
-# API at http://localhost:8000, MCP at ws://localhost:3001
+# API at http://localhost:3000, MCP at ws://localhost:3001
 ```
 
 ### Common Mistakes
@@ -789,7 +789,7 @@ async def my_handler(required_param: str, optional_param: int = 10) -> dict:
 
 | Wrong                        | Correct                                     | Component    |
 | ---------------------------- | ------------------------------------------- | ------------ |
-| `secret_key`                 | `secret`                                    | JwtConfig    |
+| `secret`                     | `secret_key`                                | JwtConfig    |
 | `exclude_paths`              | `exempt_paths`                              | JwtConfig    |
 | `admin_roles`                | `admin_role` (singular string)              | TenantConfig |
 | `RBACConfig(roles={...})`    | `rbac={"admin": ["*"], ...}` dict           | Plugin init  |

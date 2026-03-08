@@ -31,11 +31,11 @@ USER appuser
 ENV RUNTIME_TYPE=async
 
 # Expose API port
-EXPOSE 8000
+EXPOSE 3000
 
 # Health check using python (curl not available on slim images)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
 
 # Run with async runtime
 CMD ["python", "app.py"]
@@ -73,7 +73,7 @@ def handle_chat(message: str):
     result = rt.execute(builder.build(reg))
     return result["results"]["chat"]
 
-app.run(host="0.0.0.0", port=8000)
+app.run(host="0.0.0.0", port=3000)
 ```
 
 ## Build and Run
@@ -83,13 +83,13 @@ app.run(host="0.0.0.0", port=8000)
 docker build -t my-kailash-app .
 
 # Run container
-docker run -p 8000:8000 \
+docker run -p 3000:3000 \
   -e OPENAI_API_KEY=${OPENAI_API_KEY} \
   -e DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL} \
   my-kailash-app
 
 # Access API
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 ## Docker Compose
@@ -99,7 +99,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL}

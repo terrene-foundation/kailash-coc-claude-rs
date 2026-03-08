@@ -17,7 +17,7 @@ from kailash.nexus import NexusApp, NexusConfig
 
 # NexusConfig accepts these parameters:
 app = NexusApp(NexusConfig(
-    port=8000,                        # API port (default 8000)
+    port=3000,                        # API port (default 3000)
     host="0.0.0.0",                   # Bind address
     cli_name="nexus",                 # CLI command name
     enable_api=True,                  # Enable API channel
@@ -53,13 +53,13 @@ from kailash import JwtConfig
 
 # Basic auth (JWT + audit)
 auth = NexusAuthPlugin.basic_auth(
-    jwt=JwtConfig(secret=os.environ["JWT_SECRET"])
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
 )
 
 # SaaS auth (JWT + RBAC + tenant isolation)
 from kailash import RbacConfig
 auth = NexusAuthPlugin.saas_app(
-    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac=RbacConfig(["admin", "user"]),
     tenant_header="X-Tenant-ID",
 )
@@ -130,7 +130,7 @@ export NEXUS_ENV=production          # Auto-enables authentication (P0-1)
                                       # production = auto-enables auth
 
 # Server
-export NEXUS_API_PORT=8000
+export NEXUS_API_PORT=3000
 export NEXUS_MCP_PORT=3001
 export NEXUS_HOST=0.0.0.0
 
@@ -160,7 +160,7 @@ export NEXUS_MONITORING_BACKEND=prometheus
 ```yaml
 # nexus.yaml
 server:
-  api_port: 8000
+  api_port: 3000
   mcp_port: 3001
   host: "0.0.0.0"
 
@@ -203,7 +203,7 @@ import os
 from kailash.nexus import NexusApp, NexusConfig
 
 app = NexusApp(NexusConfig(
-    port=int(os.getenv("PORT", "8000")),
+    port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
 
@@ -220,7 +220,7 @@ app.register("workflow_name", builder.build(reg))
 ```python
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # No rate limiting or auth in development
 ```
 
@@ -248,7 +248,7 @@ def validate_config(config):
     # Check port availability
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('localhost', config.get("api_port", 8000)))
+    result = sock.connect_ex(('localhost', config.get("api_port", 3000)))
     if result == 0:
         raise ValueError(f"Port {config['api_port']} already in use")
 
@@ -265,7 +265,7 @@ def validate_config(config):
 
 # Usage
 config = {
-    "api_port": 8000,
+    "api_port": 3000,
     "enable_auth": True,
     "auth_secret": "secret"
 }

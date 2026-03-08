@@ -49,7 +49,7 @@ reg = kailash.NodeRegistry()
 
 df = kailash.DataFlow("postgresql://...")
 
-@df.model
+@db.model
 class ConversationSummary:
     id: str
     summary_markdown: str

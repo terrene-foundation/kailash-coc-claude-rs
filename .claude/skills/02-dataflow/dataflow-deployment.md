@@ -24,7 +24,7 @@ from kailash.nexus import NexusApp
 # Zero-config: auto_migrate=True (default) now works!
 df = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
 
-@df.model  # Tables created immediately via sync DDL
+@db.model  # Tables created immediately via sync DDL
 class User:
     id: str
     name: str
@@ -89,7 +89,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/mydb
     depends_on:
@@ -118,7 +118,7 @@ import kailash
 # Use auto_migrate=False for manual control
 df = kailash.DataFlow("postgresql://...", auto_migrate=False)
 
-@df.model
+@db.model
 class User:
     id: str
     name: str

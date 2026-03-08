@@ -33,7 +33,7 @@ df = kailash.DataFlow(
 )
 
 # Step 2: Define models
-@df.model
+@db.model
 class Product:
     name: str
     price: float
@@ -42,7 +42,7 @@ class Product:
 # Step 3: Create NexusApp
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 
 # Step 4: Register DataFlow workflows with Nexus
 # DataFlow auto-generates 11 nodes per model - register them as workflows
@@ -63,7 +63,7 @@ app.start()  # Blocks until Ctrl+C
 from kailash.nexus import NexusApp, NexusConfig
 
 config = NexusConfig(
-    port=8000,                  # REST API port (default: 8000)
+    port=3000,                  # REST API port (default: 3000)
     host="0.0.0.0",             # Host to bind to
     cli_name="my-app",          # CLI command name
     enable_api=True,            # Enable API channel
@@ -168,7 +168,7 @@ df = kailash.DataFlow(
 )
 
 # Define models
-@df.model
+@db.model
 class Product:
     sku: str
     name: str
@@ -179,7 +179,7 @@ class Product:
 # Create NexusApp
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 
 # Register product operations as workflows
 for node_name in ["ProductCreateNode", "ProductListNode", "ProductReadNode"]:

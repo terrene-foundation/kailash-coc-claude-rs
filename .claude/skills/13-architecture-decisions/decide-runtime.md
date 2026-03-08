@@ -70,31 +70,19 @@ result = rt.execute(builder.build(reg))
 
 ## Shared Architecture
 
-Both runtimes inherit from BaseRuntime and use shared mixins, ensuring identical behavior:
+`kailash.Runtime` is a single unified Rust-backed runtime:
 
-**BaseRuntime Foundation**:
-- 29 configuration parameters: `debug`, `enable_cycles`, `conditional_execution`, `connection_validation`, `max_iterations`, etc.
-- Execution metadata: Run ID generation, workflow caching, metadata management
-- Common initialization and validation modes (strict, warn, off)
+**Core Capabilities**:
+- Workflow execution via `rt.execute(wf)` and `rt.execute(wf, inputs={...})`
+- Level-based parallelism: nodes at the same DAG level execute concurrently
+- Result type: dict with keys `"results"`, `"run_id"`, `"metadata"`
+- Workflow validation happens at `builder.build(reg)` time (not at runtime)
 
-**Shared Mixins**:
-- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
-- **ValidationMixin**: Workflow structure validation (5 methods)
-  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
-  - _validate_connection_contracts(): Validates connection parameter contracts
-  - _validate_conditional_execution_prerequisites(): Validates conditional execution setup
-  - _validate_switch_results(): Validates switch node results
-  - _validate_conditional_execution_results(): Validates conditional execution results
-- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
-  - Pattern detection and cycle detection
-  - Node skipping and hierarchical execution
-  - Conditional workflow orchestration
-
-**Runtime-Specific Features**:
-- _generate_enhanced_validation_error(): Enhanced error messages
-- _build_connection_context(): Connection context for errors
-- get_validation_metrics(): Public API for validation metrics
-- reset_validation_metrics(): Public API for metrics reset
+**Key Features**:
+- Cycle detection and execution support
+- Conditional execution and branching (SwitchNode)
+- Connection validation between node inputs/outputs
+- Run ID generation and execution metadata
 
 **ParameterHandlingMixin Not Used**:
 Runtime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
@@ -238,9 +226,8 @@ rt = kailash.Runtime(reg)
 - [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
 
 ### Internal Architecture
-- `src/kailash/runtime/base.py` - Shared BaseRuntime
-- `src/kailash/runtime/local.py` - Runtime implementation
-- `src/kailash/runtime/async_local.py` - Runtime implementation
+- `kailash.Runtime` is a single Rust-backed runtime (PyO3 binding)
+- No separate sync/async split -- one unified runtime handles both
 
 ## Quick Tips
 

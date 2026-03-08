@@ -79,7 +79,7 @@ async def delete_message(msg_id: str) -> dict:
 ## Basic Workflow Execution
 
 ```bash
-curl -X POST http://localhost:8000/workflows/my-workflow/execute \
+curl -X POST http://localhost:3000/workflows/my-workflow/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"param1": "value1"}}'
 ```
@@ -153,7 +153,7 @@ curl -X POST http://localhost:8000/workflows/my-workflow/execute \
 ```python
 import kailash
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 
 # Fine-tune API behavior
 app.api.response_compression = True
@@ -168,13 +168,13 @@ app.api.max_request_size = 10 * 1024 * 1024  # 10MB
 
 ```bash
 # Create and use session
-curl -X POST http://localhost:8000/workflows/process/execute \
+curl -X POST http://localhost:3000/workflows/process/execute \
   -H "Content-Type: application/json" \
   -H "X-Session-ID: session-123" \
   -d '{"inputs": {"step": 1}}'
 
 # Continue with same session
-curl -X POST http://localhost:8000/workflows/process/execute \
+curl -X POST http://localhost:3000/workflows/process/execute \
   -H "X-Session-ID: session-123" \
   -d '{"inputs": {"step": 2}}'
 ```
@@ -182,7 +182,7 @@ curl -X POST http://localhost:8000/workflows/process/execute \
 ### With Authentication
 
 ```bash
-curl -X POST http://localhost:8000/workflows/secure-workflow/execute \
+curl -X POST http://localhost:3000/workflows/secure-workflow/execute \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"data": "value"}}'
@@ -191,7 +191,7 @@ curl -X POST http://localhost:8000/workflows/secure-workflow/execute \
 ### With Custom Headers
 
 ```bash
-curl -X POST http://localhost:8000/workflows/my-workflow/execute \
+curl -X POST http://localhost:3000/workflows/my-workflow/execute \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: req-12345" \
   -H "X-User-ID: user-789" \
@@ -227,7 +227,7 @@ eventSource.addEventListener('error', (e) => {
 # Python client with httpx
 import httpx
 
-with httpx.stream("POST", "http://localhost:8000/execute",
+with httpx.stream("POST", "http://localhost:3000/execute",
                   json={"inputs": {}, "mode": "stream"}) as response:
     for line in response.iter_lines():
         if line.startswith('data:'):
@@ -253,7 +253,7 @@ with httpx.stream("POST", "http://localhost:8000/execute",
 
 ```bash
 # Execute multiple workflows in batch
-curl -X POST http://localhost:8000/workflows/batch \
+curl -X POST http://localhost:3000/workflows/batch \
   -H "Content-Type: application/json" \
   -d '{
     "workflows": [
@@ -273,7 +273,7 @@ curl -X POST http://localhost:8000/workflows/batch \
 
 ```bash
 # With query parameters
-curl -X POST "http://localhost:8000/workflows/search/execute?limit=10&offset=0" \
+curl -X POST "http://localhost:3000/workflows/search/execute?limit=10&offset=0" \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"query": "search term"}}'
 ```
@@ -282,7 +282,7 @@ curl -X POST "http://localhost:8000/workflows/search/execute?limit=10&offset=0" 
 
 ```bash
 # Get workflow input/output schema
-curl http://localhost:8000/workflows/my-workflow/schema
+curl http://localhost:3000/workflows/my-workflow/schema
 
 # Response
 {
@@ -305,7 +305,7 @@ curl http://localhost:8000/workflows/my-workflow/schema
 import requests
 
 class NexusClient:
-    def __init__(self, base_url="http://localhost:8000"):
+    def __init__(self, base_url="http://localhost:3000"):
         self.base_url = base_url
         self.session = requests.Session()
 
@@ -350,7 +350,7 @@ import aiohttp
 import asyncio
 
 class AsyncNexusClient:
-    def __init__(self, base_url="http://localhost:8000"):
+    def __init__(self, base_url="http://localhost:3000"):
         self.base_url = base_url
 
     async def execute_workflow(self, workflow_name, inputs):
@@ -425,7 +425,7 @@ app = NexusApp()  # API prefix configured separately
 
 ```bash
 # Basic health check
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 
 # Response
 {
@@ -437,7 +437,7 @@ curl http://localhost:8000/health
 }
 
 # Detailed health check
-curl http://localhost:8000/health/detailed
+curl http://localhost:3000/health/detailed
 
 # Response
 {
@@ -454,7 +454,7 @@ curl http://localhost:8000/health/detailed
 
 ```bash
 # Prometheus metrics
-curl http://localhost:8000/metrics
+curl http://localhost:3000/metrics
 
 # Response (Prometheus format)
 # HELP nexus_requests_total Total requests
@@ -493,7 +493,7 @@ import pytest
 import requests
 
 class TestNexusAPI:
-    base_url = "http://localhost:8000"
+    base_url = "http://localhost:3000"
 
     def test_workflow_execution(self):
         response = requests.post(

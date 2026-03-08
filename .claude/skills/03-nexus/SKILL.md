@@ -26,7 +26,7 @@ Nexus transforms workflows into a complete platform with:
 from kailash.nexus import NexusApp, NexusConfig
 
 # Create app with custom port (or use defaults: host=0.0.0.0, port=3000)
-app = NexusApp(config=NexusConfig(port=8000))
+app = NexusApp(config=NexusConfig(port=3000))
 
 # Register handler - deployed to all channels at once
 @app.handler(name="greet", description="Greet a user")
@@ -37,7 +37,7 @@ async def greet(name: str) -> dict:
 app.start()
 
 # Now available via:
-# - HTTP API: POST http://localhost:8000/api/greet
+# - HTTP API: POST http://localhost:3000/api/greet
 # - CLI: nexus run greet --name "World"
 # - MCP: Connect via MCP client (Claude Desktop, etc.)
 ```
@@ -148,13 +148,13 @@ import kailash
 # Initialize DataFlow
 df = kailash.DataFlow("postgresql://user:pass@localhost/db")
 
-@df.model
+@db.model
 class User:
     id: str
     name: str
 
 # Create Nexus app and register database-backed handlers
-app = NexusApp(config=NexusConfig(port=8000))
+app = NexusApp(config=NexusConfig(port=3000))
 
 @app.handler(name="create_user", description="Create a new user")
 async def create_user(name: str) -> dict:
@@ -192,7 +192,7 @@ app.start()  # Agents accessible via API, CLI, and MCP
 from kailash.nexus import NexusApp, NexusConfig
 import kailash
 
-app = NexusApp(config=NexusConfig(port=8000))
+app = NexusApp(config=NexusConfig(port=3000))
 
 # Register workflow execution as handlers
 @app.handler(name="process_data", description="Run data processing workflow")
@@ -216,7 +216,7 @@ from kailash.nexus import NexusApp, NexusConfig, Preset
 
 # Complete platform with enterprise preset and custom config
 app = NexusApp(
-    config=NexusConfig(host="0.0.0.0", port=8000),
+    config=NexusConfig(host="0.0.0.0", port=3000),
     preset="enterprise",  # or Preset.enterprise()
 )
 
@@ -266,7 +266,7 @@ app.start()
 from kailash.nexus import NexusApp, NexusConfig
 
 app = NexusApp(
-    config=NexusConfig(host="0.0.0.0", port=8000),
+    config=NexusConfig(host="0.0.0.0", port=3000),
     preset="enterprise",
 )
 app.add_cors(origins=["https://app.example.com"])

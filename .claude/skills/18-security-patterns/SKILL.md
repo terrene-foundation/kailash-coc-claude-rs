@@ -49,12 +49,12 @@ builder.add_node("User_Read", "read_user", {
 
 ```python
 # ❌ WRONG - HTTP in production
-builder.add_node("APICallNode", "api", {
+builder.add_node("HTTPRequestNode", "api", {
     "url": "http://api.example.com/data"  # Insecure!
 })
 
 # ✅ CORRECT - HTTPS always
-builder.add_node("APICallNode", "api", {
+builder.add_node("HTTPRequestNode", "api", {
     "url": "https://api.example.com/data"
 })
 ```

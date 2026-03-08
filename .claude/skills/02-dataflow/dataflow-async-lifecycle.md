@@ -43,7 +43,7 @@ from kailash.nexus import NexusApp
 
 df = kailash.DataFlow("postgresql://localhost/mydb")
 
-@df.model
+@db.model
 class User:
     id: str
     name: str
@@ -71,7 +71,7 @@ async def db():
     """Async fixture with proper cleanup."""
     df = kailash.DataFlow("postgresql://...")
 
-    @df.model
+    @db.model
     class User:
         id: str
         name: str

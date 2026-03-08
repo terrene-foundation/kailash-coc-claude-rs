@@ -207,8 +207,9 @@ builder.add_node("FileMoveNode", "move_failed", {
 builder.connect("watch_folder", "file_path", "validate", "file_path")
 builder.connect("validate", "file_path", "process", "file_path")
 builder.connect("process", "result", "move_file", "source")
-# Error handling connection
-workflow.add_error_handler("process", "move_failed")
+# Use RetryNode for error handling
+builder.add_node("RetryNode", "retry_process", {"max_retries": 3})
+builder.connect("retry_process", "output", "move_failed", "source")
 ```
 
 ## Best Practices

@@ -35,9 +35,9 @@ import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-df = kailash.DataFlow()  # Registers models with workflows
+df = kailash.DataFlow(os.environ["DATABASE_URL"])  # Registers models with workflows
 
-@df.model
+@db.model
 class User:
     name: str
 
@@ -60,7 +60,7 @@ df = kailash.DataFlow(
 )
 
 # Step 3: Define models (now instant!)
-@df.model
+@db.model
 class User:
     name: str
     email: str

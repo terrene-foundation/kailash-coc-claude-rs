@@ -166,7 +166,7 @@ from kailash.nexus import NexusApp
 # Zero-config: auto_migrate=True (default) now works!
 df = kailash.DataFlow("postgresql://...")
 
-@df.model  # Tables created immediately via sync DDL
+@db.model  # Tables created immediately via sync DDL
 class User:
     id: str
     name: str
@@ -384,9 +384,9 @@ builder.add_node("UserUpdateNode", "update", {
 ```python
 # WRONG - Models are not instantiable
 import kailash
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class User:
     name: str
 
@@ -427,7 +427,7 @@ builder.connect("create_customer", "id", "create", "customer_id")
 
 ```python
 # WRONG - dataflow_config does NOT exist in Nexus!
-db = kailash.DataFlow()
+db = kailash.DataFlow(os.environ["DATABASE_URL"])
 app = NexusApp(dataflow_config={"integration": db})  # THIS WILL FAIL
 ```
 
@@ -444,7 +444,7 @@ df = kailash.DataFlow(
 )
 
 # Create NexusApp and register workflows manually
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
@@ -485,7 +485,7 @@ record = result["results"]["read"]  # ✅ ReadNode returns dict directly
 class Patient:
     id: str
     deleted_at: Optional[str] = None
-    __dataflow__ = {"soft_delete": True}
+    # Soft delete: DataFlow auto-filters by deleted_at IS NULL
 
 # ✅ Auto-filters by default - excludes soft-deleted records
 builder.add_node("PatientListNode", "list", {"filter": {}})

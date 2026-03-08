@@ -24,7 +24,7 @@ from kailash import JwtConfig
 
 # Basic auth (JWT + audit)
 auth = NexusAuthPlugin.basic_auth(
-    jwt=JwtConfig(os.environ["JWT_SECRET"])  # CRITICAL: use `secret`, NOT `secret_key`
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])  # secret_key is the parameter name
 )
 
 from kailash.nexus import NexusApp
@@ -39,7 +39,7 @@ app.start()
 from kailash import JwtConfig
 
 jwt_config = JwtConfig(
-    secret=os.environ["JWT_SECRET"],      # CRITICAL: `secret`, NOT `secret_key`
+    secret_key=os.environ["JWT_SECRET"],      # Must be >= 32 chars for HS256
     algorithm="HS256",
     exempt_paths=["/health", "/docs"],    # CRITICAL: `exempt_paths`, NOT `exclude_paths`
     verify_exp=True,
@@ -169,7 +169,7 @@ app.start()
 app = NexusApp()
 # Monitoring configured separately
 
-# Health endpoint: GET http://localhost:8000/health
+# Health endpoint: GET http://localhost:3000/health
 ```
 
 ### Health Check
@@ -306,7 +306,7 @@ def create_production_app():
     )
 
     app = NexusApp(NexusConfig(
-        port=int(os.getenv("PORT", "8000")),
+        port=int(os.getenv("PORT", "3000")),
         host="0.0.0.0",
     ))
 
@@ -337,7 +337,7 @@ app.start()
 
 | Issue                                   | Cause                                | Fix                            |
 | --------------------------------------- | ------------------------------------ | ------------------------------ |
-| `TypeError: 'secret_key' unexpected`    | Wrong param name                     | Use `secret`, not `secret_key` |
+| `TypeError: 'secret' unexpected`        | Wrong param name                     | Use `secret_key`, not `secret` |
 | `TypeError: 'exclude_paths' unexpected` | JwtConfig uses different name        | Use `exempt_paths`             |
 | `TypeError: 'admin_roles' unexpected`   | TenantConfig uses singular           | Use `admin_role` (string)      |
 | Dependency injection fails              | `from __future__ import annotations` | Remove PEP 563 import          |

@@ -26,8 +26,8 @@ app = NexusApp(NexusConfig(port=8001))
 **Check port usage**:
 
 ```bash
-# Find process using port 8000
-lsof -i :8000
+# Find process using port 3000
+lsof -i :3000
 
 # Kill process
 kill -9 <PID>
@@ -88,7 +88,7 @@ python -c "import kailash; print('OK')"
 app = NexusApp()  # Auth configured via NexusAuthPlugin
 
 # For API requests, include auth header
-curl -X POST http://localhost:8000/workflows/test/execute \
+curl -X POST http://localhost:3000/workflows/test/execute \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"inputs": {}}'
@@ -111,22 +111,29 @@ curl -X POST http://localhost:8000/workflows/test/execute \
 {"inputs": {"limit": "10"}}  # String instead of integer
 ```
 
-### 7. Session Not Found
+### 7. Workflow State Across Executions
 
-**Error**: `Session 'session-123' not found or expired`
+**Problem**: Need to track state across multiple workflow executions
 
-**Solution**:
+**Solution**: Nexus workflows are stateless by default. Use DataFlow for persistent state or pass state via `inputs`:
 
 ```python
-# Create session before use
-session_id = app.create_session(channel="api")
+import kailash
+from kailash.nexus import NexusApp
 
-# Or extend timeout
-app.session_manager.extend_timeout(session_id, 600)
+app = NexusApp()
 
-# Check session exists
-if not app.session_manager.exists(session_id):
-    print("Session expired or invalid")
+# Option 1: Pass state via inputs between executions
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
+
+builder = kailash.WorkflowBuilder()
+builder.add_node("SomeNode", "step1", {"previous_run_id": "run-123"})
+result = rt.execute(builder.build(reg), inputs={"state": "from_previous"})
+
+# Option 2: Track lifecycle events via EventBus
+bus = app.event_bus()
+bus.subscribe(lambda e: print(f"Event: {e}"))
 ```
 
 ### 8. Slow Startup
@@ -166,7 +173,7 @@ result = {'param': param}
 })
 
 # API request
-curl -X POST http://localhost:8000/workflows/process/execute \
+curl -X POST http://localhost:3000/workflows/process/execute \
   -d '{"inputs": {"my_param": "value"}}'
 ```
 
@@ -216,10 +223,10 @@ result = data  # Pass through
 
 ```bash
 # Check overall health
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 
 # Check detailed status
-curl http://localhost:8000/health/detailed
+curl http://localhost:3000/health/detailed
 ```
 
 ### 4. Verify Workflow Registration
@@ -256,7 +263,7 @@ print(f"Result: {result}")
 
 ```bash
 # Use -v for verbose output
-curl -v -X POST http://localhost:8000/workflows/test/execute \
+curl -v -X POST http://localhost:3000/workflows/test/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"param": "value"}}'
 
@@ -327,10 +334,11 @@ print(f"Avg execution time: {metrics['avg_execution_time']}s")
 ### High Memory Usage
 
 ```python
-# Check session cleanup
-app.session_manager.cleanup_expired()
+# Use EventBus to monitor resource usage
+bus = app.event_bus()
+bus.subscribe(lambda e: log_memory_usage(e) if e.get("type") == "workflow_completed" else None)
 
-# Configure session limits
+# Ensure workflows clean up resources
 app = NexusApp()
 ```
 

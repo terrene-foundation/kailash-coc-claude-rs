@@ -19,7 +19,7 @@ import kailash
 
 df = kailash.DataFlow("sqlite:///app.db")
 
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -33,7 +33,7 @@ builder.add_node("UserCreateNode", "create_user", {
 })
 
 # Add custom business logic node
-builder.add_node("APICallNode", "send_welcome_email", {
+builder.add_node("HTTPRequestNode", "send_welcome_email", {
     "url": "https://api.sendgrid.com/mail/send",
     "method": "POST",
     "body": {

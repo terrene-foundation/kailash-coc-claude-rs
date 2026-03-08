@@ -58,7 +58,7 @@ builder.add_node("TransformNode", "clean", {
 })
 
 # 4. TRANSFORM: Enrich data
-builder.add_node("APICallNode", "enrich_location", {
+builder.add_node("HTTPRequestNode", "enrich_location", {
     "url": "https://api.example.com/geocode",
     "method": "POST",
     "body": "{{clean.data}}"

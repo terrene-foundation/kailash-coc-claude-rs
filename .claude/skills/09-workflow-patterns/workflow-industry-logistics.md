@@ -23,7 +23,7 @@ builder.add_node("DatabaseExecuteNode", "create_shipment", {
 })
 
 # 2. Calculate optimal route
-builder.add_node("APICallNode", "route_optimization", {
+builder.add_node("HTTPRequestNode", "route_optimization", {
     "url": "https://api.routingengine.com/optimize",
     "method": "POST",
     "body": {"origin": "{{input.origin}}", "destination": "{{input.destination}}"}

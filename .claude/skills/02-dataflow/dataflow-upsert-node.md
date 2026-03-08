@@ -306,9 +306,7 @@ class User:
     email: str
     name: str
 
-    __dataflow__ = {
-        'unique_constraints': [['email']]  # ← Must match conflict_on
-    }
+    # Unique constraint on email -- must match conflict_on in upsert
 
 builder.add_node("UserUpsertNode", "upsert", {
     "where": {"email": "alice@example.com"},

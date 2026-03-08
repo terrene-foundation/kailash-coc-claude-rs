@@ -471,7 +471,7 @@ import json
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-df = kailash.DataFlow()  # Initialize kailash.DataFlow
+df = kailash.DataFlow(os.environ["DATABASE_URL"])  # Initialize kailash.DataFlow
 
 @app.stream_endpoint("/ai/chat")
 async def chat_stream(
@@ -607,7 +607,7 @@ async def _fetch_data(
         'records': [
             {'label': 'Q1', 'value': 45000},
             {'label': 'Q2', 'value': 52000},
-            {'label': 'Q3', 'value': 48000},
+            {'label': 'Q3', 'value': 43000},
             {'label': 'Q4', 'value': 61000},
         ],
         'sources': [
@@ -2024,7 +2024,7 @@ from agents.widget_generator import WidgetGeneratorAgent, QueryIntent
 @pytest.mark.asyncio
 async def test_chart_widget_generation():
     """Test that chart widget is correctly generated"""
-    df = kailash.DataFlow()
+    df = kailash.DataFlow(os.environ["DATABASE_URL"])
     agent = WidgetGeneratorAgent(db)
 
     data = {
@@ -2057,7 +2057,7 @@ async def test_chart_widget_generation():
 @pytest.mark.asyncio
 async def test_rbac_action_filtering():
     """Test that actions are filtered by user permissions"""
-    df = kailash.DataFlow()
+    df = kailash.DataFlow(os.environ["DATABASE_URL"])
     agent = WidgetGeneratorAgent(db)
 
     data = {...}  # Same as above
@@ -2414,7 +2414,7 @@ Future<void> _processChartData() async {
         "chart_type": "bar",
         "series": [{
             "name": "Q2 Sales",
-            "values": [450000, 380000, 290000, 520000],
+            "values": [450000, 330000, 290000, 520000],
             "labels": ["North", "South", "East", "West"]
         }],
         "x_axis_label": "Region",

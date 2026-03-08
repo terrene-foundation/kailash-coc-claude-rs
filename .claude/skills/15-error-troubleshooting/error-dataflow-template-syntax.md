@@ -34,9 +34,9 @@ Parameter validation failed for '{{...}}'
 ```python
 import kailash
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class Order:
     customer_id: int
     total: float
@@ -52,9 +52,9 @@ builder.add_node("OrderCreateNode", "create", {
 
 ```python
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class Order:
     customer_id: int
     total: float
@@ -111,9 +111,9 @@ DataFlow nodes expect **native Python types**:
 ### ❌ Wrong Code (Template Approach)
 
 ```python
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class Order:
     customer_id: int
     total: float
@@ -128,9 +128,9 @@ builder.add_node("OrderCreateNode", "create", {
 ### ✅ Correct Code (Connection Approach)
 
 ```python
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class Order:
     customer_id: int
     total: float

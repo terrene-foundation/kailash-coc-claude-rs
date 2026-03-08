@@ -23,7 +23,7 @@ builder.add_node("DatabaseQueryNode", "get_item", {
 })
 
 # 2. Run quality tests
-builder.add_node("APICallNode", "quality_test", {
+builder.add_node("HTTPRequestNode", "quality_test", {
     "url": "{{sensors.quality_api}}",
     "method": "POST",
     "body": {"item_id": "{{get_item.id}}"}

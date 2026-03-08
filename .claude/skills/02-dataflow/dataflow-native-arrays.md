@@ -7,7 +7,7 @@ PostgreSQL native arrays (TEXT[], INTEGER[], REAL[]) provide **2-10x faster perf
 ## Key Features
 
 - **Native PostgreSQL arrays**: TEXT[], INTEGER[], REAL[] instead of JSONB
-- **Opt-in feature flag**: Backward compatible, enable per-model with `__dataflow__`
+- **Opt-in**: Use `List[str]`, `List[int]`, `List[float]` annotations in `@db.model` classes
 - **Cross-database validated**: Error if used on MySQL/SQLite
 - **Performance gains**: 2-10x faster queries with native array operators
 - **Index support**: GIN/GiST indexes for array columns
@@ -20,16 +20,13 @@ from typing import List
 
 df = kailash.DataFlow("postgresql://...")
 
-@df.model
+@db.model
 class AgentMemory:
     id: str
     tags: List[str]
     scores: List[int]
     ratings: List[float]
-
-    __dataflow__ = {
-        'use_native_arrays': True  # Opt-in to PostgreSQL native arrays
-    }
+    # List[T] annotations automatically use native arrays on PostgreSQL
 
 # Generates PostgreSQL schema:
 # CREATE TABLE agent_memorys (

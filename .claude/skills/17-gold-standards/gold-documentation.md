@@ -52,7 +52,7 @@ builder.add_node("DataValidationNode", "validate_payment", {
 })
 
 # Step 2: Process with payment gateway
-builder.add_node("APICallNode", "charge_card", {
+builder.add_node("HTTPRequestNode", "charge_card", {
     "url": "https://api.stripe.com/charges"
     # Creates charge with validated payment details
 })

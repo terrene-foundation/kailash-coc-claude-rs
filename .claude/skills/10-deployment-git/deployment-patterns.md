@@ -29,7 +29,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-3000}:3000"
     volumes:
       - ./backend:/app/backend:cached
       - backend_logs:/var/log/app
@@ -56,7 +56,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')",
         ]
       interval: 30s
       timeout: 10s
@@ -185,7 +185,7 @@ FRONTEND_URL=https://app.yourdomain.com
 # SERVICE PORTS
 # ==============================================================================
 
-BACKEND_PORT=8000
+BACKEND_PORT=3000
 FRONTEND_PORT=3000
 
 # ==============================================================================
@@ -238,7 +238,7 @@ spec:
         - name: backend
           image: your-registry/backend:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
           env:
             - name: RUNTIME_TYPE
               value: "async"
@@ -265,13 +265,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /ready
-              port: 8000
+              port: 3000
             initialDelaySeconds: 10
             periodSeconds: 5
 ---
@@ -284,8 +284,8 @@ spec:
     app: backend
   ports:
     - protocol: TCP
-      port: 8000
-      targetPort: 8000
+      port: 3000
+      targetPort: 3000
   type: ClusterIP
 ```
 
@@ -428,7 +428,7 @@ docker-compose ps
 docker-compose logs -f backend
 
 # 6. Verify API health
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 ```
 
 ### Production Deployment (Kubernetes)
@@ -506,7 +506,7 @@ healthcheck:
       "CMD",
       "python",
       "-c",
-      "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+      "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')",
     ]
   interval: 30s # Check every 30 seconds
   timeout: 10s # Wait 10 seconds for response
@@ -520,7 +520,7 @@ healthcheck:
 livenessProbe:
   httpGet:
     path: /health
-    port: 8000
+    port: 3000
   initialDelaySeconds: 30
   periodSeconds: 10
   failureThreshold: 3
@@ -528,7 +528,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /ready
-    port: 8000
+    port: 3000
   initialDelaySeconds: 10
   periodSeconds: 5
   successThreshold: 1

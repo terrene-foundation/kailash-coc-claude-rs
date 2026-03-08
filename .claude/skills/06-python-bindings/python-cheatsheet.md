@@ -356,10 +356,10 @@ pe = PolicyEngine()
 pe.add_policy({
     "id": "admin_read",
     "name": "Admin Read Access",
-    "effect": "allow",
-    "actions": ["read"],
-    "resources": ["documents/*"],
-    "conditions": {"role": "admin"},
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "documents/*", "action": "read"},
+    ],
+    "combine": "all_must_pass",
 })
 result = pe.evaluate("admin_read", {
     "user": {"user_id": "alice", "role": "admin"},

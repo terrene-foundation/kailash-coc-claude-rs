@@ -23,8 +23,8 @@ rt.execute(builder.build(reg), config={"node": {"param": "value"}})
 rt.execute(builder.build(reg), inputs={"node": {"param": "value"}})
 rt.execute(builder.build(reg), overrides={"node": {"param": "value"}})
 
-# ✅ Fix: Use 'parameters'
-rt.execute(builder.build(reg), parameters={"node": {"param": "value"}})
+# ✅ Fix: Use 'inputs'
+rt.execute(builder.build(reg), inputs={"node": {"param": "value"}})
 ```
 
 ### Result Access
@@ -106,7 +106,7 @@ Use `pattern-expert` subagent when:
 
 ## Quick Tips
 
-- 💡 **Right parameter name**: Always use `parameters={}` not `inputs` or `config`
+- 💡 **Right parameter name**: Always use `inputs={}` not `parameters` or `config`
 - 💡 **Deployment**: Use NexusApp for Docker deployment
 - 💡 **Capture both**: Always get `result = rt.execute(...)`
 

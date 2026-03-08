@@ -85,7 +85,7 @@ def test_workflow_execution():
     rt = kailash.Runtime(reg)
     workflow = create_test_workflow()
 
-    result = rt.execute(workflow, parameters={"input": "data"})
+    result = rt.execute(workflow, inputs={"input": "data"})
 
     assert result["results"]["output_node"]["result"] == expected_value
 ```

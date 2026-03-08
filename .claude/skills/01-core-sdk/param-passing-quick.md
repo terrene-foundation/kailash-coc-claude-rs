@@ -44,7 +44,7 @@ builder.connect("lookup", "email", "send", "to")
 
 # Method 3: Runtime Parameter (override at execution)
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), parameters={
+result = rt.execute(builder.build(reg), inputs={
     "send": {"to": "override@example.com"}
 })
 ```
@@ -61,7 +61,7 @@ parameters = {
     "node2": {"value": 20}         # Node-specific for node2
 }
 
-rt.execute(builder.build(reg), parameters=parameters)
+rt.execute(builder.build(reg), inputs=parameters)
 
 # What node1 receives (unwrapped automatically):
 {
@@ -131,7 +131,7 @@ builder.add_node("ReportNode", "generate", {
     # 'start_date' and 'end_date' from runtime
 })
 
-rt.execute(builder.build(reg), parameters={
+rt.execute(builder.build(reg), inputs={
     "generate": {
         "start_date": "2025-01-01",
         "end_date": "2025-01-31"
@@ -163,7 +163,7 @@ builder.add_node("UserCreateNode", "create", {
 builder.connect("form", "email", "create", "email")
 
 # OR Method 3: Provide at runtime
-rt.execute(builder.build(reg), parameters={
+rt.execute(builder.build(reg), inputs={
     "create": {"email": "alice@example.com"}
 })
 ```

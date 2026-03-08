@@ -36,7 +36,7 @@ builder.add_node("SetVariableNode", "init_counter", {
 })
 
 # 2. Process iteration
-builder.add_node("APICallNode", "check_status", {
+builder.add_node("HTTPRequestNode", "check_status", {
     "url": "https://api.example.com/status",
     "method": "GET"
 })
@@ -138,7 +138,7 @@ builder.add_node("SetVariableNode", "init_retry", {
 })
 
 # 2. Execute operation
-builder.add_node("APICallNode", "api_call", {
+builder.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/operation",
     "method": "POST",
     "timeout": 30

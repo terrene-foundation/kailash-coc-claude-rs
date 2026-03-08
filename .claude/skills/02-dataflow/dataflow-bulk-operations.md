@@ -56,9 +56,9 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-df = kailash.DataFlow()
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-@df.model
+@db.model
 class Product:
     name: str
     price: float

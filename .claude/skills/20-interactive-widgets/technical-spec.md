@@ -520,7 +520,7 @@ async def chat_stream(
     """
 
     # Initialize widget generator agent
-    df = kailash.DataFlow()
+    df = kailash.DataFlow(os.environ["DATABASE_URL"])
     agent = WidgetGeneratorAgent(db)
 
     # Analyze query to determine if widget is needed
@@ -1363,13 +1363,13 @@ from widget_generator import WidgetGeneratorAgent
 @pytest.mark.asyncio
 async def test_chart_widget_generation():
     """Test chart widget descriptor generation"""
-    agent = WidgetGeneratorAgent(db=Mockkailash.DataFlow())
+    agent = WidgetGeneratorAgent(db=Mockkailash.DataFlow(os.environ["DATABASE_URL"]))
 
     descriptor = await agent.generate_chart_widget(
         query="Show Q2 sales by region",
         data=[
             {'region': 'North', 'sales': 450000},
-            {'region': 'South', 'sales': 380000},
+            {'region': 'South', 'sales': 330000},
         ],
         user_permissions=['sales_viewer']
     )
@@ -1382,7 +1382,7 @@ async def test_chart_widget_generation():
 @pytest.mark.asyncio
 async def test_rbac_action_filtering():
     """Test that actions are filtered based on user permissions"""
-    agent = WidgetGeneratorAgent(db=Mockkailash.DataFlow())
+    agent = WidgetGeneratorAgent(db=Mockkailash.DataFlow(os.environ["DATABASE_URL"]))
 
     # User WITHOUT export permissions
     descriptor = await agent.generate_chart_widget(

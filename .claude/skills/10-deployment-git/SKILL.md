@@ -120,7 +120,7 @@ ENV RUNTIME_TYPE=async
 
 # Health check using python (curl not available on slim images)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
 
 # Run with Nexus
 CMD ["python", "-m", "app.main"]
@@ -133,7 +133,7 @@ services:
   nexus:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - RUNTIME_TYPE=async
@@ -176,14 +176,14 @@ spec:
         - name: app
           image: my-kailash-app:latest
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
           env:
             - name: RUNTIME_TYPE
               value: "async"
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 10
             periodSeconds: 30
 ```
@@ -287,7 +287,7 @@ docker-compose up
 ```bash
 # Docker production
 docker build -t app:prod .
-docker run -d -p 8000:8000 app:prod
+docker run -d -p 3000:3000 app:prod
 
 # Kubernetes production
 kubectl apply -f k8s/

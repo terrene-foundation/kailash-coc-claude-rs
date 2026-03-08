@@ -87,38 +87,29 @@ class Nexus:
 - ❌ **REMOVED**: `ChannelManager.register_workflow_on_channels()` (was stub logging success)
 - ✅ **REALITY**: Nexus handles initialization and registration directly
 
-### 2. Session Manager
+### 2. Workflow State Management
 
-**Purpose**: Unified session management across channels
+**Purpose**: State tracking across workflow executions
 
-**Features**:
+**Approach**: Nexus workflows are stateless by default. For stateful workflows:
 
-- Cross-channel session persistence
-- State synchronization
-- Session lifecycle management
+- **Workflow inputs/outputs**: Pass state between executions via `inputs`
+- **EventBus**: Track lifecycle events with `app.event_bus()`
+- **DataFlow**: Persist state in a database
 
 ```python
-class SessionManager:
-    def __init__(self, backend="redis"):
-        self.backend = backend
-        self.sessions = {}
+import kailash
+from kailash.nexus import NexusApp
 
-    def create_session(self, channel, metadata):
-        session_id = generate_id()
-        self.sessions[session_id] = {
-            "channel": channel,
-            "metadata": metadata,
-            "created_at": time.time(),
-            "state": {}
-        }
-        return session_id
+app = NexusApp()
+bus = app.event_bus()
 
-    def sync_session(self, session_id, target_channel):
-        # Sync session state across channels
-        session = self.sessions.get(session_id)
-        if session:
-            session["channel"] = target_channel
-            return session
+# Track workflow lifecycle events
+app.on("workflow_started", lambda e: print(f"Started: {e}"))
+app.on("workflow_completed", lambda e: print(f"Completed: {e}"))
+
+# Publish custom events for cross-component communication
+bus.publish("user_action", {"user_id": "123", "action": "login"})
 ```
 
 ### 3. Enterprise Gateway
@@ -463,7 +454,7 @@ result = rt.execute(workflow, inputs)
 - ✅ Workflow registration and execution
 - ✅ Custom REST endpoints with rate limiting
 - ✅ Health monitoring and metrics
-- ✅ Event logging (retrieve with `get_events()`)
+- ✅ Event logging (via EventBus `subscribe()` and `publish()`)
 
 **Planned for v1.1:**
 

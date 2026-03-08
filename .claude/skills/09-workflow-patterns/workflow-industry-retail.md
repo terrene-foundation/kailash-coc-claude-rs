@@ -35,21 +35,21 @@ builder.add_node("DatabaseExecuteNode", "reserve_stock", {
 })
 
 # 4. Process payment
-builder.add_node("APICallNode", "payment", {
+builder.add_node("HTTPRequestNode", "payment", {
     "url": "https://api.stripe.com/charges",
     "method": "POST",
     "body": {"amount": "{{input.total}}", "customer": "{{input.customer_id}}"}
 })
 
 # 5. Create shipping label
-builder.add_node("APICallNode", "shipping", {
+builder.add_node("HTTPRequestNode", "shipping", {
     "url": "https://api.shippo.com/shipments",
     "method": "POST",
     "body": {"address": "{{input.address}}", "weight": "{{input.weight}}"}
 })
 
 # 6. Send confirmation
-builder.add_node("APICallNode", "notify_customer", {
+builder.add_node("HTTPRequestNode", "notify_customer", {
     "url": "https://api.sendgrid.com/mail/send",
     "method": "POST",
     "body": {"to": "{{input.email}}", "subject": "Order Confirmed", "tracking": "{{shipping.tracking_number}}"}

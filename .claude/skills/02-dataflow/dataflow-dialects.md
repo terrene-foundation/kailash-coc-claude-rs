@@ -123,7 +123,7 @@ else:
     df = kailash.DataFlow(os.getenv("DATABASE_URL"))
 
 # Same model works everywhere
-@df.model
+@db.model
 class User:
     id: str
     name: str

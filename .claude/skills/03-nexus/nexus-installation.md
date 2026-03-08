@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
 ```bash
 # API mode (default)
-python app.py --mode api --port 8000
+python app.py --mode api --port 3000
 
 # CLI mode
 python app.py --mode cli

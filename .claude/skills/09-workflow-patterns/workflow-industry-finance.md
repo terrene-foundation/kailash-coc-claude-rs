@@ -23,7 +23,7 @@ builder.add_node("DataValidationNode", "validate", {
 })
 
 # 2. Fraud check
-builder.add_node("APICallNode", "fraud_check", {
+builder.add_node("HTTPRequestNode", "fraud_check", {
     "url": "https://api.fraudcheck.com/analyze",
     "method": "POST",
     "body": "{{validate.valid_data}}"
@@ -40,7 +40,7 @@ builder.add_node("ConditionalNode", "assess_risk", {
 })
 
 # 4. Process payment
-builder.add_node("APICallNode", "process_payment", {
+builder.add_node("HTTPRequestNode", "process_payment", {
     "url": "https://api.paymentgateway.com/charge",
     "method": "POST",
     "body": "{{validate.valid_data}}"

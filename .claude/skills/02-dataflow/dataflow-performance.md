@@ -46,7 +46,7 @@ df = kailash.DataFlow(
 )
 
 # Add indexes to models
-@df.model
+@db.model
 class Product:
     name: str
     category: str

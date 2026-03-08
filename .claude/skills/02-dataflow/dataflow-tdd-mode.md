@@ -38,7 +38,7 @@ def db():
         auto_migrate=True,
     )
 
-    @df.model
+    @db.model
     class User:
         name: str
         email: str

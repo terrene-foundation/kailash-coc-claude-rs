@@ -23,7 +23,7 @@ builder.add_node("DatabaseExecuteNode", "create_task", {
 })
 
 # 2. Notify approver
-builder.add_node("APICallNode", "notify_approver", {
+builder.add_node("HTTPRequestNode", "notify_approver", {
     "url": "https://api.slack.com/messages",
     "method": "POST",
     "body": {"text": "New task needs approval: {{input.title}}"}

@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Authenticate user
-builder.add_node("APICallNode", "authenticate", {
+builder.add_node("HTTPRequestNode", "authenticate", {
     "url": "{{secrets.auth_endpoint}}",
     "method": "POST"
 })

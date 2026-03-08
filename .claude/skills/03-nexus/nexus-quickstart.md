@@ -103,7 +103,7 @@ import os
 app = NexusApp()
 
 # Add JWT authentication
-auth = NexusAuthPlugin(jwt_secret=os.environ["JWT_SECRET"])
+auth = NexusAuthPlugin(jwt_secret_key=os.environ["JWT_SECRET"])
 app.use(auth)
 
 @app.handler("protected")

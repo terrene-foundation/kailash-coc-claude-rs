@@ -138,9 +138,10 @@ user_info = sso.handle_callback(callback_data)
 ### Generate Logout URL
 
 ```python
-# Generate logout URL
-logout_url = sso.logout_url("https://app.example.com")
-# Redirect user's browser to logout_url
+# Generate logout URL -- takes the session dict from handle_callback
+# session_dict must contain: user, token, expires_at, idp_session_id, refresh_token
+logout_url = sso.logout_url(session_dict)
+# Redirect user's browser to logout_url (returns None if not supported by IdP)
 ```
 
 ## Session Management
@@ -203,21 +204,23 @@ async def sso_login(callback_url: str) -> dict:
 
 @app.handler(name="sso_callback", description="Handle SSO callback")
 async def sso_callback(code: str, state: str) -> dict:
-    # Handle the SSO callback
-    user_info = sso.handle_callback({"code": code, "state": state})
+    # Handle the SSO callback -- returns a session dict
+    session = sso.handle_callback({"code": code, "state": state})
 
-    # Issue an application token
-    token = tm.create_jwt(
-        user_info["user_id"],
-        user_info.get("scopes", ["read"]),
-        ttl_secs=3600,
-    )
+    # Issue an application token using the session user info
+    token = tm.create_jwt({
+        "subject": session["user"]["user_id"],
+        "scopes": session["user"].get("roles", ["read"]),
+    })
 
-    return {"token": token, "user": user_info}
+    return {"token": token, "session": session}
 
 @app.handler(name="sso_logout", description="Initiate SSO logout")
-async def sso_logout(redirect_url: str) -> dict:
-    logout_url = sso.logout_url(redirect_url)
+async def sso_logout(session_token: str) -> dict:
+    # logout_url takes a session dict (from handle_callback), not a URL string
+    # In practice, retrieve the stored session dict for this user
+    session_dict = get_stored_session(session_token)  # your session storage
+    logout_url = sso.logout_url(session_dict)
     return {"logout_url": logout_url}
 ```
 

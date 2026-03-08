@@ -96,7 +96,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 df = kailash.DataFlow("postgresql://...")
 
-@df.model
+@db.model
 class User:
     id: str
     name: str

@@ -383,7 +383,7 @@ builder.add_node("IterativeLLMNode", "agent", {
 ```python
 auth_config = {
     "development": {
-        "url": "http://localhost:8000/mcp",
+        "url": "http://localhost:3000/mcp",
         "headers": {"X-Dev-Token": "dev_token"}
     },
     "staging": {

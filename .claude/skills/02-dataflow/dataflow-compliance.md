@@ -16,7 +16,7 @@ import kailash
 
 df = kailash.DataFlow("postgresql://localhost/app")
 
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -39,7 +39,7 @@ builder.add_node("DatabaseExecuteNode", "anonymize_logs", {
 })
 
 # 3. Delete from external systems
-builder.add_node("APICallNode", "delete_external", {
+builder.add_node("HTTPRequestNode", "delete_external", {
     "url": "https://analytics.example.com/users/{{input.user_id}}",
     "method": "DELETE"
 })

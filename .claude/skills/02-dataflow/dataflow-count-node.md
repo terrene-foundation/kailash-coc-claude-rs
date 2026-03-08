@@ -219,12 +219,8 @@ class Order:
     status: str
     created_at: datetime
 
-    __dataflow__ = {
-        'indexes': [
-            ['status'],           # Single-field index
-            ['status', 'created_at']  # Composite index
-        ]
-    }
+    # Create indexes on status and (status, created_at) in your database
+    # for optimal count query performance
 
 # Query uses index for fast counting
 builder.add_node("OrderCountNode", "count", {
@@ -307,12 +303,7 @@ class Order:
     status: str
     user_id: str
 
-    __dataflow__ = {
-        'indexes': [
-            ['status'],      # For status counts
-            ['user_id']      # For per-user counts
-        ]
-    }
+    # Create database indexes on status and user_id for optimal count performance
 ```
 
 ### 3. Use CountNode for Existence Checks
@@ -366,9 +357,7 @@ builder.add_node("UserListNode", "page", {
 class Order:
     status: str
 
-    __dataflow__ = {
-        'indexes': [['status']]  # ← Add index
-    }
+    # Add a database index on status for count performance
 ```
 
 ### ❌ Count Returns 0 Unexpectedly

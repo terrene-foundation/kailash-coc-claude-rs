@@ -88,7 +88,7 @@ app = NexusApp()  # No auth plugin added
 ```python
 # config/base.py
 class BaseConfig:
-    API_PORT = 8000
+    API_PORT = 3000
     MCP_PORT = 3001
     LOG_LEVEL = "INFO"
 
@@ -312,7 +312,7 @@ def get_secret(key: str) -> str:
 from kailash.nexus import NexusApp, NexusConfig
 
 app = NexusApp(NexusConfig(
-    port=int(os.getenv("PORT", "8000")),
+    port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
 
@@ -364,11 +364,11 @@ ENV NEXUS_ENV=production
 USER nexus
 
 # Expose ports
-EXPOSE 8000 3001
+EXPOSE 3000 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 # Run application
 CMD ["python", "app.py"]
@@ -420,7 +420,7 @@ spec:
                   key: redis-url
 
           ports:
-            - containerPort: 8000
+            - containerPort: 3000
               name: api
             - containerPort: 3001
               name: mcp
@@ -436,14 +436,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /health
-              port: 8000
+              port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
 ```
@@ -528,7 +528,7 @@ app = NexusApp()  # No auth plugin added
 # RIGHT - Use environment variable
 export NEXUS_ENV=production
 app = NexusApp()
-auth = NexusAuthPlugin.basic_auth(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = NexusAuthPlugin.basic_auth(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 app.add_plugin(auth)  # Auth enabled
 ```
 

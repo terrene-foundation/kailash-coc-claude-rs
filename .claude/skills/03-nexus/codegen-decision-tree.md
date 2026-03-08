@@ -210,7 +210,7 @@ from kailash.nexus import NexusApp
 app = NexusApp()
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
-        secret=os.environ["JWT_SECRET"],     # CORRECT: 'secret', NOT 'secret_key'
+        secret_key=os.environ["JWT_SECRET"],     # Must be >= 32 chars for HS256
         algorithm="HS256",
         exempt_paths=["/health"],             # CORRECT: 'exempt_paths'
     ),
@@ -393,7 +393,7 @@ SaaS API Backend Template
 Production-ready API with auth, database, and multi-channel support.
 
 Provides:
-- REST API at http://localhost:8000
+- REST API at http://localhost:3000
 - MCP tools at ws://localhost:3001
 - CLI via `nexus execute <workflow>`
 - JWT authentication with RBAC
@@ -415,7 +415,7 @@ from kailash import JwtConfig, TenantConfig
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///app.db")
 JWT_SECRET = os.environ["JWT_SECRET"]  # REQUIRED
-API_PORT = int(os.environ.get("API_PORT", "8000"))
+API_PORT = int(os.environ.get("API_PORT", "3000"))
 MCP_PORT = int(os.environ.get("MCP_PORT", "3001"))
 
 # ============================================================================
@@ -438,7 +438,7 @@ rt = kailash.Runtime(reg)
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
-        secret=JWT_SECRET,                         # CORRECT: `secret`
+        secret_key=JWT_SECRET,                         # >= 32 chars for HS256
         algorithm="HS256",
         exempt_paths=["/health", "/docs"],          # CORRECT: `exempt_paths`
     ),
@@ -460,7 +460,7 @@ app.add_plugin(auth)
 # Models
 # ============================================================================
 
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -468,7 +468,7 @@ class User:
     role: str = "member"
     org_id: str = None
 
-@df.model
+@db.model
 class Contact:
     id: str
     email: str
@@ -646,7 +646,7 @@ class AnalysisAgent(BaseAgent):
 # Initialize
 # ============================================================================
 
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 config = AgentConfig(
@@ -798,12 +798,12 @@ class AuditLog:
 # ============================================================================
 
 app = NexusApp(NexusConfig(
-    port=int(os.environ.get("API_PORT", "8000")),
+    port=int(os.environ.get("API_PORT", "3000")),
 ))
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
-        secret=os.environ["JWT_SECRET"],
+        secret_key=os.environ["JWT_SECRET"],
         algorithm="HS256",
         exempt_paths=["/health", "/docs"],
     ),
@@ -936,7 +936,7 @@ from kailash.nexus import NexusAuthPlugin
 from kailash import JwtConfig, TenantConfig, AuthRateLimitConfig
 
 # Correct parameter names
-JwtConfig(secret=..., exempt_paths=[...])        # NOT secret_key, NOT exclude_paths
+JwtConfig(secret_key=..., exempt_paths=[...])        # NOT secret, NOT exclude_paths
 TenantConfig(admin_role="admin")                 # NOT admin_roles (singular string)
 rbac={"admin": ["*"]}                            # Plain dict, NOT RBACConfig(roles={...})
 tenant_isolation=TenantConfig(jwt_claim="...")    # TenantConfig object, NOT True

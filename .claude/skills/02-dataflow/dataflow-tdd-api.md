@@ -22,7 +22,7 @@ def test_db():
     """In-memory SQLite for tests"""
     df = kailash.DataFlow("sqlite:///:memory:")
 
-    @df.model
+    @db.model
     class User:
         id: str
         email: str

@@ -27,7 +27,7 @@ print(f"Workflows: {list(health['workflows'].keys())}")
 
 ```bash
 # Basic health check
-curl http://localhost:8000/health
+curl http://localhost:3000/health
 
 # Response
 {
@@ -39,7 +39,7 @@ curl http://localhost:8000/health
 }
 
 # Detailed health check
-curl http://localhost:8000/health/detailed
+curl http://localhost:3000/health/detailed
 
 # Response
 {
@@ -73,7 +73,7 @@ app.monitoring.metrics = ["requests", "latency", "errors"]
 
 ```bash
 # Prometheus metrics endpoint
-curl http://localhost:8000/metrics
+curl http://localhost:3000/metrics
 
 # Response (Prometheus format)
 # HELP nexus_requests_total Total requests

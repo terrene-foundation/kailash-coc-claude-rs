@@ -24,7 +24,7 @@ def test_workflow_creation():
     reg = kailash.NodeRegistry()
 
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), parameters={
+    result = rt.execute(builder.build(reg), inputs={
         "process": {"input_value": 10}
     })
 

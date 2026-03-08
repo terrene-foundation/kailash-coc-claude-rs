@@ -147,7 +147,7 @@ builder.add_node("MyNode", "node1", {
 Or via runtime parameters:
 
 ```python
-result = rt.execute(wf, parameters={
+result = rt.execute(wf, inputs={
     "node1": {"data": "override_payload"}
 })
 ```

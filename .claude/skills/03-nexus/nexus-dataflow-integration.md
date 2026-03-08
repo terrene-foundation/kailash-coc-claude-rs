@@ -25,7 +25,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Step 1: Create Nexus with auto_discovery=False
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 # Step 2: Create DataFlow (defaults work fine)
@@ -35,7 +35,7 @@ df = kailash.DataFlow(
 )
 
 # Step 3: Register models
-@df.model
+@db.model
 class User:
     id: str
     email: str
@@ -74,7 +74,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Fast initialization
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
@@ -82,14 +82,14 @@ df = kailash.DataFlow(
 )
 
 # Define models
-@df.model
+@db.model
 class Contact:
     id: str
     name: str
     email: str
     company: str
 
-@df.model
+@db.model
 class Company:
     id: str
     name: str
@@ -162,7 +162,7 @@ app.register("contact_workflow", builder.build(reg))
 
 ```bash
 # Create contact via Nexus API
-curl -X POST http://localhost:8000/workflows/create_contact/execute \
+curl -X POST http://localhost:3000/workflows/create_contact/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -182,7 +182,7 @@ from kailash.nexus import NexusApp, NexusConfig
 
 def create_production_app():
     app = NexusApp(NexusConfig(
-        port=int(os.getenv("API_PORT", "8000")),
+        port=int(os.getenv("API_PORT", "3000")),
     ))
 
     db = kailash.DataFlow(

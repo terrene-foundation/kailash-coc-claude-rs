@@ -55,7 +55,7 @@ reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 result = rt.execute(
     builder.build(reg),
-    parameters={
+    inputs={
         "reader": {"file_path": "custom.csv"},
         "transformer": {"operation": "normalize"}
     }
@@ -78,7 +78,7 @@ parameters = {
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-rt.execute(builder.build(reg), parameters=parameters)
+rt.execute(builder.build(reg), inputs=parameters)
 
 # What node1 receives (unwrapped automatically):
 {

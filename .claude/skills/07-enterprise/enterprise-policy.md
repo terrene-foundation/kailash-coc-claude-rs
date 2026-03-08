@@ -12,10 +12,11 @@ Fine-grained policy evaluation with versioning and rollback support.
 ## Quick Reference
 
 - **PolicyEngine**: Core class for managing and evaluating access policies
-- **Policies**: Dict-based definitions with id, name, effect, actions, resources, conditions
+- **Policies**: Dict-based definitions with id, name, rules (list), and combine strategy
+- **Rule Types**: `rbac` (role/resource/action), `abac` (attribute/value/resource), `custom` (expression)
+- **Combine Strategies**: `all_must_pass`, `any_must_pass`, `majority_pass`
 - **Versioning**: Automatic version tracking on policy reload
 - **Rollback**: Revert to previous policy versions
-- **Evaluation**: Check access with user context (user_id, role, action, resource)
 
 ## Import
 
@@ -30,24 +31,23 @@ from kailash.enterprise import PolicyEngine
 
 pe = PolicyEngine()
 
-# Add a policy
+# Add a policy -- dict with id, name, rules, and combine strategy
 pe.add_policy({
-    "id": "admin_read",
-    "name": "Admin Read Access",
-    "effect": "allow",
-    "actions": ["read"],
-    "resources": ["documents/*"],
-    "conditions": {"role": "admin"},
+    "id": "admin_access",
+    "name": "Admin Access Policy",
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "documents/*", "action": "read"},
+    ],
+    "combine": "all_must_pass",
 })
 
-# Evaluate the policy
-result = pe.evaluate("admin_read", {
+# Evaluate the policy against an access context
+result = pe.evaluate("admin_access", {
     "user": {"user_id": "alice", "role": "admin"},
     "action": "read",
     "resource": "documents/report.pdf",
 })
-
-assert result == "allow"
+# result: "allow" or "deny"
 ```
 
 ## Policy Definition
@@ -58,11 +58,49 @@ Policies are defined as dicts with the following keys:
 policy = {
     "id": "unique-policy-id",          # Required: unique identifier
     "name": "Human-readable name",     # Required: descriptive name
-    "effect": "allow",                  # Required: "allow" or "deny"
-    "actions": ["read", "write"],       # Required: list of action strings
-    "resources": ["documents/*"],       # Required: list of resource patterns (* for wildcard)
-    "conditions": {"role": "admin"},    # Required: dict of conditions to match
+    "version": "1.0.0",                # Optional: version string
+    "description": "What this does",   # Optional: description
+    "rules": [                         # Required: list of rule dicts
+        # RBAC rule -- role-based access control
+        {"type": "rbac", "role": "admin", "resource": "documents/*", "action": "read"},
+
+        # ABAC rule -- attribute-based access control
+        {"type": "abac", "attribute": "department", "value": "engineering", "resource": "code/*"},
+
+        # Custom rule -- expression-based
+        {"type": "custom", "expression": "user.level >= 5"},
+    ],
+    "combine": "all_must_pass",        # Required: "all_must_pass", "any_must_pass", or "majority_pass"
 }
+```
+
+## Rule Types
+
+### RBAC Rules
+
+Role-based access control rules require `role`, `resource`, and `action`:
+
+```python
+{"type": "rbac", "role": "admin", "resource": "documents/*", "action": "read"}
+{"type": "rbac", "role": "editor", "resource": "posts/*", "action": "write"}
+{"type": "rbac", "role": "viewer", "resource": "*", "action": "read"}
+```
+
+### ABAC Rules
+
+Attribute-based access control rules require `attribute`, `value`, and `resource`:
+
+```python
+{"type": "abac", "attribute": "department", "value": "engineering", "resource": "code/*"}
+{"type": "abac", "attribute": "clearance", "value": "top_secret", "resource": "classified/*"}
+```
+
+### Custom Rules
+
+Expression-based rules require `expression`:
+
+```python
+{"type": "custom", "expression": "user.level >= 5 and resource.sensitivity < 3"}
 ```
 
 ## Multiple Policies
@@ -76,30 +114,31 @@ pe = PolicyEngine()
 pe.add_policy({
     "id": "admin_read",
     "name": "Admin Read Access",
-    "effect": "allow",
-    "actions": ["read"],
-    "resources": ["documents/*"],
-    "conditions": {"role": "admin"},
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "documents/*", "action": "read"},
+    ],
+    "combine": "all_must_pass",
 })
 
 # Allow admin write access
 pe.add_policy({
     "id": "admin_write",
     "name": "Admin Write Access",
-    "effect": "allow",
-    "actions": ["write"],
-    "resources": ["documents/*"],
-    "conditions": {"role": "admin"},
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "documents/*", "action": "write"},
+    ],
+    "combine": "all_must_pass",
 })
 
-# Deny all user delete actions
+# Multi-rule policy with RBAC + ABAC
 pe.add_policy({
-    "id": "deny_delete",
-    "name": "Deny Delete",
-    "effect": "deny",
-    "actions": ["delete"],
-    "resources": ["*"],
-    "conditions": {},
+    "id": "eng_code_access",
+    "name": "Engineering Code Access",
+    "rules": [
+        {"type": "rbac", "role": "developer", "resource": "code/*", "action": "write"},
+        {"type": "abac", "attribute": "department", "value": "engineering", "resource": "code/*"},
+    ],
+    "combine": "all_must_pass",  # Both rules must pass
 })
 ```
 
@@ -116,7 +155,7 @@ policy = pe.get_policy("admin_read")
 
 ```python
 policies = pe.list_policies()
-# Returns list of policy ID strings (e.g., ["admin_read", "user_write"])
+# Returns list of policy ID strings (e.g., ["admin_read", "admin_write"])
 ```
 
 ### Remove a Policy
@@ -157,11 +196,45 @@ The evaluation context is a dict with these keys:
 context = {
     "user": {
         "user_id": "alice",          # User identifier
-        "role": "admin",             # User's role (matched against conditions)
+        "role": "admin",             # User's role (matched against RBAC rules)
     },
     "action": "read",                # Action being performed
     "resource": "documents/file.pdf",# Resource being accessed
 }
+```
+
+## Combine Strategies
+
+The `combine` field determines how multiple rules within a policy are evaluated:
+
+| Strategy | Behavior |
+| --- | --- |
+| `all_must_pass` | All rules must pass for the policy to allow access |
+| `any_must_pass` | At least one rule must pass for the policy to allow access |
+| `majority_pass` | More than half of the rules must pass |
+
+```python
+# Strict: all rules must pass
+pe.add_policy({
+    "id": "strict_access",
+    "name": "Strict Access",
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "*", "action": "write"},
+        {"type": "abac", "attribute": "clearance", "value": "high", "resource": "*"},
+    ],
+    "combine": "all_must_pass",
+})
+
+# Flexible: any rule can grant access
+pe.add_policy({
+    "id": "flexible_read",
+    "name": "Flexible Read",
+    "rules": [
+        {"type": "rbac", "role": "admin", "resource": "docs/*", "action": "read"},
+        {"type": "rbac", "role": "viewer", "resource": "docs/*", "action": "read"},
+    ],
+    "combine": "any_must_pass",
+})
 ```
 
 ## Loading Policies from JSON
@@ -172,7 +245,7 @@ from kailash.enterprise import PolicyEngine
 
 pe = PolicyEngine()
 
-# Load from a JSON structure with version, combination strategy, and rules
+# Load from JSON -- policies are defined inline with rules and combine
 policy_json = json.dumps({
     "version": "1.0.0",
     "combination": "deny_override",
@@ -180,18 +253,20 @@ policy_json = json.dumps({
         {
             "id": "admin_full",
             "name": "Admin Full Access",
-            "effect": "allow",
-            "actions": ["read", "write", "delete"],
-            "resources": ["*"],
-            "conditions": {"role": "admin"},
+            "rules": [
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "read"},
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "write"},
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "delete"},
+            ],
+            "combine": "any_must_pass",
         },
         {
             "id": "user_read",
             "name": "User Read Only",
-            "effect": "allow",
-            "actions": ["read"],
-            "resources": ["documents/*"],
-            "conditions": {"role": "user"},
+            "rules": [
+                {"type": "rbac", "role": "user", "resource": "documents/*", "action": "read"},
+            ],
+            "combine": "all_must_pass",
         },
     ],
 })
@@ -204,6 +279,7 @@ pe.load_from_json(policy_json)
 Policies support automatic versioning when reloaded:
 
 ```python
+import json
 from kailash.enterprise import PolicyEngine
 
 pe = PolicyEngine()
@@ -216,10 +292,10 @@ pe.load_from_json(json.dumps({
         {
             "id": "admin_read",
             "name": "Admin Read",
-            "effect": "allow",
-            "actions": ["read"],
-            "resources": ["*"],
-            "conditions": {"role": "admin"},
+            "rules": [
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "read"},
+            ],
+            "combine": "all_must_pass",
         },
     ],
 }))
@@ -232,10 +308,11 @@ pe.load_from_json(json.dumps({
         {
             "id": "admin_read",
             "name": "Admin Read (Updated)",
-            "effect": "allow",
-            "actions": ["read", "list"],
-            "resources": ["*"],
-            "conditions": {"role": "admin"},
+            "rules": [
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "read"},
+                {"type": "rbac", "role": "admin", "resource": "*", "action": "list"},
+            ],
+            "combine": "any_must_pass",
         },
     ],
 }))
@@ -257,14 +334,28 @@ pe = PolicyEngine()
 pe.load_from_json(json.dumps({
     "version": "1.0.0",
     "combination": "deny_override",
-    "rules": [{"id": "r1", "name": "Rule 1", "effect": "allow", "actions": ["read"], "resources": ["*"], "conditions": {}}],
+    "rules": [
+        {
+            "id": "r1",
+            "name": "Rule 1",
+            "rules": [{"type": "rbac", "role": "admin", "resource": "*", "action": "read"}],
+            "combine": "all_must_pass",
+        },
+    ],
 }))
 
 # Load version 2
 pe.load_from_json(json.dumps({
     "version": "2.0.0",
     "combination": "deny_override",
-    "rules": [{"id": "r1", "name": "Rule 1 Updated", "effect": "deny", "actions": ["write"], "resources": ["*"], "conditions": {}}],
+    "rules": [
+        {
+            "id": "r1",
+            "name": "Rule 1 Updated",
+            "rules": [{"type": "rbac", "role": "admin", "resource": "*", "action": "write"}],
+            "combine": "all_must_pass",
+        },
+    ],
 }))
 
 # Roll back policy "r1" to version 1.0
@@ -311,12 +402,13 @@ access = check_access(pe, "alice", "admin", "read", "documents/report.pdf")
 
 ## Best Practices
 
-1. **Use deny_override combination** -- Deny policies always take precedence
+1. **Use `all_must_pass` for strict access** -- Require all rules to pass for sensitive resources
 2. **Version all policy changes** -- Use `load_from_json()` with version for traceability
 3. **Test rollback** -- Use `rollback_policy(id, version)` and verify before deploying changes
 4. **Least privilege** -- Default to deny, explicitly allow required actions
 5. **Use resource wildcards carefully** -- `*` grants broad access
 6. **Externalize policies** -- Load from files or config services, not hardcoded
+7. **Combine RBAC + ABAC** -- Use multiple rule types in a single policy for defense in depth
 
 ## Related Skills
 

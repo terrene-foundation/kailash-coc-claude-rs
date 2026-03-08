@@ -1,11 +1,11 @@
 ---
 name: dataflow-existing-database
-description: "Connect DataFlow to existing databases safely. Use when existing database, discover schema, legacy database, register_schema_as_models, auto_migrate=False, or connect to production database."
+description: "Connect DataFlow to existing databases safely. Use when existing database, legacy database, auto_migrate=False, or connect to production database."
 ---
 
 # DataFlow Existing Database Integration
 
-Connect DataFlow to existing databases without @db.model decorators using dynamic schema discovery.
+Connect DataFlow to existing databases using `ModelDefinition` to define models that match your existing schema.
 
 > **Skill Metadata**
 > Category: `dataflow`
@@ -15,37 +15,36 @@ Connect DataFlow to existing databases without @db.model decorators using dynami
 
 ## Quick Reference
 
-- **Safe Mode**: `auto_migrate=False` prevents ALL schema changes
-- **Discover**: `db.discover_schema(use_real_inspection=True)`
-- **Register**: `db.register_schema_as_models(tables=['users', 'orders'])`
-- **Perfect For**: Legacy databases, production readonly, LLM agents
+- **Safe Mode**: `auto_migrate=False` prevents ALL schema changes (default)
+- **Define Models**: Use `@db.model` or `ModelDefinition()` to match existing tables
+- **Register**: `df.register_model(model)` to generate CRUD nodes
 
 ## Core Pattern
 
 ```python
+import os
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 
-# Connect safely to existing database
-df = kailash.DataFlow(
-    "postgresql://user:pass@localhost/existing_db",
-    auto_migrate=False,           # Don't modify schema - prevents ALL changes
-)
+# Connect safely to existing database (auto_migrate=False is the default)
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
-# Discover existing tables
-schema = df.discover_schema(use_real_inspection=True)
-print(f"Found tables: {list(schema.keys())}")
+# Define a model that matches your existing table schema
+@db.model
+class User:
+    __table__ = "users"  # Must match existing table name
+    id: int
+    email: str
+    name: str
 
-# Register tables as DataFlow models
-result = df.register_schema_as_models(tables=['users', 'orders', 'products'])
+# Register the model -- generates CRUD nodes (UserCreateNode, UserReadNode, etc.)
+df.register_model(User._model_definition)
 
-# Now use generated nodes immediately
-
+# Use generated nodes
 builder = kailash.WorkflowBuilder()
-user_nodes = result['generated_nodes']['users']
-
-builder.add_node(user_nodes['list'], "get_users", {
+builder.add_node("UserListNode", "get_users", {
     "filter": {"active": True},
     "limit": 10
 })
@@ -54,252 +53,120 @@ rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
+## Using ModelDefinition Directly
+
+For programmatic model definition without decorators:
+
+```python
+import kailash
+
+df = kailash.DataFlow(os.environ["DATABASE_URL"])
+
+# Build model definition to match existing table
+model = kailash.ModelDefinition("Product", "products")
+model.field("id", kailash.FieldType.integer(), primary_key=True)
+model.field("name", kailash.FieldType.text(), required=True)
+model.field("price", kailash.FieldType.real(), required=True)
+model.field("category", kailash.FieldType.text(), nullable=True)
+
+# Register generates CRUD nodes
+df.register_model(model)
+
+# Now ProductListNode, ProductCreateNode, etc. are available
+builder = kailash.WorkflowBuilder()
+builder.add_node("ProductListNode", "list_products", {
+    "filter": {"category": "electronics"},
+    "limit": 50
+})
+```
+
 ## Common Use Cases
 
-- **Legacy Integration**: Connect to existing applications
-- **Production Readonly**: Safe read access to production
-- **LLM Agents**: Dynamic database exploration
-- **Cross-Session**: Models shared between users
-- **Migration Planning**: Analyze before migrating
-
-## Key Methods
-
-### discover_schema()
-
-```python
-schema = db.discover_schema(
-    use_real_inspection=True  # Use actual database inspection
-)
-
-# Returns: Dict[table_name, table_structure]
-# {
-#   'users': {
-#     'columns': [
-#       {'name': 'id', 'type': 'INTEGER', 'nullable': False},
-#       {'name': 'email', 'type': 'VARCHAR(255)', 'nullable': False}
-#     ],
-#     'primary_key': ['id'],
-#     'foreign_keys': [...],
-#     'indexes': [...]
-#   }
-# }
-```
-
-### register_schema_as_models()
-
-```python
-result = db.register_schema_as_models(
-    tables=['users', 'orders', 'products']
-)
-
-# Returns:
-# {
-#   'registered_models': ['User', 'Order', 'Product'],
-#   'generated_nodes': {
-#     'User': {
-#       'create': 'UserCreateNode',
-#       'read': 'UserReadNode',
-#       'update': 'UserUpdateNode',
-#       'delete': 'UserDeleteNode',
-#       'list': 'UserListNode',
-#       # + 4 bulk operation nodes
-#     }
-#   },
-#   'success_count': 3,
-#   'error_count': 0
-# }
-```
-
-### reconstruct_models_from_registry()
-
-```python
-# In different session/process
-db2 = kailash.DataFlow(
-    "postgresql://...",
-    auto_migrate=False,  # Don't modify existing schema
-)
-
-# Reconstruct models registered by others
-models = db2.reconstruct_models_from_registry()
-print(f"Available models: {models['reconstructed_models']}")
-```
+- **Legacy Integration**: Define models matching existing table schemas
+- **Production Readonly**: Safe read access with auto_migrate=False
+- **Multiple Tables**: Register multiple models for your existing schema
 
 ## Common Mistakes
 
 ### Mistake 1: Modifying Production Schema
 
 ```python
-# DANGER - Will modify production!
-db = kailash.DataFlow(
+# DANGER - auto_migrate=True will create/modify tables!
+df = kailash.DataFlow(
     "postgresql://prod-db/database",
-    auto_migrate=True  # BAD - could alter schema!
+    auto_migrate=True  # BAD - could alter production schema!
 )
 ```
 
-**Fix: Use Safe Mode**
+**Fix: Use Safe Mode (default)**
 
 ```python
-# Safe - readonly access, no schema modifications
-db = kailash.DataFlow(
-    "postgresql://prod-db/database",
-    auto_migrate=False,  # Don't create or modify tables
-)
+# Safe - auto_migrate=False is the default
+df = kailash.DataFlow("postgresql://prod-db/database")
+# OR explicitly:
+df = kailash.DataFlow("postgresql://prod-db/database", auto_migrate=False)
 ```
 
-### Mistake 2: Assuming Tables Exist
+### Mistake 2: Model Doesn't Match Existing Schema
 
 ```python
-# Wrong - assumes tables exist
-db = kailash.DataFlow(auto_migrate=False)
+@db.model
+class User:
+    id: int
+    email: str
+    nonexistent_column: str  # Column doesn't exist in database!
+```
+
+**Fix: Ensure model matches the existing table schema exactly.**
+
+## Production Readonly Pattern
+
+```python
+import os
+import kailash
+from kailash.dataflow import db
+
+# Connect to production with readonly credentials
+df = kailash.DataFlow(os.environ["PROD_DATABASE_URL"])  # auto_migrate=False by default
 
 @db.model
-class NewModel:
-    name: str
-# Model registered but NO table created!
-```
+class Order:
+    __table__ = "orders"
+    id: int
+    customer_id: int
+    total: float
+    status: str
 
-**Fix: Check Schema First**
-
-```python
-db = kailash.DataFlow(auto_migrate=False)
-schema = db.discover_schema(use_real_inspection=True)
-
-if 'new_models' not in schema:
-    print("Table doesn't exist - schema changes blocked")
-```
-
-## Related Patterns
-
-- **For model definition**: See [`dataflow-models`](#)
-- **For connection config**: See [`dataflow-connection-config`](#)
-- **For Nexus integration**: See [`dataflow-nexus-integration`](#)
-
-## When to Escalate to Subagent
-
-Use `dataflow-specialist` when:
-
-- Complex legacy schema analysis
-- Migration planning from existing database
-- Multi-database integration
-- Custom schema mapping
-- Performance optimization for large schemas
-
-## Examples
-
-### Example 1: Production Readonly Access
-
-```python
-# Safe readonly access to production
-db_prod = kailash.DataFlow(
-    "postgresql://readonly:pass@prod-db:5432/ecommerce",
-    auto_migrate=False,  # Don't modify production schema
-)
-
-# Discover production schema
-schema = db_prod.discover_schema(use_real_inspection=True)
-print(f"Production has {len(schema)} tables")
-
-# Register only needed tables
-result = db_prod.register_schema_as_models(
-    tables=['products', 'orders', 'customers']
-)
+df.register_model(Order._model_definition)
 
 # Safe read operations
 builder = kailash.WorkflowBuilder()
-product_nodes = result['generated_nodes']['products']
-
-builder.add_node(product_nodes['list'], "active_products", {
-    "filter": {"active": True},
+builder.add_node("OrderListNode", "recent_orders", {
+    "filter": {"status": "completed"},
     "limit": 100
 })
-```
 
-### Example 2: LLM Agent Database Exploration
-
-```python
-# LLM agent explores unknown database
-db_agent = kailash.DataFlow(
-    "postgresql://...",
-    auto_migrate=False,  # Don't modify existing schema
-)
-
-# Agent discovers structure
-schema = db_agent.discover_schema(use_real_inspection=True)
-interesting_tables = [
-    t for t in schema.keys()
-    if not t.startswith('dataflow_')  # Skip system tables
-]
-
-# Agent registers tables
-result = db_agent.register_schema_as_models(
-    tables=interesting_tables[:5]  # First 5 tables
-)
-
-# Agent builds exploration workflow
-builder = kailash.WorkflowBuilder()
-for model_name in result['registered_models']:
-    nodes = result['generated_nodes'][model_name]
-    builder.add_node(nodes['list'], f"sample_{model_name}", {
-        "limit": 3
-    })
-
+reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
-
-# Agent analyzes sample data
-for node_id, result_data in results.items():
-    print(f"Sampled {node_id}: {len(result_data.get('result', []))} records")
-```
-
-### Example 3: Cross-Session Model Sharing
-
-```python
-# SESSION 1: Data engineer discovers and registers
-db_engineer = kailash.DataFlow(
-    "postgresql://...",
-    auto_migrate=False,  # Don't modify existing schema
-)
-
-schema = db_engineer.discover_schema(use_real_inspection=True)
-result = db_engineer.register_schema_as_models(
-    tables=['users', 'products', 'orders']
-)
-print(f"Registered for team: {result['registered_models']}")
-
-# SESSION 2: Developer uses registered models
-db_developer = kailash.DataFlow(
-    "postgresql://...",
-    auto_migrate=False,  # Don't modify existing schema
-)
-
-# Reconstruct from registry
-models = db_developer.reconstruct_models_from_registry()
-print(f"Available: {models['reconstructed_models']}")
-
-# Build workflow immediately
-builder = kailash.WorkflowBuilder()
-user_nodes = models['generated_nodes']['users']
-builder.add_node(user_nodes['list'], "users", {"limit": 20})
 ```
 
 ## Troubleshooting
 
-| Issue                  | Cause                             | Solution                                   |
-| ---------------------- | --------------------------------- | ------------------------------------------ |
-| "Table not found"      | auto_migrate=False without tables | Verify tables exist with discover_schema() |
-| "Permission denied"    | Readonly user trying to modify    | Correct - auto_migrate=False working       |
-| Models not available   | Not registered yet                | Call register_schema_as_models()           |
-| Schema discovery empty | Wrong database or no tables       | Check database_url                         |
+| Issue               | Cause                              | Solution                                  |
+| ------------------- | ---------------------------------- | ----------------------------------------- |
+| "Table not found"   | Model table doesn't exist          | Verify table name in __table__ matches DB |
+| "Permission denied" | Readonly user trying to write      | Use only List/Read nodes, not Create      |
+| "Column not found"  | Model field doesn't match DB       | Align model fields with actual columns    |
 
 ## Quick Tips
 
-- ALWAYS use auto_migrate=False for existing production databases
-- discover_schema() before register_schema_as_models()
-- Skip system tables (dataflow\_\*) when exploring
-- Models persist across sessions via registry
-- Perfect for legacy database integration
-- No @db.model needed - fully dynamic
+- Default `auto_migrate=False` prevents all schema changes
+- Use `@db.model` with `__table__` to match existing table names
+- `df.register_model()` generates 11 CRUD nodes per model
+- Use `kailash.ModelDefinition()` for programmatic model definition
+- Always use readonly database credentials for production access
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: existing database, discover schema, legacy database, register_schema_as_models, auto_migrate=False, production database, readonly database, dynamic models, schema discovery, connect existing -->
+<!-- Trigger Keywords: existing database, legacy database, auto_migrate=False, production database, readonly database, connect existing, ModelDefinition -->

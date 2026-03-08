@@ -149,7 +149,7 @@ def process_tool(input: str) -> dict:
 from kailash.nexus import NexusApp, NexusConfig
 
 # Nexus automatically creates MCP channel
-app = NexusApp(config=NexusConfig(port=8000, enable_mcp=True))
+app = NexusApp(config=NexusConfig(port=3000, enable_mcp=True))
 
 @app.handler(name="summarize", description="Summarize text")
 async def summarize(text: str) -> dict:

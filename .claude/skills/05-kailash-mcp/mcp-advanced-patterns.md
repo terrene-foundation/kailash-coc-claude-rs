@@ -1,6 +1,6 @@
 ---
 name: mcp-advanced-patterns
-description: "Advanced MCP patterns including multi-server config, JWT auth, service discovery, structured tools, and progress reporting. Use for 'advanced MCP', 'MCP discovery', 'MCP authentication', 'MCP registry'."
+description: "Advanced MCP patterns including multi-server config, authentication, tool execution, and progress reporting. Use for 'advanced MCP', 'MCP authentication', 'multi-server MCP'."
 ---
 
 # Advanced MCP Patterns
@@ -38,107 +38,104 @@ mcp_servers = [
 ]
 ```
 
-## JWT Authentication
+## MCP Server Authentication
+
+Use NexusAuthPlugin to secure your MCP server endpoint:
 
 ```python
+import os
 import kailash
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig
 
-jwt_auth = kailash.JWTAuth(
-    secret_key="your-secret-key",
-    algorithm="HS256"
+app = NexusApp()
+
+# Secure MCP endpoint with JWT auth
+auth = NexusAuthPlugin.basic_auth(
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
 )
+app.add_plugin(auth)
 
-server = kailash.MCPServer("jwt-server", auth_provider=jwt_auth)
-
-@server.tool(required_permission="admin")
+# Register MCP tools -- auth applies to all channels including MCP
+@app.handler(name="admin_operation", description="Admin-only operation")
 async def admin_operation(action: str) -> dict:
     return {"action": action, "status": "completed"}
 ```
 
-## Service Discovery Patterns
-
-### Registry-Based Discovery
+## MCP Tool Execution via LLMNode
 
 ```python
 import kailash
 
-registry = kailash.ServiceRegistry()
+builder = kailash.WorkflowBuilder()
 
-# Register server with capabilities
-await registry.register_server({
-    "id": "data-processor-001",
-    "name": "data-processor",
-    "transport": "stdio",
-    "endpoint": "python -m data_processor",
-    "capabilities": ["tools", "data_processing"],
-    "metadata": {"version": "1.0", "priority": 10}
+# LLMNode with MCP server access
+builder.add_node("LLMNode", "agent", {
+    "model": os.environ["LLM_MODEL"],
+    "prompt": "Search for Python tutorials",
+    "mcp_servers": [
+        {
+            "name": "search",
+            "transport": "stdio",
+            "command": "python",
+            "args": ["-m", "search_server"]
+        }
+    ]
 })
 
-# Discover by capability
-tools_servers = await registry.discover_servers(capability="tools")
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
 ```
 
-### Convenience Functions
+## Structured Tool Output
+
+Define tools with structured output schemas via Nexus handler parameters:
 
 ```python
 import kailash
+from kailash.nexus import NexusApp, HandlerParam
 
-# Auto-discover servers
-servers = await kailash.discover_mcp_servers(capability="tools")
+app = NexusApp()
 
-# Get client for specific capability
-client = await kailash.get_mcp_client("database")
-```
-
-## Structured Tools with Validation
-
-```python
-import kailash
-
-@kailash.structured_tool(
-    output_schema={
-        "type": "object",
-        "properties": {
-            "results": {"type": "array"},
-            "count": {"type": "integer"}
-        },
-        "required": ["results", "count"]
-    }
+# Define handler with explicit parameters
+app.register(
+    "search",
+    search_handler,
+    params=[
+        HandlerParam("query", required=True),
+        HandlerParam("limit", required=False),
+    ],
+    description="Search for items"
 )
-def search_tool(query: str) -> dict:
+
+async def search_handler(query: str, limit: int = 10) -> dict:
     return {"results": ["item1", "item2"], "count": 2}
-```
-
-## Resource Templates and Subscriptions
-
-```python
-import kailash
-
-template = kailash.ResourceTemplate(
-    uri_template="files://{path}",
-    name="File Access",
-    description="Access files by path"
-)
-
-# Subscribe to resource changes
-subscription = await template.subscribe(
-    uri="files://documents/report.pdf",
-    callback=lambda change: print(f"File changed: {change}")
-)
 ```
 
 ## Progress Reporting
 
+Track long-running operations through EventBus:
+
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
-progress = kailash.ProgressManager()
+app = NexusApp()
+bus = app.event_bus()
 
-# Long-running operation with progress
-token = progress.start_progress("processing", total=100)
-for i in range(100):
-    await progress.update_progress(token, progress=i, status=f"Step {i}")
-await progress.complete_progress(token)
+@app.handler(name="long_process", description="Long-running process")
+async def long_process(steps: int = 10) -> dict:
+    for i in range(steps):
+        bus.publish("progress", {
+            "step": i + 1,
+            "total": steps,
+            "percentage": (i + 1) * 100 // steps
+        })
+    return {"completed": True, "steps": steps}
+
+# Client subscribes to progress events
+bus.subscribe(lambda e: print(f"Progress: {e}") if e.get("type") == "progress" else None)
 ```
 
 ## MCP Execution Mode
@@ -165,10 +162,9 @@ builder.add_node("LLMNode", "agent", {
 ## Production Readiness Checklist
 
 - [ ] Real MCP execution enabled (default)
-- [ ] Proper authentication configured
-- [ ] Tool discovery enabled
-- [ ] Error handling implemented
-- [ ] Monitoring and metrics enabled
+- [ ] Authentication configured via NexusAuthPlugin
+- [ ] Error handling implemented in handlers
+- [ ] Monitoring via EventBus subscriptions
 - [ ] Transport configuration complete
 
-<!-- Trigger Keywords: advanced MCP, MCP discovery, MCP authentication, MCP registry, JWT MCP, multi-server MCP, structured tools, progress reporting, MCP subscription -->
+<!-- Trigger Keywords: advanced MCP, MCP authentication, multi-server MCP, structured tools, progress reporting, MCP tool execution -->

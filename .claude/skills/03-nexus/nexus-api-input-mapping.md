@@ -16,9 +16,9 @@ API Request: {"inputs": {"sector": "Tech", "limit": 10}}
      ↓
 Nexus receives as WorkflowRequest.inputs
      ↓
-Runtime executes: runtime.execute(workflow, parameters={...})
+Runtime executes: runtime.execute(workflow, inputs={...})
      ↓
-ALL nodes receive the FULL inputs dict as parameters
+ALL nodes receive the FULL inputs dict
      ↓
 EmbeddedPythonNode accesses via try/except pattern
 ```
@@ -29,10 +29,10 @@ EmbeddedPythonNode accesses via try/except pattern
 
 | API Layer           | Runtime Layer               | Node Layer              |
 | ------------------- | --------------------------- | ----------------------- |
-| `{"inputs": {...}}` | `parameters={...}`          | Variable access         |
-| Request body field  | Runtime execution parameter | Injected local variable |
+| `{"inputs": {...}}` | `inputs={...}`              | Variable access         |
+| Request body field  | Runtime execution input     | Injected local variable |
 
-**Important**: The API uses `"inputs"` for clarity, but internally it becomes `parameters` in the runtime.
+**Important**: Both the API and runtime use `inputs` as the parameter name.
 
 ### Broadcasting Behavior
 
@@ -173,7 +173,7 @@ app.start()
 
 ```bash
 # Example 1: Search Technology sector
-curl -X POST http://localhost:8000/workflows/contact_search/execute \
+curl -X POST http://localhost:3000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -183,7 +183,7 @@ curl -X POST http://localhost:8000/workflows/contact_search/execute \
   }'
 
 # Example 2: Search with geography
-curl -X POST http://localhost:8000/workflows/contact_search/execute \
+curl -X POST http://localhost:3000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -194,7 +194,7 @@ curl -X POST http://localhost:8000/workflows/contact_search/execute \
   }'
 
 # Example 3: No filters (get all)
-curl -X POST http://localhost:8000/workflows/contact_search/execute \
+curl -X POST http://localhost:3000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -329,14 +329,14 @@ logging.basicConfig(level=logging.DEBUG)
 ### Verify API Request
 
 ```bash
-curl -v -X POST http://localhost:8000/workflows/contact_search/execute \
+curl -v -X POST http://localhost:3000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"sector": "Technology"}}'
 ```
 
 ## Key Takeaways
 
-1. API `{"inputs": {...}}` → Runtime `parameters={...}` → Node variables
+1. API `{"inputs": {...}}` → Runtime `inputs={...}` → Node variables
 2. ALL nodes receive the FULL inputs dict (broadcast)
 3. Use try/except to access optional parameters in EmbeddedPythonNode
 4. Use explicit connections, NOT template syntax in node config

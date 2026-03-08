@@ -38,7 +38,7 @@ builder.add_node("DistributedTransactionManagerNode", "manager", {
 # Execute transaction with requirements
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), parameters={
+result = rt.execute(builder.build(reg), inputs={
     "manager": {
         "operation": "create_transaction",
         "requirements": {

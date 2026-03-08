@@ -30,7 +30,7 @@ Run through this checklist for any Kailash workflow code:
 - [ ] **Node suffix**: All nodes end with "Node" (CSVReader**Node**, LLMAgent**Node**)
 - [ ] **Snake_case methods**: `add_node()` NOT `addNode()`
 - [ ] **Snake_case config**: `file_path` NOT `filePath`
-- [ ] **Parameter name**: `parameters={}` NOT `inputs={}` or `config={}`
+- [ ] **Parameter name**: `inputs={}` NOT `parameters={}` or `config={}`
 - [ ] **Node ID uniqueness**: Each node has unique ID in workflow
 
 ## Validation Examples
@@ -89,7 +89,7 @@ result = rt.execute(workflow)  # ❌ Missing .build(reg)
 ```python
 # ✅ VALID
 rt.execute(builder.build(reg))
-rt.execute(builder.build(reg), parameters={...})
+rt.execute(builder.build(reg), inputs={...})
 
 # ❌ INVALID
 workflow.execute(runtime)

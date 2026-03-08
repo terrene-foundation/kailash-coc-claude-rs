@@ -206,7 +206,7 @@ ENV RUNTIME_TYPE=async
 
 # Health check using python (curl not available on slim images)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
 
 # Never bake secrets into the image
 # Pass .env at runtime: docker run --env-file .env my-app
@@ -218,7 +218,7 @@ CMD ["python", "-m", "my_kailash_app"]
 docker build -t my-app:v1.3.0 .
 
 # Run with environment variables
-docker run --env-file .env -p 8000:8000 my-app:v1.3.0
+docker run --env-file .env -p 3000:3000 my-app:v1.3.0
 
 # Verify kailash import works inside container
 docker run --rm my-app:v1.3.0 python -c "import kailash; print(kailash.NodeRegistry().list_types())"

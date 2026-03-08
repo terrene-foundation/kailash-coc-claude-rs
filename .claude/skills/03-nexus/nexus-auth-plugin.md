@@ -31,7 +31,7 @@ from kailash import JwtConfig, RbacConfig
 
 ```python
 auth = NexusAuthPlugin.basic_auth(
-    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # Must be >= 32 chars for HS256
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),  # Must be >= 32 chars for HS256
     audit=AuditConfig(backend="logging"),  # Optional, defaults to logging
 )
 app = NexusApp()
@@ -42,7 +42,7 @@ app.add_plugin(auth)
 
 ```python
 auth = NexusAuthPlugin.saas_app(
-    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac={
         "admin": ["*"],
         "user": ["read:*", "write:own"],
@@ -60,7 +60,7 @@ auth = NexusAuthPlugin.saas_app(
 ```python
 auth = NexusAuthPlugin.enterprise(
     jwt=JwtConfig(
-        secret=os.environ["JWT_SECRET"],  # >= 32 chars
+        secret_key=os.environ["JWT_SECRET"],  # >= 32 chars
         issuer="https://your-domain.com",
         audience="your-api",
     ),
@@ -90,7 +90,7 @@ from kailash import JwtConfig
 
 # Symmetric (HS256) - secret MUST be >= 32 chars
 jwt = JwtConfig(
-    secret=os.environ["JWT_SECRET"],   # REQUIRED for HS*; >= 32 chars or ValueError
+    secret_key=os.environ["JWT_SECRET"],   # REQUIRED for HS*; >= 32 chars or ValueError
     algorithm="HS256",                  # Default
     exempt_paths=["/health", "/docs", "/auth/login"],
     verify_exp=True,
@@ -252,11 +252,11 @@ Response <- Audit <- RateLimit <- JWT <- Tenant <- RBAC <- Handler
 
 ### Parameter Name Mismatches
 
-| Wrong           | Correct        | Component    |
-| --------------- | -------------- | ------------ |
-| `secret_key`    | `secret`       | JwtConfig    |
-| `exclude_paths` | `exempt_paths` | JwtConfig    |
-| `admin_roles`   | `admin_role`   | TenantConfig |
+| Wrong           | Correct          | Component    |
+| --------------- | ---------------- | ------------ |
+| `secret`        | `secret_key`     | JwtConfig    |
+| `exclude_paths` | `exempt_paths`   | JwtConfig    |
+| `admin_roles`   | `admin_role`     | TenantConfig |
 
 ### PEP 563 and Annotations
 
@@ -275,7 +275,7 @@ auth = NexusAuthPlugin(
 
 # Correct:
 auth = NexusAuthPlugin(
-    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),  # >= 32 chars
     rbac={"admin": ["*"]},
 )
 ```
