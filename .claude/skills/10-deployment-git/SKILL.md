@@ -111,12 +111,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
+# Non-root user for security
+RUN useradd --create-home appuser
+USER appuser
+
 # Use kailash.Runtime for Docker
 ENV RUNTIME_TYPE=async
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:8000/health || exit 1
+# Health check using python (curl not available on slim images)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Run with Nexus
 CMD ["python", "-m", "app.main"]
@@ -125,14 +129,13 @@ CMD ["python", "-m", "app.main"]
 ### Docker Compose
 
 ```yaml
-version: "3.8"
 services:
   nexus:
     build: .
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - RUNTIME_TYPE=async
     depends_on:
       - db
@@ -140,7 +143,9 @@ services:
   db:
     image: postgres:15
     environment:
-      - POSTGRES_PASSWORD=pass
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

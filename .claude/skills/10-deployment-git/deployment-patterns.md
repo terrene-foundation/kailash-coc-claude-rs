@@ -13,8 +13,6 @@ description: "Docker and Kubernetes deployment patterns for containerized applic
 ## Docker Compose Service Architecture
 
 ```yaml
-version: '3.8'
-
 services:
   # Backend API Service
   backend:
@@ -47,13 +45,19 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
+          cpus: "4"
           memory: 8G
         reservations:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,7 +89,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 4G
 
   # Redis Cache
@@ -125,7 +129,7 @@ networks:
     driver: bridge
   app_backend:
     driver: bridge
-    internal: true  # No external access for security
+    internal: true # No external access for security
 ```
 
 ## Environment Configuration Template
@@ -231,43 +235,45 @@ spec:
         app: backend
     spec:
       containers:
-      - name: backend
-        image: your-registry/backend:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: database-url
-        - name: JWT_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: jwt-secret
-        envFrom:
-        - configMapRef:
-            name: app-config
-        resources:
-          requests:
-            cpu: 500m
-            memory: 1Gi
-          limits:
-            cpu: 2000m
-            memory: 4Gi
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
-          initialDelaySeconds: 10
-          periodSeconds: 5
+        - name: backend
+          image: your-registry/backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: RUNTIME_TYPE
+              value: "async"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: database-url
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: jwt-secret
+          envFrom:
+            - configMapRef:
+                name: app-config
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
@@ -277,9 +283,9 @@ spec:
   selector:
     app: backend
   ports:
-  - protocol: TCP
-    port: 8000
-    targetPort: 8000
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
   type: ClusterIP
 ```
 
@@ -302,39 +308,39 @@ spec:
         app: postgres
     spec:
       containers:
-      - name: postgres
-        image: postgres:15-alpine
-        ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_DB
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: POSTGRES_DB
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: postgres-password
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: postgres-password
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            cpu: 500m
-            memory: 2Gi
-          limits:
-            cpu: 2000m
-            memory: 4Gi
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 50Gi
+            storage: 50Gi
 ```
 
 ### Horizontal Pod Autoscaler
@@ -352,18 +358,18 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
 ```
 
 ### ConfigMap and Secrets
@@ -380,13 +386,18 @@ data:
   POSTGRES_DB: "app_db"
 ---
 # Secrets (sensitive data)
+# EXAMPLE ONLY — never commit real credentials to version control.
+# In production use: kubectl create secret generic app-secrets \
+#   --from-literal=database-url="postgresql://..." \
+#   --from-literal=jwt-secret="$(openssl rand -hex 32)"
 apiVersion: v1
 kind: Secret
 metadata:
   name: app-secrets
 type: Opaque
 data:
-  # Base64-encoded values
+  # EXAMPLE ONLY — base64-encoded placeholder values
+  # Generate real values with: echo -n "real-value" | base64
   database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bwb3N0Z3Jlczo1NDMyL2RiCg==
   jwt-secret: Y2hhbmdlX3RoaXNfdG9fc2VjdXJlX2tleQo=
 ```
@@ -428,8 +439,9 @@ kubectl create namespace production
 
 # 2. Create secrets
 kubectl create secret generic app-secrets \
-  --from-literal=database-url="postgresql://user:pass@postgres:5432/db" \
+  --from-literal=database-url="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
   --from-literal=jwt-secret="$(openssl rand -hex 32)" \
+  --from-literal=postgres-password="${POSTGRES_PASSWORD}" \
   --namespace=production
 
 # 3. Create ConfigMap
@@ -489,11 +501,17 @@ def readiness_check():
 
 ```yaml
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-  interval: 30s      # Check every 30 seconds
-  timeout: 10s       # Wait 10 seconds for response
-  retries: 3         # Retry 3 times before marking unhealthy
-  start_period: 40s  # Wait 40 seconds before starting checks
+  test:
+    [
+      "CMD",
+      "python",
+      "-c",
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+    ]
+  interval: 30s # Check every 30 seconds
+  timeout: 10s # Wait 10 seconds for response
+  retries: 3 # Retry 3 times before marking unhealthy
+  start_period: 40s # Wait 40 seconds before starting checks
 ```
 
 ### Kubernetes Probes

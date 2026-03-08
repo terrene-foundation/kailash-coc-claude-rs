@@ -115,13 +115,16 @@ Maintain a `CHANGELOG.md` at your project root:
 ## [1.3.0] - 2026-03-15
 
 ### Added
+
 - New data enrichment workflow with RAG pipeline
 - Health check endpoint at /api/health
 
 ### Changed
+
 - Upgraded kailash-enterprise from 0.14.0 to 0.15.0
 
 ### Fixed
+
 - Timeout handling in LLM node retry logic
 ```
 
@@ -193,6 +196,17 @@ COPY pyproject.toml .
 
 # Install the application
 RUN pip install --no-cache-dir .
+
+# Non-root user for security
+RUN useradd --create-home appuser
+USER appuser
+
+# Use async runtime (Docker-optimized)
+ENV RUNTIME_TYPE=async
+
+# Health check using python (curl not available on slim images)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Never bake secrets into the image
 # Pass .env at runtime: docker run --env-file .env my-app
@@ -357,14 +371,17 @@ git push -u origin feat/add-rag-pipeline
 
 ```markdown
 ## Summary
+
 [Brief description of changes and why they are needed]
 
 ## Changes Made
+
 - [ ] Feature implementation completed
 - [ ] Tests added/updated
 - [ ] Documentation updated
 
 ## Testing
+
 - [ ] pytest passes
 - [ ] ruff check clean
 - [ ] ruff format clean
@@ -372,6 +389,7 @@ git push -u origin feat/add-rag-pipeline
 - [ ] Docker build succeeds
 
 ## Breaking Changes
+
 - [ ] None
 - [ ] [Describe any breaking changes]
 ```

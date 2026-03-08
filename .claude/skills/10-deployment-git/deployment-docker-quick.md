@@ -23,10 +23,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
+# Non-root user for security
+RUN useradd --create-home appuser
+USER appuser
+
+# Use async runtime (Docker-optimized)
+ENV RUNTIME_TYPE=async
+
 # Expose API port
 EXPOSE 8000
 
-# Run with async runtime (Docker-optimized)
+# Health check using python (curl not available on slim images)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Run with async runtime
 CMD ["python", "app.py"]
 ```
 
@@ -40,7 +51,7 @@ import os
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
     "prompt": "{{input.message}}"
 })
 
@@ -54,7 +65,7 @@ def handle_chat(message: str):
     builder = kailash.WorkflowBuilder()
     builder.add_node("LLMNode", "chat", {
         "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+        "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
         "prompt": message
     })
     reg = kailash.NodeRegistry()
@@ -74,6 +85,7 @@ docker build -t my-kailash-app .
 # Run container
 docker run -p 8000:8000 \
   -e OPENAI_API_KEY=${OPENAI_API_KEY} \
+  -e DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL} \
   my-kailash-app
 
 # Access API
@@ -83,8 +95,6 @@ curl http://localhost:8000/health
 ## Docker Compose
 
 ```yaml
-version: "3.8"
-
 services:
   app:
     build: .
@@ -92,16 +102,18 @@ services:
       - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - RUNTIME_TYPE=async
     depends_on:
       - db
 
   db:
     image: postgres:15
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-      - POSTGRES_DB=mydb
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
