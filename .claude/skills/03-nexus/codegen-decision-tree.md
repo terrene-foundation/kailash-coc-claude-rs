@@ -231,8 +231,10 @@ async def get_user(user_id: str) -> dict:
 **RIGHT**:
 
 ```python
+from kailash.dataflow import db
+
 # DO: Create at module level, reuse across requests
-db = kailash.DataFlow("postgresql://...")
+df = kailash.DataFlow("postgresql://...")
 
 @db.model
 class User:
@@ -241,7 +243,7 @@ class User:
 
 @app.handler("get_user")
 async def get_user(user_id: str) -> dict:
-    # Reuse module-level db instance
+    # Reuse module-level df instance
     builder = kailash.WorkflowBuilder()
     builder.add_node("ReadUser", "read", {"id": user_id})
     # ...
@@ -309,10 +311,12 @@ def test_create_user(mock_db):
 **RIGHT**:
 
 ```python
+from kailash.dataflow import db
+
 # DO: Use real database in integration tests
 @pytest.fixture
 def real_db():
-    db = kailash.DataFlow("sqlite:///:memory:")  # Real SQLite
+    df = kailash.DataFlow("sqlite:///:memory:")  # Real SQLite
 
     @db.model
     class User:
@@ -320,8 +324,8 @@ def real_db():
         name: str
         email: str
 
-    yield db
-    db.close()
+    yield df
+    df.close()
 
 def test_create_user(real_db):
     builder = kailash.WorkflowBuilder()
@@ -391,6 +395,7 @@ import os
 import uuid
 
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
@@ -498,7 +503,7 @@ async def list_contacts(
 
     result = rt.execute(builder.build(reg))
     return {
-        "contacts": result["results"]["list"]["items"],
+        "contacts": result["results"]["list"]["records"],
         "total": result["results"]["list"]["total"]
     }
 
@@ -678,6 +683,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
@@ -720,13 +726,13 @@ audit_df = kailash.DataFlow(
 # Models
 # ============================================================================
 
-@primary_db.model
+@db.model
 class Organization:
     id: str
     name: str
     plan: str = "free"
 
-@primary_db.model
+@db.model
 class User:
     id: str
     email: str
@@ -734,7 +740,7 @@ class User:
     role: str = "member"
     org_id: str
 
-@primary_db.model
+@db.model
 class Project:
     id: str
     name: str
@@ -743,7 +749,7 @@ class Project:
     created_by: str
     status: str = "active"
 
-@analytics_db.model
+@db.model
 class PageView:
     id: str
     user_id: str
@@ -751,7 +757,7 @@ class PageView:
     page: str
     timestamp: datetime
 
-@audit_db.model
+@db.model
 class AuditLog:
     id: str
     org_id: str
@@ -815,7 +821,7 @@ async def list_projects(
         "order_by": ["-created_at"]
     })
     result = rt.execute(builder.build(reg))
-    return {"projects": result["results"]["list"]["items"], "total": result["results"]["list"]["total"]}
+    return {"projects": result["results"]["list"]["records"], "total": result["results"]["list"]["total"]}
 
 @app.handler("get_analytics", description="Get usage analytics")
 async def get_analytics(
@@ -839,9 +845,9 @@ async def health_check() -> dict:
 # ============================================================================
 
 async def initialize_databases():
-    await primary_db.create_tables_async()
-    await analytics_db.create_tables_async()
-    await audit_db.create_tables_async()
+    await primary_df.create_tables_async()
+    await analytics_df.create_tables_async()
+    await audit_df.create_tables_async()
 
 if __name__ == "__main__":
     import asyncio

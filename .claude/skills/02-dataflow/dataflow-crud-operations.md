@@ -600,6 +600,7 @@ Use `dataflow-specialist` subagent when:
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 

@@ -79,7 +79,7 @@ result = rt.execute(wf, {
     "name": "Alice",
     "email": "alice@example.com",
 })
-created = result["results"]["create"]
+created = result["results"]["create"]["record"]
 ```
 
 ## Python Decorator Approach (@db.model)

@@ -49,7 +49,7 @@ result = rt.execute(builder.build(reg), {
     "name": "Alice",
     "email": "alice@example.com"
 })
-user = result["results"]["create_user"]
+user = result["results"]["create_user"]["record"]
 ```
 
 ### Python Decorator Approach
@@ -151,7 +151,7 @@ async def create_user(name: str) -> dict:
     builder.add_node("CreateUser", "create", {})
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg), {"name": name})
-    return result["results"]["create"]
+    return result["results"]["create"]["record"]
 
 app.start()
 ```

@@ -53,6 +53,7 @@ builder.add_node("BulkUpsertProduct", "sync", {
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 

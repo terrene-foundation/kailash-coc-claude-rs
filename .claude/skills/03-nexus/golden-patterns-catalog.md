@@ -32,6 +32,7 @@ Register async functions as multi-channel endpoints (API + CLI + MCP) with a sin
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 import os
@@ -92,6 +93,7 @@ Define Python classes with `@db.model` to auto-generate 11 CRUD workflow nodes.
 
 ```python
 import kailash
+from kailash.dataflow import db
 from typing import Optional
 from datetime import datetime
 
@@ -139,6 +141,7 @@ Wire DataFlow operations to Nexus endpoints with CRITICAL configuration to preve
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 import uuid
@@ -184,7 +187,7 @@ async def list_contacts(company_id: str, limit: int = 20) -> dict:
 
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
-    return {"contacts": result["results"]["list"]["items"]}
+    return {"contacts": result["results"]["list"]["records"]}
 
 app.start()
 ```
@@ -338,21 +341,23 @@ logs_df = kailash.DataFlow(
     echo=False  # Disable SQL logging for performance
 )
 
-# Models are scoped to their database instance
-@users_db.model
+# @db.model comes from the module-level namespace, NOT from DataFlow instances
+from kailash.dataflow import db
+
+@db.model
 class User:
     id: str
     email: str
     name: str
 
-@analytics_db.model
+@db.model
 class PageView:
     id: str
     user_id: str
     page: str
     timestamp: datetime
 
-@logs_db.model
+@db.model
 class AuditLog:
     id: str
     action: str
@@ -362,15 +367,15 @@ class AuditLog:
 
 # Initialize all databases at startup
 async def initialize_databases():
-    await users_db.create_tables_async()
-    await analytics_db.create_tables_async()
-    await logs_db.create_tables_async()
+    await users_df.create_tables_async()
+    await analytics_df.create_tables_async()
+    await logs_df.create_tables_async()
 ```
 
 ### Common Mistakes
 
 - One DataFlow for all databases -- loses connection pool optimization per workload.
-- Sharing models across instances -- models are bound to their `@db.model` decorator's instance.
+- Sharing models across instances -- use `@db.model` from `kailash.dataflow`, not from DataFlow instances.
 - Forgetting initialization order -- initialize in dependency order (users before logs).
 
 ---
