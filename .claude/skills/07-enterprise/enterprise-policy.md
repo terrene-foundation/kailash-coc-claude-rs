@@ -47,7 +47,7 @@ result = pe.evaluate("admin_access", {
     "action": "read",
     "resource": "documents/report.pdf",
 })
-# result: "allow" or "deny"
+# result: "allow" (string) or {"deny": "reason string"} (dict)
 ```
 
 ## Policy Definition
@@ -174,7 +174,7 @@ result = pe.evaluate("admin_read", {
     "action": "read",
     "resource": "documents/report.pdf",
 })
-# result: "allow" or "deny"
+# result: "allow" (string) or {"deny": "reason string"} (dict)
 ```
 
 ### Evaluate All Policies

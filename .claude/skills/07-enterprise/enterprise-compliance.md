@@ -81,7 +81,7 @@ cm.set_context({
     "encryption_in_transit": True,
     "audit_logging_enabled": True,
     "access_control_enabled": True,
-    "monitoring_enabled": True,
+    "change_management_enabled": True,
 })
 
 result = cm.evaluate("soc2")
@@ -98,7 +98,7 @@ cm.set_context({
     "encryption_in_transit": True,
     "audit_logging_enabled": True,
     "access_control_enabled": True,
-    "data_backup_enabled": True,
+    "phi_access_controls": True,
 })
 
 result = cm.evaluate("hipaa")
@@ -250,8 +250,8 @@ def run_compliance_audit():
         "access_control_enabled": os.getenv("ACCESS_CONTROL", "false").lower() == "true",
         "consent_tracking_enabled": os.getenv("CONSENT_TRACKING", "false").lower() == "true",
         "data_deletion_capable": os.getenv("DATA_DELETION", "false").lower() == "true",
-        "monitoring_enabled": os.getenv("MONITORING", "false").lower() == "true",
-        "data_backup_enabled": os.getenv("DATA_BACKUP", "false").lower() == "true",
+        "change_management_enabled": os.getenv("CHANGE_MGMT", "false").lower() == "true",
+        "incident_response_configured": os.getenv("INCIDENT_RESPONSE", "false").lower() == "true",
     })
 
     results = cm.evaluate_all()

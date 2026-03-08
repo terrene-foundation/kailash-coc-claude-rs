@@ -15,7 +15,7 @@ cp = ControlProtocol()
 | Method                     | Description                                  |
 | -------------------------- | -------------------------------------------- |
 | `ask_user(question)`       | Prompt user via stdin, returns response      |
-| `request_approval(action)` | Ask user to approve action, returns response |
+| `request_approval(action)` | Ask user to approve action, returns `bool` |
 | `history`                  | Property: list of past interactions          |
 
 ## Usage
@@ -29,9 +29,8 @@ cp = ControlProtocol()
 answer = cp.ask_user("What database should I use?")
 print(f"User said: {answer}")
 
-# Request approval before dangerous action
-approval = cp.request_approval("Delete all records from users table")
-if approval.lower() in ("yes", "y", "approve"):
+# Request approval before dangerous action (returns bool)
+if cp.request_approval("Delete all records from users table"):
     # proceed with action
     pass
 
