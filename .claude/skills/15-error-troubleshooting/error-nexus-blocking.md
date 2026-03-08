@@ -83,26 +83,31 @@ app.start()
 
 ## Why This Happens
 
-1. `auto_discovery=True` → Nexus scans Python files
-2. Importing DataFlow models → Triggers workflow execution
-3. Each model registration → Runs `Runtime.execute()` synchronously
-4. Creates blocking loop → Prevents server startup
+NexusApp has **no `auto_discovery` parameter** — workflows are always registered manually via `app.register()`. Slow startup is typically caused by:
 
-## What You Keep
+1. DataFlow model registration triggering synchronous schema checks
+2. Multiple models each running migration checks at startup
+3. Network latency to the database during initialization
 
-With `auto_discovery=False` + DataFlow defaults:
+## What You Get
+
+With properly configured NexusApp + DataFlow:
 
 - All CRUD operations (11 nodes per model)
-- Connection pooling, caching, metrics
+- Connection pooling via DataFlowConfig
 - All Nexus channels (API, CLI, MCP)
 - Automatic schema migration (DataFlow handles table creation automatically)
 - Fast startup
 
-## What You Lose
+## Manual Workflow Registration
 
-With `auto_discovery=False`:
+NexusApp always requires manual workflow registration — there is no auto-discovery:
 
-- Auto-discovery of workflows (must register manually with `app.register()`)
+```python
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("my_workflow", lambda **inputs: rt.execute(workflow, inputs))
+```
 
 ## Related Patterns
 

@@ -21,23 +21,27 @@ The schema cache is a thread-safe table existence cache that eliminates redundan
 
 ## Configuration
 
+SchemaCache is a **separate class**, NOT a DataFlow constructor parameter.
+
 ```python
 import kailash
+from kailash.dataflow import SchemaCache
 
-# Default (cache enabled, no TTL)
+# DataFlow has no schema_cache_* constructor params
 df = kailash.DataFlow("postgresql://...")
 
-# Custom configuration
-df = kailash.DataFlow(
-    "postgresql://...",
-    schema_cache_enabled=True,      # Enable/disable cache
-    schema_cache_ttl=300,            # TTL in seconds (None = no expiration)
-    schema_cache_max_size=10000,    # Max cached tables
-    schema_cache_validation=False,  # Schema checksum validation
-)
+# Create a SchemaCache separately
+cache = SchemaCache()              # No TTL (never expires)
+cache = SchemaCache(ttl_secs=300)  # TTL in seconds
 
-# Disable cache (for debugging)
-df = kailash.DataFlow("postgresql://...", schema_cache_enabled=False)
+# Use cache for schema introspection
+tables = cache.get_tables(df)             # First call: fetches from DB
+tables = cache.get_tables(df)             # Second call: returns cached
+columns = cache.get_columns(df, "users")  # Column metadata
+indexes = cache.get_indexes(df, "users")  # Index metadata
+
+# Invalidate cache
+cache.invalidate()
 ```
 
 ## Automatic Usage
@@ -75,16 +79,20 @@ result2 = rt.execute(workflow2.build(reg))  # 99% faster!
 ## Cache Methods (Advanced)
 
 ```python
-# Clear all cache entries
-db._schema_cache.clear()
+from kailash.dataflow import SchemaCache
 
-# Get cache performance statistics
-metrics = db._schema_cache.get_metrics()
-print(f"Hits: {metrics['hits']}")
-print(f"Misses: {metrics['misses']}")
-print(f"Hit rate: {metrics['hit_rate']:.2%}")
-print(f"Cached tables: {metrics['cached_tables']}")
+cache = SchemaCache(ttl_secs=300)
+
+# Query cached data
+tables = cache.get_tables(df)
+columns = cache.get_columns(df, "users")
+indexes = cache.get_indexes(df, "users")
+
+# Clear all cached entries
+cache.invalidate()
 ```
+
+> **Note**: DataFlow does NOT have a `_schema_cache` attribute. SchemaCache is a standalone object you create and manage separately.
 
 ## Thread Safety
 

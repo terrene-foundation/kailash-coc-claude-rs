@@ -22,9 +22,9 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
    - Priority: HIGH
    - Cross-channel sessions, state persistence
 
-5. **nexus-dataflow-integration** - CRITICAL blocking fix configuration
+5. **nexus-dataflow-integration** - DataFlow + Nexus integration patterns
    - Priority: CRITICAL
-   - auto_discovery=False, auto_migrate=True (default), performance optimization
+   - Manual workflow registration, auto_migrate=True (default), performance optimization
 
 ### Channel-Specific (6 Skills - HIGH)
 
@@ -107,11 +107,11 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
 - Broadcasting behavior explained
 - Common pitfalls with solutions
 
-### 2. DataFlow Blocking Fix (Lines 320-386 from nexus-specialist)
+### 2. DataFlow Integration (Manual Workflow Registration)
 
-- auto_discovery=False configuration
+- NexusApp has no auto_discovery param — register workflows manually
 - auto_migrate=True (default, works in Docker)
-- Performance comparison (30s → <2s)
+- Performance comparison (30s → <2s with proper config)
 - Trade-off analysis
 
 ### 3. Zero-Config Pattern

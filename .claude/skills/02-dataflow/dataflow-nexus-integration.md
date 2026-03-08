@@ -99,7 +99,7 @@ db = kailash.DataFlow("postgresql://...", config=config, auto_migrate=True)
 **DataFlow constructor parameters**: `database_url`, `config` (DataFlowConfig), `auto_migrate`
 **DataFlowConfig parameters**: `database_url`, `max_connections`, `min_connections`, `connect_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `auto_migrate`
 
-> **Note**: `test_mode` is a pure Python SDK feature, not available in the Rust binding. Use `:memory:` SQLite for testing instead.
+> **Note**: `test_mode` is available on both `DataFlow(url, test_mode=True)` and `DataFlowConfig(url, test_mode=True)`. For quick test setup, use `DataFlowConfig.test()` which returns in-memory SQLite with auto_migrate and test_mode enabled.
 
 ## Common Mistakes
 

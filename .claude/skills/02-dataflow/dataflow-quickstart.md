@@ -96,8 +96,12 @@ class User:
 # Filter builder
 users = F("name") == "Alice"  # Creates FilterCondition
 
-with with_tenant(df, "tenant-123") as scoped_interceptor:
-    pass  # All queries inside are tenant-scoped
+from kailash import QueryInterceptor, TenantContext
+ctx = TenantContext("default")
+interceptor = QueryInterceptor(ctx)
+
+with with_tenant(interceptor, "tenant-123") as scoped:
+    pass  # All queries via scoped interceptor are tenant-filtered
 ```
 
 ## FilterCondition

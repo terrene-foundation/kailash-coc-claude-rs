@@ -58,8 +58,8 @@ print(app.get_registered_handlers())
 **Solution**:
 
 ```python
-# Disable auto_discovery when using DataFlow
-app = NexusApp()  # Register workflows manually
+# NexusApp has no auto_discovery param — register workflows manually
+app = NexusApp()
 
 # auto_migrate=True (default) works in Docker
 db = kailash.DataFlow("postgresql://...")

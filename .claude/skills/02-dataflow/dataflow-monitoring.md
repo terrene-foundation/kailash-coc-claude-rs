@@ -11,22 +11,21 @@ description: "DataFlow monitoring and metrics. Use when asking 'dataflow monitor
 
 ## Enable Monitoring
 
+DataFlow does NOT have `configure()` or `get_metrics()` methods. Monitoring is achieved through workflow-level patterns and DX tools.
+
 ```python
 import kailash
+from kailash.dataflow import LoggingConfig, SchemaCache
 
 df = kailash.DataFlow("postgresql://localhost/app")
 
-# Enable query logging
-df.configure(
-    echo_sql=True,  # Log all SQL queries
-    track_metrics=True  # Track operation metrics
-)
+# Enable query logging via LoggingConfig
+logging = LoggingConfig(log_queries=True, log_slow_threshold_ms=100)
 
-# Access metrics
-metrics = df.get_metrics()
-print(f"Total queries: {metrics['query_count']}")
-print(f"Avg query time: {metrics['avg_query_ms']}ms")
-print(f"Failed operations: {metrics['error_count']}")
+# Schema cache for introspection performance
+cache = SchemaCache(ttl_secs=300)
+tables = cache.get_tables(df)
+columns = cache.get_columns(df, "users")
 ```
 
 ## Query Performance Monitoring

@@ -112,10 +112,7 @@ Auth is configured via `NexusAuthPlugin` constructor.
 ## Environment Variables
 
 ```bash
-# Environment (Controls security auto-enable)
-export NEXUS_ENV=production          # Auto-enables authentication (P0-1)
-                                      # development = default, no auto-enable
-                                      # production = auto-enables auth
+# NOTE: NEXUS_ENV is NOT a supported env var. Auth must be configured via NexusAuthPlugin.
 
 # Server
 export NEXUS_API_PORT=3000
@@ -270,15 +267,13 @@ if validate_config(config):
 
 Nexus includes production-safe security defaults:
 
-**P0-1: Environment-Aware Authentication**
+**P0-1: Authentication via NexusAuthPlugin**
 
 ```python
-# Production mode (auto-enables auth)
-export NEXUS_ENV=production
-app = NexusApp()  # enable_auth automatically set to True
-
-# Explicit override (logs critical warning in production)
-app = NexusApp()  # WARNING: No auth plugin
+# Auth must be configured explicitly (NEXUS_ENV does not exist)
+from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
+app = NexusApp()
+auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
 # ⚠️  SECURITY WARNING: Authentication is DISABLED in production environment!
 ```
 
@@ -293,14 +288,13 @@ app = NexusApp()  # No rate limit
 # ⚠️  SECURITY WARNING: Rate limiting is DISABLED!
 ```
 
-**P0-3: Auto-Discovery Default Changed**
+**P0-3: No Auto-Discovery**
 
 ```python
-# Fast startup (no blocking)
-app = NexusApp()  # auto_discovery=False by default
-
-# Enable if needed (adds 5-10s startup delay with DataFlow)
-app = NexusApp()  # auto_discovery not a NexusApp param
+# NexusApp has no auto_discovery parameter
+# Workflows must always be registered manually
+app = NexusApp()
+app.register("my_workflow", my_callable)
 ```
 
 **P0-5: Unified Input Validation**

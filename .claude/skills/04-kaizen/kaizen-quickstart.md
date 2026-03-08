@@ -99,7 +99,7 @@ agent.register_tool(
     "search_web",
     lambda args: {"results": f"Results for: {args['query']}"},
     "Search the web for information",
-    {"query": "string"},
+    [{"name": "query", "param_type": "string", "required": True}],
 )
 
 result = agent.run("What is the latest news about Rust?")
@@ -179,6 +179,6 @@ print(f"Over budget: {tracker.is_over_budget()}")
 | `WorkerAgent`     | `from kailash.kaizen import WorkerAgent`           | `run()`, `accept_task()`, `status`          |
 | `SupervisorAgent` | `from kailash.kaizen import SupervisorAgent`       | `add_worker()`, `run()`                     |
 
-**Tool registration**: Use `agent.register_tool(name, func, description, params_dict)` -- `tool_registry` is read-only.
+**Tool registration**: Use `agent.register_tool(name, func, description, params)` -- `params` is `list[dict]` with keys: `name`, `param_type`, `description`, `required`. `tool_registry` is read-only.
 
 <!-- Trigger Keywords: kaizen quickstart, getting started, first agent, hello world, agent basics -->

@@ -109,37 +109,33 @@ builder.add_node("ListUser", "names_only", {
 
 ### 6. Schema Cache
 
-Thread-safe table existence cache eliminating redundant migration checks, providing 91-99% performance improvement for multi-operation workflows.
+Thread-safe schema introspection cache. SchemaCache is a **separate class**, NOT a DataFlow constructor parameter.
 
 ```python
 import kailash
+from kailash.dataflow import SchemaCache
 
-# Default (cache enabled, no TTL)
 df = kailash.DataFlow("postgresql://...")
 
-# Custom configuration
-df = kailash.DataFlow(
-    "postgresql://...",
-    schema_cache_enabled=True,      # Enable/disable cache
-    schema_cache_ttl=300,            # TTL in seconds (None = no expiration)
-    schema_cache_max_size=10000,    # Max cached tables
-    schema_cache_validation=False,  # Schema checksum validation
-)
+# Create SchemaCache separately
+cache = SchemaCache()              # No TTL (never expires)
+cache = SchemaCache(ttl_secs=300)  # 5-minute TTL
 
 # Performance Impact
-# First operation: ~1500ms (cache miss with migration check)
-# Subsequent operations: ~1ms (cache hit) - 99% faster!
+# First call: fetches from DB
+tables = cache.get_tables(df)
+# Subsequent calls: returns cached (instant)
+tables = cache.get_tables(df)
 
-# Cache Management
-metrics = df._schema_cache.get_metrics()
-print(f"Hit rate: {metrics['hit_rate']:.2%}")  # Should be >90%
+# Column and index introspection
+columns = cache.get_columns(df, "users")
+indexes = cache.get_indexes(df, "users")
 
 # Clear cache
-df._schema_cache.clear()
-
-# Clear specific table
-df._schema_cache.clear_table("User", database_url)
+cache.invalidate()
 ```
+
+> **Note**: DataFlow has NO `_schema_cache` attribute and NO `schema_cache_*` constructor params. SchemaCache is a standalone object.
 
 **When to Clear Cache:**
 

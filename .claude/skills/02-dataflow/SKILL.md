@@ -68,9 +68,13 @@ class User:
 # Filter builder
 users = F("name") == "Alice"  # Creates FilterCondition
 
-# Multi-tenancy
-with with_tenant(df, "tenant-123") as scoped_interceptor:
-    pass  # All queries inside are tenant-scoped
+# Multi-tenancy — with_tenant takes a QueryInterceptor, not DataFlow
+from kailash import QueryInterceptor, TenantContext
+ctx = TenantContext("default")
+interceptor = QueryInterceptor(ctx)
+
+with with_tenant(interceptor, "tenant-123") as scoped:
+    pass  # All queries via scoped interceptor are tenant-filtered
 ```
 
 ## Generated Nodes (11 per model)

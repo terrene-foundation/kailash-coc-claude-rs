@@ -165,10 +165,16 @@ class User:
     name: str
     email: str
 
-users = db.query("User", F("name") == "Alice")
+# Filter builder
+users = F("name") == "Alice"  # Creates FilterCondition
 
-with with_tenant("tenant-123"):
-    users = db.query("User")
+# Multi-tenancy — with_tenant takes a QueryInterceptor, not DataFlow
+from kailash import QueryInterceptor, TenantContext
+ctx = TenantContext("default")
+interceptor = QueryInterceptor(ctx)
+
+with with_tenant(interceptor, "tenant-123") as scoped:
+    pass  # All queries via scoped interceptor are tenant-filtered
 ```
 
 ---

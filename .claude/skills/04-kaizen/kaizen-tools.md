@@ -158,7 +158,7 @@ agent.register_tool(
     "search",
     lambda args: f"Results for: {args['query']}",
     "Search for information",
-    {"query": "string"},
+    [{"name": "query", "param_type": "string", "required": True}],
 )
 
 result = agent.run("latest Rust news")
@@ -203,7 +203,7 @@ tool = ToolDef(
 - **`ToolDef(handler=...)`** -- use `handler=` kwarg, NOT `callback=`
 - **`ToolParam`** -- supports types: `"string"`, `"integer"`, `"float"`, `"boolean"`, `"object"`, `"array"`
 - **`ToolRegistry`** -- `register()`, `get()`, `list_tools()`, `count()`
-- **`tool_registry` is read-only** -- use `agent.register_tool(name, func, description, params_dict)` to add tools
+- **`tool_registry` is read-only** -- use `agent.register_tool(name, func, description, params)` to add tools. `params` is `list[dict]` with keys: `name`, `param_type`, `description`, `required`
 - **Tool invocation** -- tools are invoked by the agent's TAOD loop, not called directly from Python
 - **Schema generation** -- `to_openai_schema()` and `to_anthropic_schema()` for LLM integration
 

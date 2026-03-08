@@ -162,45 +162,25 @@ docker-compose down
 
 Nexus includes production-safe security defaults.
 
-### Environment Variables
-
-Set `NEXUS_ENV=production` to enable production security features:
-
-```bash
-export NEXUS_ENV=production
-```
-
-**What this does**:
-
-- ✅ Auto-enables authentication (unless explicitly disabled)
-- ✅ Ensures rate limiting is active (100 req/min default)
-- ✅ Adds security warnings if auth disabled
-
 ### Authentication in Production
 
-**Recommended (Auto-Enable)**:
+> **Important**: `NEXUS_ENV` is NOT a supported environment variable. Auth must be configured explicitly via `NexusAuthPlugin`.
+
+**Recommended (Explicit Auth)**:
 
 ```python
+from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 import os
-import kailash
 
-# Set environment variable
-os.environ["NEXUS_ENV"] = "production"
-
-# In production (NEXUS_ENV=production), this auto-enables auth
-app = NexusApp()  # enable_auth auto-set to True
+# Configure auth explicitly — there is no auto-enable via env vars
+auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+app = NexusApp()
 ```
 
-**Explicit Override**:
+**Rate Limiting**:
 
 ```python
-# Force enable in development
-app = NexusApp()  # Auth configured via NexusAuthPlugin
-
-# Disable in production (NOT RECOMMENDED - logs critical warning)
-app = NexusApp()  # WARNING: No auth plugin
-# ⚠️  SECURITY WARNING: Authentication is DISABLED in production environment!
-#    Set enable_auth=True to secure your API endpoints.
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
 
 **Docker Environment**:
@@ -210,8 +190,8 @@ app = NexusApp()  # WARNING: No auth plugin
 services:
   nexus:
     environment:
-      - NEXUS_ENV=production # Auto-enables auth
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
+      - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://redis:6379
 ```
 
@@ -317,8 +297,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Set production environment
-ENV NEXUS_ENV=production
+# NOTE: NEXUS_ENV is not a supported env var — configure auth in code
 
 # Expose ports
 EXPOSE 3000 3001
@@ -343,9 +322,9 @@ services:
       - "3000:3000"
       - "3001:3001"
     environment:
-      # Security
-      - NEXUS_ENV=production # Auto-enable auth
+      # Database and auth secrets
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
+      - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://redis:6379
 
       # Logging
@@ -412,22 +391,22 @@ app = NexusApp()  # WARNING: No auth plugin  # CRITICAL WARNING
 # Disable rate limiting
 app = NexusApp()  # No rate limit    # SECURITY WARNING
 
-# Enable auto-discovery in production
-app = NexusApp()  # auto_discovery not a NexusApp param  # 5-10s blocking delay
+# NexusApp has no auto_discovery param — workflows always registered manually
 ```
 
 ✅ **DO**:
 
 ```python
-# Use environment variable
-export NEXUS_ENV=production
-app = NexusApp()  # Auth auto-enabled
+from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 
-# Or explicit enable
+# Configure auth via NexusAuthPlugin (NEXUS_ENV does not exist)
+auth = NexusAuthPlugin(jwt=JwtConfig(secret="from-env-var"))
 app = NexusApp()
-app.add_rate_limit(1000)
-# Register workflows manually (no auto_discovery param)
-# Auth configured via NexusAuthPlugin
+
+# Add rate limiting
+app.add_rate_limit(max_requests=1000, window_secs=60)
+
+# Register workflows manually (NexusApp has no auto_discovery param)
 ```
 
 ## Kubernetes Deployment

@@ -71,7 +71,7 @@ def create_{agent_name_snake}():
         "search",
         lambda args: {"results": f"Results for: {args['query']}"},
         "Search for information on a topic",
-        {"query": "string"},
+        [{"name": "query", "param_type": "string", "required": True}],
     )
 
     return agent
@@ -169,7 +169,11 @@ agent.register_tool(
     "calculator",
     lambda args: args["a"] + args["b"],
     "Performs basic arithmetic",
-    {"a": "integer", "b": "integer", "op": "string"},
+    [
+        {"name": "a", "param_type": "integer", "required": True},
+        {"name": "b", "param_type": "integer", "required": True},
+        {"name": "op", "param_type": "string"},
+    ],
 )
 
 result = agent.run("Calculate 10 + 5")
