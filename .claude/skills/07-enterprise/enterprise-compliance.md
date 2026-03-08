@@ -129,7 +129,7 @@ cm.set_context({
     "access_control_enabled": True,
     "consent_tracking_enabled": True,
     "data_deletion_capable": True,
-    "monitoring_enabled": True,
+    "change_management_enabled": True,
 })
 
 # Evaluate all frameworks at once

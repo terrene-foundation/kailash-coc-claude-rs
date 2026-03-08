@@ -127,10 +127,13 @@ login_url = sso.login_url()
 ### Handle Callback
 
 ```python
+import json
+
 # After the IdP redirects back to your callback URL
-# Handle the callback to extract user information
-user_info = sso.handle_callback(callback_data)
-# user_info contains: user_id, email, name, groups, etc.
+# handle_callback takes a JSON STRING (not a dict)
+callback_json = json.dumps({"code": authorization_code, "state": state_param})
+session = sso.handle_callback(callback_json)
+# session contains: user, token, expires_at, idp_session_id, refresh_token
 ```
 
 ## Logout
@@ -157,8 +160,9 @@ valid = sso.validate_session(session_dict)
 ### Refresh Session
 
 ```python
-# Refresh an SSO session
-new_session = sso.refresh_session(session_token)
+# Refresh an SSO session -- takes the session DICT (from handle_callback), not a token string
+new_session = sso.refresh_session(session_dict)
+# session_dict must contain refresh_token (OIDC only)
 ```
 
 ## OIDC Discovery
@@ -204,8 +208,9 @@ async def sso_login(callback_url: str) -> dict:
 
 @app.handler(name="sso_callback", description="Handle SSO callback")
 async def sso_callback(code: str, state: str) -> dict:
-    # Handle the SSO callback -- returns a session dict
-    session = sso.handle_callback({"code": code, "state": state})
+    # handle_callback takes a JSON string, not a dict
+    import json
+    session = sso.handle_callback(json.dumps({"code": code, "state": state}))
 
     # Issue an application token using the session user info
     token = tm.create_jwt({

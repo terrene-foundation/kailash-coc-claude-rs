@@ -14,7 +14,7 @@ Complete auth package combining JWT, RBAC, rate limiting, tenant isolation, and 
 - JwtConfig enforces **32-char minimum** for HS\* secrets (`ValueError` if shorter)
 - RBAC errors return generic "Forbidden" (no role/permission leakage)
 - SSO errors are sanitized (status-only to client, details logged server-side)
-- `create_access_token()` filters reserved claims from `extra_claims`
+- `create_jwt()` adds `exp` and `iat` claims automatically
 
 ## Quick Reference
 
@@ -215,25 +215,20 @@ If using RBAC, ensure RBACMiddleware is installed (NexusAuthPlugin does this aut
 ## Token Creation
 
 ```python
-# Get JWTMiddleware instance
-jwt_middleware = ...
+from kailash.nexus import JwtConfig
 
-# Create access token
-access_token = jwt_middleware.create_access_token(
-    user_id="user123",
-    email="user@example.com",
-    roles=["editor"],
-    permissions=["write:articles"],
-    tenant_id="tenant456",
-    expires_minutes=30,
-)
+jwt = JwtConfig(secret_key=os.environ["JWT_SECRET"])
 
-# Create refresh token
-refresh_token = jwt_middleware.create_refresh_token(
-    user_id="user123",
-    tenant_id="tenant456",
-    expires_days=7,
-)
+# create_jwt takes a claims dict with "sub" (required) + optional keys
+token = jwt.create_jwt({
+    "sub": "user123",
+    "role": "editor",
+    "tenant_id": "tenant456",
+})
+
+# Decode and verify a token
+claims = jwt.decode_jwt(token)
+# claims == {"sub": "user123", "role": "editor", "tenant_id": "tenant456", "exp": ..., "iat": ...}
 ```
 
 ## SSO / External JWT Verification

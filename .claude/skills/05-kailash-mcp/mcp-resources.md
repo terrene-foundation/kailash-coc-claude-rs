@@ -34,15 +34,15 @@ from kailash.mcp import McpApplication
 app = McpApplication("my-server", "1.0")
 
 @app.resource(uri="config://settings", name="Settings")
-def get_settings() -> str:
+def get_settings(uri: str) -> str:
     return '{"theme": "dark", "language": "en"}'
 
 @app.resource(uri="data://users", name="User List")
-def get_users() -> str:
+def get_users(uri: str) -> str:
     return '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]'
 
 @app.resource(uri="status://health", name="Health Status")
-def get_health() -> str:
+def get_health(uri: str) -> str:
     return '{"status": "healthy", "uptime": 3600}'
 ```
 
@@ -73,11 +73,14 @@ Resource templates allow parameterized resource access:
 ```python
 # Server-side template definition
 @app.resource(uri="db://users/{user_id}/profile", name="User Profile")
-def get_user_profile(user_id: str) -> str:
+def get_user_profile(uri: str) -> str:
+    # uri receives the resolved URI, e.g. "db://users/123/profile"
+    user_id = uri.split("/")[3]  # extract from URI
     return f'{{"user_id": "{user_id}", "name": "User {user_id}"}}'
 
 @app.resource(uri="db://orders/{order_id}", name="Order Details")
-def get_order(order_id: str) -> str:
+def get_order(uri: str) -> str:
+    order_id = uri.split("/")[3]
     return f'{{"order_id": "{order_id}", "status": "shipped"}}'
 
 # Client can request: db://users/123/profile
