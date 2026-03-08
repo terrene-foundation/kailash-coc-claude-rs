@@ -18,13 +18,13 @@ If not found, inform the user: "This project doesn't appear to use Kailash DataF
 | Command     | Action                                     |
 | ----------- | ------------------------------------------ |
 | `/db`       | Load DataFlow patterns and database basics |
-| `/db model` | Show @df.model decorator patterns          |
+| `/db model` | Show @db.model decorator patterns          |
 | `/db crud`  | Show CRUD operation patterns               |
 | `/db bulk`  | Show bulk operation patterns               |
 
 ## What You Get
 
-- @df.model decorator patterns
+- @db.model decorator patterns
 - Auto-generated nodes (11 per SQL model, 8 for MongoDB)
 - CRUD, bulk operations, transactions
 - Multi-tenancy and multi-instance patterns

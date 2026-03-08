@@ -239,19 +239,19 @@ from kailash.nexus import JWTConfig, TenantConfig, RateLimitConfig, AuditConfig
 
 # Basic auth (JWT + audit)
 auth = NexusAuthPlugin.basic_auth(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"])  # Must be >= 32 chars for HS256
+    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"])  # Must be >= 32 chars for HS256
 )
 
 # SaaS app (JWT + RBAC + tenant + audit)
 auth = NexusAuthPlugin.saas_app(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "user": ["read:*"]},
     tenant_isolation=TenantConfig()
 )
 
 # Enterprise (all features)
 auth = NexusAuthPlugin.enterprise(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),
+    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
     rate_limit=RateLimitConfig(requests_per_minute=100),
     tenant_isolation=TenantConfig(),
@@ -301,7 +301,7 @@ from kailash.nexus import RequireRole, RequirePermission, get_current_user
 
 # Define roles in plugin
 auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
+    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),  # >= 32 chars
     rbac={
         "admin": ["*"],                           # Full access
         "editor": ["read:*", "write:articles"],   # Wildcard + specific
@@ -333,7 +333,7 @@ tenant_config = TenantConfig(
 )
 
 auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
+    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),  # >= 32 chars
     tenant_isolation=tenant_config,
 )
 ```

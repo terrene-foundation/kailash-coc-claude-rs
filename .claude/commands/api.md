@@ -38,7 +38,7 @@ All Nexus types are available directly from `import kailash`:
 import kailash
 
 # Nexus types
-config = kailash.NexusConfig(port=8000)
+config = kailash.NexusConfig(port=3000)
 app = kailash.NexusApp(config)
 
 # Presets: None, Lightweight, Standard, SaaS, Enterprise

@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Create task
-builder.add_node("DatabaseExecuteNode", "create_task", {
+builder.add_node("SQLQueryNode", "create_task", {
     "query": "INSERT INTO tasks (title, description, status) VALUES (?, ?, 'pending')",
     "parameters": ["{{input.title}}", "{{input.description}}"]
 })
@@ -36,7 +36,7 @@ builder.add_node("WaitForEventNode", "wait_approval", {
 })
 
 # 4. Update status
-builder.add_node("DatabaseExecuteNode", "update_status", {
+builder.add_node("SQLQueryNode", "update_status", {
     "query": "UPDATE tasks SET status = 'approved' WHERE id = ?",
     "parameters": ["{{create_task.task_id}}"]
 })

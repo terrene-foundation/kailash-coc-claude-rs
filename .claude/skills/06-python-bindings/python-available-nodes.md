@@ -199,7 +199,7 @@ Distributed transaction patterns.
 | ----------------------------------- | --------------------------------- |
 | `SagaCoordinatorNode`               | Saga pattern orchestration        |
 | `TwoPhaseCommitCoordinatorNode`     | 2PC transaction coordinator       |
-| `DistributedTransactionManagerNode` | Distributed transaction lifecycle |
+| `DistributedDistributedTransactionManagerNode` | Distributed transaction lifecycle |
 
 ### Enterprise (8 nodes)
 

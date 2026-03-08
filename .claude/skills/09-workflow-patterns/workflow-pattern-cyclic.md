@@ -106,7 +106,7 @@ builder.add_node("MapNode", "process_batch", {
 })
 
 # 4. Update database
-builder.add_node("DatabaseExecuteNode", "mark_processed", {
+builder.add_node("SQLQueryNode", "mark_processed", {
     "query": "UPDATE items SET processed = TRUE WHERE id IN ({{process_batch.ids}})"
 })
 

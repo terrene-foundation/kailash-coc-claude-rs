@@ -71,7 +71,7 @@ builder.add_node("ConditionalNode", "authorize", {
 ### 5. Audit Logging
 ```python
 # ✅ GOOD: Log all sensitive operations
-builder.add_node("DatabaseExecuteNode", "audit_log", {
+builder.add_node("SQLQueryNode", "audit_log", {
     "query": "INSERT INTO audit_log (user_id, action, resource, timestamp) VALUES (?, ?, ?, NOW())",
     "parameters": ["{{input.user_id}}", "delete_user", "{{input.target_user}}"]
 })

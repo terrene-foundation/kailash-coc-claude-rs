@@ -42,11 +42,10 @@ result = rt.execute(builder.build(reg), inputs={
 # result = rt.execute(builder.build(reg), inputs={...})
 
 # Runtime provides:
-# - CycleExecutionMixin: Cycle execution delegation to CyclicWorkflowExecutor
-# - ValidationMixin: Workflow structure validation (5 methods)
-# - ConditionalExecutionMixin: Conditional execution and branching with SwitchNode support
-# - Validation helpers: get_validation_metrics(), reset_validation_metrics()
-# - WorkflowParameterInjector for enterprise parameter handling
+# - DAG-based parallel execution (level-based scheduling via tokio)
+# - Built-in workflow validation at build time (builder.build(reg))
+# - Conditional execution and branching with SwitchNode/ConditionalNode
+# - Cycle detection at build time (acyclic graph enforcement)
 ```
 
 ### 3. Connection Patterns

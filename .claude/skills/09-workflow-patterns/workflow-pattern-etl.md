@@ -65,7 +65,7 @@ builder.add_node("HTTPRequestNode", "enrich_location", {
 })
 
 # 5. LOAD: Insert to database
-builder.add_node("DatabaseExecuteNode", "load", {
+builder.add_node("SQLQueryNode", "load", {
     "query": """
         INSERT INTO customers (name, email, age, location)
         VALUES (?, ?, ?, ?)
@@ -137,7 +137,7 @@ builder.add_node("DataValidationNode", "validate_rules", {
 })
 
 # 4. LOAD: Insert to target DB
-builder.add_node("DatabaseExecuteNode", "load_target", {
+builder.add_node("SQLQueryNode", "load_target", {
     "connection": "target_db",
     "query": """
         INSERT INTO users (legacy_id, full_name, email_address, registration_date)
@@ -148,7 +148,7 @@ builder.add_node("DatabaseExecuteNode", "load_target", {
 })
 
 # 5. Update source DB (mark as migrated)
-builder.add_node("DatabaseExecuteNode", "mark_migrated", {
+builder.add_node("SQLQueryNode", "mark_migrated", {
     "connection": "source_db",
     "query": """
         UPDATE legacy_users
@@ -158,7 +158,7 @@ builder.add_node("DatabaseExecuteNode", "mark_migrated", {
 })
 
 # 6. Handle failures
-builder.add_node("DatabaseExecuteNode", "log_failures", {
+builder.add_node("SQLQueryNode", "log_failures", {
     "connection": "source_db",
     "query": """
         INSERT INTO migration_failures (legacy_id, error, data)
@@ -211,7 +211,7 @@ builder.add_node("AggregateNode", "calculate_metrics", {
 })
 
 # 4. LOAD: Write to time-series DB
-builder.add_node("DatabaseExecuteNode", "load_metrics", {
+builder.add_node("SQLQueryNode", "load_metrics", {
     "connection": "timescaledb",
     "query": """
         INSERT INTO user_metrics (user_id, event_type, count, avg_duration, last_seen, window_start)

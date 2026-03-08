@@ -41,7 +41,7 @@ builder.add_node("TransformNode", "decrypt", {
 })
 
 # 5. Audit log
-builder.add_node("DatabaseExecuteNode", "audit", {
+builder.add_node("SQLQueryNode", "audit", {
     "query": "INSERT INTO hipaa_audit_log (staff_id, patient_id, action, timestamp) VALUES (?, ?, 'record_access', NOW())",
     "parameters": ["{{authenticate.user_id}}", "{{input.patient_id}}"]
 })

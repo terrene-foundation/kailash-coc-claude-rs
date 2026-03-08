@@ -71,7 +71,7 @@ Comprehensive decision guides for:
 
 | Need                  | Framework    | Why                       |
 | --------------------- | ------------ | ------------------------- |
-| **Custom workflows**  | Core SDK     | Full control, 140+ nodes  |
+| **Custom workflows**  | Core SDK     | Full control, 139+ nodes  |
 | **Database CRUD**     | DataFlow     | Auto-generated nodes      |
 | **Multi-channel API** | Nexus        | API + CLI + MCP instantly |
 | **AI agents**         | Kaizen       | Signature-based agents    |

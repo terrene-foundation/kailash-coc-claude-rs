@@ -17,7 +17,7 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 | Your Primary Need                        | Choose                | Why                                            |
 | ---------------------------------------- | --------------------- | ---------------------------------------------- |
-| **Custom workflows, integrations**       | **Core SDK**          | Fine-grained control, 140+ nodes               |
+| **Custom workflows, integrations**       | **Core SDK**          | Fine-grained control, 139+ nodes               |
 | **Database operations**                  | **DataFlow**          | Zero-config, 11 auto-generated nodes per model |
 | **Multi-channel platform** (API+CLI+MCP) | **Nexus**             | Zero-config multi-channel deployment           |
 | **AI agents, multi-agent systems**       | **Kaizen**            | Signature-based programming, BaseAgent         |
@@ -41,7 +41,7 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 **Key Components:**
 
-- WorkflowBuilder with 140+ nodes
+- WorkflowBuilder with 139+ nodes
 - Runtime with NodeRegistry
 - String-based node API
 - MCP integration built-in

@@ -34,17 +34,17 @@ reg = kailash.NodeRegistry()
 builder.build(reg)  # Raises error if parameters invalid
 ```
 
-## Validation Methods (Internal)
+## Validation Methods
 
-Runtime uses ValidationMixin for validation logic:
+Validation is built into the WorkflowBuilder and Runtime:
 
 ```python
-# ValidationMixin provides 5 validation methods:
-# 1. validate_workflow() - Validates complete workflow structure
-# 2. _validate_connection_contracts() - Validates connection parameter contracts
-# 3. _validate_conditional_execution_prerequisites() - Validates conditional node setup
-# 4. _validate_switch_results() - Validates SwitchNode output structure
-# 5. _validate_conditional_execution_results() - Validates conditional execution results
+# builder.build(reg) validates:
+# 1. Workflow structure (DAG validity, no orphan nodes)
+# 2. Connection contracts (output→input parameter compatibility)
+# 3. Required parameters are provided
+# 4. Node types exist in the registry
+# 5. No duplicate node IDs
 ```
 
 ### Runtime Validation
@@ -125,7 +125,7 @@ builder.add_node("CSVProcessorNode", "reader", {
 
 ## Connection Validation
 
-ValidationMixin validates connection contracts:
+The builder validates connection contracts at build time:
 
 ```python
 # Valid: Output type matches input type
@@ -154,10 +154,10 @@ builder.connect("reader", "data", "transformer", "input_data")
 
 ## Documentation References
 
-### Internal Implementation
+### Implementation
 
-- `src/kailash/runtime/mixins/validation.py` - ValidationMixin (523 lines)
-- Provides validation logic for Runtime
+- Validation is built into `WorkflowBuilder.build(reg)` and `Runtime.execute()`
+- No separate validation module needed — validation is integrated into the build/execute pipeline
 
 ## Quick Tips
 

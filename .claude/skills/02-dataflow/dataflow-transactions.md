@@ -17,7 +17,7 @@ Distributed transaction patterns with saga and two-phase commit support.
 
 - **Saga**: Compensating transactions for rollback
 - **2PC**: Two-phase commit for ACID guarantees
-- **Pattern**: Use TransactionManagerNode or context managers
+- **Pattern**: Use DistributedTransactionManagerNode or context managers
 
 ## Core Pattern
 
@@ -27,7 +27,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Distributed transaction with saga pattern
-builder.add_node("TransactionManagerNode", "payment_flow", {
+builder.add_node("DistributedTransactionManagerNode", "payment_flow", {
     "transaction_type": "saga",
     "steps": [
         {
@@ -53,7 +53,7 @@ builder.add_node("TransactionManagerNode", "payment_flow", {
 ### Saga Pattern
 
 ```python
-builder.add_node("TransactionManagerNode", "saga", {
+builder.add_node("DistributedTransactionManagerNode", "saga", {
     "transaction_type": "saga",
     "steps": [
         {"node": "Step1Node", "compensation": "Undo1Node"},
@@ -65,7 +65,7 @@ builder.add_node("TransactionManagerNode", "saga", {
 ### Two-Phase Commit
 
 ```python
-builder.add_node("TransactionManagerNode", "2pc", {
+builder.add_node("DistributedTransactionManagerNode", "2pc", {
     "transaction_type": "two_phase_commit",
     "steps": [...]
 })

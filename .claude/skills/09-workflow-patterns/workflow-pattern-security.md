@@ -46,12 +46,12 @@ builder.add_node("TransformNode", "generate_token", {
 })
 
 # 5. Audit log
-builder.add_node("DatabaseExecuteNode", "audit_success", {
+builder.add_node("SQLQueryNode", "audit_success", {
     "query": "INSERT INTO audit_log (user_id, action, timestamp) VALUES (?, 'login', NOW())",
     "parameters": ["{{check_user.id}}"]
 })
 
-builder.add_node("DatabaseExecuteNode", "audit_failure", {
+builder.add_node("SQLQueryNode", "audit_failure", {
     "query": "INSERT INTO audit_log (email, action, timestamp) VALUES (?, 'failed_login', NOW())",
     "parameters": ["{{input.email}}"]
 })

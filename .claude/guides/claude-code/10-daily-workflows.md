@@ -433,7 +433,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/app
     depends_on:

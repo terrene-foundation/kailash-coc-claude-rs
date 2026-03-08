@@ -33,7 +33,7 @@ builder.add_node("UserUpdateNode", "mark_deleted", {
 })
 
 # 2. Anonymize related data
-builder.add_node("DatabaseExecuteNode", "anonymize_logs", {
+builder.add_node("SQLQueryNode", "anonymize_logs", {
     "query": "UPDATE audit_logs SET user_email = '[REDACTED]' WHERE user_id = ?",
     "parameters": ["{{input.user_id}}"]
 })

@@ -24,7 +24,7 @@ Quick reference to all 115+ tested and validated Kailash workflow nodes.
 | Filter/Transform         | `FilterNode`, `DataTransformer`       | ❌ List comprehensions |
 | Route Logic              | `SwitchNode`, `ConditionalRouterNode` | ❌ if/else blocks      |
 | Send Alerts              | `DiscordAlertNode`, `EmailSenderNode` | ❌ SMTP/webhook code   |
-| Distributed Transactions | `DistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
+| Distributed Transactions | `DistributedDistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
 
 ## Node Categories (115+ total)
 

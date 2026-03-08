@@ -40,7 +40,7 @@ Understanding how Nexus works internally.
 ├──────────────────┴──────────────────────────────┤
 │              Kailash SDK Core                   │
 │  - WorkflowBuilder & Runtime                    │
-│  - 140+ Nodes                                   │
+│  - 139+ Nodes                                   │
 │  - Execution Engine                             │
 └─────────────────────────────────────────────────┘
 ```
@@ -246,7 +246,7 @@ app.rate_limit = 1000
 **Benefits**:
 
 - No SDK modification needed
-- All 140+ nodes available
+- All 139+ nodes available
 - Proven execution engine
 
 ```python

@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Receive order
-builder.add_node("DatabaseExecuteNode", "create_order", {
+builder.add_node("SQLQueryNode", "create_order", {
     "query": "INSERT INTO orders (customer_id, items, total) VALUES (?, ?, ?)",
     "parameters": ["{{input.customer_id}}", "{{input.items}}", "{{input.total}}"]
 })
@@ -29,7 +29,7 @@ builder.add_node("DatabaseQueryNode", "check_inventory", {
 })
 
 # 3. Reserve stock
-builder.add_node("DatabaseExecuteNode", "reserve_stock", {
+builder.add_node("SQLQueryNode", "reserve_stock", {
     "query": "UPDATE inventory SET quantity = quantity - ? WHERE product_id = ?",
     "parameters": ["{{input.quantity}}", "{{input.product_id}}"]
 })

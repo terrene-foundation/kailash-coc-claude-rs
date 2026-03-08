@@ -73,7 +73,7 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 rt = kailash.Runtime(reg)
 df = kailash.DataFlow("sqlite:///db.sqlite")
-app = kailash.NexusApp(kailash.NexusConfig(port=8000))
+app = kailash.NexusApp(kailash.NexusConfig(port=3000))
 agent = kailash.Agent(config, client)
 ```
 
@@ -143,7 +143,7 @@ import kailash
 from kailash.nexus import NexusApp, PluginManager, WorkflowRegistry, EventBus
 
 # Basic app
-app = NexusApp(kailash.NexusConfig(port=8000))
+app = NexusApp(kailash.NexusConfig(port=3000))
 
 @app.handler("chat")
 def chat_handler(params):

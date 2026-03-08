@@ -44,7 +44,7 @@ builder.add_node("DataValidationNode", "validate", {
 })
 
 # 4. Store in database
-builder.add_node("DatabaseExecuteNode", "store", {
+builder.add_node("SQLQueryNode", "store", {
     "query": "INSERT INTO invoices (number, date, amount, vendor) VALUES (?, ?, ?, ?)",
     "parameters": "{{validate.valid_data}}"
 })

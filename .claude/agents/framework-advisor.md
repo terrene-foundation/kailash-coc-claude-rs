@@ -76,7 +76,7 @@ For detailed implementation after framework selection, users should manually inv
 
 - **Runtime System**: Runtime, ParallelRuntime, DockerRuntime
 - **Workflow Builder**: WorkflowBuilder with string-based nodes, 4-param connections
-- **Node Library**: 140+ production-ready nodes
+- **Node Library**: 139+ production-ready nodes
 - **Critical Pattern**: `rt.execute(builder.build(reg), parameters)`
 
 ### DataFlow Framework (`.claude/skills/02-dataflow/`)

@@ -58,7 +58,7 @@ builder.add_node("HTTPRequestNode", "charge_card", {
 })
 
 # Step 3: Record transaction in database
-builder.add_node("DatabaseExecuteNode", "record_transaction", {
+builder.add_node("SQLQueryNode", "record_transaction", {
     "query": "INSERT INTO transactions ..."
 })
 

@@ -48,7 +48,7 @@ builder.add_node("ConditionalNode", "check_slow", {
     "true_branch": "log_slow_query"
 })
 
-builder.add_node("DatabaseExecuteNode", "log_slow_query", {
+builder.add_node("SQLQueryNode", "log_slow_query", {
     "query": "INSERT INTO slow_queries (operation, duration_ms) VALUES (?, ?)",
     "parameters": ["UserListNode", "{{get_users.execution_time_ms}}"]
 })

@@ -47,7 +47,7 @@ builder.add_node("HTTPRequestNode", "process_payment", {
 })
 
 # 5. Record transaction
-builder.add_node("DatabaseExecuteNode", "record", {
+builder.add_node("SQLQueryNode", "record", {
     "query": "INSERT INTO transactions (amount, status, timestamp) VALUES (?, ?, NOW())",
     "parameters": ["{{input.amount}}", "completed"]
 })

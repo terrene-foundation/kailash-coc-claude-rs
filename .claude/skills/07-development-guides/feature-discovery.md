@@ -6,7 +6,7 @@ You are an expert in Kailash SDK feature discovery. Guide users through discover
 
 ### 1. SDK Capabilities Overview
 
-- **140+ Nodes**: Data, API, AI, Logic, Transform, Utility
+- **139+ Nodes**: Data, API, AI, Logic, Transform, Utility
 - **Workflows**: Visual and programmatic workflow building
 - **Runtimes**: kailash.Runtime, kailash.Runtime, auto-detection
 - **Frameworks**: DataFlow, Nexus, Kaizen

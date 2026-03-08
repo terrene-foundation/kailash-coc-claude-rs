@@ -19,21 +19,21 @@ Complete reference for distributed transaction management nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available transaction nodes: DistributedTransactionManagerNode (auto-select pattern),
+# Available transaction nodes: DistributedDistributedTransactionManagerNode (auto-select pattern),
 #   SagaCoordinatorNode (high availability), SagaStepNode,
 #   TwoPhaseCommitCoordinatorNode (strong consistency)
 ```
 
 ## Automatic Pattern Selection
 
-### DistributedTransactionManagerNode ⭐
+### DistributedDistributedTransactionManagerNode ⭐
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
 # Auto-select Saga or 2PC based on requirements
-builder.add_node("DistributedTransactionManagerNode", "dtm", {
+builder.add_node("DistributedDistributedTransactionManagerNode", "dtm", {
     "transaction_id": "txn_123",
     "participants": [
         {"service": "order_service", "supports_2pc": True},
@@ -87,7 +87,7 @@ builder.add_node("TwoPhaseCommitCoordinatorNode", "2pc", {
 
 | Pattern | Use When | Benefits |
 |---------|----------|----------|
-| **DistributedTransactionManagerNode** | Mixed capabilities | Auto-selection |
+| **DistributedDistributedTransactionManagerNode** | Mixed capabilities | Auto-selection |
 | **SagaCoordinatorNode** | High availability needed | Eventual consistency |
 | **TwoPhaseCommitCoordinatorNode** | Strong consistency required | ACID properties |
 

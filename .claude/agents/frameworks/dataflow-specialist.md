@@ -112,12 +112,12 @@ data.pop("created_at", None)
 
 ```python
 # WRONG
-@df.model
+@db.model
 class User:
     user_id: str  # FAILS - kailash.DataFlow requires 'id'
 
 # CORRECT
-@df.model
+@db.model
 class User:
     id: str  # Must be exactly 'id'
 ```
@@ -184,7 +184,7 @@ builder.add_node("UserUpdateNode", "update", {
 **Choose DataFlow When:**
 
 - Database-first applications requiring CRUD
-- Need automatic node generation (@df.model)
+- Need automatic node generation (@db.model)
 - Bulk data processing (10k+ ops/sec)
 - Multi-tenant SaaS applications
 - Enterprise data management
@@ -244,7 +244,7 @@ df = kailash.DataFlow(
 )
 
 from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(NexusConfig(port=8000))
+app = NexusApp(NexusConfig(port=3000))
 ```
 
 See: [`dataflow-nexus-integration`](../../skills/02-dataflow/dataflow-nexus-integration.md)

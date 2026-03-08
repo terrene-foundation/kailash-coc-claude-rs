@@ -37,12 +37,12 @@ builder.add_node("ConditionalNode", "check_quality", {
 })
 
 # 4. Update inventory
-builder.add_node("DatabaseExecuteNode", "approve", {
+builder.add_node("SQLQueryNode", "approve", {
     "query": "UPDATE production_items SET status = 'approved', quality_score = ? WHERE id = ?",
     "parameters": ["{{quality_test.score}}", "{{get_item.id}}"]
 })
 
-builder.add_node("DatabaseExecuteNode", "reject", {
+builder.add_node("SQLQueryNode", "reject", {
     "query": "UPDATE production_items SET status = 'rejected', rejection_reason = ? WHERE id = ?",
     "parameters": ["{{quality_test.failure_reason}}", "{{get_item.id}}"]
 })

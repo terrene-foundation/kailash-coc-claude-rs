@@ -17,7 +17,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Create shipment
-builder.add_node("DatabaseExecuteNode", "create_shipment", {
+builder.add_node("SQLQueryNode", "create_shipment", {
     "query": "INSERT INTO shipments (origin, destination, status) VALUES (?, ?, 'pending')",
     "parameters": ["{{input.origin}}", "{{input.destination}}"]
 })
@@ -36,7 +36,7 @@ builder.add_node("DatabaseQueryNode", "find_driver", {
 })
 
 # 4. Update shipment with route
-builder.add_node("DatabaseExecuteNode", "update_shipment", {
+builder.add_node("SQLQueryNode", "update_shipment", {
     "query": "UPDATE shipments SET driver_id = ?, route = ?, status = 'in_transit' WHERE id = ?",
     "parameters": ["{{find_driver.id}}", "{{route_optimization.route}}", "{{create_shipment.id}}"]
 })
@@ -48,7 +48,7 @@ builder.add_node("LoopNode", "track_location", {
 })
 
 # 6. Update delivery status
-builder.add_node("DatabaseExecuteNode", "mark_delivered", {
+builder.add_node("SQLQueryNode", "mark_delivered", {
     "query": "UPDATE shipments SET status = 'delivered', delivered_at = NOW() WHERE id = ?",
     "parameters": ["{{create_shipment.id}}"]
 })
