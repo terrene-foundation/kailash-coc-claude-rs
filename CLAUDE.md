@@ -46,6 +46,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | `/implement` | 03    | Load implementation phase; repeat until todos done |
 | `/redteam`   | 04    | Load validation phase; red team with MCP tools     |
 | `/codify`    | 05    | Load codification phase; create agents & skills    |
+| `/deploy`    | —     | Deployment onboarding + package/cloud release      |
 | `/ws`        | —     | Read-only workspace status dashboard               |
 | `/wrapup`    | —     | Write session notes before ending                  |
 
@@ -65,6 +66,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | Kailash SDK execution patterns        | `rules/patterns.md`          | `**/*.py`, `**/*.ts`, `**/*.js`                     |
 | Security (secrets, injection)         | `rules/security.md`          | Global                                              |
 | 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`           | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
+| Deployment & cloud release rules      | `rules/deployment.md`        | Global                                              |
 | Auto-generated workflow instincts     | `rules/learned-instincts.md` | Global                                              |
 
 **Note**: Rules with path scoping are loaded only when editing matching files. Global rules load every session.
@@ -111,8 +113,8 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 ### Release & Operations (`agents/management/`)
 
-- **git-release-specialist** — Git workflows, CI, releases
-- **deployment-specialist** — Docker/Kubernetes deployment
+- **git-release-specialist** — Git workflows, CI, releases, version management
+- **deployment-specialist** — Deployment onboarding, package/cloud release, Docker/K8s
 - **todo-manager** — Project task tracking
 - **gh-manager** — GitHub issue/project management
 

@@ -39,9 +39,9 @@ Your Natural Language Request
          |
   2. Context      28 Skills          What does the AI need to know?
          |
-  3. Guardrails   9 Rules + 9 Hooks  What must the AI never do?
+  3. Guardrails   10 Rules + 10 Hooks What must the AI never do?
          |
-  4. Instructions CLAUDE.md + 20 Cmds What should the AI prioritize?
+  4. Instructions CLAUDE.md + 21 Cmds What should the AI prioritize?
          |
   5. Learning     Observe -> Evolve  How does the system improve?
          |
@@ -71,10 +71,10 @@ Domains include: Core SDK, DataFlow, Nexus, Kaizen, MCP, cheatsheets, 140+ node 
 
 ### Layer 3: Guardrails -- Defense in Depth
 
-**9 Rules** (`.claude/rules/` -- soft enforcement via AI interpretation):
-No mocking in integration tests. No hardcoded secrets. No stubs/TODOs in production. Conventional commits. Mandatory code review after every change. Security review before every commit. E2E god-mode testing. Environment-only API keys.
+**10 Rules** (`.claude/rules/` -- soft enforcement via AI interpretation):
+No mocking in integration tests. No hardcoded secrets. No stubs/TODOs in production. Conventional commits. Mandatory code review after every change. Security review before every commit. E2E god-mode testing. Environment-only API keys. Cloud deployment guardrails (SSO-only, SSL, monitoring).
 
-**9 Hooks** (`scripts/hooks/` -- hard enforcement, deterministic Node.js):
+**10 Hooks** (`scripts/hooks/` -- hard enforcement, deterministic Node.js):
 
 | Hook                            | What It Does                                                  |
 | ------------------------------- | ------------------------------------------------------------- |
@@ -87,15 +87,17 @@ No mocking in integration tests. No hardcoded secrets. No stubs/TODOs in product
 | `session-end.js`                | Persists session stats for learning                           |
 | `stop.js`                       | Emergency state save + workspace reminder                     |
 | `detect-package-manager.js`     | Detects pip/poetry/uv/npm/pnpm/yarn/bun                       |
+| `validate-deployment.js`        | Detects cloud credentials in deployment files                 |
 
 Critical rules have 5-8 independent enforcement layers. If any four fail, the fifth catches it.
 
-### Layer 4: Instructions -- CLAUDE.md + 20 Slash Commands
+### Layer 4: Instructions -- CLAUDE.md + 21 Slash Commands
 
 `CLAUDE.md` is auto-loaded every session with framework context, relationship mapping, and directive escalation. Slash commands are context-efficient entry points:
 
 **Framework**: `/sdk` `/db` `/api` `/ai` `/test` `/validate` `/design` `/i-audit` `/i-harden` `/learn` `/evolve` `/checkpoint`
 **Workspace**: `/analyze` `/todos` `/implement` `/redteam` `/codify` `/ws` `/wrapup`
+**Standalone**: `/deploy`
 
 ### Layer 5: Learning -- Closed Loop Evolution
 
@@ -138,12 +140,12 @@ The `session-start.js` hook validates your environment automatically. Then just 
 .claude/
   agents/          30 specialist agents (Markdown + YAML frontmatter)
   skills/          30 domain knowledge directories, 290+ files
-  rules/           9 behavioral constraint files
-  commands/        20 slash command definitions (13 framework + 7 workspace)
+  rules/           10 behavioral constraint files
+  commands/        21 slash command definitions (13 framework + 7 workspace + 1 standalone)
   learning/        Observation-instinct-evolution pipeline
 
 scripts/
-  hooks/           9 Node.js lifecycle hooks (deterministic enforcement)
+  hooks/           10 Node.js lifecycle hooks (deterministic enforcement)
   learning/        Learning system scripts
   ci/              CI validation scripts
 
