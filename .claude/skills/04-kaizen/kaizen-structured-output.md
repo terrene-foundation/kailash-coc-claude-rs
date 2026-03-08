@@ -1,8 +1,6 @@
 ---
-skill: kaizen-structured-output
+name: kaizen-structured-output
 description: "StructuredOutput and OutputSchema for validated LLM responses. Use when asking about 'structured output', 'output schema', 'output validation', 'LLM output parsing', or 'structured agent response'."
-priority: MEDIUM
-tags: [kaizen, structured-output, output-schema, validation, llm-output]
 ---
 
 # Kaizen Structured Output
@@ -19,7 +17,8 @@ Parse and validate structured LLM output using JSON schemas.
 ## Import
 
 ```python
-from kailash.kaizen import OutputSchema, StructuredOutput
+from kailash import OutputSchema, StructuredOutput
+# Also available via: from kailash.kaizen import OutputSchema, StructuredOutput
 ```
 
 ## OutputSchema
@@ -27,7 +26,7 @@ from kailash.kaizen import OutputSchema, StructuredOutput
 Define expected output structure using JSON schema:
 
 ```python
-from kailash.kaizen import OutputSchema
+from kailash import OutputSchema
 
 # Create schema from a Python dict (JSON schema format)
 schema = OutputSchema({
@@ -55,7 +54,7 @@ schema2 = OutputSchema.from_json('{"type": "object", "properties": {"name": {"ty
 Parse raw LLM text and validate against a schema:
 
 ```python
-from kailash.kaizen import StructuredOutput
+from kailash import StructuredOutput
 
 # Create with a JSON schema dict or OutputSchema
 so = StructuredOutput(
@@ -79,7 +78,7 @@ assert result == {"name": "Charlie"}
 ## With OutputSchema
 
 ```python
-from kailash.kaizen import OutputSchema, StructuredOutput
+from kailash import OutputSchema, StructuredOutput
 
 # Define schema explicitly
 schema = OutputSchema({
@@ -105,7 +104,7 @@ result = so.parse('{"topic": "AI", "sentiment": "positive", "entities": ["GPT", 
 Re-prompt the LLM when parse/validation fails:
 
 ```python
-from kailash.kaizen import StructuredOutput, LlmClient
+from kailash import StructuredOutput, LlmClient
 
 # LlmClient auto-detects provider from env (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
 # Use LlmClient.mock() for deterministic testing
@@ -129,7 +128,8 @@ result = so.parse_with_retry(
 
 ```python
 import os
-from kailash.kaizen import BaseAgent, StructuredOutput
+from kailash.kaizen import BaseAgent
+from kailash import StructuredOutput
 
 class SentimentAgent(BaseAgent):
     name = "sentiment-agent"

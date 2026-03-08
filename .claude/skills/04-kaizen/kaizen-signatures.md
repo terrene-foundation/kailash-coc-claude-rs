@@ -1,3 +1,8 @@
+---
+name: kaizen-signatures
+description: "Structured input/output contracts for Kaizen agents using Signature, InputField, and OutputField. Use when asking about 'Signature', 'InputField', 'OutputField', 'agent contract', 'structured input', or 'agent signature'."
+---
+
 # Kaizen Signatures
 
 Define agent input/output contracts using `Signature`, `InputField`, and `OutputField`.

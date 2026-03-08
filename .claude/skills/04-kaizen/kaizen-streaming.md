@@ -1,3 +1,8 @@
+---
+name: kaizen-streaming
+description: "Streaming LLM responses for Kaizen agents. Use when asking about StreamingAgent, StreamHandler, TokenCollector, ChannelStreamHandler, StreamEvent, or token-by-token streaming."
+---
+
 # Kaizen Streaming: Token-by-Token LLM Responses
 
 The streaming module wraps agents to deliver LLM responses token-by-token via a callback interface.
