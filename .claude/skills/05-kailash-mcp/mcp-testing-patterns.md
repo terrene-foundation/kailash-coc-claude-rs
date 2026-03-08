@@ -31,7 +31,7 @@ def test_mcp_workflow_structure():
     """Unit test - workflow structure only (mock provider)."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "mock",  # Mock provider for structure testing
         "model": "mock",
         "messages": [{"role": "user", "content": "Test"}],
@@ -48,7 +48,7 @@ def test_mcp_workflow_structure():
 
     # Assert structure only
     assert "agent" in built_workflow.nodes
-    assert built_workflow.nodes["agent"]["type"] == "IterativeLLMAgentNode"
+    assert built_workflow.nodes["agent"]["type"] == "IterativeLLMNode"
 ```
 
 ## Tier 2: Integration Tests (Real MCP Servers)
@@ -64,9 +64,9 @@ def test_real_mcp_tool_execution():
     """Integration test - real MCP server execution."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": [{"role": "user", "content": "Get weather for NYC"}],
         "mcp_servers": [{
             "name": "weather",
@@ -95,9 +95,9 @@ def test_mcp_production_flow():
     """E2E test - full production-like MCP flow."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": [{"role": "user", "content": "Search docs and get weather"}],
         "mcp_servers": [
             {
@@ -181,9 +181,9 @@ def test_mcp_tool_discovery():
     """Test that MCP tools are discovered correctly."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": [{"role": "user", "content": "List available tools"}],
         "mcp_servers": [{
             "name": "test",
@@ -210,9 +210,9 @@ def test_mcp_server_failure_handling():
     """Test graceful handling of MCP server failures."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": [{"role": "user", "content": "Get data"}],
         "mcp_servers": [{
             "name": "failing",

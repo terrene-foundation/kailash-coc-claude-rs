@@ -24,12 +24,13 @@ Manage MCP resources with templates, subscriptions, and URI-based access.
 
 ```python
 import kailash
+import os
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get document content"}],
     "mcp_servers": [{
         "name": "docs",
@@ -49,7 +50,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Resource Templates
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "db",
         "transport": "http",
@@ -76,7 +77,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Resource Subscriptions
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "metrics",
         "transport": "websocket",
@@ -103,6 +104,36 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 })
 ```
 
+## McpApplication Resource Decorator (Phase 17)
+
+The `McpApplication` class from `kailash.mcp` provides a decorator-based API for defining MCP resources:
+
+```python
+from kailash.mcp import McpApplication
+
+app = McpApplication("my-server", "1.0")
+
+@app.resource(uri="config://settings", name="Settings")
+def get_settings() -> str:
+    return '{"theme": "dark", "language": "en"}'
+
+@app.resource(uri="data://users", name="User List")
+def get_users() -> str:
+    return '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]'
+
+@app.resource(uri="status://health", name="Health Status")
+def get_health() -> str:
+    return '{"status": "healthy", "uptime": 3600}'
+```
+
+### McpApplication vs IterativeLLMNode Resources
+
+| Feature  | `McpApplication`              | `IterativeLLMNode` mcp_servers     |
+| -------- | ----------------------------- | ---------------------------------- |
+| Role     | MCP server (serves resources) | MCP client (consumes resources)    |
+| Pattern  | `@app.resource()` decorator   | Config dict with `resources`       |
+| Best for | Building MCP servers          | Connecting to existing MCP servers |
+
 ## Related Patterns
 
 - **Structured Tools**: [`mcp-structured-tools`](mcp-structured-tools.md)
@@ -112,4 +143,4 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 
 Use `mcp-specialist` for complex resource lifecycles and subscription management.
 
-<!-- Trigger Keywords: MCP resources, resource template, subscriptions, mcp uri, resource management -->
+<!-- Trigger Keywords: MCP resources, resource template, subscriptions, mcp uri, resource management, McpApplication resource -->

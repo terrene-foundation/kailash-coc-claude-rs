@@ -38,7 +38,7 @@ import kailash
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("NodeType", "node_id", {"param": "value"})
-builder.add_connection("node1", "output", "node2", "input")
+builder.connect("node1", "output", "node2", "input")
 wf = builder.build(reg)
 rt = kailash.Runtime(reg)
 result = rt.execute(wf)

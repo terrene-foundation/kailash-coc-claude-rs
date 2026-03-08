@@ -16,6 +16,9 @@ Requirements:
 import os
 import sys
 
+# Filter pure Python SDK to use Rust-backed binding
+sys.path = [p for p in sys.path if "/kailash_python_sdk/" not in p]
+
 # Load environment variables
 try:
     from dotenv import load_dotenv
@@ -91,19 +94,19 @@ def test_core_sdk_patterns():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "code1", {"code": "x = 1"})
+        builder.add_node("EmbeddedPythonNode", "code1", {"code": "x = 1"})
         built = builder.build(reg)
         assert built is not None
 
     _()
 
-    @test("Create connection with 4-param add_connection")
+    @test("Create connection with 4-param connect")
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "code1", {"code": "x = 1"})
-        builder.add_node("PythonCodeNode", "code2", {"code": "y = x"})
-        builder.add_connection("code1", "output", "code2", "input")
+        builder.add_node("EmbeddedPythonNode", "code1", {"code": "x = 1"})
+        builder.add_node("EmbeddedPythonNode", "code2", {"code": "y = x"})
+        builder.connect("code1", "output", "code2", "input")
         built = builder.build(reg)
         assert built is not None
 
@@ -113,7 +116,9 @@ def test_core_sdk_patterns():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "calc", {"code": "result = 42"})
+        builder.add_node(
+            "EmbeddedPythonNode", "calc", {"code": "result = 42", "output_vars": ["result"]}
+        )
 
         wf = builder.build(reg)
         rt = kailash.Runtime(reg)
@@ -128,7 +133,7 @@ def test_core_sdk_patterns():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "test", {"code": "x = 1"})
+        builder.add_node("EmbeddedPythonNode", "test", {"code": "x = 1", "output_vars": ["x"]})
 
         wf = builder.build(reg)
         rt = kailash.Runtime(reg)
@@ -170,11 +175,11 @@ def test_node_patterns():
     """Test node patterns documented in 08-nodes-reference skill."""
     print("\nNode Pattern Tests:")
 
-    @test("PythonCodeNode exists")
+    @test("EmbeddedPythonNode exists")
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "test", {"code": "x = 1"})
+        builder.add_node("EmbeddedPythonNode", "test", {"code": "x = 1"})
         built = builder.build(reg)
         assert built is not None
 
@@ -196,19 +201,19 @@ def test_node_patterns():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node(
-            "HTTPRequestNode", "http", {"url": "https://example.com", "method": "GET"}
-        )
+        builder.add_node("HTTPRequestNode", "http", {"url": "https://example.com", "method": "GET"})
         built = builder.build(reg)
         assert built is not None
 
     _()
 
-    @test("PythonCodeNode can execute")
+    @test("EmbeddedPythonNode can execute")
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "log", {"code": "result = 'logged'"})
+        builder.add_node(
+            "EmbeddedPythonNode", "log", {"code": "result = 'logged'", "output_vars": ["result"]}
+        )
         wf = builder.build(reg)
         rt = kailash.Runtime(reg)
         result = rt.execute(wf)
@@ -230,7 +235,7 @@ def test_workflow_builder_features():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "test", {"code": "x = 1"})
+        builder.add_node("EmbeddedPythonNode", "test", {"code": "x = 1"})
         built = builder.build(reg)
         assert built is not None
 
@@ -240,9 +245,9 @@ def test_workflow_builder_features():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "node1", {"code": "a = 1"})
-        builder.add_node("PythonCodeNode", "node2", {"code": "b = 2"})
-        builder.add_node("PythonCodeNode", "node3", {"code": "c = 3"})
+        builder.add_node("EmbeddedPythonNode", "node1", {"code": "a = 1"})
+        builder.add_node("EmbeddedPythonNode", "node2", {"code": "b = 2"})
+        builder.add_node("EmbeddedPythonNode", "node3", {"code": "c = 3"})
         built = builder.build(reg)
         assert built is not None
 
@@ -252,9 +257,15 @@ def test_workflow_builder_features():
     def _():
         reg = kailash.NodeRegistry()
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "producer", {"code": "output = 42"})
-        builder.add_node("PythonCodeNode", "consumer", {"code": "result = input * 2"})
-        builder.add_connection("producer", "output", "consumer", "input")
+        builder.add_node(
+            "EmbeddedPythonNode", "producer", {"code": "output = 42", "output_vars": ["output"]}
+        )
+        builder.add_node(
+            "EmbeddedPythonNode",
+            "consumer",
+            {"code": "result = 99", "output_vars": ["result"]},
+        )
+        builder.connect("producer", "output", "consumer", "data")
 
         wf = builder.build(reg)
         rt = kailash.Runtime(reg)

@@ -12,18 +12,21 @@ Event-driven architecture for workflow lifecycle and cross-channel communication
 ## ⚠️ IMPORTANT: Current Capabilities
 
 **Current behavior:**
+
 - ✅ Events are **logged** to `_event_log` (not broadcast in real-time)
 - ✅ Retrieve events with `app.get_events()` helper method
 - ✅ Event decorators work but only trigger logging
 - Real-time broadcasting is planned for a future release
 
 **v1.1 (Planned):**
+
 - 🔜 Real-time WebSocket broadcasting
 - 🔜 SSE (Server-Sent Events) streaming
 - 🔜 MCP notifications for AI agents
 - 🔜 Cross-channel event synchronization
 
 **Current Behavior:**
+
 ```python
 # v1.0: Events are logged, not broadcast
 app.broadcast_event("CUSTOM_EVENT", {"data": "value"})
@@ -40,7 +43,8 @@ events = app.get_events(event_type="CUSTOM_EVENT")
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 @app.on_workflow_started
 def on_workflow_start(event):
@@ -118,6 +122,7 @@ app.broadcast_event("CUSTOM_EVENT", {
 ```
 
 **How to Retrieve Events in v1.0:**
+
 ```python
 # Get all events
 all_events = app.get_events()
@@ -134,7 +139,7 @@ session_events = app.get_events(session_id="session-123")
 ```python
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("PythonCodeNode", "long_process", {
+builder.add_node("EmbeddedPythonNode", "long_process", {
     "code": """
 import time
 
@@ -392,7 +397,62 @@ def update_database(event):
     ))
 ```
 
-## Event Routing
+## EventBus (Rust-backed)
+
+The `EventBus` class from `kailash.nexus` provides a Rust-backed publish/subscribe event system for decoupled, event-driven communication.
+
+```python
+from kailash.nexus import EventBus
+
+bus = EventBus()
+
+# Subscribe to an event topic
+bus.subscribe("user.created", lambda data: print(f"User created: {data}"))
+
+# Subscribe multiple handlers to the same topic
+bus.subscribe("user.created", lambda data: log_event("user.created", data))
+
+# Publish an event -- all subscribers are notified
+bus.publish("user.created", {"user_id": "123", "email": "alice@example.com"})
+
+# Subscribe to other event topics
+bus.subscribe("order.completed", lambda data: send_receipt(data))
+bus.publish("order.completed", {"order_id": "456", "total": 99.99})
+```
+
+### EventBus vs App Event Decorators
+
+| Feature   | `EventBus`                   | `@app.on_workflow_*` decorators |
+| --------- | ---------------------------- | ------------------------------- |
+| Backend   | Rust (pub/sub)               | Python (event logging)          |
+| Scope     | Custom events, any topic     | Workflow lifecycle events       |
+| Real-time | Immediate handler invocation | Logged to `_event_log`          |
+| Best for  | Custom event-driven flows    | Workflow monitoring             |
+
+### Production Pattern with EventBus
+
+```python
+from kailash.nexus import EventBus, NexusApp
+
+bus = EventBus()
+app = NexusApp()
+
+# Wire up event-driven side effects
+bus.subscribe("user.created", lambda data: send_welcome_email(data))
+bus.subscribe("user.created", lambda data: provision_resources(data))
+bus.subscribe("user.deleted", lambda data: cleanup_resources(data))
+
+@app.handler(name="create_user", description="Create a new user")
+async def create_user(name: str, email: str) -> dict:
+    user = {"user_id": "generated-id", "name": name, "email": email}
+    # Publish event -- subscribers handle side effects
+    bus.publish("user.created", user)
+    return user
+```
+
+## Event Routing (Custom Python)
+
+For custom routing logic beyond EventBus:
 
 ```python
 class EventRouter:
@@ -429,6 +489,7 @@ router.route("workflow_completed", event)
 6. **Use Event Decorators** - They work but only trigger logging currently
 
 **Current Workarounds:**
+
 ```python
 # Instead of real-time broadcast, use polling
 def poll_events(app, event_type, timeout=30):
@@ -444,6 +505,7 @@ def poll_events(app, event_type, timeout=30):
 ## Key Takeaways
 
 **Current Reality:**
+
 - ✅ Events are **logged** to `_event_log`, not broadcast in real-time
 - ✅ Retrieve events with `app.get_events(event_type, session_id)`
 - ✅ Event decorators work but only trigger logging
@@ -451,12 +513,14 @@ def poll_events(app, event_type, timeout=30):
 - ❌ Real-time broadcasting NOT available (planned for v1.1)
 
 **v1.1 Planned:**
+
 - 🔜 Real-time WebSocket broadcasting
 - 🔜 SSE streaming for browser clients
 - 🔜 MCP notifications for AI agents
 - 🔜 Cross-channel event synchronization
 
 **Current Usage Pattern:**
+
 ```python
 # Log event
 app.broadcast_event("EVENT_TYPE", {"data": "value"})

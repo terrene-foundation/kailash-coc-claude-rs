@@ -35,11 +35,12 @@ CMD ["python", "app.py"]
 ```python
 # app.py
 import kailash
+import os
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{input.message}}"
 })
 
@@ -53,7 +54,7 @@ def handle_chat(message: str):
     builder = kailash.WorkflowBuilder()
     builder.add_node("LLMNode", "chat", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "prompt": message
     })
     reg = kailash.NodeRegistry()
@@ -82,7 +83,7 @@ curl http://localhost:8000/health
 ## Docker Compose
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -118,7 +119,7 @@ docker-compose logs -f app
 
 ## Production Considerations
 
-1. **Use Runtime** - Default in kailash.Nexus
+1. **Use Runtime** - Default in NexusApp
 2. **Environment variables** - For secrets
 3. **Health checks** - `/health` endpoint
 4. **Multi-stage builds** - Smaller images

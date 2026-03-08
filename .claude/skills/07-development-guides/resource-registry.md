@@ -5,6 +5,7 @@ You are an expert in resource registry patterns for sharing resources across wor
 ## Core Responsibilities
 
 ### 1. Resource Registry Pattern
+
 ```python
 import kailash
 
@@ -18,7 +19,7 @@ registry.register("db_connection", database_connection)
 registry.register("cache", redis_client)
 
 # Use in workflow
-builder.add_node("PythonCodeNode", "use_resource", {
+builder.add_node("EmbeddedPythonNode", "use_resource", {
     "code": """
 # Access shared resource
 db = registry.get("db_connection")
@@ -34,6 +35,7 @@ result = {'users': data}
 ```
 
 ### 2. Resource Lifecycle Management
+
 ```python
 class ManagedResource:
     def __enter__(self):
@@ -49,10 +51,12 @@ registry.register("managed_db", ManagedResource())
 ```
 
 ## When to Engage
+
 - User asks about "resource registry", "shared resources", "registry pattern"
 - User needs to share resources
 - User wants resource management
 
 ## Integration with Other Skills
+
 - Route to **production-deployment-guide** for deployment
 - Route to **advanced-features** for advanced patterns

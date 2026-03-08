@@ -76,9 +76,9 @@ builder.add_node("DatabaseExecuteNode", "delete_user", {
     "parameters": ["{{parse_payload.data.id}}"]
 })
 
-builder.add_connection("validate_signature", "result", "check_signature", "condition")
-builder.add_connection("check_signature", "output_true", "parse_payload", "input")
-builder.add_connection("parse_payload", "event_type", "route_event", "condition")
+builder.connect("validate_signature", "result", "check_signature", "condition")
+builder.connect("check_signature", "output_true", "parse_payload", "input")
+builder.connect("parse_payload", "event_type", "route_event", "condition")
 
 # Build and execute
 rt = kailash.Runtime(reg)

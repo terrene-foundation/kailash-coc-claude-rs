@@ -22,7 +22,7 @@ def test_workflow_execution():
     """Test workflow execution with Runtime."""
     # Arrange: Build workflow
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'status': 'success', 'value': 42}"
     })
 
@@ -45,7 +45,7 @@ import pytest
 async def test_async_workflow_execution():
     """Test workflow execution with Runtime."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'status': 'completed'}"
     })
 
@@ -65,7 +65,7 @@ async def test_async_workflow_execution():
 def test_workflow_builder_creates_workflow():
     """Test WorkflowBuilder creates valid workflow."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {"code": "result = 1"})
+    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1"})
 
     reg = kailash.NodeRegistry()
     built_workflow = builder.build(reg)
@@ -75,9 +75,9 @@ def test_workflow_builder_creates_workflow():
 def test_workflow_builder_adds_connection():
     """Test WorkflowBuilder adds connections correctly."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "source", {"code": "result = {'data': 42}"})
-    builder.add_node("PythonCodeNode", "target", {"code": "result = data"})
-    builder.add_connection("source", "result.data", "target", "data")
+    builder.add_node("EmbeddedPythonNode", "source", {"code": "result = {'data': 42}"})
+    builder.add_node("EmbeddedPythonNode", "target", {"code": "result = data"})
+    builder.connect("source", "result.data", "target", "data")
 
     reg = kailash.NodeRegistry()
     built_workflow = builder.build(reg)
@@ -181,7 +181,7 @@ def redis_connection():
 ```python
 def test_workflow_returns_correct_value(workflow_builder, registry, runtime):
     """Test workflow returns expected value."""
-    workflow_builder.add_node("PythonCodeNode", "node", {
+    workflow_builder.add_node("EmbeddedPythonNode", "node", {
         "code": "result = {'value': 100}"
     })
 
@@ -201,7 +201,7 @@ def test_workflow_returns_correct_value(workflow_builder, registry, runtime):
 ])
 def test_double_value_workflow(input_value, expected, workflow_builder, registry, runtime):
     """Test workflow doubles input value correctly."""
-    workflow_builder.add_node("PythonCodeNode", "double", {
+    workflow_builder.add_node("EmbeddedPythonNode", "double", {
         "code": "result = {'value': input_val * 2}"
     })
 

@@ -25,12 +25,12 @@ available_nodes = reg.list_types()  # Returns 139+ node types
 # No direct node imports needed.
 
 # Core node categories:
-# - Data: CSVReaderNode, SQLReaderNode, FileReaderNode
+# - Data: CSVProcessorNode, SQLReaderNode, FileReaderNode
 # - API: HTTPRequestNode, RestClientNode
-# - AI: LLMAgentNode, IterativeLLMAgentNode
+# - AI: LLMNode, IterativeLLMNode
 # - Logic: SwitchNode, MergeNode, IfNode
 # - Transform: DataTransformerNode, JSONTransformerNode
-# - Code: PythonCodeNode
+# - Code: EmbeddedPythonNode
 # - Utility: VariableNode, DelayNode
 ```
 
@@ -55,12 +55,12 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Try different nodes
-builder.add_node("PythonCodeNode", "test", {
+builder.add_node("EmbeddedPythonNode", "test", {
     "code": "result = {'test': 'success'}"
 })
 
 # Explore connections
-builder.add_connection("node1", "node2", "output", "input")
+builder.connect("node1", "node2", "output", "input")
 
 # Test execution
 reg = kailash.NodeRegistry()

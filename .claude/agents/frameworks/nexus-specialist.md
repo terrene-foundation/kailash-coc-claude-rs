@@ -21,7 +21,7 @@ You are a multi-channel platform specialist for Kailash Nexus implementation. Ex
 
 1. **Always call `.build()`** before registering workflows
 2. **`auto_discovery=False`** when integrating with DataFlow (prevents blocking)
-3. **Use try/except** in PythonCodeNode for optional API parameters
+3. **Use try/except** in EmbeddedPythonNode for optional API parameters
 4. **Explicit connections** - NOT template syntax `${...}`
 5. **Test all three channels** (API, CLI, MCP) during development
 6. **Auth Config Names**: JWTConfig uses `secret` (not `secret_key`), `exempt_paths` (not `exclude_paths`)
@@ -40,7 +40,7 @@ You are a multi-channel platform specialist for Kailash Nexus implementation. Ex
    - `nexus-dataflow-integration` for DataFlow integration
 
 3. **Implementation**
-   - Start with zero-config `kailash.Nexus()`
+   - Start with zero-config `NexusApp()`
    - Register workflows with descriptive names
    - Add enterprise features progressively
 
@@ -55,7 +55,9 @@ You are a multi-channel platform specialist for Kailash Nexus implementation. Ex
 
 ```python
 import kailash
-nexus = kailash.Nexus()
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 reg = kailash.NodeRegistry()
 app.register("workflow_name", builder.build(reg))  # ALWAYS .build(reg)
 app.start()
@@ -64,9 +66,10 @@ app.start()
 ### Handler Registration (NEW)
 
 ```python
-# ✅ RECOMMENDED: Direct handler registration bypasses PythonCodeNode sandbox
+# ✅ RECOMMENDED: Direct handler registration bypasses EmbeddedPythonNode sandbox
+from kailash.nexus import NexusApp
 
-nexus = kailash.Nexus()
+app = NexusApp()
 
 @app.handler("greet", description="Greeting handler")
 async def greet(name: str, greeting: str = "Hello") -> dict:
@@ -83,7 +86,7 @@ app.start()
 
 **Why Use Handlers?**
 
-- Bypasses PythonCodeNode sandbox restrictions
+- Bypasses EmbeddedPythonNode sandbox restrictions
 - No import blocking (use any library)
 - Simpler syntax for simple workflows
 - Automatic parameter derivation from function signature
@@ -93,10 +96,12 @@ app.start()
 
 ```python
 # ✅ CORRECT: Fast, non-blocking
-nexus = kailash.Nexus(auto_discovery=False)  # CRITICAL
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 
 df = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=True,  # Works in Docker/NexusApp (table creation handled automatically)
 )
 ```
@@ -104,8 +109,8 @@ df = kailash.DataFlow(
 ### API Input Access
 
 ```python
-# ✅ CORRECT: Use try/except in PythonCodeNode
-builder.add_node("PythonCodeNode", "prepare", {
+# ✅ CORRECT: Use try/except in EmbeddedPythonNode
+builder.add_node("EmbeddedPythonNode", "prepare", {
     "code": """
 try:
     sector = sector  # From API inputs
@@ -122,7 +127,7 @@ result = {'filters': {'sector': sector} if sector else {}}
 
 ```python
 # ✅ CORRECT: Explicit connections with dot notation
-builder.add_connection("prepare", "result.filters", "search", "filter")
+builder.connect("prepare", "result.filters", "search", "filter")
 
 # ❌ WRONG: Template syntax not supported
 # "filter": "${prepare.result}"
@@ -132,24 +137,25 @@ builder.add_connection("prepare", "result.filters", "search", "filter")
 
 ```python
 # Native middleware
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["https://app.example.com"])  # Use ["*"] only in development
 
 # Plugin protocol (NexusPluginProtocol)
 app.add_plugin(auth_plugin)
 
 # Preset system (one-line config)
-nexus = kailash.Nexus(preset="saas", cors_origins=["https://app.example.com"])
+from kailash.nexus import NexusApp, NexusConfig
+app = NexusApp(NexusConfig(preset="saas"))
 ```
 
 ## Configuration Quick Reference
 
-| Use Case          | Config                                                        |
-| ----------------- | ------------------------------------------------------------- |
-| **With DataFlow** | `Nexus(auto_discovery=False)`                                 |
-| **Standalone**    | `kailash.Nexus()`                                                     |
-| **With Preset**   | `Nexus(preset="saas")`                                        |
-| **With CORS**     | `Nexus(cors_origins=["..."], cors_allow_credentials=False)`   |
-| **Full Features** | `Nexus(auto_discovery=False)` + `app.add_plugin(auth_plugin)` |
+| Use Case          | Config                                                  |
+| ----------------- | ------------------------------------------------------- |
+| **With DataFlow** | `NexusApp()`                                            |
+| **Standalone**    | `NexusApp()`                                            |
+| **With Preset**   | `NexusApp(NexusConfig(preset="saas"))`                  |
+| **With CORS**     | `app = NexusApp()` then `app.add_cors(origins=["..."])` |
+| **Full Features** | `app = NexusApp()` then `app.add_plugin(auth_plugin)`   |
 
 ## Framework Selection
 
@@ -174,7 +180,7 @@ nexus = kailash.Nexus(preset="saas", cors_origins=["https://app.example.com"])
 
 - Core SDK node that wraps async/sync functions
 - Automatic parameter derivation from function signatures
-- Type annotation mapping to NodeParameter entries
+- Type annotation mapping to handler parameter entries
 - Seamless WorkflowBuilder integration
 
 **make_handler_workflow()** utility:
@@ -185,7 +191,7 @@ nexus = kailash.Nexus(preset="saas", cors_origins=["https://app.example.com"])
 
 **Registration-Time Validation** (`_validate_workflow_sandbox`):
 
-- Detects PythonCodeNode/AsyncPythonCodeNode with blocked imports
+- Detects EmbeddedPythonNode/EmbeddedPythonNode with blocked imports
 - Emits warnings at registration time (not runtime)
 - Helps developers migrate to handlers for restricted code
 
@@ -193,7 +199,7 @@ nexus = kailash.Nexus(preset="saas", cors_origins=["https://app.example.com"])
 
 - `sandbox_mode="strict"`: Blocks restricted imports (default)
 - `sandbox_mode="permissive"`: Allows all imports (test/dev only)
-- Set via PythonCodeNode/AsyncPythonCodeNode parameter
+- Set via EmbeddedPythonNode/EmbeddedPythonNode parameter
 
 ### Key Components
 
@@ -218,7 +224,7 @@ Complete auth package with JWT, RBAC, tenant isolation, rate limiting, and audit
 
 **Security Defaults (v1.4.1)**:
 
-- `cors_allow_credentials=False` in both `kailash.Nexus()` and `NexusConfig` (safe with wildcard origins)
+- `cors_allow_credentials=False` in both `NexusApp()` and `NexusConfig` (safe with wildcard origins)
 - JWTConfig enforces **32-character minimum** for HS\* algorithm secrets
 - RBAC errors return generic "Forbidden" (no role/permission leakage)
 - SSO errors are sanitized (status-only to client, details logged server-side)
@@ -252,7 +258,8 @@ auth = NexusAuthPlugin.enterprise(
     audit=AuditConfig(backend="logging")
 )
 
-nexus = kailash.Nexus()
+from kailash.nexus import NexusApp
+app = NexusApp()
 app.add_plugin(auth)
 ```
 
@@ -407,16 +414,16 @@ PEP 563 turns type annotations into strings, which can break dependency injectio
 
 ## Common Issues & Solutions
 
-| Issue                            | Solution                                                       |
-| -------------------------------- | -------------------------------------------------------------- |
-| Nexus blocks on startup          | Use `auto_discovery=False` with DataFlow                       |
-| Workflow not found               | Ensure `.build(reg)` called before registration                |
-| Parameter not accessible         | Use try/except in PythonCodeNode OR use @app.handler() instead |
-| Port conflicts                   | Use custom ports: `Nexus(api_port=8001)`                       |
-| Import blocked in PythonCodeNode | Use @app.handler() to bypass sandbox restrictions              |
-| Sandbox warnings at registration | Switch to handlers OR set sandbox_mode="permissive" (dev only) |
-| Auth dependency injection fails  | Remove `from __future__ import annotations`                    |
-| RBAC not resolving permissions   | Ensure JWT middleware runs before RBAC (use NexusAuthPlugin)   |
+| Issue                                | Solution                                                           |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| Nexus blocks on startup              | Use `auto_discovery=False` with DataFlow                           |
+| Workflow not found                   | Ensure `.build(reg)` called before registration                    |
+| Parameter not accessible             | Use try/except in EmbeddedPythonNode OR use @app.handler() instead |
+| Port conflicts                       | Use custom ports: `NexusApp(NexusConfig(port=8001))`               |
+| Import blocked in EmbeddedPythonNode | Use @app.handler() to bypass sandbox restrictions                  |
+| Sandbox warnings at registration     | Switch to handlers OR set sandbox_mode="permissive" (dev only)     |
+| Auth dependency injection fails      | Remove `from __future__ import annotations`                        |
+| RBAC not resolving permissions       | Ensure JWT middleware runs before RBAC (use NexusAuthPlugin)       |
 
 ## Skill References
 

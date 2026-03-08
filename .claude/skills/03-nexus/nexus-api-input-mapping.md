@@ -20,17 +20,17 @@ Runtime executes: runtime.execute(workflow, parameters={...})
      ↓
 ALL nodes receive the FULL inputs dict as parameters
      ↓
-PythonCodeNode accesses via try/except pattern
+EmbeddedPythonNode accesses via try/except pattern
 ```
 
 ## Key Concepts
 
 ### Terminology Mapping
 
-| API Layer | Runtime Layer | Node Layer |
-|-----------|---------------|------------|
-| `{"inputs": {...}}` | `parameters={...}` | Variable access |
-| Request body field | Runtime execution parameter | Injected local variable |
+| API Layer           | Runtime Layer               | Node Layer              |
+| ------------------- | --------------------------- | ----------------------- |
+| `{"inputs": {...}}` | `parameters={...}`          | Variable access         |
+| Request body field  | Runtime execution parameter | Injected local variable |
 
 **Important**: The API uses `"inputs"` for clarity, but internally it becomes `parameters` in the runtime.
 
@@ -56,7 +56,7 @@ PythonCodeNode accesses via try/except pattern
 }
 ```
 
-## PythonCodeNode Parameter Access
+## EmbeddedPythonNode Parameter Access
 
 ### WRONG Patterns
 
@@ -107,13 +107,14 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Build workflow
 builder = kailash.WorkflowBuilder()
 
 # Node 1: Build filters from API inputs
-builder.add_node("PythonCodeNode", "prepare_filters", {
+builder.add_node("EmbeddedPythonNode", "prepare_filters", {
     "code": """
 # Access optional parameters via try/except
 try:
@@ -153,19 +154,19 @@ builder.add_node("ContactListNode", "search", {
 })
 
 # Connect filter data from prepare_filters to search
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result.filters",
     "search", "filter"
 )
 
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result.limit",
     "search", "limit"
 )
 
 # Register
-nexus.register("contact_search", builder.build(reg))
-nexus.start()
+app.register("contact_search", builder.build(reg))
+app.start()
 ```
 
 ## API Usage
@@ -219,12 +220,12 @@ builder.add_node("ContactListNode", "search", {
     "limit": 100
 })
 
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result.filters",
     "search", "filter"
 )
 
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result.limit",
     "search", "limit"
 )
@@ -234,13 +235,13 @@ builder.add_connection(
 
 ```python
 # ❌ WRONG: Missing 'result.' prefix
-builder.add_connection(
+builder.connect(
     "prepare_filters", "filters",  # Missing result.
     "search", "filter"
 )
 
 # ✅ CORRECT: Full path with dot notation
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result.filters",  # Full path
     "search", "filter"
 )
@@ -266,7 +267,7 @@ builder.add_connection(
 }
 
 # Use connections for node-to-node data flow
-builder.add_connection(
+builder.connect(
     "prepare_filters", "result",
     "search", "input"
 )
@@ -289,7 +290,7 @@ Nexus supports both formats:
 ### Inspect Parameters
 
 ```python
-builder.add_node("PythonCodeNode", "debug", {
+builder.add_node("EmbeddedPythonNode", "debug", {
     "code": """
 import json
 
@@ -337,7 +338,7 @@ curl -v -X POST http://localhost:8000/workflows/contact_search/execute \
 
 1. API `{"inputs": {...}}` → Runtime `parameters={...}` → Node variables
 2. ALL nodes receive the FULL inputs dict (broadcast)
-3. Use try/except to access optional parameters in PythonCodeNode
+3. Use try/except to access optional parameters in EmbeddedPythonNode
 4. Use explicit connections, NOT template syntax in node config
 5. Access nested outputs with dot notation: `"result.filters"`
 6. Nexus broadcasts inputs; use connections for node-to-node data flow
@@ -348,7 +349,7 @@ curl -v -X POST http://localhost:8000/workflows/contact_search/execute \
 # API Request
 {"inputs": {"param1": "value1", "param2": 10}}
 
-# Inside PythonCodeNode
+# Inside EmbeddedPythonNode
 try:
     p1 = param1  # "value1"
 except NameError:
@@ -363,7 +364,7 @@ except NameError:
 result = {'processed': True, 'data': {'p1': p1, 'p2': p2}}
 
 # Connection to next node
-builder.add_connection(
+builder.connect(
     "process", "result.data",
     "next_node", "input"
 )
@@ -371,11 +372,11 @@ builder.add_connection(
 
 ## Related Documentation
 
-- [PythonCodeNode Best Practices](../../2-core-concepts/cheatsheet/031-pythoncode-best-practices.md)
+- [EmbeddedPythonNode Best Practices](../../2-core-concepts/cheatsheet/031-pythoncode-best-practices.md)
 
 ## Related Skills
 
 - [nexus-api-patterns](#) - REST API usage
 - [nexus-multi-channel](#) - API, CLI, MCP overview
 - [nexus-troubleshooting](#) - Fix parameter issues
-- [pythoncode-parameters](#) - PythonCodeNode parameter access
+- [pythoncode-parameters](#) - EmbeddedPythonNode parameter access

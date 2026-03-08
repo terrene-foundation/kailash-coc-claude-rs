@@ -27,7 +27,7 @@ builder.add_node("DocumentProcessorNode", "read_invoice", {
 # 2. OCR extraction
 builder.add_node("LLMNode", "extract_fields", {
     "provider": "openai",
-    "model": "gpt-4-vision",
+    "model": os.environ.get("DEFAULT_VISION_MODEL", "gpt-5"),
     "prompt": "Extract: invoice_number, date, amount, vendor from this invoice",
     "image": "{{read_invoice.content}}"
 })
@@ -49,9 +49,9 @@ builder.add_node("DatabaseExecuteNode", "store", {
     "parameters": "{{validate.valid_data}}"
 })
 
-builder.add_connection("read_invoice", "content", "extract_fields", "image")
-builder.add_connection("extract_fields", "data", "validate", "input")
-builder.add_connection("validate", "valid_data", "store", "parameters")
+builder.connect("read_invoice", "content", "extract_fields", "image")
+builder.connect("extract_fields", "data", "validate", "input")
+builder.connect("validate", "valid_data", "store", "parameters")
 
 reg = kailash.NodeRegistry()
 

@@ -58,7 +58,7 @@ def test_workflow_database_integration():
         "filter": {"email": "integration@test.com"}
     })
 
-    builder.add_connection("create_user", "user", "find_user", "criteria")
+    builder.connect("create_user", "user", "find_user", "criteria")
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
@@ -79,15 +79,15 @@ def test_complete_data_processing_pipeline():
     builder = kailash.WorkflowBuilder()
 
     # Data pipeline
-    builder.add_node("CSVReaderNode", "ingest", {"file_path": "tests/fixtures/real_data.csv"})
+    builder.add_node("CSVProcessorNode", "ingest", {"file_path": "tests/fixtures/real_data.csv"})
     builder.add_node("DataValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
     builder.add_node("DataTransformerNode", "transform", {"operations": ["clean_names"]})
     builder.add_node("UserBatchCreateNode", "store", {"batch_size": 100})
 
     # Connect pipeline
-    builder.add_connection("ingest", "data", "validate", "input_data")
-    builder.add_connection("validate", "validated", "transform", "raw_data")
-    builder.add_connection("transform", "transformed", "store", "user_data")
+    builder.connect("ingest", "data", "validate", "input_data")
+    builder.connect("validate", "validated", "transform", "raw_data")
+    builder.connect("transform", "transformed", "store", "user_data")
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
@@ -179,7 +179,7 @@ def test_database_integration(mock_db):  # WRONG
     pass
 
 # ❌ Don't mock SDK components
-@patch('kailash.nodes.csv_reader_node.CSVReaderNode')
+@patch('kailash.nodes.csv_reader_node.CSVProcessorNode')
 def test_workflow_integration(mock_node):  # WRONG
     pass
 

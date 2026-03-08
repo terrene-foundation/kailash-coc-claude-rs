@@ -29,7 +29,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Add a node with parameters as a config dict
-builder.add_node("PythonCodeNode", "my_node", {
+builder.add_node("EmbeddedPythonNode", "my_node", {
     "code": """
 my_param = input_data.get("my_param", "default")
 threshold = input_data.get("threshold", 0.75)
@@ -50,7 +50,7 @@ result = rt.execute(builder.build(reg), parameters={
 
 - **Custom Node Development**: Building specialized nodes with proper parameter validation and initialization order
 - **LLM/Embedding Integration**: Correctly handling provider-specific formats and required parameters (provider, model, messages)
-- **Fixing AttributeError Bugs**: Resolving "object has no attribute" errors by setting attributes before super().__init__()
+- **Fixing AttributeError Bugs**: Resolving "object has no attribute" errors by setting attributes before super().**init**()
 - **Parameter Type Validation**: Using NodeParameter for proper type checking instead of returning raw values
 - **Provider-Specific Formats**: Handling different response formats from Ollama, OpenAI, etc. (embeddings as dicts vs lists)
 
@@ -63,16 +63,17 @@ result = rt.execute(builder.build(reg), parameters={
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
 
 ## Quick Tips
 
-- 💡 **Attributes Before super().__init__()**: Most common error - ALWAYS set all self.attributes BEFORE calling super().__init__() or Kailash validation will fail
+- 💡 **Attributes Before super().**init**()**: Most common error - ALWAYS set all self.attributes BEFORE calling super().**init**() or Kailash validation will fail
 - 💡 **Return NodeParameter Objects**: get_parameters() must return Dict[str, NodeParameter], not raw values like int/str/float
 - 💡 **Implement Required Methods**: All custom nodes need get_parameters() and run() methods - missing either causes "Can't instantiate abstract class" error
-- 💡 **Provider Parameter Required**: LLMAgentNode and embedding nodes require provider="ollama" (or "openai" etc.) parameter in execute() calls
+- 💡 **Provider Parameter Required**: LLMNode and embedding nodes require provider="ollama" (or "openai" etc.) parameter in execute() calls
 - 💡 **Check Provider Response Format**: Ollama embeddings return dicts with "embedding" key, not lists - use embedding_dict["embedding"] to extract vector
 - 💡 **Use .run() Not .process()**: Call node.run() for execution, not .process() or .execute() directly
 - 💡 **Test with Real Providers**: Mock data hides provider-specific format issues - always test with actual Ollama/OpenAI/etc.

@@ -50,8 +50,8 @@ builder.add_node("ConditionalNode", "check_domain", {
     "false_branch": "external_user"
 })
 
-builder.add_connection("create_user", "email", "send_welcome_email", "to")
-builder.add_connection("send_welcome_email", "result", "check_domain", "input")
+builder.connect("create_user", "email", "send_welcome_email", "to")
+builder.connect("send_welcome_email", "result", "check_domain", "input")
 ```
 
 ## Custom Aggregation Nodes
@@ -75,7 +75,7 @@ builder.add_node("TransformNode", "calculate_metrics", {
     """
 })
 
-builder.add_connection("get_users", "users", "calculate_metrics", "input")
+builder.connect("get_users", "users", "calculate_metrics", "input")
 ```
 
 ## Best Practices

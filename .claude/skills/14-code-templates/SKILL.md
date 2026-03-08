@@ -10,6 +10,7 @@ Production-ready code templates and boilerplate for common Kailash development t
 ## Overview
 
 Complete templates for:
+
 - Basic workflows
 - Cyclic workflows
 - Custom node development
@@ -23,6 +24,7 @@ Complete templates for:
 ### Workflow Templates
 
 #### Basic Workflow
+
 - **[template-workflow-basic](template-workflow-basic.md)** - Standard workflow template
   - WorkflowBuilder setup
   - Node addition pattern
@@ -32,6 +34,7 @@ Complete templates for:
   - Error handling
 
 #### Cyclic Workflow
+
 - **[template-cyclic-workflow](template-cyclic-workflow.md)** - Cyclic workflow template
   - CycleNode setup
   - Convergence checking
@@ -42,16 +45,18 @@ Complete templates for:
 ### Custom Development Templates
 
 #### Custom Node
+
 - **[template-custom-node](template-custom-node.md)** - Custom node template
-  - Node class structure
-  - Parameter definition
-  - Execute method implementation
+  - Handler function definition
+  - `register_callback()` registration
+  - Input/output parameter declaration
   - Input validation
   - Output formatting
   - Error handling
-  - Registration pattern
+  - Workflow integration
 
 #### MCP Server
+
 - **[template-mcp-server](template-mcp-server.md)** - MCP server template
   - MCPServer initialization
   - Tool registration
@@ -63,6 +68,7 @@ Complete templates for:
 ### Test Templates
 
 #### Unit Tests (Tier 1)
+
 - **[template-test-unit](template-test-unit.md)** - Unit test template
   - Test class structure
   - Fixture setup
@@ -72,6 +78,7 @@ Complete templates for:
   - Fast execution pattern
 
 #### Integration Tests (Tier 2)
+
 - **[template-test-integration](template-test-integration.md)** - Integration test template
   - Real database setup
   - Workflow execution testing
@@ -81,6 +88,7 @@ Complete templates for:
   - Result validation
 
 #### End-to-End Tests (Tier 3)
+
 - **[template-test-e2e](template-test-e2e.md)** - E2E test template
   - Full system setup
   - API testing pattern
@@ -102,14 +110,17 @@ Complete templates for:
 ### Template Categories
 
 **Workflow Development**:
+
 - `template-workflow-basic` → Standard workflows
 - `template-cyclic-workflow` → Iterative workflows
 
 **Custom Development**:
+
 - `template-custom-node` → New node types
 - `template-mcp-server` → MCP integration
 
 **Testing**:
+
 - `template-test-unit` → Fast unit tests
 - `template-test-integration` → Real infrastructure tests
 - `template-test-e2e` → Complete system tests
@@ -128,15 +139,15 @@ def create_workflow():
     builder = kailash.WorkflowBuilder()
 
     # Add nodes (4-param: NodeType, ID, config, connections)
-    builder.add_node("PythonCodeNode", "node1", {
+    builder.add_node("EmbeddedPythonNode", "node1", {
         "code": "result = input_data * 2"
     })
-    builder.add_node("PythonCodeNode", "node2", {
+    builder.add_node("EmbeddedPythonNode", "node2", {
         "code": "result = input_data + 10"
     })
 
     # Add connections (4-param: src_id, src_param, tgt_id, tgt_param)
-    builder.add_connection("node1", "result", "node2", "input_data")
+    builder.connect("node1", "result", "node2", "input_data")
 
     return builder.build(reg)
 
@@ -150,29 +161,32 @@ print(result["results"]["node2"]["result"])
 ### Custom Node Template
 
 ```python
+import kailash
 
-class MyCustomNode(BaseNode):
-    """Custom node implementation."""
+reg = kailash.NodeRegistry()
 
-    def __init__(self, node_id: str, **params):
-        super().__init__(node_id)
-        self.my_param = params.get("my_param")
+def my_custom_handler(inputs):
+    """Custom node handler."""
+    input_data = inputs.get("input_data")
+    if not input_data:
+        raise ValueError("Missing input_data")
 
-    def execute(self, inputs: dict) -> dict:
-        """Execute node logic."""
-        # Validate inputs
-        if "input_data" not in inputs:
-            raise ValueError("Missing input_data")
+    result = input_data * 2
+    return {"result": result}
 
-        # Process
-        result = self.process(inputs["input_data"])
+# Register the custom node
+reg.register_callback(
+    "MyCustomNode",
+    my_custom_handler,
+    ["input_data"],   # input parameter names
+    ["result"]        # output parameter names
+)
 
-        # Return output
-        return {"result": result}
-
-    def process(self, data):
-        """Custom processing logic."""
-        return data * 2
+# Use in workflow
+builder = kailash.WorkflowBuilder()
+builder.add_node("MyCustomNode", "node1", {"input_data": 21})
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
 ```
 
 ### Integration Test Template
@@ -199,7 +213,7 @@ def test_workflow_execution(runtime):
     # Arrange
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "calc", {
+    builder.add_node("EmbeddedPythonNode", "calc", {
         "code": "result = 2 + 2"
     })
 
@@ -215,6 +229,7 @@ def test_workflow_execution(runtime):
 ## Best Practices
 
 ### Using Templates
+
 - ✅ Start with template, then customize
 - ✅ Keep template structure
 - ✅ Follow naming conventions
@@ -225,6 +240,7 @@ def test_workflow_execution(runtime):
 - ❌ NEVER ignore resource cleanup
 
 ### Template Customization
+
 - Keep core structure intact
 - Add custom logic in designated areas
 - Maintain error handling patterns
@@ -232,6 +248,7 @@ def test_workflow_execution(runtime):
 - Update docstrings
 
 ### Testing Templates
+
 - Test with real data
 - Verify all code paths
 - Check error handling
@@ -241,6 +258,7 @@ def test_workflow_execution(runtime):
 ## When to Use This Skill
 
 Use this skill when you need:
+
 - Starting point for new code
 - Boilerplate for common tasks
 - Reference implementation
@@ -250,15 +268,15 @@ Use this skill when you need:
 
 ## Template Selection Guide
 
-| Task | Template | Why |
-|------|----------|-----|
-| **New workflow** | `template-workflow-basic` | Standard structure |
-| **Iterative logic** | `template-cyclic-workflow` | Cycle pattern |
-| **Custom node** | `template-custom-node` | Node structure |
-| **MCP integration** | `template-mcp-server` | MCP setup |
-| **Fast tests** | `template-test-unit` | Unit testing |
-| **Real infra tests** | `template-test-integration` | Integration |
-| **Full system** | `template-test-e2e` | End-to-end |
+| Task                 | Template                    | Why                |
+| -------------------- | --------------------------- | ------------------ |
+| **New workflow**     | `template-workflow-basic`   | Standard structure |
+| **Iterative logic**  | `template-cyclic-workflow`  | Cycle pattern      |
+| **Custom node**      | `template-custom-node`      | Node structure     |
+| **MCP integration**  | `template-mcp-server`       | MCP setup          |
+| **Fast tests**       | `template-test-unit`        | Unit testing       |
+| **Real infra tests** | `template-test-integration` | Integration        |
+| **Full system**      | `template-test-e2e`         | End-to-end         |
 
 ## Related Skills
 
@@ -271,6 +289,7 @@ Use this skill when you need:
 ## Support
 
 For template help, invoke:
+
 - `pattern-expert` - Pattern selection
 - `tdd-implementer` - Test-first development
 - `sdk-navigator` - Find examples

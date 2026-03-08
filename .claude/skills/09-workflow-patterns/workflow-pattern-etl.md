@@ -16,6 +16,7 @@ Comprehensive patterns for Extract, Transform, Load workflows.
 ## Quick Reference
 
 ETL patterns enable:
+
 - **Data extraction** - CSV, JSON, databases, APIs
 - **Transformation** - Clean, normalize, enrich, aggregate
 - **Loading** - Write to databases, files, APIs
@@ -29,7 +30,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. EXTRACT: Read CSV
-builder.add_node("CSVReaderNode", "extract", {
+builder.add_node("CSVProcessorNode", "extract", {
     "file_path": "data/customers.csv",
     "delimiter": ",",
     "encoding": "utf-8"
@@ -77,18 +78,18 @@ builder.add_node("DatabaseExecuteNode", "load", {
 })
 
 # 6. Error handling: Log invalid rows
-builder.add_node("CSVWriterNode", "log_errors", {
+builder.add_node("FileWriterNode", "log_errors", {
     "file_path": "logs/invalid_rows.csv",
     "data": "{{validate.invalid_data}}",
     "headers": ["row", "error", "data"]
 })
 
 # Connect nodes
-builder.add_connection("extract", "data", "validate", "input")
-builder.add_connection("validate", "valid_data", "clean", "input")
-builder.add_connection("clean", "data", "enrich_location", "body")
-builder.add_connection("enrich_location", "enriched_data", "load", "parameters")
-builder.add_connection("validate", "invalid_data", "log_errors", "data")
+builder.connect("extract", "data", "validate", "input")
+builder.connect("validate", "valid_data", "clean", "input")
+builder.connect("clean", "data", "enrich_location", "body")
+builder.connect("enrich_location", "enriched_data", "load", "parameters")
+builder.connect("validate", "invalid_data", "log_errors", "data")
 
 reg = kailash.NodeRegistry()
 
@@ -166,11 +167,11 @@ builder.add_node("DatabaseExecuteNode", "log_failures", {
     "parameters": "{{validate_rules.invalid_data}}"
 })
 
-builder.add_connection("extract_source", "results", "transform_schema", "input")
-builder.add_connection("transform_schema", "data", "validate_rules", "input")
-builder.add_connection("validate_rules", "valid_data", "load_target", "parameters")
-builder.add_connection("load_target", "inserted_ids", "mark_migrated", "ids")
-builder.add_connection("validate_rules", "invalid_data", "log_failures", "parameters")
+builder.connect("extract_source", "results", "transform_schema", "input")
+builder.connect("transform_schema", "data", "validate_rules", "input")
+builder.connect("validate_rules", "valid_data", "load_target", "parameters")
+builder.connect("load_target", "inserted_ids", "mark_migrated", "ids")
+builder.connect("validate_rules", "invalid_data", "log_failures", "parameters")
 ```
 
 ## Pattern 4: Real-Time Streaming ETL
@@ -224,10 +225,10 @@ builder.add_node("MessageQueueAckNode", "ack_messages", {
     "message_ids": "{{extract_stream.message_ids}}"
 })
 
-builder.add_connection("extract_stream", "messages", "parse_events", "input")
-builder.add_connection("parse_events", "events", "calculate_metrics", "input")
-builder.add_connection("calculate_metrics", "aggregated", "load_metrics", "parameters")
-builder.add_connection("load_metrics", "result", "ack_messages", "message_ids")
+builder.connect("extract_stream", "messages", "parse_events", "input")
+builder.connect("parse_events", "events", "calculate_metrics", "input")
+builder.connect("calculate_metrics", "aggregated", "load_metrics", "parameters")
+builder.connect("load_metrics", "result", "ack_messages", "message_ids")
 ```
 
 ## Best Practices

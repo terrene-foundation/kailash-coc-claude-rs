@@ -21,7 +21,8 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Enable MCP channel
-nexus = kailash.Nexus(mcp_port=3001)
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Workflows automatically become MCP tools
 builder = kailash.WorkflowBuilder()
@@ -30,8 +31,8 @@ builder.add_node("HTTPRequestNode", "fetch", {
     "method": "GET"
 })
 
-nexus.register("github-lookup", builder.build(reg))
-nexus.start()
+app.register("github-lookup", builder.build(reg))
+app.start()
 
 # Now discoverable by AI agents on localhost:3001
 ```
@@ -89,10 +90,7 @@ print(result)
 ## MCP Configuration
 
 ```python
-app = kailash.Nexus(
-    mcp_port=3001,
-    mcp_host="0.0.0.0"
-)
+app = NexusApp(NexusConfig(port=3001))
 
 # Fine-tune MCP behavior
 app.mcp.tool_caching = True        # Cache tool results
@@ -105,7 +103,7 @@ app.mcp.timeout = 30               # Execution timeout
 
 ```python
 # Format output for AI agents
-builder.add_node("PythonCodeNode", "format_for_ai", {
+builder.add_node("EmbeddedPythonNode", "format_for_ai", {
     "code": """
 def format_for_agents(data):
     user = data.get('user', {})

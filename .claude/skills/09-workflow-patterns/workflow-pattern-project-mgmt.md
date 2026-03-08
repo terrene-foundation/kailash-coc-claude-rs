@@ -41,9 +41,9 @@ builder.add_node("DatabaseExecuteNode", "update_status", {
     "parameters": ["{{create_task.task_id}}"]
 })
 
-builder.add_connection("create_task", "task_id", "notify_approver", "task_id")
-builder.add_connection("notify_approver", "result", "wait_approval", "trigger")
-builder.add_connection("wait_approval", "event_data", "update_status", "parameters")
+builder.connect("create_task", "task_id", "notify_approver", "task_id")
+builder.connect("notify_approver", "result", "wait_approval", "trigger")
+builder.connect("wait_approval", "event_data", "update_status", "parameters")
 ```
 
 <!-- Trigger Keywords: project workflow, task automation, approval workflow, project management -->

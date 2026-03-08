@@ -52,10 +52,10 @@ builder.add_node("DatabaseExecuteNode", "record", {
     "parameters": ["{{input.amount}}", "completed"]
 })
 
-builder.add_connection("validate", "valid_data", "fraud_check", "body")
-builder.add_connection("fraud_check", "risk_score", "assess_risk", "condition")
-builder.add_connection("assess_risk", "output_low", "process_payment", "body")
-builder.add_connection("process_payment", "result", "record", "parameters")
+builder.connect("validate", "valid_data", "fraud_check", "body")
+builder.connect("fraud_check", "risk_score", "assess_risk", "condition")
+builder.connect("assess_risk", "output_low", "process_payment", "body")
+builder.connect("process_payment", "result", "record", "parameters")
 ```
 
 <!-- Trigger Keywords: finance workflow, payment processing, fraud detection, financial compliance -->

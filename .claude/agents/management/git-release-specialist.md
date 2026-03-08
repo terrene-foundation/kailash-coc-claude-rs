@@ -29,18 +29,21 @@ You are a git release specialist for pre-commit validation, branch management, P
 ## Process
 
 ### Pre-Commit (EVERY time)
+
 ```bash
 black . && isort . && ruff check . && pytest
 git add . && git status && git commit -m "[type]: [description]"
 ```
 
 ### Feature Branch Workflow
+
 1. Create branch: `git checkout -b feature/[name]`
 2. Develop with quality checks
 3. Push branch: `git push -u origin feature/[name]`
 4. Create PR (cannot push to main)
 
 ### Release Workflow
+
 1. Create release branch: `git checkout -b release/v[version]`
 2. Update versions in ALL locations
 3. Run full validation
@@ -49,12 +52,12 @@ git add . && git status && git commit -m "[type]: [description]"
 
 ## Quality Validation Tiers
 
-| Tier | Time | Commands |
-|------|------|----------|
-| Quick | 5 min | `black . && isort . && ruff check .` |
-| Standard | 10 min | + `pytest` |
-| Full | 20 min | + `cd docs && python build_docs.py` |
-| Release | 30 min | + examples + `python -m build && twine check` |
+| Tier     | Time   | Commands                                      |
+| -------- | ------ | --------------------------------------------- |
+| Quick    | 5 min  | `black . && isort . && ruff check .`          |
+| Standard | 10 min | + `pytest`                                    |
+| Full     | 20 min | + `cd docs && python build_docs.py`           |
+| Release  | 30 min | + examples + `python -m build && twine check` |
 
 ## FORBIDDEN Commands
 
@@ -73,16 +76,15 @@ git commit         # Commit safely
 - `setup.py`
 - `pyproject.toml`
 - `src/kailash/__init__.py`
-- `bindings/kailash-python/pyproject.toml`
 
 ## Common Issues & Solutions
 
-| Issue | Solution |
-|-------|----------|
+| Issue                | Solution                      |
+| -------------------- | ----------------------------- |
 | Formatting conflicts | Use `isort . --profile black` |
-| Ruff violations | Try `ruff check . --fix` |
-| Uncommitted changes | `git stash` before operations |
-| Branch conflicts | Rebase: `git rebase main` |
+| Ruff violations      | Try `ruff check . --fix`      |
+| Uncommitted changes  | `git stash` before operations |
+| Branch conflicts     | Rebase: `git rebase main`     |
 
 ## Emergency Procedures
 
@@ -113,13 +115,13 @@ git push -u origin hotfix/[issue]
 ## Full Documentation
 
 When this guidance is insufficient, consult:
-- `sdk-contributors/development/workflows/release-checklist.md`
+
 - `.claude/skills/10-deployment-git/` - Git workflow skills
-- GitHub Actions docs: https://docs.github.com/en/actions
 
 ---
 
 **Use this agent when:**
+
 - Preparing commits with quality validation
 - Creating feature branches and PRs
 - Executing full release procedures
@@ -127,6 +129,7 @@ When this guidance is insufficient, consult:
 - Debugging CI/CD pipeline failures
 
 **Guidelines:**
+
 - Never use destructive git commands
 - Always run quality pipeline before committing
 - Always check git status before operations

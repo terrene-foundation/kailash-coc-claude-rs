@@ -5,6 +5,7 @@ You are an expert in production-quality testing for Kailash SDK. Guide users thr
 ## Core Responsibilities
 
 ### 1. 3-Tier Testing Strategy
+
 - **Tier 1**: Unit tests - Individual node testing
 - **Tier 2**: Integration tests - Multi-node workflows with real infrastructure
 - **Tier 3**: End-to-end tests - Complete workflows with external services
@@ -18,7 +19,7 @@ import pytest
 def test_python_code_node_execution():
     """Test individual node execution via workflow."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "test_node", {
+    builder.add_node("EmbeddedPythonNode", "test_node", {
         "code": "result = {'status': 'success', 'value': input_value * 2}"
     })
 
@@ -34,7 +35,7 @@ def test_python_code_node_execution():
 def test_python_code_node_error_handling():
     """Test node error handling."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "test_node", {
+    builder.add_node("EmbeddedPythonNode", "test_node", {
         "code": "result = 1 / 0"  # Division by zero
     })
 
@@ -89,7 +90,7 @@ def test_database_workflow_integration(test_database):
         "query": "SELECT * FROM test_data"
     })
 
-    builder.add_node("PythonCodeNode", "processor", {
+    builder.add_node("EmbeddedPythonNode", "processor", {
         "code": """
 result = {
     'count': len(data),
@@ -98,7 +99,7 @@ result = {
 """
     })
 
-    builder.add_connection("reader", "processor", "data", "data")
+    builder.connect("reader", "processor", "data", "data")
 
     reg = kailash.NodeRegistry()
 
@@ -120,7 +121,7 @@ def test_api_workflow_integration():
         "method": "GET"
     })
 
-    builder.add_node("PythonCodeNode", "validator", {
+    builder.add_node("EmbeddedPythonNode", "validator", {
         "code": """
 result = {
     'valid': isinstance(response, dict),
@@ -130,7 +131,7 @@ result = {
 """
     })
 
-    builder.add_connection("api_call", "validator", "response", "response")
+    builder.connect("api_call", "validator", "response", "response")
 
     reg = kailash.NodeRegistry()
 
@@ -152,12 +153,12 @@ def test_complete_etl_pipeline():
     builder = kailash.WorkflowBuilder()
 
     # Extract
-    builder.add_node("CSVReaderNode", "extract", {
+    builder.add_node("CSVProcessorNode", "extract", {
         "file_path": "tests/data/test_input.csv"
     })
 
     # Transform
-    builder.add_node("PythonCodeNode", "transform", {
+    builder.add_node("EmbeddedPythonNode", "transform", {
         "code": """
 import pandas as pd
 df = pd.DataFrame(data)
@@ -171,13 +172,13 @@ result = {'transformed_data': df.to_dict('records')}
     })
 
     # Load
-    builder.add_node("CSVWriterNode", "load", {
+    builder.add_node("FileWriterNode", "load", {
         "file_path": "tests/output/test_output.csv"
     })
 
     # Connections
-    builder.add_connection("extract", "transform", "data", "data")
-    builder.add_connection("transform", "load", "result", "data")
+    builder.connect("extract", "transform", "data", "data")
+    builder.connect("transform", "load", "result", "data")
 
     # Execute
     reg = kailash.NodeRegistry()
@@ -238,7 +239,7 @@ async def test_async_workflow():
     """Test async workflow execution."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "async_processor", {
+    builder.add_node("EmbeddedPythonNode", "async_processor", {
         "code": """
 import asyncio
 await asyncio.sleep(0.1)
@@ -281,7 +282,7 @@ def test_comprehensive_workflow_coverage():
     """Test all execution paths in workflow."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "input", {
+    builder.add_node("EmbeddedPythonNode", "input", {
         "code": "result = {'value': input_value}"
     })
 
@@ -292,11 +293,11 @@ def test_comprehensive_workflow_coverage():
         ]
     })
 
-    builder.add_node("PythonCodeNode", "high_path", {
+    builder.add_node("EmbeddedPythonNode", "high_path", {
         "code": "result = {'category': 'high', 'value': value}"
     })
 
-    builder.add_node("PythonCodeNode", "low_path", {
+    builder.add_node("EmbeddedPythonNode", "low_path", {
         "code": "result = {'category': 'low', 'value': value}"
     })
 
@@ -343,7 +344,7 @@ def test_error_recovery():
     """Test workflow error recovery."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "risky_op", {
+    builder.add_node("EmbeddedPythonNode", "risky_op", {
         "code": """
 try:
     result = {'value': 1 / divisor}
@@ -387,12 +388,14 @@ def test_workflow_performance():
 6. **Cleanup**: Always clean up test artifacts
 
 ## When to Engage
+
 - User asks about "production testing", "quality assurance", "testing strategy"
 - User needs testing guidance
 - User wants to improve test coverage
 - User has questions about test organization
 
 ## Integration with Other Skills
+
 - Route to **testing-best-practices** for testing strategies
 - Route to **test-organization** for NO MOCKING policy
 - Route to **regression-testing** for regression testing

@@ -16,6 +16,7 @@ Fix common runtime execution errors including wrong runtime usage, execution fai
 ## Common Errors
 
 ### Wrong Runtime Parameter Name
+
 ```python
 # ❌ Error
 rt.execute(builder.build(reg), config={"node": {"param": "value"}})
@@ -27,6 +28,7 @@ rt.execute(builder.build(reg), parameters={"node": {"param": "value"}})
 ```
 
 ### Result Access
+
 ```python
 # Result is a dict with keys: results, run_id, metadata
 result = rt.execute(builder.build(reg))
@@ -39,21 +41,22 @@ print(result["metadata"])  # execution metadata
 
 ## Runtime Usage Guide
 
-| Context | Runtime | Method |
-|---------|---------|--------|
-| **CLI/Scripts** | `kailash.Runtime(reg)` | `rt.execute(builder.build(reg))` |
-| **NexusApp** | `kailash.Runtime(reg)` | `rt.execute(builder.build(reg))` |
-| **All contexts** | `kailash.Runtime(reg)` | Same unified API |
+| Context          | Runtime                | Method                           |
+| ---------------- | ---------------------- | -------------------------------- |
+| **CLI/Scripts**  | `kailash.Runtime(reg)` | `rt.execute(builder.build(reg))` |
+| **NexusApp**     | `kailash.Runtime(reg)` | `rt.execute(builder.build(reg))` |
+| **All contexts** | `kailash.Runtime(reg)` | Same unified API                 |
 
 ## Complete Examples
 
 ### CLI/Script Pattern
+
 ```python
 import kailash
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": "result = {'status': 'completed'}"
 })
 
@@ -63,6 +66,7 @@ print(f"Completed: {result['run_id']}")
 ```
 
 ### NexusApp Pattern
+
 ```python
 from kailash.nexus import NexusApp
 
@@ -72,7 +76,7 @@ app = NexusApp()
 def execute(data):
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'status': 'completed'}"
     })
 
@@ -89,6 +93,7 @@ def execute(data):
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
+
 - Complex runtime configuration needed
 - Performance optimization required
 - Custom runtime development
@@ -96,6 +101,7 @@ Use `pattern-expert` subagent when:
 ## Documentation References
 
 ### Primary Sources
+
 - **CLAUDE.md**: [`CLAUDE.md` (lines 106-137)](../../../../CLAUDE.md#L106-L137)
 
 ## Quick Tips

@@ -5,6 +5,8 @@ description: "DataFlow TDD mode for fast isolated tests. Use when DataFlow TDD, 
 
 # DataFlow TDD Mode
 
+> **Rust Binding Caveat**: `tdd_mode` is a pure Python SDK feature. The Rust-backed binding (`kailash-enterprise`) does not support this parameter. For testing with the Rust binding, use separate test databases or SQLite in-memory databases (`:memory:`).
+
 Lightning-fast isolated tests (<100ms) using savepoint-based rollback for DataFlow.
 
 > **Skill Metadata**
@@ -32,9 +34,8 @@ reg = kailash.NodeRegistry()
 def db():
     """TDD mode - savepoint isolation."""
     df = kailash.DataFlow(
-        database_url=":memory:",  # In-memory for speed
+        ":memory:",  # In-memory for speed; provides natural isolation
         auto_migrate=True,
-        tdd_mode=True  # Enable savepoint isolation
     )
 
     @df.model
@@ -67,7 +68,7 @@ def test_user_creation(db):
 ```python
 @pytest.fixture
 def isolated_db():
-    db = kailash.DataFlow(":memory:", tdd_mode=True)
+    db = kailash.DataFlow(":memory:")  # In-memory DB provides per-fixture isolation
 
     @db.model
     class Product:
@@ -75,7 +76,7 @@ def isolated_db():
         price: float
 
     yield db
-    # Changes rolled back automatically
+    # In-memory DB is discarded when fixture tears down
 
 def test_product_1(isolated_db):
     # Create product
@@ -105,41 +106,42 @@ def test_suite_performance(db):
 
 ## Common Mistakes
 
-### Mistake 1: Not Using TDD Mode
+### Mistake 1: Manual Cleanup Instead of In-Memory DB
 
 ```python
 # SLOW - Full cleanup needed
 @pytest.fixture
 def db():
-    db = kailash.DataFlow(":memory:")
+    db = kailash.DataFlow("sqlite:///test.db")
     yield db
     # Manual cleanup - slow!
     db.drop_all_tables()
 ```
 
-**Fix: Enable TDD Mode**
+**Fix: Use In-Memory SQLite**
 
 ```python
 @pytest.fixture
 def db():
-    db = kailash.DataFlow(":memory:", tdd_mode=True)
+    db = kailash.DataFlow(":memory:")  # Fresh DB per fixture invocation
     yield db
-    # Automatic savepoint rollback - fast!
+    # No cleanup needed - in-memory DB is discarded automatically
 ```
 
 ## Documentation References
 
 ### Related Documentation
+
 - **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L893-L940)
 - **Test Strategy**: [`test-3tier-strategy`](#)
 
 ## Quick Tips
 
-- Use `:memory:` SQLite for maximum speed
-- tdd_mode=True enables savepoint isolation
-- Each test <100ms with rollback
-- No manual cleanup needed
+- Use `:memory:` SQLite for maximum speed and natural isolation
+- Each test <100ms with in-memory DB
+- No manual cleanup needed (in-memory DB is discarded per fixture)
 - Perfect for unit tests (Tier 1)
+- `tdd_mode` is NOT available in the Rust binding; use `:memory:` instead
 
 ## Keywords for Auto-Trigger
 

@@ -89,20 +89,20 @@ START: What are you building?
 | Multi-tenant SaaS | Handler + DataFlow     | Auth + Multi-DataFlow | Multi-Tenant        |
 | AI chatbot        | Kaizen Agent + Handler | MCP Integration       | AI Agent            |
 | ETL pipeline      | WorkflowBuilder        | Custom Node           | None (manual)       |
-| Background job    | WorkflowBuilder        | kailash.Runtime     | None (manual)       |
+| Background job    | WorkflowBuilder        | kailash.Runtime       | None (manual)       |
 | Public API        | Handler                | (no auth)             | SaaS API (modified) |
 
 ---
 
 ## Anti-Patterns (What NOT to Do)
 
-### Anti-Pattern 1: PythonCodeNode for Business Logic
+### Anti-Pattern 1: EmbeddedPythonNode for Business Logic
 
 **WRONG**:
 
 ```python
-# DON'T: PythonCodeNode sandbox blocks imports
-builder.add_node("PythonCodeNode", "process", {
+# DON'T: EmbeddedPythonNode sandbox blocks imports
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 import asyncio  # BLOCKED!
 import httpx    # BLOCKED!
@@ -129,7 +129,7 @@ async def process(data: dict) -> dict:
     return {"result": response.json()}
 ```
 
-**Why**: PythonCodeNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
+**Why**: EmbeddedPythonNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
 
 ---
 
@@ -139,8 +139,9 @@ async def process(data: dict) -> dict:
 
 ```python
 # DON'T: Access private _gateway.app
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-internal_app = nexus._gateway.app  # Private attribute!
+from kailash.nexus import NexusApp
+app = NexusApp()
+internal_app = app._gateway.app  # Private attribute!
 
 @internal_app.get("/users")  # Bypasses Nexus features
 async def get_users():
@@ -151,19 +152,20 @@ async def get_users():
 
 ```python
 # DO: Use Nexus public APIs
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Option 1: Use handler (recommended)
-@nexus.handler("get_users")
+@app.handler("get_users")
 async def get_users() -> dict:
     return {"users": []}
 
 # Option 2: Include existing router
 from myapp.routes import extra_router
-nexus.include_router(extra_router, prefix="/extra")
+app.include_router(extra_router, prefix="/extra")
 
 # Option 3: Custom endpoint (API-only)
-@nexus.endpoint("/health", methods=["GET"])
+@app.endpoint("/health", methods=["GET"])
 async def health():
     return {"status": "ok"}
 ```
@@ -204,7 +206,8 @@ from kailash.nexus import NexusAuthPlugin
 from kailash import JwtConfig, TenantConfig
 import os
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
         secret=os.environ["JWT_SECRET"],     # CORRECT: 'secret', NOT 'secret_key'
@@ -220,7 +223,7 @@ auth = NexusAuthPlugin(
         admin_role="admin",                   # CORRECT: singular string
     ),
 )
-nexus.add_plugin(auth)
+app.add_plugin(auth)
 ```
 
 **Why**: Auth is complex (refresh tokens, RBAC, tenant isolation). NexusAuthPlugin handles edge cases.
@@ -275,7 +278,7 @@ def create_user(name: str, email: str):
     builder = kailash.WorkflowBuilder()
     builder.add_node("ValidateInputNode", "validate", {"name": name, "email": email})
     builder.add_node("UserCreateNode", "create", {})
-    builder.add_connection("validate", "validated", "create", "data")
+    builder.connect("validate", "validated", "create", "data")
     # 20 lines for what should be 5
 ```
 
@@ -359,16 +362,18 @@ def test_create_user(real_db):
 
 ```python
 # DON'T: Access private attributes
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus._gateway.app.add_middleware(SomeMiddleware)  # Private!
+from kailash.nexus import NexusApp
+app = NexusApp()
+app._gateway.app.add_middleware(SomeMiddleware)  # Private!
 ```
 
 **RIGHT**:
 
 ```python
 # DO: Use public middleware API
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_middleware(SomeMiddleware, config={"key": "value"})
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_middleware(SomeMiddleware, config={"key": "value"})
 ```
 
 **Why**: `_gateway` is implementation detail. Public APIs are stable across versions.
@@ -417,14 +422,11 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "3001"))
 # Initialize Frameworks
 # ============================================================================
 
-nexus = kailash.Nexus(
-    api_port=API_PORT,
-    mcp_port=MCP_PORT,
-    auto_discovery=False  # CRITICAL: Prevents blocking with DataFlow
-)
+app = NexusApp(NexusConfig(port=API_PORT))
+# Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
-    database_url=DATABASE_URL,
+    DATABASE_URL,
     auto_migrate=True,
 )
 
@@ -452,7 +454,7 @@ auth = NexusAuthPlugin(
     ),
 )
 
-nexus.add_plugin(auth)
+app.add_plugin(auth)
 
 # ============================================================================
 # Models
@@ -479,7 +481,7 @@ class Contact:
 # Handlers (API Endpoints)
 # ============================================================================
 
-@nexus.handler("create_contact", description="Create a new contact")
+@app.handler("create_contact", description="Create a new contact")
 async def create_contact(
     email: str,
     name: str,
@@ -500,7 +502,7 @@ async def create_contact(
     return result["results"]["create"]
 
 
-@nexus.handler("list_contacts", description="List contacts with filters")
+@app.handler("list_contacts", description="List contacts with filters")
 async def list_contacts(
     company: str = None,
     limit: int = 20,
@@ -527,7 +529,7 @@ async def list_contacts(
     }
 
 
-@nexus.handler("delete_contact", description="Delete a contact")
+@app.handler("delete_contact", description="Delete a contact")
 async def delete_contact(
     contact_id: str,
     # Auth enforced by NexusAuthPlugin middleware
@@ -546,7 +548,7 @@ async def delete_contact(
 # Public Endpoints (No Auth)
 # ============================================================================
 
-@nexus.endpoint("/health", methods=["GET"])
+@app.endpoint("/health", methods=["GET"])
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
@@ -557,7 +559,7 @@ async def health_check():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(df.create_tables_async())
-    nexus.start()
+    app.start()
 ```
 
 ---
@@ -593,7 +595,7 @@ from kailash.kaizen import Signature, InputField, OutputField
 @dataclass
 class AgentConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
     temperature: float = 0.7
     max_tokens: int = 2000
     max_turns: int = 10
@@ -644,11 +646,12 @@ class AnalysisAgent(BaseAgent):
 # Initialize
 # ============================================================================
 
-nexus = kailash.Nexus(api_port=8000, mcp_port=3001, auto_discovery=False)
+app = NexusApp(NexusConfig(port=8000))
+# Register workflows manually (no auto_discovery param)
 
 config = AgentConfig(
     llm_provider=os.environ.get("LLM_PROVIDER", "openai"),
-    model=os.environ.get("LLM_MODEL", "gpt-4")
+    model=os.environ.get("LLM_MODEL", "gpt-5")
 )
 
 chat_agent = ChatAgent(config)
@@ -658,15 +661,15 @@ analysis_agent = AnalysisAgent(config)
 # Handlers
 # ============================================================================
 
-@nexus.handler("chat", description="Send a chat message")
+@app.handler("chat", description="Send a chat message")
 async def chat(message: str, session_id: str = "default", context: str = "") -> dict:
     return await chat_agent.chat(message, session_id, context)
 
-@nexus.handler("analyze", description="Analyze a document")
+@app.handler("analyze", description="Analyze a document")
 async def analyze(document: str, question: str) -> dict:
     return await analysis_agent.analyze(document, question)
 
-@nexus.handler("summarize", description="Summarize a document")
+@app.handler("summarize", description="Summarize a document")
 async def summarize(document: str, max_length: int = 500) -> dict:
     result = await analysis_agent.analyze(
         document=document,
@@ -677,7 +680,7 @@ async def summarize(document: str, max_length: int = 500) -> dict:
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
-    nexus.start()
+    app.start()
 ```
 
 ---
@@ -732,15 +735,15 @@ config = DatabaseConfig(
 # ============================================================================
 
 primary_df = kailash.DataFlow(
-    database_url=config.primary_url,
+    config.primary_url,
 )
 
 analytics_df = kailash.DataFlow(
-    database_url=config.analytics_url,
+    config.analytics_url,
 )
 
 audit_df = kailash.DataFlow(
-    database_url=config.audit_url,
+    config.audit_url,
     echo=False
 )
 
@@ -794,11 +797,9 @@ class AuditLog:
 # Nexus + Auth
 # ============================================================================
 
-nexus = kailash.Nexus(
-    api_port=int(os.environ.get("API_PORT", "8000")),
-    mcp_port=int(os.environ.get("MCP_PORT", "3001")),
-    auto_discovery=False
-)
+app = NexusApp(NexusConfig(
+    port=int(os.environ.get("API_PORT", "8000")),
+))
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
@@ -819,14 +820,14 @@ auth = NexusAuthPlugin(
     ),
 )
 
-nexus.add_plugin(auth)
+app.add_plugin(auth)
 rt = kailash.Runtime(reg)
 
 # ============================================================================
 # Handlers
 # ============================================================================
 
-@nexus.handler("create_project", description="Create a new project")
+@app.handler("create_project", description="Create a new project")
 async def create_project(
     name: str,
     description: str = None,
@@ -844,7 +845,7 @@ async def create_project(
     result = rt.execute(builder.build(reg))
     return result["results"]["create"]
 
-@nexus.handler("list_projects", description="List organization projects")
+@app.handler("list_projects", description="List organization projects")
 async def list_projects(
     status: str = "active",
     limit: int = 50,
@@ -859,20 +860,20 @@ async def list_projects(
     result = rt.execute(builder.build(reg))
     return {"projects": result["results"]["list"]["items"], "total": result["results"]["list"]["total"]}
 
-@nexus.handler("get_analytics", description="Get usage analytics")
+@app.handler("get_analytics", description="Get usage analytics")
 async def get_analytics(
     # Auth enforced by NexusAuthPlugin middleware
 ) -> dict:
     return {"page_views": 0, "api_calls": 0}
 
-@nexus.handler("get_audit_log", description="Get audit log")
+@app.handler("get_audit_log", description="Get audit log")
 async def get_audit_log(
     limit: int = 100,
     # Auth enforced by NexusAuthPlugin middleware
 ) -> dict:
     return {"audit_logs": [], "total": 0}
 
-@nexus.endpoint("/health", methods=["GET"])
+@app.endpoint("/health", methods=["GET"])
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
@@ -890,7 +891,7 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     asyncio.run(initialize_databases())
-    nexus.start()
+    app.start()
 ```
 
 ---
@@ -912,9 +913,8 @@ Before implementing, verify:
 ```python
 # ALWAYS start with these settings
 
-nexus = kailash.Nexus(
-    auto_discovery=False,  # CRITICAL for DataFlow integration
-)
+app = NexusApp()
+# Register workflows manually (no auto_discovery param)
 
 db = kailash.DataFlow(
     auto_migrate=True,  # Default
@@ -923,7 +923,7 @@ db = kailash.DataFlow(
 rt = kailash.Runtime(reg)
 
 # Use type annotations on handlers
-@nexus.handler("my_handler")
+@app.handler("my_handler")
 async def my_handler(param: str, optional: int = 10) -> dict:
     return {"result": "..."}
 ```

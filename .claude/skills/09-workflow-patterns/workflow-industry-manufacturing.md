@@ -47,10 +47,10 @@ builder.add_node("DatabaseExecuteNode", "reject", {
     "parameters": ["{{quality_test.failure_reason}}", "{{get_item.id}}"]
 })
 
-builder.add_connection("get_item", "id", "quality_test", "item_id")
-builder.add_connection("quality_test", "score", "check_quality", "condition")
-builder.add_connection("check_quality", "output_true", "approve", "trigger")
-builder.add_connection("check_quality", "output_false", "reject", "trigger")
+builder.connect("get_item", "id", "quality_test", "item_id")
+builder.connect("quality_test", "score", "check_quality", "condition")
+builder.connect("check_quality", "output_true", "approve", "trigger")
+builder.connect("check_quality", "output_false", "reject", "trigger")
 ```
 
 <!-- Trigger Keywords: manufacturing workflow, production line, quality control, inventory management -->

@@ -24,15 +24,16 @@ Define MCP tools with JSON Schema validation for reliable parameter handling.
 
 ```python
 import kailash
+import os
 
 reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
 # MCP server with structured tools
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get weather for NYC and London"}],
     "mcp_servers": [{
         "name": "weather",
@@ -74,9 +75,9 @@ result = rt.execute(builder.build(reg))
 ### Complex Type Validation
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "search",
@@ -129,7 +130,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ### Nested Objects and Arrays
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "crm",
         "transport": "http",
@@ -180,7 +181,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Output Schema Validation
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "analytics",
         "transport": "http",
@@ -225,7 +226,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Conditional Schemas
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "payment",
         "transport": "http",
@@ -277,7 +278,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Schema Reuse with Definitions
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "inventory",
         "transport": "http",
@@ -397,12 +398,12 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## Error Handling
 
 ```python
-# IterativeLLMAgentNode automatically validates inputs
+# IterativeLLMNode automatically validates inputs
 # If validation fails, it includes error in response
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search with invalid params"}],
     "mcp_servers": [{
         "name": "search",
@@ -434,6 +435,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## When to Escalate to Subagent
 
 Use `mcp-specialist` subagent when:
+
 - Implementing complex conditional schemas (oneOf, anyOf, allOf)
 - Creating reusable schema libraries
 - Building schema validation middleware

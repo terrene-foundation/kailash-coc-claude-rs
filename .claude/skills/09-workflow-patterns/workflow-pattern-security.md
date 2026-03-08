@@ -56,11 +56,11 @@ builder.add_node("DatabaseExecuteNode", "audit_failure", {
     "parameters": ["{{input.email}}"]
 })
 
-builder.add_connection("check_user", "password_hash", "verify_password", "stored_hash")
-builder.add_connection("verify_password", "match", "check_auth", "condition")
-builder.add_connection("check_auth", "output_true", "generate_token", "input")
-builder.add_connection("generate_token", "token", "audit_success", "parameters")
-builder.add_connection("check_auth", "output_false", "audit_failure", "trigger")
+builder.connect("check_user", "password_hash", "verify_password", "stored_hash")
+builder.connect("verify_password", "match", "check_auth", "condition")
+builder.connect("check_auth", "output_true", "generate_token", "input")
+builder.connect("generate_token", "token", "audit_success", "parameters")
+builder.connect("check_auth", "output_false", "audit_failure", "trigger")
 ```
 
 <!-- Trigger Keywords: security workflow, authentication, encryption workflow, audit trail, user auth -->

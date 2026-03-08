@@ -18,13 +18,15 @@ Quick validation checklist for Kailash workflow patterns to ensure compliance wi
 Run through this checklist for any Kailash workflow code:
 
 ### ✅ Critical Patterns (Must Pass)
+
 - [ ] **Imports**: Using `import kailash` (direct API)
 - [ ] **.build(reg) call**: Always `rt.execute(builder.build(reg))`
-- [ ] **String-based nodes**: `"CSVReaderNode"` not `CSVReaderNode()`
-- [ ] **4-parameter connections**: `add_connection(from_node, from_output, to_node, to_input)`
+- [ ] **String-based nodes**: `"CSVProcessorNode"` not `CSVProcessorNode()`
+- [ ] **4-parameter connections**: `connect(source, source_output, target, target_input)`
 - [ ] **Execution pattern**: `rt.execute(builder.build(reg))` NOT `workflow.execute(runtime)`
 
 ### ✅ Common Mistakes (Check These)
+
 - [ ] **Node suffix**: All nodes end with "Node" (CSVReader**Node**, LLMAgent**Node**)
 - [ ] **Snake_case methods**: `add_node()` NOT `addNode()`
 - [ ] **Snake_case config**: `file_path` NOT `filePath`
@@ -41,15 +43,16 @@ import kailash
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
-builder.add_node("PythonCodeNode", "process", {"code": "result = len(data)"})
-builder.add_connection("reader", "data", "process", "data")
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
+builder.connect("reader", "data", "process", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
 **Validation Result**: ✅ PASS
+
 - ✅ Absolute imports
 - ✅ String-based nodes
 - ✅ 4-parameter connections
@@ -64,23 +67,25 @@ from kailash.nodes.data import CSVReader  # ❌ Wrong: don't import nodes, use s
 
 builder = kailash.WorkflowBuilder()
 workflow.addNode("reader", CSVReader())  # ❌ camelCase, instance-based
-builder.add_connection("reader", "processor", "data")  # ❌ Only 3 parameters
+builder.connect("reader", "processor", "data")  # ❌ Only 3 parameters
 
 rt = kailash.Runtime()  # ❌ Missing NodeRegistry
 result = rt.execute(workflow)  # ❌ Missing .build(reg)
 ```
 
 **Validation Result**: ❌ FAIL - 6 violations found
-1. ❌ **Import**: Don't import nodes -- use string-based API: `builder.add_node("CSVReaderNode", ...)`
+
+1. ❌ **Import**: Don't import nodes -- use string-based API: `builder.add_node("CSVProcessorNode", ...)`
 2. ❌ **Method**: camelCase - use `add_node()` not `addNode()`
-3. ❌ **Node API**: Instance-based - use string `"CSVReaderNode"` not `CSVReader()`
-4. ❌ **Connection**: Only 3 params - use `(from_node, from_output, to_node, to_input)`
+3. ❌ **Node API**: Instance-based - use string `"CSVProcessorNode"` not `CSVReader()`
+4. ❌ **Connection**: Only 3 params - use `(source, source_output, target, target_input)`
 5. ❌ **Runtime**: Missing NodeRegistry - use `kailash.Runtime(kailash.NodeRegistry())`
 6. ❌ **Build**: Missing `.build(reg)` - use `rt.execute(builder.build(reg))`
 
 ## Pattern Validation Rules
 
 ### Rule 1: Execution Pattern (CRITICAL)
+
 ```python
 # ✅ VALID
 rt.execute(builder.build(reg))
@@ -94,28 +99,31 @@ workflow.run()
 ```
 
 ### Rule 2: Node API (CRITICAL)
+
 ```python
 # ✅ VALID - String-based
-builder.add_node("CSVReaderNode", "reader", {"file_path": "..."})
-builder.add_node("PythonCodeNode", "process", {"code": "..."})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "..."})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "..."})
 
 # ❌ INVALID - Instance-based (deprecated)
-builder.add_node("reader", CSVReaderNode(file_path="..."))
-builder.add_node("process", PythonCodeNode(code="..."))
+builder.add_node("reader", CSVProcessorNode(file_path="..."))
+builder.add_node("process", EmbeddedPythonNode(code="..."))
 ```
 
 ### Rule 3: Connection Pattern (CRITICAL)
+
 ```python
 # ✅ VALID - 4 parameters
-builder.add_connection("source", "output", "target", "input")
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("source", "output", "target", "input")
+builder.connect("reader", "data", "processor", "data")
 
 # ❌ INVALID - 3 parameters (deprecated)
-builder.add_connection("source", "target", "data")
-builder.add_connection("reader", "processor")
+builder.connect("source", "target", "data")
+builder.connect("reader", "processor")
 ```
 
 ### Rule 4: Import Pattern (HIGH)
+
 ```python
 # ✅ VALID
 import kailash
@@ -126,14 +134,15 @@ from .runtime import Runtime
 
 # ❌ INVALID - Internal module imports
 from kailash.workflow.builder import WorkflowBuilder  # No such module
-from kailash.nodes.data import CSVReaderNode  # No such module
+from kailash.nodes.data import CSVProcessorNode  # No such module
 ```
 
 ### Rule 5: Naming Conventions (HIGH)
+
 ```python
 # ✅ VALID
-CSVReaderNode, LLMAgentNode, HTTPRequestNode, PythonCodeNode
-builder.add_node(), builder.add_connection(), builder.build(reg)
+CSVProcessorNode, LLMNode, HTTPRequestNode, EmbeddedPythonNode
+builder.add_node(), builder.connect(), builder.build(reg)
 file_path="...", has_header=True, connection_string="..."
 
 # ❌ INVALID
@@ -170,7 +179,7 @@ def validate_workflow_code(code: str) -> dict:
         violations.append({
             "rule": "Naming Convention",
             "issue": "camelCase methods",
-            "fix": "Use snake_case: add_node(), add_connection()"
+            "fix": "Use snake_case: add_node(), connect()"
         })
 
     # Check 4: Missing Node suffix in imports
@@ -212,7 +221,9 @@ def validate_workflow_code(code: str) -> dict:
 ## Common Validation Scenarios
 
 ### Scenario 1: Pre-Commit Review
+
 Run validation before committing code:
+
 ```python
 validation_result = validate_workflow_code(my_workflow_code)
 if not validation_result["valid"]:
@@ -223,7 +234,9 @@ if not validation_result["valid"]:
 ```
 
 ### Scenario 2: Code Review Checklist
+
 Use this during PR reviews:
+
 - [ ] All imports are absolute (no relative imports)
 - [ ] All nodes use string-based API
 - [ ] All connections use 4-parameter pattern
@@ -234,7 +247,9 @@ Use this during PR reviews:
 - [ ] All node classes have "Node" suffix
 
 ### Scenario 3: Refactoring Code
+
 When updating code to correct patterns:
+
 1. Check imports - update to absolute
 2. Check node API - convert instance-based to string-based
 3. Check connections - update to 4 parameters
@@ -251,12 +266,14 @@ When updating code to correct patterns:
 ## When to Escalate to Subagent
 
 Use `gold-standards-validator` subagent when:
+
 - Need comprehensive compliance check across entire codebase
 - Validating against all gold standards (not just workflow structure)
 - Generating compliance report for audit
 - Automated CI/CD validation
 
 Use `pattern-expert` subagent when:
+
 - Debugging complex pattern violations
 - Understanding why certain patterns are required
 - Optimizing workflow structure for performance
@@ -265,6 +282,7 @@ Use `pattern-expert` subagent when:
 ## Documentation References
 
 ### Primary Sources
+
 - **Pattern Expert**: [`.claude/agents/pattern-expert.md`](../../../../.claude/agents/pattern-expert.md)
 - **Essential Pattern**: [`CLAUDE.md` (lines 139-145)](../../../../CLAUDE.md#L139-L145)
 

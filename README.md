@@ -1,6 +1,7 @@
 # Kailash COC Claude (Rust-backed Python)
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-2.2.0-green.svg" alt="v2.2.0">
   <img src="https://img.shields.io/badge/platform-Claude%20Code-7C3AED.svg" alt="Claude Code">
   <img src="https://img.shields.io/badge/architecture-COC%205--Layer-blue.svg" alt="COC 5-Layer">
   <img src="https://img.shields.io/badge/language-Python-3776AB.svg" alt="Python">
@@ -62,9 +63,9 @@ Each agent is a Markdown file in `.claude/agents/` with a defined role, tools, a
 
 Analysis agents run on Opus (deep reasoning). Review agents run on Sonnet (fast, cost-efficient).
 
-### Layer 2: Context -- 28 Skill Directories, 100+ Files
+### Layer 2: Context -- 30 Skill Directories, 290+ Files
 
-Progressive disclosure: quick patterns (10-50 lines) -> specific domains (50-250 lines) -> full SDK reference. Located in `.claude/skills/`.
+Progressive disclosure: quick patterns (10-50 lines) -> specific domains (50-250 lines) -> full SDK reference. Located in `.claude/skills/`. Includes Python binding reference and enterprise feature skills added in v2.2.0.
 
 Domains include: Core SDK, DataFlow, Nexus, Kaizen, MCP, cheatsheets, 140+ node reference, workflow patterns, deployment, frontend integration (React + Flutter), 3-tier testing, architecture decisions, security patterns, enterprise AI UX, and more.
 
@@ -85,7 +86,7 @@ No mocking in integration tests. No hardcoded secrets. No stubs/TODOs in product
 | `pre-compact.js`                | Saves state before context compression + workspace reminder   |
 | `session-end.js`                | Persists session stats for learning                           |
 | `stop.js`                       | Emergency state save + workspace reminder                     |
-| `detect-package-manager.js`     | Detects pip/poetry/uv/npm/pnpm/yarn/bun                      |
+| `detect-package-manager.js`     | Detects pip/poetry/uv/npm/pnpm/yarn/bun                       |
 
 Critical rules have 5-8 independent enforcement layers. If any four fail, the fifth catches it.
 
@@ -136,7 +137,7 @@ The `session-start.js` hook validates your environment automatically. Then just 
 ```
 .claude/
   agents/          30 specialist agents (Markdown + YAML frontmatter)
-  skills/          28 domain knowledge directories, 100+ files
+  skills/          30 domain knowledge directories, 290+ files
   rules/           9 behavioral constraint files
   commands/        20 slash command definitions (13 framework + 7 workspace)
   learning/        Observation-instinct-evolution pipeline

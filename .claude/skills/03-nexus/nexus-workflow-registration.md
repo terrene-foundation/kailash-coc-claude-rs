@@ -13,12 +13,12 @@ Master workflow registration patterns from basic to advanced.
 
 Nexus provides two registration approaches:
 
-| Method           | Use Case                       | Example                                  |
-| ---------------- | ------------------------------ | ---------------------------------------- |
-| `app.register()` | WorkflowBuilder workflows      | `nexus.register("name", builder.build(reg))` |
-| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                   |
+| Method           | Use Case                       | Example                                    |
+| ---------------- | ------------------------------ | ------------------------------------------ |
+| `app.register()` | WorkflowBuilder workflows      | `app.register("name", builder.build(reg))` |
+| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                     |
 
-**Recommendation**: Use `@app.handler()` for most cases. It bypasses PythonCodeNode sandbox restrictions and provides better IDE support.
+**Recommendation**: Use `@app.handler()` for most cases. It bypasses EmbeddedPythonNode sandbox restrictions and provides better IDE support.
 
 ## Handler Registration (Recommended)
 
@@ -27,21 +27,22 @@ Register Python functions directly as multi-channel workflows:
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
-@nexus.handler("greet", description="Greet a user")
+@app.handler("greet", description="Greet a user")
 async def greet(name: str, greeting: str = "Hello") -> dict:
     return {"message": f"{greeting}, {name}!"}
 
 # Full Python access - no sandbox restrictions
-@nexus.handler("search_users")
+@app.handler("search_users")
 async def search_users(query: str, limit: int = 10) -> dict:
     from my_app.services import UserService
     service = UserService()
     users = await service.search(query, limit)
     return {"users": users}
 
-nexus.start()
+app.start()
 ```
 
 ### Non-Decorator Handler Registration
@@ -49,7 +50,7 @@ nexus.start()
 ```python
 from my_app.handlers import process_order
 
-app = kailash.Nexus()
+app = NexusApp()
 app.register_handler("process_order", process_order, description="Process an order")
 app.start()
 ```
@@ -71,7 +72,8 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Create workflow
 builder = kailash.WorkflowBuilder()
@@ -81,7 +83,7 @@ builder.add_node("HTTPRequestNode", "fetch", {
 })
 
 # Register with name - single call exposes on ALL channels
-nexus.register("data-fetcher", builder.build(reg))
+app.register("data-fetcher", builder.build(reg))
 
 # What happens internally:
 # 1. Nexus stores workflow: self._workflows[name] = workflow
@@ -176,10 +178,10 @@ builder.add_node("HTTPRequestNode", "fetch", {
 
 ```python
 # Enable (default)
-app = kailash.Nexus(auto_discovery=True)
+app = NexusApp()  # auto_discovery not a NexusApp param
 
 # Disable (recommended with DataFlow)
-app = kailash.Nexus(auto_discovery=False)
+app = NexusApp()  # Register workflows manually
 ```
 
 ## Dynamic Registration
@@ -193,7 +195,8 @@ reg = kailash.NodeRegistry()
 import os
 import importlib.util
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 def discover_and_register(directory="./workflows"):
     for filename in os.listdir(directory):
@@ -210,7 +213,7 @@ def discover_and_register(directory="./workflows"):
 
             # Register workflow
             if hasattr(module, 'workflow'):
-                nexus.register(name, module.builder.build(reg))
+                app.register(name, module.builder.build(reg))
                 print(f"Registered: {name}")
 
 discover_and_register()
@@ -238,9 +241,9 @@ def register_from_config(app, config_file="workflows.yaml"):
 
         # Add connections
         for conn in wf_config.get('connections', []):
-            builder.add_connection(
-                conn['from_node'], "result",
-                conn['to_node'], "input"
+            builder.connect(
+                conn['source'], "result",
+                conn['target'], "input"
             )
 
         app.register(
@@ -433,6 +436,60 @@ conditional_register(
 )
 ```
 
+## WorkflowRegistry (Rust-backed)
+
+The `WorkflowRegistry` class from `kailash.nexus` provides a Rust-backed workflow registry for registering, retrieving, and executing workflows by name.
+
+```python
+from kailash.nexus import WorkflowRegistry
+
+registry = WorkflowRegistry()
+
+# Register a workflow definition
+registry.register("my-workflow", {"steps": [
+    {"type": "HTTPRequestNode", "id": "fetch", "params": {"url": "https://api.example.com/data"}},
+    {"type": "JSONTransformNode", "id": "parse", "params": {"expression": "@.results"}},
+]})
+
+# Retrieve a registered workflow
+wf = registry.get("my-workflow")
+# Returns the workflow definition dict
+
+# Execute a registered workflow with input data
+result = registry.execute("my-workflow", {"input": "data"})
+```
+
+### WorkflowRegistry vs NexusApp Registration
+
+| Feature       | `WorkflowRegistry`             | `app.register()` / `@app.handler()` |
+| ------------- | ------------------------------ | ----------------------------------- |
+| Backend       | Rust (standalone)              | Python (NexusApp)                   |
+| Multi-channel | No (registry only)             | Yes (API + CLI + MCP)               |
+| Execution     | `registry.execute()`           | Via HTTP, CLI, or MCP               |
+| Best for      | Standalone workflow management | Platform deployment                 |
+
+### Production Pattern
+
+```python
+from kailash.nexus import WorkflowRegistry, NexusApp
+
+# Use WorkflowRegistry for centralized workflow management
+registry = WorkflowRegistry()
+
+# Register workflow definitions
+registry.register("data-pipeline", {"steps": [...]})
+registry.register("report-generator", {"steps": [...]})
+
+# Bridge to NexusApp for multi-channel deployment
+app = NexusApp()
+
+@app.handler(name="run_workflow", description="Execute a registered workflow")
+async def run_workflow(workflow_name: str, input_data: dict) -> dict:
+    return registry.execute(workflow_name, input_data)
+
+app.start()
+```
+
 ## Workflow Validation
 
 ```python
@@ -506,7 +563,7 @@ app.register("workflow", builder.build(reg))  # Correct
 
 ```python
 # Disable when using DataFlow
-app = kailash.Nexus(auto_discovery=False)
+app = NexusApp()  # Register workflows manually
 ```
 
 ### Registration Order
@@ -520,7 +577,7 @@ app.register(name, builder.build(reg))  # Correct
 
 **Registration Flow:**
 
-- ✅ Single `nexus.register(name, builder.build(reg))` call
+- ✅ Single `app.register(name, builder.build(reg))` call
 - ✅ Automatically exposes on API, CLI, and MCP channels
 - ✅ No ChannelManager - Nexus handles everything directly
 - ✅ Enterprise gateway provides multi-channel support

@@ -30,7 +30,7 @@ import kailash
 # Build workflow
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 wf = builder.build(reg)
 
 # Execute — single unified Runtime
@@ -177,7 +177,7 @@ result = rt.execute(builder.build(reg))
 - SQLite CARE storage (ACID-compliant, queryable audit trail with EATP event persistence)
 
 **Framework overhead**: ~41-52us/node with monitoring disabled (30-34% of total execution time
-for PythonCodeNode with minimal code). See `docs/guides/00-performance-optimizations.md` for
+for EmbeddedPythonNode with minimal code). See `docs/guides/00-performance-optimizations.md` for
 detailed benchmark results.
 
 **Monitoring overhead**: ~35us/node in-loop + ~1.5-2.8ms SQLite flush after execution.

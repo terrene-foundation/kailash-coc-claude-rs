@@ -170,7 +170,7 @@ builder.add_node("UserListNode", "search", {
 ```python
 # Connect to existing database WITHOUT modifying schema
 db = kailash.DataFlow(
-    database_url="postgresql://user:pass@localhost/existing_db",
+    "postgresql://user:pass@localhost/existing_db",
     auto_migrate=False,          # Don't create/modify tables
 )
 
@@ -227,7 +227,7 @@ builder.add_node("OrderCreateNode", "create", {
 
 ```python
 # Correct - use explicit connections
-builder.add_connection("customer", "id", "create_order", "customer_id")
+builder.connect("customer", "id", "create_order", "customer_id")
 ```
 
 ### ❌ Mistake 3: String Datetime Values
@@ -328,8 +328,10 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-# Step 1: Create Nexus FIRST with auto_discovery=False
-nexus = kailash.Nexus(auto_discovery=False)  # CRITICAL: Prevents blocking
+# Step 1: Create NexusApp
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 
 # Step 2: Create DataFlow (auto_migrate=True works in Docker)
 df = kailash.DataFlow(
@@ -346,10 +348,10 @@ class User:
 # Step 4: Register workflows manually
 builder = kailash.WorkflowBuilder()
 builder.add_node("UserCreateNode", "create", {"name": "Alice", "email": "alice@example.com"})
-nexus.register("create_user", builder.build(reg))
+app.register("create_user", builder.build(reg))
 
 # Fast startup: <2 seconds!
-nexus.start()
+app.start()
 ```
 
 ## Related Patterns
@@ -357,7 +359,7 @@ nexus.start()
 - **Model definition**: [`dataflow-models`](dataflow-models.md)
 - **Query patterns**: [`dataflow-queries`](dataflow-queries.md)
 - **Bulk operations**: [`dataflow-bulk-ops`](dataflow-bulk-ops.md)
-- **Nexus integration**: [`dataflow-nexus-integration`](../../5-cross-cutting/integrations/dataflow-nexus-integration.md)
+- **Nexus integration**: See Nexus skills in `03-nexus/`
 - **Migration guide**: [`dataflow-migration-quick`](dataflow-migration-quick.md)
 
 ## When to Escalate to Subagent
@@ -384,7 +386,7 @@ Use `nexus-specialist` when:
 - 💡 **MongoDB queries**: Use familiar syntax that works across all SQL databases (PostgreSQL/MySQL/SQLite)
 - 💡 **String IDs**: Fully supported - no forced integer conversion
 - 💡 **Existing databases**: Use `auto_migrate=False` for safety
-- 💡 **Nexus integration**: Set `auto_discovery=False` in Nexus to avoid blocking
+- 💡 **Nexus integration**: Use `NexusApp()` and register workflows manually
 - 💡 **Clean logs**: Use `LoggingConfig.production()` for production, `LoggingConfig.development()` for debugging
 
 <!-- Trigger Keywords: DataFlow tutorial, DataFlow quick start, @db.model, DataFlow setup, database framework, how to use DataFlow, DataFlow installation, DataFlow guide, zero-config database, automatic node generation, DataFlow example, start with DataFlow -->

@@ -19,32 +19,34 @@ Complete reference for AI and machine learning nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available AI nodes: LLMAgentNode, IterativeLLMAgentNode (Real MCP execution),
+# Available AI nodes: LLMNode, IterativeLLMNode (Real MCP execution),
 #   EmbeddingGeneratorNode, A2AAgentNode, SelfOrganizingAgentNode
 ```
 
 ## Core LLM Nodes
 
-### LLMAgentNode
+### LLMNode
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("LLMAgentNode", "agent", {
+builder.add_node("LLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "Explain quantum computing",
     "temperature": 0.7,
     "max_tokens": 1000
 })
 ```
 
-### IterativeLLMAgentNode ⭐
+### IterativeLLMNode ⭐
+
 ```python
 # Advanced agent with real MCP tool execution
-builder.add_node("IterativeLLMAgentNode", "iterative_agent", {
+builder.add_node("IterativeLLMNode", "iterative_agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get weather and analyze trends"}],
     "mcp_servers": [{
         "name": "weather",
@@ -61,6 +63,7 @@ builder.add_node("IterativeLLMAgentNode", "iterative_agent", {
 ## Embeddings
 
 ### EmbeddingGeneratorNode
+
 ```python
 builder.add_node("EmbeddingGeneratorNode", "embedder", {
     "provider": "openai",
@@ -73,17 +76,19 @@ builder.add_node("EmbeddingGeneratorNode", "embedder", {
 ## Multi-Agent Nodes
 
 ### A2AAgentNode
+
 ```python
 builder.add_node("A2AAgentNode", "agent", {
     "agent_id": "researcher_001",
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Analyze data"}],
     "memory_pool": "memory_pool_ref"
 })
 ```
 
 ### SelfOrganizingAgentNode
+
 ```python
 builder.add_node("SelfOrganizingAgentNode", "agent", {
     "agent_id": "adaptive_agent_001",
@@ -97,4 +102,4 @@ builder.add_node("SelfOrganizingAgentNode", "agent", {
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 - **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
 
-<!-- Trigger Keywords: LLM node, AI nodes, OpenAI, Anthropic, embeddings, iterative agent, LLMAgentNode, IterativeLLMAgentNode -->
+<!-- Trigger Keywords: LLM node, AI nodes, OpenAI, Anthropic, embeddings, iterative agent, LLMNode, IterativeLLMNode -->

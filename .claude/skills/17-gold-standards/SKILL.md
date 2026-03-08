@@ -36,7 +36,7 @@ Gold standards are **mandatory** practices for:
 #### Parameter Passing (MANDATORY)
 - **[gold-parameter-passing](gold-parameter-passing.md)** - Parameter standards
   - **Rule**: Use 4-parameter connection format
-  - **Pattern**: `builder.add_connection(source_id, source_param, target_id, target_param)`
+  - **Pattern**: `builder.connect(source_id, source_param, target_id, target_param)`
   - **Rule**: Access results with dict pattern
   - **Pattern**: `result["results"]["node_id"]["result"]`
   - **Never**: `result["results"]["node_id"].result`
@@ -146,10 +146,10 @@ def test_dataflow_crud():
 ### 3. 4-Parameter Connections ALWAYS
 ```python
 # ✅ CORRECT (Gold Standard)
-builder.add_connection("node1", "result", "node2", "input_data")
+builder.connect("node1", "result", "node2", "input_data")
 
 # ❌ WRONG (Violates Gold Standard)
-builder.add_connection("node1", "node2")
+builder.connect("node1", "node2")
 ```
 
 ### 4. Always Call .build(reg)

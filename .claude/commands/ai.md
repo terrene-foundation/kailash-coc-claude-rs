@@ -64,8 +64,8 @@ posture = kailash.EatpPosture
 verify_config = kailash.VerificationConfig()
 
 # Enterprise types
-rbac = kailash.RbacEvaluator()
-abac = kailash.AbacEvaluator()
+rbac = kailash.RbacEvaluator()  # no-arg, then .add_role()
+abac = kailash.AbacEvaluator([])  # requires policies list
 audit = kailash.AuditLogger()
 tenants = kailash.TenantRegistry()
 ```

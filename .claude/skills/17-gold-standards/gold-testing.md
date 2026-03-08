@@ -19,7 +19,7 @@ import kailash
 def test_user_workflow():
     """Test user creation workflow."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "create", {
+    builder.add_node("EmbeddedPythonNode", "create", {
         "code": "result = {'email': 'test@example.com', 'created': True}"
     })
 
@@ -40,7 +40,7 @@ def test_user_workflow():
 def test_workflow_build():
     """Test workflow construction."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "process", {"code": "result = 42"})
+    builder.add_node("EmbeddedPythonNode", "process", {"code": "result = 42"})
 
     reg = kailash.NodeRegistry()
     assert builder.build(reg) is not None
@@ -150,14 +150,14 @@ def runtime():
 
 def test_one(clean_builder, runtime):
     """Isolated test with clean workflow."""
-    clean_builder.add_node("PythonCodeNode", "node", {"code": "result = 1"})
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1"})
     reg = kailash.NodeRegistry()
     result = runtime.execute(clean_builder.build(reg))
     assert result["results"]["node"]["result"] == 1
 
 def test_two(clean_builder, runtime):
     """Another isolated test with fresh workflow."""
-    clean_builder.add_node("PythonCodeNode", "node", {"code": "result = 2"})
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 2"})
     reg = kailash.NodeRegistry()
     result = runtime.execute(clean_builder.build(reg))
     assert result["results"]["node"]["result"] == 2
@@ -169,7 +169,7 @@ def test_two(clean_builder, runtime):
 def test_workflow_execution():
     """Test workflow executes correctly."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {
+    builder.add_node("EmbeddedPythonNode", "node", {
         "code": "result = {'status': 'completed'}"
     })
 

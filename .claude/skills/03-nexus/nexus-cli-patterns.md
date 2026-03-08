@@ -69,7 +69,8 @@ nexus run workflow --config '{"key": "value", "nested": {"a": 1}}'
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Configure CLI behavior
 app.cli.interactive = True          # Enable interactive prompts

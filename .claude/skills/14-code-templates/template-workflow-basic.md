@@ -31,16 +31,16 @@ def main():
     builder = kailash.WorkflowBuilder()
 
     # 2. Add nodes (replace with your nodes)
-    builder.add_node("PythonCodeNode", "step1", {
+    builder.add_node("EmbeddedPythonNode", "step1", {
         "code": "result = {'data': 'value'}"
     })
 
-    builder.add_node("PythonCodeNode", "step2", {
+    builder.add_node("EmbeddedPythonNode", "step2", {
         "code": "result = {'processed': input_data}"
     })
 
     # 3. Connect nodes (define data flow)
-    builder.add_connection("step1", "result", "step2", "input_data")
+    builder.connect("step1", "result", "step2", "input_data")
 
     # 4. Build workflow (pass registry for validation)
     wf = builder.build(reg)
@@ -64,6 +64,7 @@ This is the only API pattern -- there is no separate "legacy" or "v2" API.
 ## Template Variations
 
 ### CLI/Script Template
+
 ```python
 #!/usr/bin/env python3
 """CLI Workflow Template"""
@@ -75,7 +76,7 @@ def create_workflow(reg):
     """Create and return built workflow"""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'status': 'completed'}"
     })
 
@@ -100,6 +101,7 @@ if __name__ == "__main__":
 ```
 
 ### NexusApp Deployment Template
+
 ```python
 """NexusApp Workflow Template for multi-channel deployment"""
 
@@ -114,7 +116,7 @@ def execute_workflow(data):
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'processed': True}"
     })
 
@@ -125,6 +127,7 @@ def execute_workflow(data):
 ```
 
 ### Data Processing Template
+
 ```python
 """Data Processing Workflow Template"""
 
@@ -133,31 +136,31 @@ def create_etl_workflow(input_file: str, output_file: str, reg):
     builder = kailash.WorkflowBuilder()
 
     # Extract
-    builder.add_node("CSVReaderNode", "extract", {
+    builder.add_node("CSVProcessorNode", "extract", {
         "file_path": input_file,
         "has_header": True
     })
 
     # Transform
-    builder.add_node("PythonCodeNode", "transform", {
+    builder.add_node("EmbeddedPythonNode", "transform", {
         "code": """
 import pandas as pd
 df = pd.DataFrame(data)
-# TODO: Add your transformation logic
+# Add your transformation logic here
 df['processed'] = df['value'] * 2
 result = df.to_dict('records')
 """
     })
 
     # Load
-    builder.add_node("CSVWriterNode", "load", {
+    builder.add_node("FileWriterNode", "load", {
         "file_path": output_file,
         "include_header": True
     })
 
     # Connect pipeline
-    builder.add_connection("extract", "data", "transform", "data")
-    builder.add_connection("transform", "result", "load", "data")
+    builder.connect("extract", "data", "transform", "data")
+    builder.connect("transform", "result", "load", "data")
 
     return builder.build(reg)
 
@@ -175,31 +178,34 @@ if __name__ == "__main__":
 ## Template Customization Guide
 
 ### Step 1: Choose Your Nodes
+
 Replace placeholders with actual node types based on your needs:
 
-| Need | Node Type | Example Config |
-|------|-----------|----------------|
-| **Read CSV** | `CSVReaderNode` | `{"file_path": "data.csv"}` |
-| **Read JSON** | `JSONReaderNode` | `{"file_path": "data.json"}` |
-| **API Call** | `HTTPRequestNode` | `{"url": "https://...", "method": "GET"}` |
-| **Database Query** | `AsyncSQLDatabaseNode` | `{"connection_string": "...", "query": "..."}` |
-| **LLM Processing** | `LLMAgentNode` | `{"provider": "openai", "model": "gpt-4"}` |
-| **Custom Logic** | `PythonCodeNode` | `{"code": "result = {...}"}` |
-| **Write CSV** | `CSVWriterNode` | `{"file_path": "output.csv"}` |
+| Need               | Node Type            | Example Config                                                                  |
+| ------------------ | -------------------- | ------------------------------------------------------------------------------- |
+| **Read CSV**       | `CSVProcessorNode`   | `{"file_path": "data.csv"}`                                                     |
+| **Read JSON**      | `JSONTransformNode`  | `{"file_path": "data.json"}`                                                    |
+| **API Call**       | `HTTPRequestNode`    | `{"url": "https://...", "method": "GET"}`                                       |
+| **Database Query** | `SQLQueryNode`       | `{"connection_string": "...", "query": "..."}`                                  |
+| **LLM Processing** | `LLMNode`            | `{"provider": "openai", "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")}` |
+| **Custom Logic**   | `EmbeddedPythonNode` | `{"code": "result = {...}"}`                                                    |
+| **Write CSV**      | `FileWriterNode`     | `{"file_path": "output.csv"}`                                                   |
 
 ### Step 2: Define Data Flow
+
 Connect your nodes using the 4-parameter pattern:
 
 ```python
-builder.add_connection(
-    "source_node_id",    # from_node
-    "output_field",      # from_output
-    "target_node_id",    # to_node
-    "input_field"        # to_input
+builder.connect(
+    "source_node_id",    # source (source node ID)
+    "output_field",      # source_output (output field from source)
+    "target_node_id",    # target (target node ID)
+    "input_field"        # target_input (input field on target)
 )
 ```
 
 ### Step 3: Add Error Handling
+
 ```python
 try:
     result = rt.execute(builder.build(reg))
@@ -219,12 +225,14 @@ except Exception as e:
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
+
 - Need custom node development
 - Implementing complex cyclic workflows
 - Advanced parameter passing patterns
 - Performance optimization required
 
 Use `tdd-implementer` subagent when:
+
 - Implementing test-first development
 - Need complete test coverage strategy
 - Building production-grade workflows
@@ -232,11 +240,12 @@ Use `tdd-implementer` subagent when:
 ## Documentation References
 
 ### Primary Sources
+
 - **Essential Pattern**: [`CLAUDE.md` (lines 106-137)](../../../../CLAUDE.md#L106-L137)
 
 ## Quick Tips
 
-- 💡 **Start simple**: Use PythonCodeNode for prototyping before specialized nodes
+- 💡 **Start simple**: Use EmbeddedPythonNode for prototyping before specialized nodes
 - 💡 **Build function**: Extract workflow creation into separate function for reusability
 - 💡 **Type hints**: Add type hints to improve code maintainability
 - 💡 **Docstrings**: Document what your workflow does

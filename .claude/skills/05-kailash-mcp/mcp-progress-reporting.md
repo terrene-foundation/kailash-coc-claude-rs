@@ -23,12 +23,13 @@ Report progress for long-running MCP operations.
 
 ```python
 import kailash
+import os
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Process large dataset"}],
     "mcp_servers": [{
         "name": "processor",

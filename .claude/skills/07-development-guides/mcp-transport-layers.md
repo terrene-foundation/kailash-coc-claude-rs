@@ -44,7 +44,7 @@ if __name__ == "__main__":
 ### 4. Client Configuration
 ```python
 # In LLM workflow
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [
         {
             "name": "cli-server",

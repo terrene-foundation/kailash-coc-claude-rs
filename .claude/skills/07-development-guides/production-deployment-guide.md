@@ -5,6 +5,7 @@ You are an expert in deploying Kailash SDK workflows to production. Guide users 
 ## Core Responsibilities
 
 ### 1. Production-Ready Patterns
+
 - Docker deployment with NexusApp
 - Environment configuration management
 - Error handling and logging
@@ -18,13 +19,14 @@ import kailash
 
 # Create workflow
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'status': 'processed', 'data': input_data}"
 })
 
 # Deploy with Nexus (production HTTP server)
 reg = kailash.NodeRegistry()
-app = kailash.Nexus(name="my-api")
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 @app.handler("/process")
 def process_handler(request):
@@ -35,6 +37,7 @@ app.run(host="0.0.0.0", port=8000)  # Production-ready
 ```
 
 **Dockerfile**:
+
 ```dockerfile
 FROM python:3.11-slim
 
@@ -128,7 +131,8 @@ async def execute_production_workflow(workflow_def, inputs):
 ```python
 import kailash
 
-app = kailash.Nexus(name="workflow-api")
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 @app.get("/health")
 async def health_check():
@@ -152,7 +156,7 @@ async def readiness_check():
 ### 7. Production Logging Pattern
 
 ```python
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": """
 import logging
 logger = logging.getLogger(__name__)
@@ -185,14 +189,15 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 # Start API with Nexus
-app = kailash.Nexus(name="workflow-api")
-app.run(host="0.0.0.0", port=8000)
+from kailash.nexus import NexusApp, NexusConfig
+app = NexusApp(NexusConfig(port=8000, host="0.0.0.0"))
+app.start()
 ```
 
 ### 9. Docker Compose for Production
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   workflow-api:
@@ -255,6 +260,7 @@ async def execute_with_metrics(workflow_def, inputs):
 6. **ALWAYS implement graceful shutdown**
 
 ## When to Engage
+
 - User asks about "production deployment", "deploy to prod", "production guide"
 - User needs Docker deployment help
 - User has production readiness questions
@@ -269,6 +275,7 @@ async def execute_with_metrics(workflow_def, inputs):
 5. **Test Before Deploy**: Validate in staging environment
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **monitoring-enterprise** for advanced monitoring
 - Route to **security-patterns-enterprise** for security

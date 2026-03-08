@@ -19,7 +19,7 @@ For common MCP queries, use Skills for instant answers:
 | "Structured tools?"         | `mcp-structured-tools` |
 | "MCP resources?"            | `mcp-resources`        |
 | "Basic server setup?"       | `mcp-server-setup`     |
-| "LLMAgentNode integration?" | `mcp-llmagentnode`     |
+| "LLMNode integration?" | `mcp-llmagentnode`     |
 
 ## Use This Agent For
 
@@ -35,7 +35,7 @@ For common MCP queries, use Skills for instant answers:
 2. Configure tool and resource registration patterns
 3. Set up transport configuration (STDIO, HTTP, WebSocket, SSE)
 4. Implement service discovery and registry integration
-5. Handle LLMAgentNode integration and multi-server orchestration
+5. Handle LLMNode integration and multi-server orchestration
 
 ## Critical Rules
 
@@ -58,7 +58,7 @@ For common MCP queries, use Skills for instant answers:
    - Enable monitoring and metrics
 
 3. **Integrate with Workflows**
-   - Configure LLMAgentNode with MCP servers
+   - Configure LLMNode with MCP servers
    - Set up multi-server orchestration
    - Handle tool discovery
 
@@ -71,13 +71,13 @@ For common MCP queries, use Skills for instant answers:
 
 ```python
 # Real MCP execution (default)
-builder.add_node("LLMAgentNode", "agent", {
+builder.add_node("LLMNode", "agent", {
     "mcp_servers": [server_config]
     # use_real_mcp defaults to True
 })
 
 # Explicit mock for testing
-builder.add_node("LLMAgentNode", "agent", {
+builder.add_node("LLMNode", "agent", {
     "mcp_servers": [server_config],
     "use_real_mcp": False  # Only for unit tests
 })
@@ -87,7 +87,7 @@ builder.add_node("LLMAgentNode", "agent", {
 
 - **[mcp-advanced-patterns](../../.claude/skills/05-kailash-mcp/mcp-advanced-patterns.md)** - JWT auth, service discovery, structured tools
 - **[mcp-server-setup](../../.claude/skills/05-kailash-mcp/mcp-server-setup.md)** - Basic server setup
-- **[mcp-llmagentnode](../../.claude/skills/05-kailash-mcp/mcp-llmagentnode.md)** - LLMAgentNode integration
+- **[mcp-llmagentnode](../../.claude/skills/05-kailash-mcp/mcp-llmagentnode.md)** - LLMNode integration
 
 ## Related Agents
 

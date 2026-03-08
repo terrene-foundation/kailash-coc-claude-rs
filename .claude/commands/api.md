@@ -39,7 +39,7 @@ import kailash
 
 # Nexus types
 config = kailash.NexusConfig(port=8000)
-app = kailash.Nexus(config)
+app = kailash.NexusApp(config)
 
 # Presets: None, Lightweight, Standard, SaaS, Enterprise
 config_with_preset = kailash.NexusConfig(preset=kailash.Preset.Standard)

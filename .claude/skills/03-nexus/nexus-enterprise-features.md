@@ -27,9 +27,10 @@ auth = NexusAuthPlugin.basic_auth(
     jwt=JwtConfig(os.environ["JWT_SECRET"])  # CRITICAL: use `secret`, NOT `secret_key`
 )
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
-nexus.start()
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
+app.start()
 ```
 
 ### JWT Configuration (Symmetric -- HS256)
@@ -75,9 +76,10 @@ auth = NexusAuthPlugin.saas_app(
     tenant_isolation=TenantConfig(admin_role="admin"),  # singular `admin_role`
 )
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
-nexus.start()
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
+app.start()
 ```
 
 ## Authorization (RBAC)
@@ -96,15 +98,16 @@ auth = NexusAuthPlugin(
     tenant_header="X-Tenant-ID",
 )
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
 
 # Use handlers for role-protected operations
-@nexus.handler("admin_dashboard", description="Admin only")
+@app.handler("admin_dashboard", description="Admin only")
 async def admin_only() -> dict:
     return {"admin": True}
 
-@nexus.handler("get_profile", description="Get user profile")
+@app.handler("get_profile", description="Get user profile")
 async def profile() -> dict:
     return {"status": "ok"}
 ```
@@ -120,9 +123,8 @@ async def profile() -> dict:
 ### Constructor-Level Rate Limiting
 
 ```python
-app = kailash.Nexus(
-    rate_limit=1000,  # Requests per minute (default: 100)
-)
+app = NexusApp()
+app.add_rate_limit(1000)
 ```
 
 ### Fine-Grained Rate Limiting via NexusAuthPlugin
@@ -153,9 +155,10 @@ auth = NexusAuthPlugin.enterprise(
 )
 # CRITICAL: RateLimitConfig has NO `exclude_paths` parameter
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
-nexus.start()
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
+app.start()
 ```
 
 ## Monitoring and Observability
@@ -163,9 +166,8 @@ nexus.start()
 ### Enable Monitoring via Constructor
 
 ```python
-app = kailash.Nexus(
-    enable_monitoring=True,
-)
+app = NexusApp()
+# Monitoring configured separately
 
 # Health endpoint: GET http://localhost:8000/health
 ```
@@ -173,7 +175,7 @@ app = kailash.Nexus(
 ### Health Check
 
 ```python
-app = kailash.Nexus()
+app = NexusApp()
 health = app.health_check()
 print(f"Status: {health['status']}")
 ```
@@ -201,9 +203,10 @@ auth = NexusAuthPlugin.enterprise(
     ),
 )
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
-nexus.start()
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
+app.start()
 ```
 
 ## Tenant Isolation
@@ -227,9 +230,10 @@ auth = NexusAuthPlugin.saas_app(
     ),
 )
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.add_plugin(auth)
-nexus.start()
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.add_plugin(auth)
+app.start()
 ```
 
 ## Security Hardening
@@ -250,31 +254,27 @@ auth = NexusAuthPlugin.enterprise(
     audit=AuditConfig(backend="logging"),
 )
 
-nexus = kailash.Nexus(
-    cors_origins=["https://app.example.com"],
-    cors_allow_credentials=False,
-    rate_limit=5000,
-)
-nexus.add_plugin(auth)
-nexus.start()
+app = NexusApp()
+app.add_rate_limit(5000)
+app.add_cors(["https://app.example.com"])
+app.add_plugin(auth)
+app.start()
 ```
 
 ## CORS Configuration
 
 ```python
 # CORS via constructor
-app = kailash.Nexus(
-    cors_origins=["https://app.example.com"],
-    cors_allow_credentials=False,
-)
+app = NexusApp()
+app.add_cors(["https://app.example.com"])
 ```
 
 ## Presets
 
 ```python
 # One-line middleware stacks
-app = kailash.Nexus(preset="saas")          # Sensible SaaS defaults
-app = kailash.Nexus(preset="enterprise")    # Full enterprise stack
+app = NexusApp()          # Configure SaaS features via plugins
+app = NexusApp()    # Configure enterprise features via plugins
 ```
 
 ## Production Deployment Example
@@ -305,32 +305,21 @@ def create_production_app():
         audit=AuditConfig(backend="logging"),
     )
 
-    nexus = kailash.Nexus(
-        # Server
-        api_port=int(os.getenv("PORT", "8000")),
-        api_host="0.0.0.0",
+    app = NexusApp(NexusConfig(
+        port=int(os.getenv("PORT", "8000")),
+        host="0.0.0.0",
+    ))
 
-        # Security
-        rate_limit=5000,
-        cors_origins=["https://app.example.com"],
-        cors_allow_credentials=False,
+    # Security: Rate limiting and CORS
+    app.add_rate_limit(5000)
+    app.add_cors(["https://app.example.com"])
+    app.add_plugin(auth)
 
-        # Monitoring
-        enable_monitoring=True,
-
-        # Logging
-        log_level="INFO",
-
-        # Discovery
-        auto_discovery=False,
-    )
-    nexus.add_plugin(auth)
-
-    return nexus
+    return app
 
 # Create and start
-nexus = create_production_app()
-nexus.start()
+app = create_production_app()
+app.start()
 ```
 
 ## Best Practices

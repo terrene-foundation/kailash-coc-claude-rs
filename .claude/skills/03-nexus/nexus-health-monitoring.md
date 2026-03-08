@@ -14,7 +14,8 @@ Monitor Nexus platform health, metrics, and performance.
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Check platform health
 health = app.health_check()
@@ -59,10 +60,8 @@ curl http://localhost:8000/health/detailed
 ## Enable Monitoring
 
 ```python
-app = kailash.Nexus(
-    enable_monitoring=True,
-    monitoring_interval=60  # Check every 60 seconds
-)
+app = NexusApp()
+# Monitoring configured separately
 
 # Configure monitoring backend
 app.monitoring.backend = "prometheus"
@@ -170,11 +169,8 @@ def handle_high_latency(alert):
 import logging
 
 # Configure logging
-app = kailash.Nexus(
-    log_level="INFO",
-    log_format="json",
-    log_file="nexus.log"
-)
+app = NexusApp()
+# Logging configured separately
 
 # Access logger
 logger = app.logger

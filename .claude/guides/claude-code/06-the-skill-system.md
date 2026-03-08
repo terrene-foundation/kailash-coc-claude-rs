@@ -137,7 +137,7 @@ workflow.add_node(
     "NodeClassName",      # 1. Node type (PascalCase)
     "unique_node_id",     # 2. Unique ID (snake_case)
     {"param": "value"},   # 3. Configuration dict
-    connections=[]        # 4. Optional connections
+    # connections are added via builder.connect()
 )
 ```
 
@@ -206,13 +206,19 @@ async def create_user(name: str, email: str) -> dict:
 **Example content**:
 
 ```python
-from kaizen.api import Agent
+from kailash.kaizen import BaseAgent
+import os
 
-agent = Agent(
-    model="gpt-4",
-    execution_mode="autonomous",
-    memory="session"
-)
+class MyAgent(BaseAgent):
+    def __init__(self):
+        super().__init__(
+            name="my-agent",
+            model=os.environ.get("LLM_MODEL", "gpt-5")
+        )
+
+    def execute(self, input_text: str) -> dict:
+        return {"response": f"Processed: {input_text}"}
+
 ```
 
 ---

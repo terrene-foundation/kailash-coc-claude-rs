@@ -52,9 +52,9 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
-builder.add_node("PythonCodeNode", "process", {"code": "result = len(data)"})
-builder.add_connection("reader", "data", "process", "data")
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
+builder.connect("reader", "data", "process", "data")
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
@@ -120,7 +120,7 @@ result = rt.execute(builder.build(reg))
 
 **Key Features:**
 
-- True zero-config: `kailash.Nexus()` with no parameters
+- True zero-config: `NexusApp()` with no parameters
 - Automatic workflow registration
 - Unified sessions across all channels
 - Progressive enterprise enhancement
@@ -129,10 +129,12 @@ result = rt.execute(builder.build(reg))
 
 ```python
 
-nexus = kailash.Nexus()  # Zero configuration!
+from kailash.nexus import NexusApp
+
+app = NexusApp()  # Zero configuration!
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": "result = {'message': 'Hello!'}"
 })
 
@@ -172,7 +174,7 @@ class QASignature(Signature):
 @dataclass
 class QAConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
 
 class QAAgent(BaseAgent):
     def __init__(self, config: QAConfig):
@@ -193,8 +195,10 @@ Perfect for database applications needing API, CLI, and MCP access:
 
 ```python
 
-# Step 1: Create Nexus with auto_discovery=False
-nexus = kailash.Nexus(auto_discovery=False)
+# Step 1: Create NexusApp
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 
 # Step 2: Create kailash.DataFlow (defaults work correctly)
 df = kailash.DataFlow("postgresql://localhost/db")
@@ -224,9 +228,9 @@ agent = QAAgent(config)
 
 # Core SDK workflow for orchestration
 builder = kailash.WorkflowBuilder()
-builder.add_node("LLMAgentNode", "ai_process", {
+builder.add_node("LLMNode", "ai_process", {
     "provider": "openai",
-    "model": "gpt-4"
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
 })
 ```
 

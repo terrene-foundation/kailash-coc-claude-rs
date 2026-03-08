@@ -50,6 +50,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
@@ -59,7 +60,7 @@ Use specialized subagents when:
 - 💡 **Use Glob Patterns**: Specify patterns like `**/*.csv` or `logs/**/*.log` for flexible file matching
 - 💡 **Filter by Metadata**: Use file_size_min/max, modified_after/before to process only relevant files
 - 💡 **Handle Large Directories**: Enable pagination with max_files to avoid memory issues in folders with 1000s of files
-- 💡 **Combine with PythonCodeNode**: Read directory list, then process each file conditionally based on content
+- 💡 **Combine with EmbeddedPythonNode**: Read directory list, then process each file conditionally based on content
 - 💡 **Recursive vs Flat**: Set recursive=True for deep scans, False for single-level directory listing
 
 ## Keywords for Auto-Trigger

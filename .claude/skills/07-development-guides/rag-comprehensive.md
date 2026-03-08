@@ -5,6 +5,7 @@ You are an expert in implementing Retrieval Augmented Generation (RAG) systems w
 ## Core Responsibilities
 
 ### 1. RAG System Architecture
+
 - Document ingestion and chunking
 - Vector embedding generation
 - Vector database integration
@@ -26,7 +27,7 @@ def create_ingestion_workflow():
     })
 
     # Chunk document
-    builder.add_node("PythonCodeNode", "chunker", {
+    builder.add_node("EmbeddedPythonNode", "chunker", {
         "code": """
 # Split into chunks
 text = content
@@ -48,7 +49,7 @@ result = {'chunks': chunks}
     })
 
     # Generate embeddings
-    builder.add_node("PythonCodeNode", "embedder", {
+    builder.add_node("EmbeddedPythonNode", "embedder", {
         "code": """
 # Generate embeddings for each chunk
 import openai  # or any embedding model
@@ -70,7 +71,7 @@ result = {'embeddings': embeddings}
     })
 
     # Store in vector database
-    builder.add_node("PythonCodeNode", "store", {
+    builder.add_node("EmbeddedPythonNode", "store", {
         "code": """
 # Store in vector database (ChromaDB example)
 import chromadb
@@ -90,9 +91,9 @@ result = {'stored': len(embeddings), 'collection': 'documents'}
     })
 
     # Connections
-    builder.add_connection("reader", "chunker", "content", "content")
-    builder.add_connection("chunker", "embedder", "result", "chunks")
-    builder.add_connection("embedder", "store", "result", "embeddings")
+    builder.connect("reader", "chunker", "content", "content")
+    builder.connect("chunker", "embedder", "result", "chunks")
+    builder.connect("embedder", "store", "result", "embeddings")
 
     return workflow
 ```
@@ -106,7 +107,7 @@ def create_query_workflow():
     builder = kailash.WorkflowBuilder()
 
     # Generate query embedding
-    builder.add_node("PythonCodeNode", "query_embedder", {
+    builder.add_node("EmbeddedPythonNode", "query_embedder", {
         "code": """
 import openai
 
@@ -120,7 +121,7 @@ result = {'query_embedding': embedding['data'][0]['embedding']}
     })
 
     # Search vector database
-    builder.add_node("PythonCodeNode", "search", {
+    builder.add_node("EmbeddedPythonNode", "search", {
         "code": """
 import chromadb
 
@@ -141,13 +142,13 @@ result = {
     })
 
     # Generate answer with LLM
-    builder.add_node("LLMAgentNode", "generator", {
+    builder.add_node("LLMNode", "generator", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": []  # Will be constructed dynamically
     })
 
-    builder.add_node("PythonCodeNode", "construct_prompt", {
+    builder.add_node("EmbeddedPythonNode", "construct_prompt", {
         "code": """
 # Construct prompt with retrieved context
 context = '\\n\\n'.join(documents)
@@ -166,9 +167,9 @@ result = {'prompt': prompt}
     })
 
     # Connections
-    builder.add_connection("query_embedder", "search", "result", "query_embedding")
-    builder.add_connection("search", "construct_prompt", "result", "documents")
-    builder.add_connection("construct_prompt", "generator", "prompt", "messages")
+    builder.connect("query_embedder", "search", "result", "query_embedding")
+    builder.connect("search", "construct_prompt", "result", "documents")
+    builder.connect("construct_prompt", "generator", "prompt", "messages")
 
     return workflow
 ```
@@ -182,7 +183,7 @@ def create_reranking_workflow():
     builder = kailash.WorkflowBuilder()
 
     # Initial retrieval (same as above)
-    builder.add_node("PythonCodeNode", "initial_search", {
+    builder.add_node("EmbeddedPythonNode", "initial_search", {
         "code": """
 # Retrieve top 20 candidates
 results = collection.query(
@@ -194,7 +195,7 @@ result = {'candidates': results['documents'][0]}
     })
 
     # Rerank results
-    builder.add_node("PythonCodeNode", "reranker", {
+    builder.add_node("EmbeddedPythonNode", "reranker", {
         "code": """
 # Rerank using cross-encoder or other method
 from sentence_transformers import CrossEncoder
@@ -219,7 +220,7 @@ result = {
 """
     })
 
-    builder.add_connection("initial_search", "reranker", "result", "candidates")
+    builder.connect("initial_search", "reranker", "result", "candidates")
 
     return workflow
 ```
@@ -233,7 +234,7 @@ def create_hybrid_search_workflow():
     builder = kailash.WorkflowBuilder()
 
     # Semantic search
-    builder.add_node("PythonCodeNode", "semantic_search", {
+    builder.add_node("EmbeddedPythonNode", "semantic_search", {
         "code": """
 # Vector similarity search
 semantic_results = collection.query(
@@ -245,7 +246,7 @@ result = {'semantic_docs': semantic_results['documents'][0]}
     })
 
     # Keyword search
-    builder.add_node("PythonCodeNode", "keyword_search", {
+    builder.add_node("EmbeddedPythonNode", "keyword_search", {
         "code": """
 # BM25 or full-text search
 from rank_bm25 import BM25Okapi
@@ -266,7 +267,7 @@ result = {'keyword_docs': [all_documents[i] for i in top_indices]}
     # Merge and rerank
     builder.add_node("MergeNode", "merger", {})
 
-    builder.add_node("PythonCodeNode", "final_ranker", {
+    builder.add_node("EmbeddedPythonNode", "final_ranker", {
         "code": """
 # Combine results with weights
 semantic_weight = 0.7
@@ -287,9 +288,9 @@ result = {'documents': [doc for doc, score in ranked[:5]]}
 """
     })
 
-    builder.add_connection("semantic_search", "merger", "result", "semantic")
-    builder.add_connection("keyword_search", "merger", "result", "keyword")
-    builder.add_connection("merger", "final_ranker", "merged", "input")
+    builder.connect("semantic_search", "merger", "result", "semantic")
+    builder.connect("keyword_search", "merger", "result", "keyword")
+    builder.connect("merger", "final_ranker", "merged", "input")
 
     return workflow
 ```
@@ -297,7 +298,7 @@ result = {'documents': [doc for doc, score in ranked[:5]]}
 ### 6. RAG with Citations
 
 ```python
-builder.add_node("PythonCodeNode", "citation_generator", {
+builder.add_node("EmbeddedPythonNode", "citation_generator", {
     "code": """
 # Generate answer with citations
 context_with_sources = []
@@ -330,13 +331,13 @@ def create_conversational_rag():
     builder = kailash.WorkflowBuilder()
 
     # Rephrase query with history
-    builder.add_node("LLMAgentNode", "query_rephraser", {
+    builder.add_node("LLMNode", "query_rephraser", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": []
     })
 
-    builder.add_node("PythonCodeNode", "construct_rephrase_prompt", {
+    builder.add_node("EmbeddedPythonNode", "construct_rephrase_prompt", {
         "code": """
 # Include chat history
 history_text = '\\n'.join([
@@ -409,6 +410,7 @@ generation_config = {
 ```
 
 ## When to Engage
+
 - User asks about "RAG", "retrieval augmented", "vector search", "RAG guide"
 - User needs document Q&A system
 - User wants semantic search implementation
@@ -423,6 +425,7 @@ generation_config = {
 5. **Production**: Error handling, monitoring, scaling
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **production-deployment-guide** for deployment
 - Route to **testing-best-practices** for testing RAG systems

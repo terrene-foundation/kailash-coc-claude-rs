@@ -62,8 +62,8 @@ builder.add_node("DatabaseExecuteNode", "record_transaction", {
     "query": "INSERT INTO transactions ..."
 })
 
-builder.add_connection("validate_payment", "result", "charge_card", "payment_data")
-builder.add_connection("charge_card", "result", "record_transaction", "transaction_data")
+builder.connect("validate_payment", "result", "charge_card", "payment_data")
+builder.connect("charge_card", "result", "record_transaction", "transaction_data")
 ```
 
 ### 3. README Structure

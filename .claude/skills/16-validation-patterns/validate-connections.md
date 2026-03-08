@@ -19,10 +19,10 @@ builder.add_node("LLMNode", "node1", {})
 builder.add_node("TransformNode", "node2", {})
 
 # ✅ Valid connection (4-parameter pattern)
-builder.add_connection("node1", "result", "node2", "input")
+builder.connect("node1", "result", "node2", "input")
 
 # ❌ Invalid: node doesn't exist
-# builder.add_connection("node1", "node3")  # Error!
+# builder.connect("node1", "node3")  # Error!
 
 # Validate workflow
 reg = kailash.NodeRegistry()

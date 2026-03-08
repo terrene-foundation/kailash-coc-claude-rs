@@ -20,7 +20,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Load data
-builder.add_node("CSVReaderNode", "load", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "load", {"file_path": "data.csv"})
 
 # 2. Remove duplicates
 builder.add_node("DeduplicateNode", "dedupe", {
@@ -50,10 +50,10 @@ builder.add_node("AggregateNode", "aggregate", {
     "aggregations": {"count": "COUNT(*)", "avg_age": "AVG(age)"}
 })
 
-builder.add_connection("load", "data", "dedupe", "input")
-builder.add_connection("dedupe", "data", "validate", "input")
-builder.add_connection("validate", "valid_data", "clean", "input")
-builder.add_connection("clean", "data", "aggregate", "input")
+builder.connect("load", "data", "dedupe", "input")
+builder.connect("dedupe", "data", "validate", "input")
+builder.connect("validate", "valid_data", "clean", "input")
+builder.connect("clean", "data", "aggregate", "input")
 ```
 
 <!-- Trigger Keywords: data pipeline, data processing, data transformation, data cleaning, data quality -->

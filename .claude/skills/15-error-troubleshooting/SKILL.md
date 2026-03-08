@@ -10,6 +10,7 @@ Comprehensive troubleshooting guides for common Kailash SDK errors and issues.
 ## Overview
 
 Common error patterns and solutions for:
+
 - Nexus blocking and timeout issues
 - Connection parameter errors
 - Runtime execution problems
@@ -23,6 +24,7 @@ Common error patterns and solutions for:
 ### Critical Errors
 
 #### Nexus Blocking (MOST COMMON)
+
 - **[error-nexus-blocking](error-nexus-blocking.md)** - Nexus hangs or blocks
   - **Symptom**: Nexus API hangs forever, no response
   - **Cause**: Wrong runtime configuration
@@ -30,6 +32,7 @@ Common error patterns and solutions for:
   - **Prevention**: Always use async runtime in containers
 
 #### Missing .build() Call
+
 - **[error-missing-build](error-missing-build.md)** - Forgot to call .build()
   - **Symptom**: `TypeError: execute() expects Workflow, got WorkflowBuilder`
   - **Cause**: `rt.execute(workflow)` instead of `rt.execute(builder.build(reg))`
@@ -39,6 +42,7 @@ Common error patterns and solutions for:
 ### Connection & Parameter Errors
 
 #### Connection Parameter Errors
+
 - **[error-connection-params](error-connection-params.md)** - Invalid connections
   - **Symptom**: Node doesn't receive expected data
   - **Cause**: Wrong 4-parameter connection format
@@ -46,6 +50,7 @@ Common error patterns and solutions for:
   - **Common mistake**: Wrong parameter names
 
 #### Parameter Validation Errors
+
 - **[error-parameter-validation](error-parameter-validation.md)** - Invalid node parameters
   - **Symptom**: `ValidationError: Missing required parameter`
   - **Cause**: Missing or incorrect node parameters
@@ -55,6 +60,7 @@ Common error patterns and solutions for:
 ### Runtime Errors
 
 #### Runtime Execution Errors
+
 - **[error-runtime-execution](error-runtime-execution.md)** - Runtime failures
   - **Symptom**: Workflow fails during execution
   - **Cause**: Various runtime issues
@@ -64,6 +70,7 @@ Common error patterns and solutions for:
 ### Cyclic Workflow Errors
 
 #### Cycle Convergence Errors
+
 - **[error-cycle-convergence](error-cycle-convergence.md)** - Cycles don't converge
   - **Symptom**: Workflow runs forever, max iterations exceeded
   - **Cause**: No convergence condition or bad logic
@@ -73,6 +80,7 @@ Common error patterns and solutions for:
 ### DataFlow Errors
 
 #### DataFlow Template Syntax
+
 - **[error-dataflow-template-syntax](error-dataflow-template-syntax.md)** - Template string errors
   - **Symptom**: `SyntaxError` in template strings
   - **Cause**: Invalid template syntax in queries
@@ -83,19 +91,20 @@ Common error patterns and solutions for:
 
 ### Error by Symptom
 
-| Symptom | Error Type | Quick Fix |
-|---------|------------|-----------|
-| **API hangs forever** | Nexus blocking | Use `kailash.Runtime(reg)` |
-| **TypeError: expects Workflow** | Missing .build() | Add .build() call |
-| **Node gets wrong data** | Connection params | Check 4-parameter format |
-| **ValidationError** | Parameter validation | Check required params |
-| **Infinite loop** | Cycle convergence | Add convergence condition |
-| **Template SyntaxError** | DataFlow template | Fix template syntax |
-| **Runtime fails** | Runtime execution | Check logs, validate inputs |
+| Symptom                         | Error Type           | Quick Fix                   |
+| ------------------------------- | -------------------- | --------------------------- |
+| **API hangs forever**           | Nexus blocking       | Use `kailash.Runtime(reg)`  |
+| **TypeError: expects Workflow** | Missing .build()     | Add .build() call           |
+| **Node gets wrong data**        | Connection params    | Check 4-parameter format    |
+| **ValidationError**             | Parameter validation | Check required params       |
+| **Infinite loop**               | Cycle convergence    | Add convergence condition   |
+| **Template SyntaxError**        | DataFlow template    | Fix template syntax         |
+| **Runtime fails**               | Runtime execution    | Check logs, validate inputs |
 
 ### Error Prevention Checklist
 
 **Before Running Workflow**:
+
 - [ ] Called `.build()` on WorkflowBuilder?
 - [ ] Using `kailash.Runtime(reg)` with NodeRegistry?
 - [ ] All connections use 4 parameters?
@@ -110,7 +119,8 @@ Common error patterns and solutions for:
 ```python
 # ❌ WRONG (causes hang in Docker)
 reg = kailash.NodeRegistry()
-nexus = kailash.Nexus(workflows, runtime_factory=lambda: kailash.Runtime(reg))
+from kailash.nexus import NexusApp
+app = NexusApp()  # Don't pass unsupported parameters
 ```
 
 ### 2. Missing .build() Call
@@ -131,14 +141,14 @@ result = rt.execute(builder.build(reg))  # Always .build()
 
 ```python
 # ❌ WRONG (only 2 parameters)
-builder.add_connection("node1", "node2")
+builder.connect("node1", "node2")
 
 # ❌ WRONG (wrong parameter names)
-builder.add_connection("node1", "output", "node2", "input_data")
+builder.connect("node1", "output", "node2", "input_data")
 # but node2 expects "data" not "input_data"
 
 # ✅ CORRECT (4 parameters, correct names)
-builder.add_connection("node1", "result", "node2", "data")
+builder.connect("node1", "result", "node2", "data")
 ```
 
 ### 4. Cycle Convergence Issues
@@ -150,7 +160,7 @@ builder.add_node("CycleNode", "cycle", {
 })
 
 # ✅ CORRECT (with convergence)
-builder.add_node("PythonCodeNode", "check", {
+builder.add_node("EmbeddedPythonNode", "check", {
     "code": """
 if abs(current - previous) < 0.01:
     cycle_complete = True
@@ -173,23 +183,27 @@ query = "SELECT * FROM users WHERE id = {{user_id}}"  # kailash.DataFlow templat
 ## Debugging Strategies
 
 ### Step 1: Check Error Message
+
 - Read full error message and stack trace
 - Identify error type and location
 - Check if it matches known patterns
 
 ### Step 2: Validate Configuration
+
 - Runtime: Using `kailash.Runtime(reg)`?
 - Build: Called .build()?
 - Connections: 4 parameters?
 - Parameters: All required params?
 
 ### Step 3: Test Components
+
 - Test nodes individually
 - Test with minimal workflow
 - Add LoggerNode for visibility
 - Check intermediate results
 
 ### Step 4: Check Documentation
+
 - Node documentation for parameters
 - Framework-specific guides
 - Error troubleshooting guides
@@ -198,6 +212,7 @@ query = "SELECT * FROM users WHERE id = {{user_id}}"  # kailash.DataFlow templat
 ## When to Use This Skill
 
 Use this skill when you encounter:
+
 - API hanging or blocking
 - Runtime errors during execution
 - Validation errors
@@ -224,6 +239,7 @@ Use this skill when you encounter:
 ## Support
 
 For error troubleshooting, invoke:
+
 - `sdk-navigator` - Find relevant documentation
 - `pattern-expert` - Pattern validation
 - `gold-standards-validator` - Check compliance

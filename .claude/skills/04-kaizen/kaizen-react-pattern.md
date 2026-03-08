@@ -12,11 +12,13 @@ ReAct combines:
 ## Implementation
 
 ```python
+from kailash.kaizen import Signature, InputField, OutputField
+
 class ReActSignature(Signature):
-    task: str = InputField(description="Task to accomplish")
-    thought: str = OutputField(description="Reasoning about next action")
-    action: str = OutputField(description="Action to take")
-    observation: str = OutputField(description="Action result")
+    task = InputField("Task to accomplish")
+    thought = OutputField("Reasoning about next action")
+    action = OutputField("Action to take")
+    observation = OutputField("Action result")
 ```
 
 ## References

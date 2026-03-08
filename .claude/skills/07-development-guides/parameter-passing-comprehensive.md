@@ -7,6 +7,7 @@ Enterprise parameter passing patterns for Kailash SDK with security and governan
 ### 1. Three Ways to Pass Parameters
 
 **1. Static Parameters (Node Configuration)**
+
 ```python
 builder.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com",
@@ -15,6 +16,7 @@ builder.add_node("HTTPRequestNode", "api_call", {
 ```
 
 **2. Dynamic Parameters (Runtime)**
+
 ```python
 rt.execute(builder.build(reg), parameters={
     "api_call": {"url": "https://different-api.com"}
@@ -22,8 +24,9 @@ rt.execute(builder.build(reg), parameters={
 ```
 
 **3. Connection-Based (Data Flow)**
+
 ```python
-builder.add_connection("source", "output_key", "target", "input_key")
+builder.connect("source", "output_key", "target", "input_key")
 ```
 
 ### 2. Parameter Scoping
@@ -47,20 +50,23 @@ parameters = {
 ```
 
 **Scoping rules:**
+
 - Parameters filtered by node ID
 - Node-specific params unwrapped
 - Global params (non-node-ID keys) included for all nodes
 - Other nodes' params excluded (prevents leakage)
 
 ### 3. Parameter Priority
+
 ```
 Connection-based > Runtime > Static
 (Highest)                   (Lowest)
 ```
 
 ### 4. Complex Parameter Patterns
+
 ```python
-builder.add_node("PythonCodeNode", "complex", {
+builder.add_node("EmbeddedPythonNode", "complex", {
     "code": """
 # Access parameters directly (automatically injected)
 config = {
@@ -89,10 +95,10 @@ rt.execute(builder.build(reg), parameters={
 ```python
 import kailash
 
-# In the Rust-backed SDK, parameter validation is done in PythonCodeNode logic.
+# In the Rust-backed SDK, parameter validation is done in EmbeddedPythonNode logic.
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("PythonCodeNode", "validated_node", {
+builder.add_node("EmbeddedPythonNode", "validated_node", {
     "code": """
 api_url = input_data.get("api_url", "")
 timeout = input_data.get("timeout", 30)
@@ -148,12 +154,14 @@ except ValueError as e:  # Parameter validation errors
 ```
 
 ## When to Engage
+
 - User asks about "enterprise parameters", "parameter governance", "parameter security"
 - Complex parameter needs across multiple nodes
 - Multi-tenant parameter isolation required
 - Parameter validation patterns needed
 
 ## Integration with Other Skills
+
 - Route to **param-passing-quick** for basic concepts
 - Route to **workflow-quickstart** for workflow building
 - Route to **gold-parameter-passing** for compliance patterns

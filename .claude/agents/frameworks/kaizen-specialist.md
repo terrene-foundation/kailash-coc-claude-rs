@@ -115,7 +115,7 @@ class MySignature(Signature):
 @dataclass
 class MyConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
 
 # 3. Extend BaseAgent
 class MyAgent(BaseAgent):
@@ -138,15 +138,15 @@ result = agent.process("input")
 
 ## Kaizen Skills (7)
 
-| Skill | Description |
-|-------|-------------|
-| [kaizen-agent-patterns](../../skills/04-kaizen/kaizen-agent-patterns.md) | Advanced reasoning patterns (CoT, ReAct, RAG) |
-| [kaizen-chain-of-thought](../../skills/04-kaizen/kaizen-chain-of-thought.md) | Chain-of-thought agent implementation |
-| [kaizen-react-pattern](../../skills/04-kaizen/kaizen-react-pattern.md) | ReAct (Reasoning + Acting) agent pattern |
-| [kaizen-rag-agent](../../skills/04-kaizen/kaizen-rag-agent.md) | RAG agent implementation |
-| [kaizen-cost-tracking](../../skills/04-kaizen/kaizen-cost-tracking.md) | LLM cost tracking and budget management |
-| [kaizen-streaming](../../skills/04-kaizen/kaizen-streaming.md) | Streaming agent responses |
-| [kaizen-a2a-protocol](../../skills/04-kaizen/kaizen-a2a-protocol.md) | Agent-to-Agent protocol |
+| Skill                                                                        | Description                                   |
+| ---------------------------------------------------------------------------- | --------------------------------------------- |
+| [kaizen-agent-patterns](../../skills/04-kaizen/kaizen-agent-patterns.md)     | Advanced reasoning patterns (CoT, ReAct, RAG) |
+| [kaizen-chain-of-thought](../../skills/04-kaizen/kaizen-chain-of-thought.md) | Chain-of-thought agent implementation         |
+| [kaizen-react-pattern](../../skills/04-kaizen/kaizen-react-pattern.md)       | ReAct (Reasoning + Acting) agent pattern      |
+| [kaizen-rag-agent](../../skills/04-kaizen/kaizen-rag-agent.md)               | RAG agent implementation                      |
+| [kaizen-cost-tracking](../../skills/04-kaizen/kaizen-cost-tracking.md)       | LLM cost tracking and budget management       |
+| [kaizen-streaming](../../skills/04-kaizen/kaizen-streaming.md)               | Streaming agent responses                     |
+| [kaizen-a2a-protocol](../../skills/04-kaizen/kaizen-a2a-protocol.md)         | Agent-to-Agent protocol                       |
 
 ## Related Agents
 

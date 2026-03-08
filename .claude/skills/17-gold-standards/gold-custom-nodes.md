@@ -13,91 +13,114 @@ description: "Gold standard for custom node development. Use when asking 'create
 
 ```python
 import kailash
-from typing import Dict, Any
 
-class MyCustomNode(Node):
+reg = kailash.NodeRegistry()
+
+def my_custom_processor(inputs):
     """Custom node for specific business logic.
 
-    Use this node to process input data with custom configuration.
+    Process input data with custom configuration.
+
+    Args:
+        inputs: Dict with input parameters (input_data, config, metadata)
+
+    Returns:
+        Dict with output results
     """
+    input_data = inputs.get("input_data", "")
+    config = inputs.get("config", {})
+    metadata = inputs.get("metadata")
 
-    def get_parameters(self) -> Dict[str, NodeParameter]:
-        """Define parameters this node accepts.
+    # Your custom logic here
+    result = _process(input_data, config)
 
-        Returns:
-            Dictionary mapping parameter names to NodeParameter definitions
-        """
-        return {
-            "input_data": NodeParameter(
-                name="input_data",
-                type=str,
-                required=True,
-                description="Input data to process"
-            ),
-            "config": NodeParameter(
-                name="config",
-                type=dict,
-                required=False,
-                default={},
-                description="Configuration options"
-            ),
-            "metadata": NodeParameter(
-                name="metadata",
-                type=dict,
-                required=False,
-                default=None,
-            )
-        }
+    return {
+        "result": result,
+        "metadata": metadata  # Pass through metadata if needed
+    }
 
-    def run(self, input_data: str, config: dict = {}, metadata: dict = None, **kwargs) -> Dict[str, Any]:
-        """Execute the custom node logic.
+def _process(data: str, config: dict) -> str:
+    """Process the input data."""
+    return data.upper()
 
-        Args:
-            input_data: Input data to process
-            config: Configuration options
-            metadata: Optional metadata dictionary
-            **kwargs: Additional parameters passed from workflow
+# Register the custom node
+reg.register_callback(
+    "MyCustomProcessor",       # node type name
+    my_custom_processor,       # handler function
+    ["input_data", "config", "metadata"],  # input parameter names
+    ["result", "metadata"]     # output parameter names
+)
 
-        Returns:
-            Dictionary with outputs
-        """
-        # Your custom logic here
-        result = self._process(input_data, config)
+# Use in workflow
+builder = kailash.WorkflowBuilder()
+builder.add_node("MyCustomProcessor", "proc1", {
+    "input_data": "hello world",
+    "config": {"uppercase": True}
+})
 
-        return {
-            "result": result,
-            "metadata": metadata  # Pass through metadata if needed
-        }
-
-    def _process(self, data: str, config: dict) -> str:
-        """Process the input data."""
-        return data.upper()
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+result = rt.execute(wf)
+print(result["results"]["proc1"])
 ```
 
 ## Gold Standard Checklist
 
-- [ ] Inherits from `Node`
-- [ ] Implements `get_parameters()` method
-- [ ] Implements `run()` method (not `execute()`)
-- [ ] Parameters defined with `NodeParameter`
-- [ ] Type hints for all methods
-- [ ] Docstrings for class and methods
+- [ ] Handler function defined with `inputs` dict parameter
+- [ ] Registered via `reg.register_callback(name, handler, inputs_list, outputs_list)`
+- [ ] All input parameter names declared in `inputs_list`
+- [ ] All output keys declared in `outputs_list`
+- [ ] Type hints for helper methods
+- [ ] Docstrings for handler and helper functions
 - [ ] Error handling for invalid inputs
-- [ ] Unit tests for run logic
+- [ ] Unit tests for handler logic
 - [ ] Integration test in workflow
+
+## Correct vs Incorrect Patterns
+
+### Correct: register_callback()
+
+```python
+reg = kailash.NodeRegistry()
+
+def process_data(inputs):
+    data = inputs.get("data", "")
+    return {"result": data.upper()}
+
+reg.register_callback(
+    "DataProcessor",
+    process_data,
+    ["data"],
+    ["result"]
+)
+```
+
+### Incorrect: Class-based Node (does NOT exist in Rust binding)
+
+```python
+# WRONG - No Node base class, no get_parameters(), no NodeParameter
+class MyNode(Node):                          # ❌ Node class doesn't exist
+    def get_parameters(self):                # ❌ get_parameters() doesn't exist
+        return {
+            "data": NodeParameter(...)       # ❌ NodeParameter doesn't exist
+        }
+    def run(self, **kwargs):                 # ❌ Not how custom nodes work
+        pass
+```
 
 ## Parameter Naming
 
 ### Available Parameter Names
 
+Parameters are declared as string lists in `register_callback()`:
 
 ```python
-def get_parameters(self):
-    return {
-        "id": NodeParameter(type=str, required=True),
-        "metadata": NodeParameter(type=dict, required=False),  # ✅ Now supported
-        "data": NodeParameter(type=Any, required=True),
-    }
+reg.register_callback(
+    "MyNode",
+    handler_fn,
+    ["id", "metadata", "data", "config"],  # Any names except reserved
+    ["result", "status"]
+)
 ```
 
 ### Reserved Names (Do Not Use)
@@ -105,30 +128,32 @@ def get_parameters(self):
 The only reserved name is `_node_id` (internal identifier):
 
 ```python
-def get_parameters(self):
-    return {
-        "_node_id": NodeParameter(...)  # ❌ Reserved - do not use
-    }
+# ❌ Do not use _node_id as input or output name
+reg.register_callback("MyNode", handler_fn, ["_node_id"], ["result"])
 ```
 
-### Accessing Internal Node Metadata
+### Passing Parameters to Custom Nodes
 
-Access the node's internal metadata via `self.metadata` property:
+Parameters are passed via config dict in `add_node()`:
 
 ```python
-def run(self, **kwargs):
-    # Access internal NodeMetadata
-    node_name = self.metadata.name
-    node_desc = self.metadata.description
+builder.add_node("MyNode", "node1", {
+    "id": "item-123",
+    "metadata": {"source": "api"},
+    "data": "payload"
+})
+```
 
-    # Access user's metadata parameter
-    user_metadata = kwargs.get("metadata")
+Or via runtime parameters:
 
-    return {"node_name": node_name, "user_metadata": user_metadata}
+```python
+result = rt.execute(wf, parameters={
+    "node1": {"data": "override_payload"}
+})
 ```
 
 ## Documentation
 
-- **Custom Nodes**: [`sdk-contributors/3-development/05-custom-nodes.md`](../../../../sdk-contributors/3-development/05-custom-nodes.md)
+- **Custom Nodes**: See `register_callback()` in Core SDK patterns
 
 <!-- Trigger Keywords: create custom node, custom node standard, node development, custom node gold standard -->

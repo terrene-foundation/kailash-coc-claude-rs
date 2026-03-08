@@ -84,7 +84,7 @@ At the end of each implementation cycle, create and update documentation at the 
 - Use as many subdirectories and files as required, naming them sequentially 00-, 01- for easy referencing
 - Focus on capturing the essence and intent — the 'what it is' and 'how to use it' — not status/progress/reports
 
-**Note:** Project agents and skills (`.claude/agents/project/`, `.claude/skills/project/`) are created in phase 05 (`/codify`), not here.
+**Note:** Project agents and skills (`.claude/agents/project/`, `.claude/skills/project/`) are created in phase 05 (`/codify`), not here. However, when implementation changes an API or adds a feature, update the corresponding **existing** skill files, rules, and hooks immediately to prevent drift. Do not defer corrections to `/codify` — that phase is for creating **new** project-specific artifacts, not for fixing stale existing ones.
 
 ## Agent Teams
 

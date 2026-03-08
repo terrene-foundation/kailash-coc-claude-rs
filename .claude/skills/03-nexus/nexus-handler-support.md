@@ -7,7 +7,7 @@ tags: [nexus, handler, workflow, decorator, function]
 
 # Nexus Handler Support
 
-Register Python functions directly as multi-channel workflows, bypassing PythonCodeNode sandbox restrictions.
+Register Python functions directly as multi-channel workflows, bypassing EmbeddedPythonNode sandbox restrictions.
 
 ## When to Use
 
@@ -23,13 +23,14 @@ Register Python functions directly as multi-channel workflows, bypassing PythonC
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
-@nexus.handler("greet")
+@app.handler("greet")
 async def greet(name: str, greeting: str = "Hello") -> dict:
     return {"message": f"{greeting}, {name}!"}
 
-nexus.start()
+app.start()
 ```
 
 ### Non-Decorator Pattern
@@ -38,7 +39,7 @@ nexus.start()
 import kailash
 from my_app.handlers import process_order
 
-app = kailash.Nexus()
+app = NexusApp()
 app.register_handler("process_order", process_order)
 app.start()
 ```
@@ -106,14 +107,14 @@ result = rt.execute(
 
 ## Sandbox Mode Configuration
 
-For PythonCodeNode with blocked imports:
+For EmbeddedPythonNode with blocked imports:
 
 ```python
 import kailash
 
 # Bypass sandbox restrictions via node config
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "trusted_node", {
+builder.add_node("EmbeddedPythonNode", "trusted_node", {
     "code": "import subprocess\nresult = subprocess.run(['ls'])",
     "sandbox_mode": "trusted"  # Default: "restricted"
 })
@@ -157,12 +158,12 @@ def sync_operation(data: str) -> dict:
     return {"processed": data.upper()}
 ```
 
-## Migration: PythonCodeNode to Handler
+## Migration: EmbeddedPythonNode to Handler
 
 ### Before (fails at runtime)
 
 ```python
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": "import asyncio\nfrom my_app import Service\n..."
 })
 app.register("process", builder.build(reg))
@@ -196,10 +197,10 @@ print(app._handler_registry)
 
 ## Registration-Time Validation
 
-Nexus warns at registration time if PythonCodeNode uses blocked imports:
+Nexus warns at registration time if EmbeddedPythonNode uses blocked imports:
 
 ```
-WARNING: Workflow 'my_workflow': PythonCodeNode node 'code_node' imports
+WARNING: Workflow 'my_workflow': EmbeddedPythonNode node 'code_node' imports
          'asyncio' which is not in the sandbox allowlist.
          Consider using @app.handler() to bypass the sandbox.
 ```
@@ -220,7 +221,7 @@ WARNING: Workflow 'my_workflow': PythonCodeNode node 'code_node' imports
 
 ## Migration Documentation
 
-For comprehensive migration from legacy PythonCodeNode workflows to handlers, see the handler migration patterns (5 migration patterns, 6-phase checklist, "When NOT to Migrate" guidance) and real-world project patterns (8 patterns from 3 production projects).
+For comprehensive migration from legacy EmbeddedPythonNode workflows to handlers, see the handler migration patterns (5 migration patterns, 6-phase checklist, "When NOT to Migrate" guidance) and real-world project patterns (8 patterns from 3 production projects).
 
 ### Key Migration Insight
 

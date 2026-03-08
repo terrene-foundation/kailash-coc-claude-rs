@@ -55,8 +55,8 @@ builder.add_node("ConditionalNode", "check_bulk", {
     "false_branch": "final_price"
 })
 
-builder.add_connection("load_customer", "tier", "check_tier", "condition")
-builder.add_connection("check_tier", "result", "check_bulk", "input")
+builder.connect("load_customer", "tier", "check_tier", "condition")
+builder.connect("check_tier", "result", "check_bulk", "input")
 ```
 
 <!-- Trigger Keywords: business rules, rule engine, conditional logic, decision workflow -->

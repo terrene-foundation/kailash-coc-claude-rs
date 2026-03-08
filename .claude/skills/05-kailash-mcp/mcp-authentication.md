@@ -33,9 +33,9 @@ import os
 builder = kailash.WorkflowBuilder()
 
 # Header-based API key
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "docs",
@@ -53,6 +53,7 @@ result = rt.execute(builder.build(reg))
 ```
 
 **API Key Best Practices:**
+
 - Store keys in environment variables (never hardcode)
 - Use different keys for dev/staging/production
 - Rotate keys regularly (90 days recommended)
@@ -61,9 +62,9 @@ result = rt.execute(builder.build(reg))
 ### Bearer Token Authentication
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get weather data"}],
     "mcp_servers": [{
         "name": "weather",
@@ -99,9 +100,9 @@ jwt_token = create_jwt_token(
     tenant_id="tenant_456"
 )
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Process data"}],
     "mcp_servers": [{
         "name": "processor",
@@ -115,6 +116,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```
 
 **JWT Benefits:**
+
 - Stateless (no server-side session storage)
 - Contains user/tenant information
 - Expires automatically
@@ -150,9 +152,9 @@ oauth_token = get_oauth_token(
 )
 
 # Use OAuth token
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Access protected resource"}],
     "mcp_servers": [{
         "name": "protected",
@@ -168,9 +170,9 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ### Custom Authentication Headers
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Multi-factor auth"}],
     "mcp_servers": [{
         "name": "secure",
@@ -202,9 +204,9 @@ tenant_tokens = {
 def create_mcp_workflow(tenant_id):
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMAgentNode", "agent", {
+    builder.add_node("IterativeLLMNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "messages": [{"role": "user", "content": "Get tenant data"}],
         "mcp_servers": [{
             "name": "data",
@@ -227,6 +229,7 @@ def create_mcp_workflow(tenant_id):
 ```python
 from datetime import datetime, timedelta
 
+# Note: This is a custom OAuth2 token manager, NOT kailash.enterprise.TokenManager
 class TokenManager:
     def __init__(self, client_id, client_secret, token_url):
         self.client_id = client_id
@@ -263,7 +266,7 @@ token_manager = TokenManager(
     token_url="https://auth.company.com/oauth/token"
 )
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "api",
         "transport": "http",
@@ -291,7 +294,7 @@ import os
 
 load_dotenv()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "secure",
         "transport": "http",
@@ -331,7 +334,7 @@ secret = os.getenv("HMAC_SECRET")
 payload = '{"action": "search", "query": "documents"}'
 auth_headers = compute_hmac_signature(secret, payload)
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "hmac_protected",
         "transport": "http",
@@ -351,9 +354,9 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get data"}],
     "mcp_servers": [{
         "name": "api",
@@ -370,7 +373,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
     }]
 })
 
-# IterativeLLMAgentNode handles 401/403 by retrying or graceful fallback
+# IterativeLLMNode handles 401/403 by retrying or graceful fallback
 ```
 
 ## Common Patterns
@@ -396,7 +399,7 @@ auth_config = {
 env = os.getenv("ENV", "development")
 config = auth_config[env]
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{"name": "api", "transport": "http", **config}]
 })
 ```
@@ -419,7 +422,7 @@ class CredentialRotator:
 
 rotator = CredentialRotator()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "api",
         "transport": "http",
@@ -431,13 +434,13 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 
 ## When to Use Each Method
 
-| Method | Use When | Security Level |
-|--------|----------|----------------|
-| **API Key** | Simple services, internal APIs | Medium |
-| **Bearer Token** | Short-lived access | Medium-High |
-| **JWT** | Stateless auth, microservices | High |
-| **OAuth 2.1** | Third-party access, delegated auth | Very High |
-| **HMAC** | Request integrity verification | Very High |
+| Method           | Use When                           | Security Level |
+| ---------------- | ---------------------------------- | -------------- |
+| **API Key**      | Simple services, internal APIs     | Medium         |
+| **Bearer Token** | Short-lived access                 | Medium-High    |
+| **JWT**          | Stateless auth, microservices      | High           |
+| **OAuth 2.1**    | Third-party access, delegated auth | Very High      |
+| **HMAC**         | Request integrity verification     | Very High      |
 
 ## Related Patterns
 
@@ -447,6 +450,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## When to Escalate to Subagent
 
 Use `mcp-specialist` subagent when:
+
 - Implementing OAuth 2.1 authorization flows
 - Setting up custom authentication schemes
 - Integrating with enterprise identity providers (LDAP, Active Directory)
@@ -461,9 +465,59 @@ Use `mcp-specialist` subagent when:
 - Monitor authentication failures for security threats
 - Rotate credentials regularly (90 days for API keys)
 
+## McpApplication with Authentication (Phase 17)
+
+The `McpApplication` class from `kailash.mcp` provides a decorator-based API for building MCP servers. Authentication is handled at the transport layer:
+
+```python
+import os
+from kailash.mcp import McpApplication
+
+app = McpApplication("secure-server", "1.0")
+
+@app.tool(name="search", description="Search documents")
+def search(query: str) -> str:
+    return f"Results for {query}"
+
+@app.resource(uri="config://settings", name="Settings")
+def get_settings() -> str:
+    return '{"theme": "dark"}'
+
+# Authentication is configured at the transport level
+# when setting up SSE or HTTP transports
+```
+
+### Transport-Level Authentication
+
+```python
+from kailash.mcp import McpApplication
+from kailash.nexus.mcp import SSE, HTTP
+import os
+
+app = McpApplication("auth-server", "1.0")
+
+@app.tool(name="protected_action", description="A protected action")
+def protected_action(data: str) -> str:
+    return f"Processed: {data}"
+
+server = app.server
+
+# Configure SSE transport with auth headers
+server.set_transport(SSE)
+server.set_sse_config({
+    "port": 8080,
+    "path": "/mcp",
+    "auth": {
+        "type": "bearer",
+        "token": os.getenv("MCP_AUTH_TOKEN"),
+    },
+})
+```
+
 ## Version Notes
 
 - Enhanced authentication support in MCP transports
 - Real MCP tool execution with auth headers
+- McpApplication decorator-based server with transport-level auth (Phase 17)
 
-<!-- Trigger Keywords: MCP auth, authentication, API key, JWT, OAuth, mcp security, bearer token, mcp credentials, oauth 2.1, mcp authorization, token authentication -->
+<!-- Trigger Keywords: MCP auth, authentication, API key, JWT, OAuth, mcp security, bearer token, mcp credentials, oauth 2.1, mcp authorization, token authentication, McpApplication auth -->

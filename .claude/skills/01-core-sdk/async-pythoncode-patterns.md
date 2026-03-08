@@ -1,11 +1,11 @@
 ---
 name: async-pythoncode-patterns
-description: "AsyncPythonCodeNode patterns and best practices including multi-output support, async I/O, concurrent processing, and full parity with PythonCodeNode. Use when asking 'AsyncPythonCodeNode', 'async Python', 'async code', 'concurrent processing', 'asyncio', 'async workflows', or 'async best practices'."
+description: "AsyncEmbeddedPythonNode patterns and best practices including multi-output support, async I/O, concurrent processing, and full parity with EmbeddedPythonNode. Use when asking 'AsyncEmbeddedPythonNode', 'async Python', 'async code', 'concurrent processing', 'asyncio', 'async workflows', or 'async best practices'."
 ---
 
-# AsyncPythonCodeNode Patterns
+# AsyncEmbeddedPythonNode Patterns
 
-Comprehensive guide for AsyncPythonCodeNode with full PythonCodeNode feature parity.
+Comprehensive guide for AsyncEmbeddedPythonNode with full EmbeddedPythonNode feature parity.
 
 > **Skill Metadata**
 > Category: `core-sdk`
@@ -14,13 +14,13 @@ Comprehensive guide for AsyncPythonCodeNode with full PythonCodeNode feature par
 ## Quick Reference
 
 - **Primary Use**: Async Python code execution with concurrent processing
-- **Multi-Output**: ✅ FULLY SUPPORTED - exports ALL variables like PythonCodeNode
-- **Parity**: ✅ 100% feature parity with PythonCodeNode
+- **Multi-Output**: ✅ FULLY SUPPORTED - exports ALL variables like EmbeddedPythonNode
+- **Parity**: ✅ 100% feature parity with EmbeddedPythonNode
 - **Use Cases**: Async I/O, database queries, HTTP requests, concurrent operations
 
 ## Feature Parity Status
 
-| Feature | PythonCodeNode | AsyncPythonCodeNode |
+| Feature | EmbeddedPythonNode | AsyncEmbeddedPythonNode |
 |---------|----------------|---------------------|
 | Multi-output (export all variables) | ✅ | ✅ |
 | Template resolution (nested params) | ✅ | ✅ |
@@ -40,7 +40,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # ✅ MODERN PATTERN: Export multiple variables
-builder.add_node("AsyncPythonCodeNode", "async_processor", {
+builder.add_node("AsyncEmbeddedPythonNode", "async_processor", {
     "code": """
 import asyncio
 
@@ -61,17 +61,17 @@ average_value = total_value / item_count
 })
 
 # Connect each output individually
-builder.add_connection("async_processor", "processed_data", "next_node", "data")
-builder.add_connection("async_processor", "item_count", "next_node", "count")
-builder.add_connection("async_processor", "total_value", "next_node", "total")
-builder.add_connection("async_processor", "processing_complete", "next_node", "status")
+builder.connect("async_processor", "processed_data", "next_node", "data")
+builder.connect("async_processor", "item_count", "next_node", "count")
+builder.connect("async_processor", "total_value", "next_node", "total")
+builder.connect("async_processor", "processing_complete", "next_node", "status")
 ```
 
 ### Single-Result Pattern
 
 ```python
 # ✅ Single result variable pattern (still works)
-builder.add_node("AsyncPythonCodeNode", "single_result", {
+builder.add_node("AsyncEmbeddedPythonNode", "single_result", {
     "code": """
 async def process():
     await asyncio.sleep(0.1)
@@ -82,8 +82,8 @@ result = await process()
 })
 
 # Access nested values with dot notation
-builder.add_connection("single_result", "result.data", "next", "input_data")
-builder.add_connection("single_result", "result.count", "next", "input_count")
+builder.connect("single_result", "result.data", "next", "input_data")
+builder.connect("single_result", "result.count", "next", "input_count")
 ```
 
 ## Concurrent Processing Patterns
@@ -91,7 +91,7 @@ builder.add_connection("single_result", "result.count", "next", "input_count")
 ### asyncio.gather - Parallel Execution
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "parallel_fetch", {
+builder.add_node("AsyncEmbeddedPythonNode", "parallel_fetch", {
     "code": """
 import asyncio
 
@@ -115,7 +115,7 @@ fetch_complete = True
 ### asyncio.create_task - Task Management
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "task_manager", {
+builder.add_node("AsyncEmbeddedPythonNode", "task_manager", {
     "code": """
 import asyncio
 
@@ -144,7 +144,7 @@ operation_status = final_result["status"]
 ### HTTP Requests with aiohttp
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "http_client", {
+builder.add_node("AsyncEmbeddedPythonNode", "http_client", {
     "code": """
 import aiohttp
 import asyncio
@@ -176,7 +176,7 @@ fetch_success = all(r is not None for r in api_responses)
 ### Database Operations with asyncpg
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "db_query", {
+builder.add_node("AsyncEmbeddedPythonNode", "db_query", {
     "code": """
 import asyncpg
 import asyncio
@@ -206,7 +206,7 @@ finally:
 ### File Operations with aiofiles
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "file_processor", {
+builder.add_node("AsyncEmbeddedPythonNode", "file_processor", {
     "code": """
 import aiofiles
 import asyncio
@@ -246,7 +246,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Async preparation with multi-output
-builder.add_node("AsyncPythonCodeNode", "async_prepare", {
+builder.add_node("AsyncEmbeddedPythonNode", "async_prepare", {
     "code": """
 import asyncio
 
@@ -271,15 +271,15 @@ builder.add_node("UserUpdateNode", "update_user", {
     "model_name": "User"
 })
 
-builder.add_connection("async_prepare", "filter_data", "update_user", "filter")
-builder.add_connection("async_prepare", "verification_status", "update_user", "verified")
-builder.add_connection("async_prepare", "premium_status", "update_user", "premium")
-builder.add_connection("async_prepare", "updated_at", "update_user", "updated_at")
+builder.connect("async_prepare", "filter_data", "update_user", "filter")
+builder.connect("async_prepare", "verification_status", "update_user", "verified")
+builder.connect("async_prepare", "premium_status", "update_user", "premium")
+builder.connect("async_prepare", "updated_at", "update_user", "updated_at")
 ```
 
-## When to Use AsyncPythonCodeNode
+## When to Use AsyncEmbeddedPythonNode
 
-### ✅ USE AsyncPythonCodeNode FOR:
+### ✅ USE AsyncEmbeddedPythonNode FOR:
 
 **Async I/O Operations:**
 - Database queries (asyncpg, aiomysql, motor)
@@ -300,7 +300,7 @@ builder.add_connection("async_prepare", "updated_at", "update_user", "updated_at
 - Async message queues
 - Async cache operations
 
-### ❌ USE PythonCodeNode INSTEAD FOR:
+### ❌ USE EmbeddedPythonNode INSTEAD FOR:
 
 **CPU-Bound Operations:**
 - Data processing calculations
@@ -320,10 +320,10 @@ builder.add_connection("async_prepare", "updated_at", "update_user", "updated_at
 
 ## Exception Handling
 
-All exception classes are now available in AsyncPythonCodeNode:
+All exception classes are now available in AsyncEmbeddedPythonNode:
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "error_handler", {
+builder.add_node("AsyncEmbeddedPythonNode", "error_handler", {
     "code": """
 import asyncio
 
@@ -363,7 +363,7 @@ error_details = error_message if 'error_message' in locals() else None
 Template syntax `${param}` now works in nested parameters:
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "templated", {
+builder.add_node("AsyncEmbeddedPythonNode", "templated", {
     "code": """
 import asyncio
 
@@ -396,7 +396,7 @@ filter_used = query_result["config"]
 ### Limit Concurrent Tasks
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "controlled_concurrency", {
+builder.add_node("AsyncEmbeddedPythonNode", "controlled_concurrency", {
     "code": """
 import asyncio
 
@@ -423,7 +423,7 @@ processing_complete = True
 ### Error Handling in Concurrent Operations
 
 ```python
-builder.add_node("AsyncPythonCodeNode", "error_resilient", {
+builder.add_node("AsyncEmbeddedPythonNode", "error_resilient", {
     "code": """
 import asyncio
 
@@ -459,7 +459,7 @@ processing_complete = True
 
 ```python
 # ❌ This blocks the event loop!
-builder.add_node("AsyncPythonCodeNode", "blocking", {
+builder.add_node("AsyncEmbeddedPythonNode", "blocking", {
     "code": """
 import time
 await asyncio.sleep(0.1)
@@ -473,7 +473,7 @@ result = "done"
 
 ```python
 # ✅ This doesn't block
-builder.add_node("AsyncPythonCodeNode", "non_blocking", {
+builder.add_node("AsyncEmbeddedPythonNode", "non_blocking", {
     "code": """
 import asyncio
 await asyncio.sleep(0.1)
@@ -485,17 +485,17 @@ result = "done"
 
 ## Related Skills
 
-- **[pythoncode-best-practices](pythoncode-best-practices.md)** - PythonCodeNode patterns
+- **[pythoncode-best-practices](pythoncode-best-practices.md)** - EmbeddedPythonNode patterns
 - **[async-workflow-patterns](async-workflow-patterns.md)** - Async workflow design
 - **[dataflow-dynamic-updates](../02-dataflow/dataflow-dynamic-updates.md)** - DataFlow with async
 - **[runtime-execution](runtime-execution.md)** - Runtime patterns
 
 ## Current Features
 
-- Multi-output support with template resolution and full PythonCodeNode parity
+- Multi-output support with template resolution and full EmbeddedPythonNode parity
 - Exception handling (22 classes)
 - Security sandbox with module whitelists
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: AsyncPythonCodeNode, async Python, async code, concurrent processing, asyncio, async workflows, async best practices, async I/O, asyncpg, aiohttp, aiofiles -->
+<!-- Trigger Keywords: AsyncEmbeddedPythonNode, async Python, async code, concurrent processing, asyncio, async workflows, async best practices, async I/O, asyncpg, aiohttp, aiofiles -->

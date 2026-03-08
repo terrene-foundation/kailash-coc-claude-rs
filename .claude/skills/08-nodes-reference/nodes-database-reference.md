@@ -20,7 +20,7 @@ import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
 # Available database nodes:
-#   AsyncSQLDatabaseNode (Production recommended)
+#   SQLQueryNode (Production recommended)
 #   WorkflowConnectionPool (Connection pooling)
 #   QueryRouterNode (Intelligent routing)
 #   SQLDatabaseNode (Simple queries)
@@ -29,14 +29,15 @@ import kailash
 
 ## Production Database Node
 
-### AsyncSQLDatabaseNode ⭐ (Recommended)
+### SQLQueryNode ⭐ (Recommended)
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
 # Production-grade async SQL with transactions
-builder.add_node("AsyncSQLDatabaseNode", "db", {
+builder.add_node("SQLQueryNode", "db", {
     "database_type": "postgresql",
     "host": "localhost",
     "database": "myapp",
@@ -46,7 +47,7 @@ builder.add_node("AsyncSQLDatabaseNode", "db", {
 })
 
 # Execute query
-builder.add_node("AsyncSQLDatabaseNode", "query", {
+builder.add_node("SQLQueryNode", "query", {
     "query": "SELECT * FROM users WHERE active = :active",
     "params": {"active": True},
     "fetch_mode": "all"
@@ -56,6 +57,7 @@ builder.add_node("AsyncSQLDatabaseNode", "query", {
 ## Connection Pooling
 
 ### WorkflowConnectionPool ⭐
+
 ```python
 import kailash
 
@@ -78,6 +80,7 @@ builder.add_node("WorkflowConnectionPool", "pool_init", {
 ## Query Routing
 
 ### QueryRouterNode ⭐
+
 ```python
 import kailash
 
@@ -94,6 +97,7 @@ builder.add_node("QueryRouterNode", "router", {
 ## Simple SQL Node
 
 ### SQLDatabaseNode
+
 ```python
 builder.add_node("SQLDatabaseNode", "simple_query", {
     "connection_string": "postgresql://user:pass@localhost/db",
@@ -106,6 +110,7 @@ builder.add_node("SQLDatabaseNode", "simple_query", {
 ## Concurrency Control
 
 ### OptimisticLockingNode ⭐
+
 ```python
 import kailash
 
@@ -127,4 +132,4 @@ builder.add_node("OptimisticLockingNode", "lock", {
 - **Data Nodes**: [`nodes-data-reference`](nodes-data-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: database node, SQL node, AsyncSQL, connection pool, query routing, AsyncSQLDatabaseNode, WorkflowConnectionPool, QueryRouterNode -->
+<!-- Trigger Keywords: database node, SQL node, AsyncSQL, connection pool, query routing, SQLQueryNode, WorkflowConnectionPool, QueryRouterNode -->

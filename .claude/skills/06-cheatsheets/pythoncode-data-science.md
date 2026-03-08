@@ -1,6 +1,6 @@
 ---
 name: pythoncode-data-science
-description: "PythonCodeNode patterns for data science workflows. Use when asking 'data science', 'pandas workflows', 'numpy patterns', 'scientific computing', or 'data analysis'."
+description: "EmbeddedPythonNode patterns for data science workflows. Use when asking 'data science', 'pandas workflows', 'numpy patterns', 'scientific computing', or 'data analysis'."
 ---
 
 # Pythoncode Data Science
@@ -50,6 +50,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies

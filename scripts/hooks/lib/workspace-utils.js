@@ -20,7 +20,12 @@ function detectActiveWorkspace(cwd) {
   try {
     const entries = fs.readdirSync(wsDir, { withFileTypes: true });
     const projects = entries
-      .filter((e) => e.isDirectory() && e.name !== "instructions")
+      .filter(
+        (e) =>
+          e.isDirectory() &&
+          e.name !== "instructions" &&
+          e.name !== "_template",
+      )
       .map((e) => {
         const fullPath = path.join(wsDir, e.name);
         try {

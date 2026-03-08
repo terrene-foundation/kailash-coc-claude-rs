@@ -2,7 +2,8 @@
 skill: nexus-security-best-practices
 description: Security best practices for Nexus including authentication, rate limiting, input validation, and production deployment
 priority: HIGH
-tags: [nexus, security, authentication, rate-limiting, input-validation, production]
+tags:
+  [nexus, security, authentication, rate-limiting, input-validation, production]
 ---
 
 # Nexus Security Best Practices
@@ -16,8 +17,11 @@ Nexus includes critical security fixes that provide production-safe defaults. Th
 ## Critical Security Features
 
 ### P0-1: Environment-Aware Authentication
+
 ### P0-2: Rate Limiting Default (100 req/min)
+
 ### P0-3: Auto-Discovery Disabled by Default
+
 ### P0-5: Unified Input Validation
 
 ## Authentication Best Practices
@@ -41,13 +45,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Auto-enables auth in production
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Verify auth is enabled
 print(f"Auth Enabled: {app._enable_auth}")  # True in production
 ```
 
 **What Happens**:
+
 - `NEXUS_ENV=production` → Authentication automatically enabled
 - `NEXUS_ENV=development` → Authentication disabled (default)
 - Explicit `enable_auth=False` in production → **CRITICAL WARNING** logged
@@ -55,15 +61,19 @@ print(f"Auth Enabled: {app._enable_auth}")  # True in production
 ### Explicit Authentication Configuration
 
 **Force Enable (Development Testing)**:
+
 ```python
 # Test auth behavior in development
-app = kailash.Nexus(enable_auth=True)
+# Auth is configured via NexusAuthPlugin, not constructor param
+app = NexusApp()
+# app.add_plugin(auth)  # See nexus-auth-plugin.md
 ```
 
 **Disable in Production (NOT RECOMMENDED)**:
+
 ```python
-# Logs CRITICAL warning
-app = kailash.Nexus(enable_auth=False)
+# NOT RECOMMENDED: Running without auth in production
+app = NexusApp()  # No auth plugin added
 
 # Output:
 # ⚠️  SECURITY WARNING: Authentication is DISABLED in production environment!
@@ -106,12 +116,9 @@ if env == "production":
 else:
     from config.development import DevelopmentConfig as Config
 
-nexus = kailash.Nexus(
-    enable_auth=Config.ENABLE_AUTH,
-    rate_limit=Config.RATE_LIMIT,
-    auto_discovery=Config.AUTO_DISCOVERY,
-    log_level=Config.LOG_LEVEL
-)
+app = NexusApp(NexusConfig(port=Config.API_PORT))
+# Auth configured via NexusAuthPlugin if Config.ENABLE_AUTH
+# Rate limiting configured via app.add_rate_limit(Config.RATE_LIMIT)
 ```
 
 ## Rate Limiting Best Practices
@@ -119,8 +126,9 @@ nexus = kailash.Nexus(
 ### Default Protection
 
 ```python
-# DoS protection enabled by default
-app = kailash.Nexus()  # rate_limit=100 req/min
+# DoS protection via add_rate_limit()
+app = NexusApp()
+app.add_rate_limit(100)  # 100 req/min
 
 # Verify rate limiting
 print(f"Rate Limit: {app._rate_limit} req/min")  # 100
@@ -132,13 +140,16 @@ print(f"Rate Limit: {app._rate_limit} req/min")  # 100
 
 ```python
 # High-traffic public API
-app = kailash.Nexus(rate_limit=1000)  # 1000 req/min
+app = NexusApp()
+app.add_rate_limit(1000)  # 1000 req/min
 
 # Internal API
-app = kailash.Nexus(rate_limit=500)   # 500 req/min
+app = NexusApp()
+app.add_rate_limit(500)   # 500 req/min
 
 # Admin API
-app = kailash.Nexus(rate_limit=100)   # 100 req/min (stricter)
+app = NexusApp()
+app.add_rate_limit(100)   # 100 req/min (stricter)
 ```
 
 ### Per-Endpoint Rate Limiting
@@ -146,7 +157,8 @@ app = kailash.Nexus(rate_limit=100)   # 100 req/min (stricter)
 ```python
 import kailash
 
-nexus = kailash.Nexus(rate_limit=100)  # Global default
+app = NexusApp()
+app.add_rate_limit(100)  # Global default
 
 # Custom limits for specific endpoints
 @app.endpoint("/api/search", rate_limit=50)
@@ -186,6 +198,7 @@ async def log_rate_limits(request, call_next):
 ### When to Disable Rate Limiting
 
 **ONLY disable for**:
+
 - Internal services with existing rate limiting (e.g., behind API gateway)
 - Load testing environments
 - Development with explicit acknowledgment of risks
@@ -193,10 +206,11 @@ async def log_rate_limits(request, call_next):
 ```python
 # Development only
 if os.getenv("ENVIRONMENT") == "development":
-    app = kailash.Nexus(rate_limit=None)
+    app = NexusApp()
     logger.warning("Rate limiting DISABLED for development")
 else:
-    app = kailash.Nexus(rate_limit=1000)
+    app = NexusApp()
+    app.add_rate_limit(1000)
 ```
 
 ## Input Validation
@@ -204,11 +218,13 @@ else:
 ### Automatic Validation
 
 **All channels validated**:
+
 - ✅ API endpoints
 - ✅ MCP server (stdio, WebSocket)
 - ✅ CLI commands
 
 **Protections**:
+
 ```python
 # These are automatically blocked
 dangerous_inputs = {
@@ -236,7 +252,7 @@ large_input = "x" * (10 * 1024 * 1024 + 1)  # > 10MB: blocked
 
 ```python
 # Default: 10MB
-app = kailash.Nexus()
+app = NexusApp()
 
 # Increase for file uploads
 app._max_input_size = 50 * 1024 * 1024  # 50MB
@@ -293,41 +309,20 @@ def get_secret(key: str) -> str:
     return value
 
 # Production configuration
-nexus = kailash.Nexus(
-    # Server
-    api_port=int(os.getenv("PORT", "8000")),
-    api_host="0.0.0.0",
+from kailash.nexus import NexusApp, NexusConfig
 
-    # Security (P0 fixes)
-    enable_auth=True,          # P0-1: Explicit enable
-    rate_limit=1000,           # P0-2: DoS protection
-    auto_discovery=False,      # P0-3: No blocking
+app = NexusApp(NexusConfig(
+    port=int(os.getenv("PORT", "8000")),
+    host="0.0.0.0",
+))
 
-    # TLS/HTTPS (if not behind reverse proxy)
-    force_https=True,
-    ssl_cert=get_secret("SSL_CERT_PATH"),
-    ssl_key=get_secret("SSL_KEY_PATH"),
+# Security: Rate limiting
+app.add_rate_limit(1000)           # P0-2: DoS protection
 
-    # Sessions
-    session_backend="redis",
-    redis_url=get_secret("REDIS_URL"),
-    session_timeout=3600,
-
-    # Monitoring
-    enable_monitoring=True,
-    monitoring_backend="prometheus",
-    monitoring_interval=30,
-
-    # Logging
-    log_level="INFO",
-    log_format="json",
-    log_file="/var/log/nexus/app.log",
-
-    # Performance
-    max_concurrent_workflows=200,
-    request_timeout=60,
-    enable_caching=True
-)
+# Security: Auth via NexusAuthPlugin (see nexus-auth-plugin.md)
+# Discovery: Register workflows manually (no auto_discovery param needed)
+# TLS/HTTPS: Use reverse proxy (nginx, traefik) for production
+# Sessions, monitoring, logging: Configure via environment or plugins
 
 # Verify security configuration
 def verify_security():
@@ -399,58 +394,58 @@ spec:
         fsGroup: 1000
 
       containers:
-      - name: nexus
-        image: nexus-app:latest
+        - name: nexus
+          image: nexus-app:latest
 
-        # Security: Container-level security
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
+          # Security: Container-level security
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
 
-        env:
-        - name: NEXUS_ENV
-          value: "production"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: nexus-secrets
-              key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: nexus-secrets
-              key: redis-url
+          env:
+            - name: NEXUS_ENV
+              value: "production"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-secrets
+                  key: redis-url
 
-        ports:
-        - containerPort: 8000
-          name: api
-        - containerPort: 3001
-          name: mcp
+          ports:
+            - containerPort: 8000
+              name: api
+            - containerPort: 3001
+              name: mcp
 
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "2000m"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
 
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
 
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
 ```
 
 ## Monitoring Security Events
@@ -524,77 +519,77 @@ input_validation_blocks.inc()
 
 ```python
 # WRONG - Logs CRITICAL warning
-app = kailash.Nexus(enable_auth=False)
+app = NexusApp()  # No auth plugin added
 ```
 
 **Fix**:
+
 ```python
 # RIGHT - Use environment variable
 export NEXUS_ENV=production
-app = kailash.Nexus()  # Auth auto-enabled
+app = NexusApp()
+auth = NexusAuthPlugin.basic_auth(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+app.add_plugin(auth)  # Auth enabled
 ```
 
 ### ❌ Mistake 2: No Rate Limiting
 
 ```python
 # WRONG - Vulnerable to DoS
-app = kailash.Nexus(rate_limit=None)
+app = NexusApp()  # No rate limit configured
 ```
 
 **Fix**:
+
 ```python
 # RIGHT - Use appropriate limits
-app = kailash.Nexus(rate_limit=1000)  # Or use default 100
+app = NexusApp()
+app.add_rate_limit(1000)  # Or use default 100
 ```
 
 ### ❌ Mistake 3: Auto-Discovery in Production
 
 ```python
 # WRONG - 5-10s blocking delay, potential security risk
-app = kailash.Nexus(auto_discovery=True)
+app = NexusApp()  # No explicit workflow registration
 ```
 
 **Fix**:
+
 ```python
 # RIGHT - Manual registration
-app = kailash.Nexus(auto_discovery=False)
-app.register("workflow_name", builder.build(reg))
+app = NexusApp()
+app.register("workflow_name", builder.build(reg))  # Manual registration
 ```
 
 ### ❌ Mistake 4: Storing Secrets in Code
 
 ```python
 # WRONG - Secrets in version control
-app = kailash.Nexus(
-    redis_url="redis://user:password123@host:6379"
-)
+redis_url = "redis://user:password123@host:6379"  # Hardcoded!
 ```
 
 **Fix**:
+
 ```python
 # RIGHT - Use environment variables
 import os
-app = kailash.Nexus(
-    redis_url=os.getenv("REDIS_URL")
-)
+redis_url = os.getenv("REDIS_URL")
 ```
 
 ### ❌ Mistake 5: No HTTPS in Production
 
 ```python
-# WRONG - Plaintext HTTP
-app = kailash.Nexus(force_https=False)
+# WRONG - Plaintext HTTP without reverse proxy
+app = NexusApp()  # No TLS configured
 ```
 
 **Fix**:
+
 ```python
-# RIGHT - Force HTTPS
-app = kailash.Nexus(
-    force_https=True,
-    ssl_cert="/path/to/cert.pem",
-    ssl_key="/path/to/key.pem"
-)
-# Or use reverse proxy (nginx, traefik)
+# RIGHT - Use reverse proxy (nginx, traefik) for HTTPS
+app = NexusApp()
+# Deploy behind nginx/traefik with TLS termination
 ```
 
 ## Security Checklist
@@ -634,12 +629,14 @@ app = kailash.Nexus(
 ## Security Defaults
 
 **Current behavior in kailash-enterprise**:
+
 - Environment-aware authentication (auto-enable in production)
 - Rate limiting default (100 req/min)
 - Auto-discovery disabled by default
 - Unified input validation (all channels)
 
 **Impact**:
+
 - Production deployments are secure by default
 - DoS protection enabled automatically
 - No blocking delays with DataFlow
@@ -684,6 +681,7 @@ app = kailash.Nexus(
 ## Support
 
 For security issues or questions:
+
 - Check the [troubleshooting guide](./nexus-troubleshooting.md)
 - Review [GitHub issues](https://github.com/kailash-sdk/nexus/issues)
 - Contact security team for critical vulnerabilities

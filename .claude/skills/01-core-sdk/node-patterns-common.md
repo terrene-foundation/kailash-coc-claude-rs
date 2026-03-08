@@ -1,6 +1,6 @@
 ---
 name: node-patterns-common
-description: "Common node usage patterns with copy-paste templates for CSV, JSON, PythonCode, LLM, HTTP, and data transformation. Use when asking 'node examples', 'how to use nodes', 'CSVReader', 'PythonCodeNode', 'LLMAgent', 'HTTPRequest', 'data transformation', 'common patterns', 'node templates', or 'workflow examples'."
+description: "Common node usage patterns with copy-paste templates for CSV, JSON, PythonCode, LLM, HTTP, and data transformation. Use when asking 'node examples', 'how to use nodes', 'CSVReader', 'EmbeddedPythonNode', 'LLMAgent', 'HTTPRequest', 'data transformation', 'common patterns', 'node templates', or 'workflow examples'."
 ---
 
 # Common Node Patterns
@@ -13,11 +13,11 @@ Copy-paste ready templates for the most frequently used Kailash SDK nodes with w
 
 ## Quick Reference
 
-- **PythonCodeNode**: Custom Python logic, most flexible
-- **CSVReaderNode**: Read CSV files with pandas
-- **JSONWriterNode**: Write JSON output
+- **EmbeddedPythonNode**: Custom Python logic, most flexible
+- **CSVProcessorNode**: Read CSV files with pandas
+- **JSONTransformNode**: Write JSON output
 - **HTTPRequestNode**: API calls (GET/POST)
-- **LLMAgentNode**: AI/LLM integration
+- **LLMNode**: AI/LLM integration
 - **SwitchNode**: Conditional routing
 
 ## Core Pattern
@@ -29,8 +29,8 @@ reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
-# PythonCodeNode - most common pattern
-builder.add_node("PythonCodeNode", "processor", {
+# EmbeddedPythonNode - most common pattern
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": """
 # Process data
 processed = [item for item in data if item['score'] > 0.8]
@@ -53,18 +53,19 @@ result = rt.execute(builder.build(reg))
 ## Node Patterns
 
 ### Pattern 1: CSV Reading and Writing
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Read CSV file
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "input.csv",
     "delimiter": ",",
     "has_header": True
 })
 
 # Process data
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 import pandas as pd
 df = pd.DataFrame(data)
@@ -74,23 +75,24 @@ result = df.to_dict('records')
 })
 
 # Write results
-builder.add_node("CSVWriterNode", "writer", {
+builder.add_node("FileWriterNode", "writer", {
     "file_path": "output.csv"
 })
 
-builder.add_connection("reader", "data", "process", "data")
-builder.add_connection("process", "result", "writer", "data")
+builder.connect("reader", "data", "process", "data")
+builder.connect("process", "result", "writer", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
-### Pattern 2: PythonCodeNode with Filtering
+### Pattern 2: EmbeddedPythonNode with Filtering
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Data source
-builder.add_node("PythonCodeNode", "source", {
+builder.add_node("EmbeddedPythonNode", "source", {
     "code": """
 result = [
     {'name': 'Alice', 'score': 0.9},
@@ -101,14 +103,14 @@ result = [
 })
 
 # Filter high scores
-builder.add_node("PythonCodeNode", "filter", {
+builder.add_node("EmbeddedPythonNode", "filter", {
     "code": """
 filtered = [item for item in data if item.get('score', 0) > 0.8]
 result = {'items': filtered, 'count': len(filtered)}
 """
 })
 
-builder.add_connection("source", "result", "filter", "data")
+builder.connect("source", "result", "filter", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -116,6 +118,7 @@ print(f"Filtered {result["results"]['filter']['result']['count']} items")
 ```
 
 ### Pattern 3: HTTP API Requests
+
 ```python
 builder = kailash.WorkflowBuilder()
 
@@ -128,7 +131,7 @@ builder.add_node("HTTPRequestNode", "api_get", {
 })
 
 # Process response
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 import json
 data = json.loads(response) if isinstance(response, str) else response
@@ -139,18 +142,19 @@ result = {
 """
 })
 
-builder.add_connection("api_get", "response", "process", "response")
+builder.connect("api_get", "response", "process", "response")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
 ### Pattern 4: LLM Agent Integration
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Prepare data for LLM
-builder.add_node("PythonCodeNode", "prep", {
+builder.add_node("EmbeddedPythonNode", "prep", {
     "code": """
 text = "Quarterly revenue increased by 15%."
 result = {'text': text, 'task': 'analyze'}
@@ -158,15 +162,15 @@ result = {'text': text, 'task': 'analyze'}
 })
 
 # LLM processing
-builder.add_node("LLMAgentNode", "llm", {
-    "model": "gpt-3.5-turbo",
+builder.add_node("LLMNode", "llm", {
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "system_prompt": "You are a business analyst. Analyze the given text.",
     "temperature": 0.1,
     "max_tokens": 200
 })
 
 # Post-process
-builder.add_node("PythonCodeNode", "post", {
+builder.add_node("EmbeddedPythonNode", "post", {
     "code": """
 llm_response = llm_result.get('response', '')
 result = {
@@ -176,19 +180,20 @@ result = {
 """
 })
 
-builder.add_connection("prep", "result.text", "llm", "prompt")
-builder.add_connection("llm", "result", "post", "llm_result")
+builder.connect("prep", "result.text", "llm", "prompt")
+builder.connect("llm", "result", "post", "llm_result")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
 ### Pattern 5: Conditional Routing with SwitchNode
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Data source
-builder.add_node("PythonCodeNode", "source", {
+builder.add_node("EmbeddedPythonNode", "source", {
     "code": "result = {'score': 85, 'type': 'test'}"
 })
 
@@ -200,34 +205,35 @@ builder.add_node("SwitchNode", "router", {
 })
 
 # High score handler
-builder.add_node("PythonCodeNode", "high_handler", {
+builder.add_node("EmbeddedPythonNode", "high_handler", {
     "code": "result = {'status': 'high_score', 'score': score}"
 })
 
 # Low score handler
-builder.add_node("PythonCodeNode", "low_handler", {
+builder.add_node("EmbeddedPythonNode", "low_handler", {
     "code": "result = {'status': 'low_score', 'score': score}"
 })
 
-builder.add_connection("source", "result", "router", "data")
-builder.add_connection("router", "true", "high_handler", "score")
-builder.add_connection("router", "false", "low_handler", "score")
+builder.connect("source", "result", "router", "data")
+builder.connect("router", "true", "high_handler", "score")
+builder.connect("router", "false", "low_handler", "score")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
 ### Pattern 6: Data Transformation
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Source data
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "users.csv"
 })
 
 # Transform
-builder.add_node("PythonCodeNode", "transform", {
+builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
 import pandas as pd
 df = pd.DataFrame(data)
@@ -241,13 +247,13 @@ result = df.to_dict('records')
 })
 
 # Output
-builder.add_node("JSONWriterNode", "output", {
+builder.add_node("JSONTransformNode", "output", {
     "file_path": "transformed.json",
     "indent": 2
 })
 
-builder.add_connection("reader", "data", "transform", "data")
-builder.add_connection("transform", "result", "output", "data")
+builder.connect("reader", "data", "transform", "data")
+builder.connect("transform", "result", "output", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -255,30 +261,34 @@ result = rt.execute(builder.build(reg))
 
 ## Common Mistakes
 
-### ❌ Mistake 1: Wrong Result Access for PythonCodeNode
+### ❌ Mistake 1: Wrong Result Access for EmbeddedPythonNode
+
 ```python
 # Wrong - Missing 'result' nesting
 value = result["results"]['processor']['count']  # KeyError
 ```
 
 ### ✅ Fix: Use Correct Nesting
+
 ```python
-# Correct - PythonCodeNode wraps output in 'result'
+# Correct - EmbeddedPythonNode wraps output in 'result'
 value = result["results"]['processor']['result']['count']  # ✓
 ```
 
 ### ❌ Mistake 2: Not Handling First Iteration in Cycles
+
 ```python
 # Wrong - Assuming parameters exist
-builder.add_node("PythonCodeNode", "proc", {
+builder.add_node("EmbeddedPythonNode", "proc", {
     "code": "value = input_value + 1; result = {'value': value}"
 })
 ```
 
 ### ✅ Fix: Use try/except for Cycles
+
 ```python
 # Correct - Handle first iteration
-builder.add_node("PythonCodeNode", "proc", {
+builder.add_node("EmbeddedPythonNode", "proc", {
     "code": """
 try:
     value = input_value
@@ -290,15 +300,17 @@ result = {'value': value + 1}
 ```
 
 ### ❌ Mistake 3: Incorrect Port Names in Connections
+
 ```python
 # Wrong - Using wrong output port name
-builder.add_connection("csv_reader", "output", "processor", "input")
+builder.connect("csv_reader", "output", "processor", "input")
 ```
 
 ### ✅ Fix: Use Correct Port Names
+
 ```python
-# Correct - CSVReaderNode outputs to 'data' port
-builder.add_connection("csv_reader", "data", "processor", "data")
+# Correct - CSVProcessorNode outputs to 'data' port
+builder.connect("csv_reader", "data", "processor", "data")
 ```
 
 ## Related Patterns
@@ -312,21 +324,23 @@ builder.add_connection("csv_reader", "data", "processor", "data")
 ## When to Escalate to Subagent
 
 Use `sdk-navigator` subagent when:
+
 - Finding specific nodes for your use case
 - Exploring all 110+ available nodes
 - Understanding node capabilities
 
 Use `pattern-expert` subagent when:
+
 - Designing complex multi-node workflows
 - Optimizing workflow patterns
 - Creating reusable workflow components
 
 ## Quick Tips
 
-- 💡 **PythonCodeNode is your friend**: Use it for quick transformations and logic
-- 💡 **Always wrap in 'result'**: PythonCodeNode expects `result = {...}`
+- 💡 **EmbeddedPythonNode is your friend**: Use it for quick transformations and logic
+- 💡 **Always wrap in 'result'**: EmbeddedPythonNode expects `result = {...}`
 - 💡 **Check port names**: Each node has specific input/output ports
-- 💡 **Use pandas for data**: Import pandas in PythonCodeNode for data manipulation
+- 💡 **Use pandas for data**: Import pandas in EmbeddedPythonNode for data manipulation
 - 💡 **Test incrementally**: Build workflows node by node, test each connection
 
 ## Version Notes
@@ -335,4 +349,4 @@ Use `pattern-expert` subagent when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: node examples, how to use nodes, CSVReader, PythonCodeNode, LLMAgent, HTTPRequest, data transformation, common patterns, node templates, workflow examples, CSV patterns, JSON patterns, API patterns, LLM patterns, node usage -->
+<!-- Trigger Keywords: node examples, how to use nodes, CSVReader, EmbeddedPythonNode, LLMAgent, HTTPRequest, data transformation, common patterns, node templates, workflow examples, CSV patterns, JSON patterns, API patterns, LLM patterns, node usage -->

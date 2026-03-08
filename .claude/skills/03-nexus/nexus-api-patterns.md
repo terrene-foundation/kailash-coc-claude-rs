@@ -37,7 +37,8 @@ Create custom endpoints with path parameters, query parameters, and rate limitin
 ```python
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Custom endpoint with path parameters
 @app.endpoint("/api/conversations/{conversation_id}", methods=["GET"], rate_limit=50)
@@ -152,12 +153,7 @@ curl -X POST http://localhost:8000/workflows/my-workflow/execute \
 ```python
 import kailash
 
-nexus = kailash.Nexus(
-    api_port=8000,
-    api_host="0.0.0.0",
-    enable_docs=True,
-    enable_cors=True
-)
+app = NexusApp(NexusConfig(port=8000))
 
 # Fine-tune API behavior
 app.api.response_compression = True
@@ -390,10 +386,8 @@ asyncio.run(main())
 
 ```python
 # Configure rate limiting
-app = kailash.Nexus(
-    rate_limit=1000,  # Requests per minute
-    rate_limit_burst=100  # Burst capacity
-)
+app = NexusApp()
+app.add_rate_limit(1000)
 ```
 
 ```bash
@@ -408,7 +402,7 @@ X-RateLimit-Reset: 1705315200
 
 ```python
 # Configure CORS
-app = kailash.Nexus()
+app = NexusApp()
 
 app.api.cors_enabled = True
 app.api.cors_origins = ["https://example.com", "https://app.example.com"]
@@ -421,7 +415,7 @@ app.api.cors_credentials = True
 
 ```python
 # Version your API
-app = kailash.Nexus(api_prefix="/api/v1")
+app = NexusApp()  # API prefix configured separately
 
 # Endpoints become:
 # POST /api/v1/workflows/{name}/execute

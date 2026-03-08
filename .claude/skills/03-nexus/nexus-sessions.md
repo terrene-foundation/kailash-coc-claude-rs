@@ -17,8 +17,9 @@ Sessions work seamlessly across API, CLI, and MCP channels, maintaining state th
 
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+app = NexusApp()
 
 # Create session for specific channel
 session_id = app.create_session(channel="api")
@@ -28,6 +29,7 @@ print(f"Session ID: {session_id}")
 ## Cross-Channel Sessions
 
 ### Start in API, Continue in CLI
+
 ```python
 import requests
 
@@ -92,16 +94,16 @@ print(f"Session data: {session_data}")
 ## Session Configuration
 
 ```python
-app = kailash.Nexus(
-    session_timeout=3600,        # 1 hour timeout
-    session_backend="redis",     # Redis for distributed sessions
-    session_persistence=True     # Persist to database
-)
+# Session configuration is handled at the application level
+app = NexusApp()
+# Session timeout, backend, and persistence are configured separately
+# e.g., via session manager or environment configuration
 ```
 
 ## Session Lifecycle
 
 ### Create Session
+
 ```python
 session_id = app.create_session(
     channel="api",
@@ -114,12 +116,14 @@ session_id = app.create_session(
 ```
 
 ### Get Session Info
+
 ```python
 session_info = app.get_session(session_id)
 print(f"Session: {session_info}")
 ```
 
 ### Update Session
+
 ```python
 app.update_session(session_id, {
     "last_activity": time.time(),
@@ -129,6 +133,7 @@ app.update_session(session_id, {
 ```
 
 ### End Session
+
 ```python
 app.end_session(session_id)
 ```
@@ -154,11 +159,9 @@ session_id = app.create_session(
 ## Session Security
 
 ```python
-# Enable session authentication
-app = kailash.Nexus(
-    enable_auth=True,
-    session_auth_required=True
-)
+# Enable session authentication via NexusAuthPlugin
+app = NexusApp()
+# Auth is configured via NexusAuthPlugin (see nexus-auth-plugin.md)
 
 # Sessions require valid authentication
 session_id = app.create_session(
@@ -192,11 +195,9 @@ def recover_active_sessions():
 # Use Redis for distributed sessions
 import kailash
 
-nexus = kailash.Nexus(
-    session_backend="redis",
-    redis_url="redis://localhost:6379",
-    session_prefix="nexus:sessions:"
-)
+app = NexusApp()
+# Redis for distributed sessions is configured via environment
+# or session manager setup
 
 # Sessions accessible across multiple Nexus instances
 ```
@@ -222,10 +223,8 @@ def monitor_sessions():
 
 ```python
 # Automatic cleanup of expired sessions
-app = kailash.Nexus(
-    session_cleanup_interval=300,  # 5 minutes
-    session_max_age=3600           # 1 hour
-)
+app = NexusApp()
+# Session cleanup is configured via session manager
 
 # Manual cleanup
 app.session_manager.cleanup_expired()
@@ -234,6 +233,7 @@ app.session_manager.cleanup_expired()
 ## Advanced Session Patterns
 
 ### Nested Sessions
+
 ```python
 # Create child sessions
 parent_session = app.create_session(channel="api")
@@ -247,6 +247,7 @@ child_session = app.create_session(
 ```
 
 ### Session Groups
+
 ```python
 # Group related sessions
 group_id = app.session_manager.create_group("batch-processing")
@@ -259,6 +260,7 @@ app.session_manager.end_group(group_id)
 ```
 
 ### Session Checkpoints
+
 ```python
 # Create checkpoints for recovery
 workflow_result = app.execute_workflow(
@@ -306,6 +308,7 @@ def on_session_ended(event):
 ## Common Patterns
 
 ### Request-Scoped Sessions
+
 ```python
 # Create session per request
 @app.route("/process")
@@ -325,6 +328,7 @@ def process_request():
 ```
 
 ### User-Scoped Sessions
+
 ```python
 # Maintain session per user
 user_session = app.session_manager.get_or_create(
@@ -334,6 +338,7 @@ user_session = app.session_manager.get_or_create(
 ```
 
 ### Batch Processing Sessions
+
 ```python
 # Process batch with grouped sessions
 group_id = app.session_manager.create_group("batch-2024-01")
@@ -352,6 +357,7 @@ app.session_manager.wait_for_group(group_id)
 ## Troubleshooting
 
 ### Session Not Found
+
 ```python
 # Verify session exists
 if not app.session_manager.exists(session_id):
@@ -359,12 +365,14 @@ if not app.session_manager.exists(session_id):
 ```
 
 ### Session Timeout
+
 ```python
 # Extend session timeout
 app.session_manager.extend_timeout(session_id, additional_seconds=600)
 ```
 
 ### Session Recovery Failed
+
 ```python
 # Check session status
 status = app.session_manager.get_status(session_id)

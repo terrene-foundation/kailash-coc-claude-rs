@@ -155,7 +155,7 @@ def validate_security(workflow) -> list[str]:
                 issues.append(f"{node_id}: SQL injection risk")
 
         # Check for code injection
-        if node.type == "PythonCodeNode":
+        if node.type == "EmbeddedPythonNode":
             if has_code_injection_risk(node.params.get("code", "")):
                 issues.append(f"{node_id}: Code injection risk")
 

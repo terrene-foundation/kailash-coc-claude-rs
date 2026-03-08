@@ -55,11 +55,11 @@ builder.add_node("APICallNode", "notify_customer", {
     "body": {"to": "{{input.email}}", "subject": "Order Confirmed", "tracking": "{{shipping.tracking_number}}"}
 })
 
-builder.add_connection("create_order", "order_id", "check_inventory", "order_id")
-builder.add_connection("check_inventory", "quantity", "reserve_stock", "available")
-builder.add_connection("reserve_stock", "result", "payment", "body")
-builder.add_connection("payment", "transaction_id", "shipping", "payment_ref")
-builder.add_connection("shipping", "tracking_number", "notify_customer", "tracking")
+builder.connect("create_order", "order_id", "check_inventory", "order_id")
+builder.connect("check_inventory", "quantity", "reserve_stock", "available")
+builder.connect("reserve_stock", "result", "payment", "body")
+builder.connect("payment", "transaction_id", "shipping", "payment_ref")
+builder.connect("shipping", "tracking_number", "notify_customer", "tracking")
 ```
 
 <!-- Trigger Keywords: retail workflow, e-commerce, order processing, inventory sync, order fulfillment -->

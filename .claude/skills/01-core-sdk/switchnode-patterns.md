@@ -35,8 +35,8 @@ builder.add_node("SwitchNode", "switch", {
 })
 
 # Connect both branches
-builder.add_connection("switch", "true_output", "active_processor", "input")
-builder.add_connection("switch", "false_output", "inactive_processor", "input")
+builder.connect("switch", "true_output", "active_processor", "input")
+builder.connect("switch", "false_output", "inactive_processor", "input")
 
 # Use skip_branches mode for best performance
 rt = kailash.Runtime(reg)
@@ -52,8 +52,8 @@ SwitchNode outputs are **mutually exclusive** - when `true_output` has data, `fa
 
 ```python
 # Dot notation on SwitchNode outputs
-builder.add_connection("switch", "true_output.name", "processor", "name")
-builder.add_connection("switch", "false_output.name", "alt_processor", "name")
+builder.connect("switch", "true_output.name", "processor", "name")
+builder.connect("switch", "false_output.name", "alt_processor", "name")
 
 # Use skip_branches mode (default for new code)
 rt = kailash.Runtime(reg)
@@ -67,10 +67,10 @@ rt = kailash.Runtime(reg)
 
 ```python
 # Connect full output (no dot notation)
-builder.add_connection("switch", "true_output", "processor", "data")
+builder.connect("switch", "true_output", "processor", "data")
 
 # Extract field INSIDE node code
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": """
 if data is not None:
     name = data.get('name', 'Unknown')

@@ -203,6 +203,12 @@ nexus-architecture
 - ✅ Golden patterns catalog (7 patterns)
 - ✅ Codegen decision tree (anti-patterns, scaffolding)
 
+### Phase 17 Additions
+
+- PluginManager (Rust-backed): `nexus-plugins.md` -- load, unload, reload, health_check_all
+- EventBus (Rust-backed): `nexus-event-system.md` -- subscribe, publish for decoupled events
+- WorkflowRegistry (Rust-backed): `nexus-workflow-registration.md` -- register, get, execute workflows
+
 ### What's NOT Covered
 
 - Implementation details (covered in docs)

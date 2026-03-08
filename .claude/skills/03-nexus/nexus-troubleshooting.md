@@ -19,7 +19,8 @@ Common issues and solutions for Nexus platform.
 
 ```python
 # Use custom ports
-app = kailash.Nexus(api_port=8001, mcp_port=3002)
+from kailash.nexus import NexusApp, NexusConfig
+app = NexusApp(NexusConfig(port=8001))
 ```
 
 **Check port usage**:
@@ -41,7 +42,7 @@ kill -9 <PID>
 ```python
 # Ensure .build() is called
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "test", {"code": "result = {'ok': True}"})
+builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}"})
 app.register("my-workflow", builder.build(reg))  # Don't forget .build()
 
 # Check registered workflows
@@ -56,7 +57,7 @@ print(list(app.workflows.keys()))
 
 ```python
 # Disable auto_discovery when using DataFlow
-app = kailash.Nexus(auto_discovery=False)
+app = NexusApp()  # Register workflows manually
 
 # auto_migrate=True (default) works in Docker
 db = kailash.DataFlow("postgresql://...")
@@ -84,7 +85,7 @@ python -c "import kailash; print('OK')"
 
 ```python
 # Configure authentication
-app = kailash.Nexus(enable_auth=True)
+app = NexusApp()  # Auth configured via NexusAuthPlugin
 
 # For API requests, include auth header
 curl -X POST http://localhost:8000/workflows/test/execute \
@@ -136,7 +137,7 @@ if not app.session_manager.exists(session_id):
 
 ```python
 # With DataFlow, use optimized settings
-app = kailash.Nexus(auto_discovery=False)
+app = NexusApp()  # Register workflows manually
 db = kailash.DataFlow(
     "postgresql://...",
     auto_migrate=True,  # Default: Works in Docker
@@ -152,8 +153,8 @@ db = kailash.DataFlow(
 **Solution**:
 
 ```python
-# Use try/except pattern in PythonCodeNode
-builder.add_node("PythonCodeNode", "process", {
+# Use try/except pattern in EmbeddedPythonNode
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 try:
     param = my_param  # From API inputs
@@ -177,7 +178,7 @@ curl -X POST http://localhost:8000/workflows/process/execute \
 
 ```python
 # Use explicit connections with correct paths
-builder.add_connection(
+builder.connect(
     "node1", "result.data",  # Full path to output
     "node2", "input"         # Input parameter name
 )
@@ -195,14 +196,14 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Or in Nexus
-app = kailash.Nexus(log_level="DEBUG")
+app = NexusApp()  # Logging configured separately
 ```
 
 ### 2. Add Debug Nodes
 
 ```python
 # Insert debug node to inspect data
-builder.add_node("PythonCodeNode", "debug", {
+builder.add_node("EmbeddedPythonNode", "debug", {
     "code": """
 import json
 print(f"Debug data: {json.dumps(data, indent=2)}")
@@ -318,7 +319,7 @@ print(f"Avg execution time: {metrics['avg_execution_time']}s")
 
 # Optimize workflow
 # - Remove unnecessary nodes
-# - Optimize PythonCodeNode code
+# - Optimize EmbeddedPythonNode code
 # - Add caching
 # - Use async operations
 ```
@@ -330,10 +331,7 @@ print(f"Avg execution time: {metrics['avg_execution_time']}s")
 app.session_manager.cleanup_expired()
 
 # Configure session limits
-app = kailash.Nexus(
-    session_max_age=1800,  # 30 minutes
-    session_cleanup_interval=300  # 5 minutes
-)
+app = NexusApp()
 ```
 
 ### High CPU Usage
@@ -352,7 +350,7 @@ app.api.max_concurrent_requests = 50
 ### 1. Enable Verbose Logging
 
 ```python
-app = kailash.Nexus(log_level="DEBUG", log_format="json")
+app = NexusApp()  # Logging configured separately
 ```
 
 ### 2. Check GitHub Issues
@@ -367,15 +365,16 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "test", {
+builder.add_node("EmbeddedPythonNode", "test", {
     "code": "result = {'test': True}"
 })
 
-nexus.register("test", builder.build(reg))
-nexus.start()
+app.register("test", builder.build(reg))
+app.start()
 ```
 
 ## Key Takeaways

@@ -19,14 +19,14 @@ builder = kailash.WorkflowBuilder()
 # Valid: All required parameters
 builder.add_node("LLMNode", "llm1", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "Hello"
 })
 
 # Invalid: Missing required 'prompt'
 # builder.add_node("LLMNode", "llm2", {
 #     "provider": "openai",
-#     "model": "gpt-4"
+#     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
 # })  # Error!
 
 # Validate at build time
@@ -66,35 +66,28 @@ except WorkflowValidationError as e:
 Define parameter contracts for validation:
 
 ```python
-from typing import Dict, Any
+import kailash
 
-class ValidatedNode(Node):
-    def get_parameters(self) -> Dict[str, NodeParameter]:
-        """Define parameter validation contract."""
-        return {
-            "file_path": NodeParameter(
-                type=str,
-                required=True,
-                description="Path to input file"
-            ),
-            "threshold": NodeParameter(
-                type=int,
-                required=False,
-                default=100,
-                description="Processing threshold"
-            )
-        }
+def validated_handler(inputs):
+    """Custom node with parameter validation."""
+    file_path = inputs.get("file_path")
+    if not file_path:
+        raise ValueError("file_path is required")
 
-    def run(self, **kwargs) -> Dict[str, Any]:
-        # Parameters are pre-validated by runtime
-        file_path = kwargs["file_path"]  # Guaranteed to exist
-        threshold = kwargs.get("threshold", 100)  # Has default
+    threshold = inputs.get("threshold", 100)
 
-        # Business logic validation
-        if threshold < 0:
-            raise ValueError("threshold must be non-negative")
+    # Business logic validation
+    if threshold < 0:
+        raise ValueError("threshold must be non-negative")
 
-        return {"result": process(file_path, threshold)}
+    return {"result": process(file_path, threshold)}
+
+registry = kailash.NodeRegistry()
+registry.register_callback(
+    "ValidatedNode", validated_handler,
+    ["file_path", "threshold"],  # inputs
+    ["result"]                   # outputs
+)
 ```
 
 ## Validation Errors
@@ -103,7 +96,7 @@ class ValidatedNode(Node):
 
 ```python
 # Error: Missing 'file_path'
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "delimiter": ","  # file_path is required!
 })
 # Raises: WorkflowValidationError
@@ -123,7 +116,7 @@ builder.add_node("FilterNode", "filter", {
 
 ```python
 # Error: Unknown parameter 'unknown_param'
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv",
     "unknown_param": "value"  # Not defined in node contract
 })
@@ -136,12 +129,12 @@ ValidationMixin validates connection contracts:
 
 ```python
 # Valid: Output type matches input type
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 builder.add_node("DataTransformerNode", "transformer", {})
-builder.add_connection("reader", "data", "transformer", "input_data")
+builder.connect("reader", "data", "transformer", "input_data")
 
 # Invalid: Type mismatch
-# builder.add_connection("reader", "metadata", "transformer", "input_data")
+# builder.connect("reader", "metadata", "transformer", "input_data")
 # Raises: WorkflowValidationError (if contracts enforce types)
 ```
 
@@ -162,6 +155,7 @@ builder.add_connection("reader", "data", "transformer", "input_data")
 ## Documentation References
 
 ### Internal Implementation
+
 - `src/kailash/runtime/mixins/validation.py` - ValidationMixin (523 lines)
 - Provides validation logic for Runtime
 

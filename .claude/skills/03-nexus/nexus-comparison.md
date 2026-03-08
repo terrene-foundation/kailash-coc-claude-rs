@@ -12,14 +12,14 @@ description: "Nexus vs building from scratch. Use when asking 'why nexus' or 'ne
 
 ## Why Nexus
 
-| Feature | Nexus (kailash-enterprise) | Manual Approach |
-|---------|---------------------------|-----------------|
-| **API** | Built-in | Assemble framework + routing |
-| **CLI** | Built-in | Separate CLI tool needed |
-| **MCP** | Built-in | Manual protocol implementation |
-| **Session Management** | Unified across channels | Manual per-channel |
-| **Auth (JWT/RBAC/Tenant)** | NexusAuthPlugin | Build from scratch |
-| **Workflow Integration** | Native | Manual orchestration |
+| Feature                    | Nexus (kailash-enterprise) | Manual Approach                |
+| -------------------------- | -------------------------- | ------------------------------ |
+| **API**                    | Built-in                   | Assemble framework + routing   |
+| **CLI**                    | Built-in                   | Separate CLI tool needed       |
+| **MCP**                    | Built-in                   | Manual protocol implementation |
+| **Session Management**     | Unified across channels    | Manual per-channel             |
+| **Auth (JWT/RBAC/Tenant)** | NexusAuthPlugin            | Build from scratch             |
+| **Workflow Integration**   | Native                     | Manual orchestration           |
 
 ## When to Use Nexus
 
@@ -32,13 +32,14 @@ description: "Nexus vs building from scratch. Use when asking 'why nexus' or 'ne
 
 import kailash
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
-@nexus.handler("greet", description="Greet a user")
+@app.handler("greet", description="Greet a user")
 async def greet(name: str) -> dict:
     return {"message": f"Hello, {name}!"}
 
-nexus.start()  # API + CLI + MCP all ready
+app.start()  # API + CLI + MCP all ready
 ```
 
 ## When NOT to Use Nexus

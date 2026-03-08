@@ -31,8 +31,10 @@ Fix Nexus blocking and 5-30 second startup delays when integrating with DataFlow
 ```python
 import kailash
 
-# This will BLOCK or take 10-30 seconds!
-nexus = kailash.Nexus()  # auto_discovery=True by default
+# This pattern can cause slow startup if misconfigured
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 df = kailash.DataFlow()  # Registers models with workflows
 
 @df.model
@@ -46,10 +48,10 @@ app.start()  # ✗ HANGS or very slow
 
 ```python
 
-# Step 1: Create Nexus FIRST with auto_discovery=False
-nexus = kailash.Nexus(
-    auto_discovery=False  # CRITICAL: Prevents blocking
-)
+# Step 1: Create NexusApp
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 
 # Step 2: Create kailash.DataFlow (defaults work correctly)
 df = kailash.DataFlow(
@@ -123,11 +125,10 @@ Use `nexus-specialist` subagent when:
 - **DataFlow Specialist**: [`.claude/agents/frameworks/dataflow-specialist.md` (lines 13-25)](../../../../.claude/agents/frameworks/dataflow-specialist.md#L13-L25)
 - **Integration Guide**: [`.claude/skills/03-nexus/nexus-dataflow-integration.md`](../../skills/03-nexus/nexus-dataflow-integration.md)
 
-
 ## Quick Tips
 
-- 💡 **Critical setting**: `auto_discovery=False` when using DataFlow with Nexus
-- 💡 **Order matters**: Create Nexus FIRST, then DataFlow
+- 💡 **Use NexusApp**: `from kailash.nexus import NexusApp; app = NexusApp()`
+- 💡 **Order matters**: Create NexusApp FIRST, then DataFlow
 - 💡 **Manual registration**: Register workflows explicitly with `app.register()`
 - 💡 **DataFlow**: `auto_migrate=True` (default) works correctly in Docker/NexusApp
 

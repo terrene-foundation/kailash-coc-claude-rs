@@ -53,7 +53,7 @@ SwitchNode outputs are **mutually exclusive** (one is always `None`). Dot notati
 ```python
 import kailash
 
-builder.add_connection("router", "true_output.name", "processor", "name")
+builder.connect("router", "true_output.name", "processor", "name")
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 ```
@@ -62,7 +62,7 @@ rt = kailash.Runtime(reg)
 ```python
 import kailash
 
-builder.add_connection("router", "true_output", "processor", "data")
+builder.connect("router", "true_output", "processor", "data")
 # Extract field in code: name = data.get('name') if data else None
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)

@@ -36,6 +36,7 @@ Common misunderstandings and mistakes when using DataFlow, with solutions.
 **This WAS the #1 mistake - now auto-handled!**
 
 #### Current Behavior: Auto-Strip with Warning
+
 DataFlow now **automatically strips** `created_at` and `updated_at` fields and logs a warning:
 
 ```python
@@ -51,6 +52,7 @@ async def update(self, id: str, data: dict) -> dict:
 ```
 
 **Warning Message**:
+
 ```
 ⚠️ AUTO-STRIPPED: Fields ['updated_at'] removed from update. DataFlow automatically
 manages created_at/updated_at timestamps. Remove these fields from your code to
@@ -58,6 +60,7 @@ avoid this warning.
 ```
 
 #### Best Practice (Avoid Warning)
+
 Remove timestamp fields from your code entirely:
 
 ```python
@@ -71,6 +74,7 @@ async def update(self, id: str, data: dict) -> dict:
 ```
 
 #### Auto-Managed Fields
+
 - `created_at` - Set automatically on record creation (CreateNode)
 - `updated_at` - Set automatically on every modification (UpdateNode)
 
@@ -90,6 +94,7 @@ Use create_tables_async() instead.
 ```
 
 #### The Problem
+
 ```python
 # ❌ WRONG - Sync method in async context
 async def startup():
@@ -105,6 +110,7 @@ async def db_fixture():
 ```
 
 #### The Fix
+
 ```python
 # ✅ CORRECT - Use async methods in async context
 async def startup():
@@ -124,13 +130,15 @@ async def db_fixture():
 ```
 
 #### Async Methods Available
-| Sync Method | Async Method | When to Use |
-|-------------|--------------|-------------|
-| `create_tables()` | `create_tables_async()` | Table creation in async contexts |
-| `close()` | `close_async()` | Connection cleanup |
-| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Migration system |
+
+| Sync Method                  | Async Method                       | When to Use                      |
+| ---------------------------- | ---------------------------------- | -------------------------------- |
+| `create_tables()`            | `create_tables_async()`            | Table creation in async contexts |
+| `close()`                    | `close_async()`                    | Connection cleanup               |
+| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Migration system                 |
 
 #### Sync Context Still Works
+
 ```python
 # ✅ Sync methods work in sync context (CLI, scripts)
 if __name__ == "__main__":
@@ -150,6 +158,7 @@ if __name__ == "__main__":
 DataFlow handles table creation internally using synchronous DDL, completely bypassing event loop boundary issues.
 
 #### Zero-Config Docker Pattern
+
 ```python
 import kailash
 from kailash.nexus import NexusApp
@@ -174,27 +183,32 @@ def create_user(name: str, email: str):
 ```
 
 #### How It Works
+
 - Table creation is handled synchronously by the Rust engine - no asyncio conflicts
 - Tables are created at model registration time
 - CRUD operations continue using async execution
 - No event loop conflicts because DDL and CRUD use separate execution paths
 
 #### ⚠️ In-Memory SQLite Limitation
+
 In-memory databases (`:memory:`) **cannot** use sync DDL because table creation creates a separate connection, which for `:memory:` means a different database. They automatically fall back to lazy table creation:
+
 ```python
 # In-memory SQLite: Uses lazy creation (still works, just deferred)
 db = kailash.DataFlow(":memory:", auto_migrate=True)  # Tables created on first access
 ```
 
 #### When to Use Each Pattern
-| Context | Pattern | Notes |
-|---------|---------|-------|
-| **Docker/Nexus** | `auto_migrate=True` (default) | ✅ Works |
-| **In-Memory SQLite** | `auto_migrate=True` | Uses lazy creation (works) |
-| **CLI Scripts** | `auto_migrate=True` (default) | Works |
-| **pytest (sync/async)** | `auto_migrate=True` (default) | Works via sync DDL |
+
+| Context                 | Pattern                       | Notes                      |
+| ----------------------- | ----------------------------- | -------------------------- |
+| **Docker/Nexus**        | `auto_migrate=True` (default) | ✅ Works                   |
+| **In-Memory SQLite**    | `auto_migrate=True`           | Uses lazy creation (works) |
+| **CLI Scripts**         | `auto_migrate=True` (default) | Works                      |
+| **pytest (sync/async)** | `auto_migrate=True` (default) | Works via sync DDL         |
 
 #### Alternative: Manual Control
+
 ```python
 # For explicit control over table creation timing
 db = kailash.DataFlow("postgresql://...", auto_migrate=False)
@@ -206,9 +220,11 @@ db.create_tables()
 ---
 
 #### The Bug
+
 Python treats empty dict `{}` as falsy, causing incorrect behavior in filter operations.
 
 #### Symptoms (Before Fix)
+
 ```python
 # This would return ALL records instead of filtered records in older versions
 builder.add_node("UserListNode", "query", {
@@ -219,11 +235,13 @@ builder.add_node("UserListNode", "query", {
 ```
 
 #### The Fix
+
 ```bash
 pip install kailash-enterprise
 ```
 
 ✅ All filter operators now work correctly:
+
 - $ne (not equal)
 - $nin (not in)
 - $in (in)
@@ -231,7 +249,9 @@ pip install kailash-enterprise
 - All comparison operators ($gt, $lt, $gte, $lte)
 
 #### Prevention Pattern
+
 When checking if a parameter was provided:
+
 ```python
 # ❌ WRONG - treats empty dict as "not provided"
 if filter_dict:
@@ -243,11 +263,14 @@ if "filter" in kwargs:
 ```
 
 #### Root Cause
+
 Two locations had truthiness bugs:
+
 1. ListNode at nodes.py:1810 - `if filter_dict:` → `if "filter" in kwargs:`
 2. BulkDeleteNode at bulk_delete.py:177 - `not filter_conditions` → `"filter" not in validated_inputs`
 
 #### Impact
+
 **High**: All query filtering was affected in older versions. Ensure you're using the latest DataFlow version.
 
 ---
@@ -271,6 +294,7 @@ class Agent:
 **Why**: DataFlow's auto-generated nodes expect `id` as the primary key field name.
 
 **Fix: Use 'id' Exactly**
+
 ```python
 # CORRECT - Primary key MUST be 'id'
 @db.model
@@ -296,10 +320,12 @@ builder.add_node("UserUpdateNode", "update", {
 ```
 
 **Why**: CreateNode and UpdateNode use FUNDAMENTALLY DIFFERENT patterns:
+
 - **CreateNode**: Flat individual fields at top level
 - **UpdateNode**: Nested `filter` + `fields` dicts
 
 **Fix: Use Correct Pattern**
+
 ```python
 # CreateNode: FLAT individual fields
 builder.add_node("UserCreateNode", "create", {
@@ -339,6 +365,7 @@ builder.add_node("UserUpdateNode", "update", {
 **Why**: DataFlow automatically manages `created_at` and `updated_at` fields.
 
 **Fix: Omit Auto-Managed Fields**
+
 ```python
 # CORRECT - Omit auto-managed fields
 builder.add_node("UserUpdateNode", "update", {
@@ -370,6 +397,7 @@ user.save()  # FAILS - no save() method
 **Why**: DataFlow is workflow-native, not object-oriented. Models are schemas, not classes.
 
 **Fix: Use Workflow Nodes**
+
 ```python
 builder = kailash.WorkflowBuilder()
 builder.add_node("UserCreateNode", "create", {
@@ -387,11 +415,12 @@ builder.add_node("OrderCreateNode", "create", {
 ```
 
 **Fix: Use Workflow Connections**
+
 ```python
 builder.add_node("OrderCreateNode", "create", {
     "total": 100.0
 })
-builder.add_connection("create_customer", "id", "create", "customer_id")
+builder.connect("create_customer", "id", "create", "customer_id")
 ```
 
 ### 3. Nexus Integration Blocks Startup
@@ -399,44 +428,42 @@ builder.add_connection("create_customer", "id", "create", "customer_id")
 ```python
 # WRONG - dataflow_config does NOT exist in Nexus!
 db = kailash.DataFlow()
-nexus = kailash.Nexus(dataflow_config={"integration": db})  # THIS WILL FAIL
+app = NexusApp(dataflow_config={"integration": db})  # THIS WILL FAIL
 ```
 
-**Fix: Use auto_discovery=False and manual workflow registration**
+**Fix: Use NexusApp and manual workflow registration**
+
 ```python
 # auto_migrate=True works in Docker
+import kailash
+from kailash.nexus import NexusApp, NexusConfig
+
 df = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=True,  # Default - works in all environments
 )
 
-# ALWAYS use auto_discovery=False with Nexus
-nexus = kailash.Nexus(
-    api_port=8000,
-    auto_discovery=False,  # CRITICAL: Prevents blocking startup
-)
-
-# Register DataFlow workflows manually with Nexus
-import kailash
+# Create NexusApp and register workflows manually
+app = NexusApp(NexusConfig(port=8000))
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("ProductCreateNode", "create", {"name": "${input.name}"})
-nexus.register("create_product", builder.build(reg))
+app.register("create_product", builder.build(reg))
 ```
 
 ### 4. Wrong Result Access Pattern ⚠️
 
 Each node type returns results under specific keys:
 
-| Node Type | Result Key | Example |
-|-----------|------------|---------|
-| **ListNode** | `records` | `results["list"]["records"]` → list of dicts |
-| **CountNode** | `count` | `results["count"]["count"]` → integer |
-| **ReadNode** | (direct) | `results["read"]` → dict or None |
-| **CreateNode** | (direct) | `results["create"]` → created record |
-| **UpdateNode** | (direct) | `results["update"]` → updated record |
-| **UpsertNode** | `record`, `created`, `action` | `results["upsert"]["record"]` → record |
+| Node Type      | Result Key                    | Example                                      |
+| -------------- | ----------------------------- | -------------------------------------------- |
+| **ListNode**   | `records`                     | `results["list"]["records"]` → list of dicts |
+| **CountNode**  | `count`                       | `results["count"]["count"]` → integer        |
+| **ReadNode**   | (direct)                      | `results["read"]` → dict or None             |
+| **CreateNode** | (direct)                      | `results["create"]` → created record         |
+| **UpdateNode** | (direct)                      | `results["update"]` → updated record         |
+| **UpsertNode** | `record`, `created`, `action` | `results["upsert"]["record"]` → record       |
 
 ```python
 # WRONG - using generic "result" key
@@ -531,6 +558,7 @@ builder.add_node("SessionReadNode", "read", {
 ```
 
 **Fix: Ensure you have the latest kailash-enterprise version**
+
 ```python
 # Fixed - string IDs now fully supported
 @db.model
@@ -554,6 +582,7 @@ class Article:
 ```
 
 **Fix: Automatic in Current Version**
+
 ```python
 # Fixed - now TEXT type
 @db.model
@@ -573,6 +602,7 @@ builder.add_node("OrderCreateNode", "create", {
 ```
 
 **Fix: Use Native datetime Objects**
+
 ```python
 from datetime import datetime
 
@@ -596,6 +626,7 @@ class DevModel:
 ```
 
 **Fix: Fixed (Proper Context Isolation)**
+
 ```python
 # Fixed - proper isolation now enforced
 db_dev = kailash.DataFlow("sqlite:///dev.db")
@@ -610,6 +641,7 @@ class DevModel:
 ## Documentation References
 
 ### Primary Sources
+
 - **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L28-L72)
 
 ## Related Patterns
@@ -622,6 +654,7 @@ class DevModel:
 ## When to Escalate to Subagent
 
 Use `dataflow-specialist` when:
+
 - Complex workflow debugging
 - Performance optimization issues
 - Migration failures

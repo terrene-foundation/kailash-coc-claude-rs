@@ -5,6 +5,7 @@ You are an expert in advanced Kailash SDK capabilities. Guide users through comp
 ## Core Responsibilities
 
 ### 1. Advanced Workflow Patterns
+
 - Cyclic workflows and loops
 - Multi-path conditional routing
 - Parallel execution strategies
@@ -19,12 +20,12 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Initialize counter
-builder.add_node("PythonCodeNode", "init", {
+builder.add_node("EmbeddedPythonNode", "init", {
     "code": "result = {'counter': 0, 'max_iterations': 5}"
 })
 
 # Process iteration
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 counter = data.get('counter', 0) + 1
 result = {
@@ -44,9 +45,9 @@ builder.add_node("SwitchNode", "check", {
 })
 
 # Connections
-builder.add_connection("init", "process", "result", "data")
-builder.add_connection("process", "check", "result", "input")
-builder.add_connection("check", "process", "output", "data")  # Loop back
+builder.connect("init", "process", "result", "data")
+builder.connect("process", "check", "result", "input")
+builder.connect("check", "process", "output", "data")  # Loop back
 
 reg = kailash.NodeRegistry()
 
@@ -62,20 +63,20 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Single source
-builder.add_node("PythonCodeNode", "source", {
+builder.add_node("EmbeddedPythonNode", "source", {
     "code": "result = {'data': [1, 2, 3, 4, 5]}"
 })
 
 # Parallel processors
-builder.add_node("PythonCodeNode", "processor_a", {
+builder.add_node("EmbeddedPythonNode", "processor_a", {
     "code": "result = {'sum': sum(data)}"
 })
 
-builder.add_node("PythonCodeNode", "processor_b", {
+builder.add_node("EmbeddedPythonNode", "processor_b", {
     "code": "result = {'avg': sum(data) / len(data)}"
 })
 
-builder.add_node("PythonCodeNode", "processor_c", {
+builder.add_node("EmbeddedPythonNode", "processor_c", {
     "code": "result = {'max': max(data), 'min': min(data)}"
 })
 
@@ -83,13 +84,13 @@ builder.add_node("PythonCodeNode", "processor_c", {
 builder.add_node("MergeNode", "merge", {})
 
 # Connections for parallel execution
-builder.add_connection("source", "processor_a", "result", "data")
-builder.add_connection("source", "processor_b", "result", "data")
-builder.add_connection("source", "processor_c", "result", "data")
+builder.connect("source", "processor_a", "result", "data")
+builder.connect("source", "processor_b", "result", "data")
+builder.connect("source", "processor_c", "result", "data")
 
-builder.add_connection("processor_a", "merge", "result", "sum_data")
-builder.add_connection("processor_b", "merge", "result", "avg_data")
-builder.add_connection("processor_c", "merge", "result", "stats_data")
+builder.connect("processor_a", "merge", "result", "sum_data")
+builder.connect("processor_b", "merge", "result", "avg_data")
+builder.connect("processor_c", "merge", "result", "stats_data")
 ```
 
 ### 4. Dynamic Workflow Composition
@@ -101,18 +102,18 @@ def create_processing_workflow(processors):
     """Create workflow with dynamic number of processors."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("PythonCodeNode", "source", {
+    builder.add_node("EmbeddedPythonNode", "source", {
         "code": "result = input_data"
     })
 
     # Add processors dynamically
     for i, processor_config in enumerate(processors):
         node_id = f"processor_{i}"
-        builder.add_node("PythonCodeNode", node_id, processor_config)
+        builder.add_node("EmbeddedPythonNode", node_id, processor_config)
 
         # Connect to previous node
         prev_id = "source" if i == 0 else f"processor_{i-1}"
-        builder.add_connection(prev_id, node_id, "result", "input_data")
+        builder.connect(prev_id, node_id, "result", "input_data")
 
     return workflow
 ```
@@ -125,7 +126,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Risky operation
-builder.add_node("PythonCodeNode", "risky_op", {
+builder.add_node("EmbeddedPythonNode", "risky_op", {
     "code": """
 try:
     result = {'status': 'success', 'data': 1 / value}
@@ -145,11 +146,11 @@ builder.add_node("SwitchNode", "error_router", {
 })
 
 # Separate handlers
-builder.add_node("PythonCodeNode", "success_handler", {
+builder.add_node("EmbeddedPythonNode", "success_handler", {
     "code": "result = {'final': data['data']}"
 })
 
-builder.add_node("PythonCodeNode", "error_handler", {
+builder.add_node("EmbeddedPythonNode", "error_handler", {
     "code": "result = {'final': None, 'error': data['error']}"
 })
 ```
@@ -166,12 +167,12 @@ class WorkflowTemplates:
     def create_etl_pipeline(extract_config, transform_config, load_config):
         builder = kailash.WorkflowBuilder()
 
-        builder.add_node("PythonCodeNode", "extract", extract_config)
-        builder.add_node("PythonCodeNode", "transform", transform_config)
-        builder.add_node("PythonCodeNode", "load", load_config)
+        builder.add_node("EmbeddedPythonNode", "extract", extract_config)
+        builder.add_node("EmbeddedPythonNode", "transform", transform_config)
+        builder.add_node("EmbeddedPythonNode", "load", load_config)
 
-        builder.add_connection("extract", "transform", "result", "data")
-        builder.add_connection("transform", "load", "result", "data")
+        builder.connect("extract", "transform", "result", "data")
+        builder.connect("transform", "load", "result", "data")
 
         return workflow
 
@@ -180,7 +181,7 @@ class WorkflowTemplates:
         builder = kailash.WorkflowBuilder()
 
         for i, validator in enumerate(validators):
-            builder.add_node("PythonCodeNode", f"validator_{i}", validator)
+            builder.add_node("EmbeddedPythonNode", f"validator_{i}", validator)
 
         return workflow
 ```
@@ -188,8 +189,9 @@ class WorkflowTemplates:
 ### 7. Performance Optimization
 
 **Batch Processing**:
+
 ```python
-builder.add_node("PythonCodeNode", "batch_processor", {
+builder.add_node("EmbeddedPythonNode", "batch_processor", {
     "code": """
 # Process in batches for efficiency
 batch_size = 100
@@ -203,8 +205,9 @@ result = {'processed': results}
 ```
 
 **Caching**:
+
 ```python
-builder.add_node("PythonCodeNode", "cached_operation", {
+builder.add_node("EmbeddedPythonNode", "cached_operation", {
     "code": """
 # Use caching for expensive operations
 cache = globals().get('operation_cache', {})
@@ -223,7 +226,7 @@ else:
 ### 8. Resource Management
 
 ```python
-builder.add_node("PythonCodeNode", "resource_handler", {
+builder.add_node("EmbeddedPythonNode", "resource_handler", {
     "code": """
 # Proper resource management
 try:
@@ -236,6 +239,7 @@ finally:
 ```
 
 ## When to Engage
+
 - User asks about "advanced SDK", "advanced features", "complex patterns"
 - User needs cyclic workflows or loops
 - User wants to optimize performance
@@ -250,6 +254,7 @@ finally:
 5. **Performance Impact**: Explain optimization considerations
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** if basics unclear
 - Route to **workflow-pattern-cyclic** (in `09-workflow-patterns`) for detailed loop patterns
 - Route to **production-deployment-guide** for scaling

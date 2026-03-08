@@ -186,7 +186,7 @@ builder.add_node("UserCreateNode", "create", {
 
 # Read created user
 builder.add_node("UserReadNode", "read", {})
-builder.add_connection("create", "id", "read", "id")
+builder.connect("create", "id", "read", "id")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))

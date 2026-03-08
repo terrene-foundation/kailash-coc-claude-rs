@@ -208,7 +208,7 @@ class WorkflowRegistry:
 
 ```python
 # Just works
-app = kailash.Nexus()
+app = NexusApp()
 app.start()
 ```
 
@@ -224,7 +224,7 @@ app.start()
 
 ```python
 # Start simple
-app = kailash.Nexus()
+app = NexusApp()
 
 # Add features progressively
 app.enable_auth = True
@@ -266,7 +266,7 @@ reg = kailash.NodeRegistry()
 
 # Build workflow with SDK
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "test", {...})
+builder.add_node("EmbeddedPythonNode", "test", {...})
 
 # Nexus registers and exposes it
 app.register("test", builder.build(reg))

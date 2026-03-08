@@ -13,10 +13,11 @@ Zero-configuration platform deployment. Get running in 30 seconds.
 
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
 # Zero configuration required
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.start()
+app = NexusApp()
+app.start()
 ```
 
 That's it! You now have:
@@ -31,9 +32,10 @@ That's it! You now have:
 import kailash
 
 reg = kailash.NodeRegistry()
+from kailash.nexus import NexusApp
 
 # Create platform
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+app = NexusApp()
 
 # Create workflow
 builder = kailash.WorkflowBuilder()
@@ -43,10 +45,10 @@ builder.add_node("HTTPRequestNode", "fetch", {
 })
 
 # Register once, available everywhere
-nexus.register("fetch-data", builder.build(reg))  # Must call .build()
+app.register("fetch-data", builder.build(reg))  # Must call .build()
 
 # Start platform
-nexus.start()
+app.start()
 ```
 
 ## Test All Three Channels
@@ -99,8 +101,10 @@ app.register(builder.build(reg), "name")
 ### Port Conflicts
 
 ```python
-# Use custom ports if defaults are taken
-app = kailash.Nexus(api_port=8001, mcp_port=3002)
+from kailash.nexus import NexusApp, NexusConfig
+
+# Use custom port if default is taken
+app = NexusApp(NexusConfig(port=8001))
 ```
 
 ### Import Errors
@@ -114,7 +118,7 @@ pip install kailash-enterprise  # Nexus included
 ```python
 # Ensure .build() is called
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "test", {"code": "result = {'ok': True}"})
+builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}"})
 app.register("test", builder.build(reg))  # Don't forget .build()
 ```
 
@@ -124,14 +128,15 @@ For simple workflows, use `@app.handler()` instead of WorkflowBuilder:
 
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+app = NexusApp()
 
-@nexus.handler("greet", description="Greeting handler")
+@app.handler("greet", description="Greeting handler")
 async def greet(name: str, greeting: str = "Hello") -> dict:
     return {"message": f"{greeting}, {name}!"}
 
-nexus.start()
+app.start()
 ```
 
 See [nexus-handler-support](nexus-handler-support.md) for full details.
@@ -146,7 +151,7 @@ See [nexus-handler-support](nexus-handler-support.md) for full details.
 
 ## Key Takeaways
 
-- Zero configuration: Just `Nexus()` and go
+- Zero configuration: Just `NexusApp()` and go
 - Always call `.build()` before registration (or use `@app.handler()`)
 - Single registration creates API + CLI + MCP
 - Default ports: 8000 (API), 3001 (MCP)

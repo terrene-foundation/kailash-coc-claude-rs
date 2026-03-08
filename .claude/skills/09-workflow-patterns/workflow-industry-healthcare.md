@@ -46,10 +46,10 @@ builder.add_node("DatabaseExecuteNode", "audit", {
     "parameters": ["{{authenticate.user_id}}", "{{input.patient_id}}"]
 })
 
-builder.add_connection("authenticate", "user_id", "check_access", "parameters")
-builder.add_connection("check_access", "role", "fetch_record", "authorization")
-builder.add_connection("fetch_record", "encrypted_data", "decrypt", "input")
-builder.add_connection("decrypt", "data", "audit", "parameters")
+builder.connect("authenticate", "user_id", "check_access", "parameters")
+builder.connect("check_access", "role", "fetch_record", "authorization")
+builder.connect("fetch_record", "encrypted_data", "decrypt", "input")
+builder.connect("decrypt", "data", "audit", "parameters")
 ```
 
 <!-- Trigger Keywords: healthcare workflow, patient workflow, HIPAA, medical records, patient data -->

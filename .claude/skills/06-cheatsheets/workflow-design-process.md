@@ -50,6 +50,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
@@ -57,7 +58,7 @@ Use specialized subagents when:
 ## Quick Tips
 
 - 💡 **Start with Workflow Diagram**: Draw nodes and connections before coding to visualize data flow and identify issues
-- 💡 **Break Down Complex Logic**: Use multiple smaller nodes connected by data flow instead of one giant PythonCodeNode
+- 💡 **Break Down Complex Logic**: Use multiple smaller nodes connected by data flow instead of one giant EmbeddedPythonNode
 - 💡 **Plan Error Paths Early**: Design SwitchNode branches, retry logic, and fallback workflows during design phase
 - 💡 **Identify Reusable Patterns**: Check workflow-patterns-library for pre-built solutions before building from scratch
 - 💡 **Consider Scale**: Design for production from start - connection pooling, batch operations, async execution

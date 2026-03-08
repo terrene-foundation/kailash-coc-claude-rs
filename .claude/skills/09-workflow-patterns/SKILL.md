@@ -10,6 +10,7 @@ Production-ready workflow patterns and templates for industry-specific use cases
 ## Overview
 
 Complete workflow patterns for:
+
 - Industry-specific applications
 - Common use case templates
 - Production-ready patterns
@@ -18,6 +19,7 @@ Complete workflow patterns for:
 ## Industry-Specific Patterns
 
 ### Finance
+
 - **[workflow-industry-finance](workflow-industry-finance.md)** - Financial services workflows
   - Payment processing
   - Fraud detection
@@ -27,6 +29,7 @@ Complete workflow patterns for:
   - Credit scoring
 
 ### Healthcare
+
 - **[workflow-industry-healthcare](workflow-industry-healthcare.md)** - Healthcare workflows
   - Patient data processing
   - Medical record management
@@ -36,6 +39,7 @@ Complete workflow patterns for:
   - HIPAA compliance
 
 ### Logistics
+
 - **[workflow-industry-logistics](workflow-industry-logistics.md)** - Logistics workflows
   - Order fulfillment
   - Inventory management
@@ -45,6 +49,7 @@ Complete workflow patterns for:
   - Supply chain coordination
 
 ### Manufacturing
+
 - **[workflow-industry-manufacturing](workflow-industry-manufacturing.md)** - Manufacturing workflows
   - Production planning
   - Quality control
@@ -54,6 +59,7 @@ Complete workflow patterns for:
   - Defect tracking
 
 ### Retail
+
 - **[workflow-industry-retail](workflow-industry-retail.md)** - Retail workflows
   - Order processing
   - Inventory management
@@ -65,6 +71,7 @@ Complete workflow patterns for:
 ## Common Use Case Patterns
 
 ### AI & Document Processing
+
 - **[workflow-pattern-ai-document](workflow-pattern-ai-document.md)** - AI document processing
   - Document classification
   - Entity extraction
@@ -86,6 +93,7 @@ Complete workflow patterns for:
 ### Pattern Structure
 
 Each pattern includes:
+
 - **Overview**: Use case description
 - **Architecture**: Workflow design
 - **Nodes Used**: Required nodes
@@ -97,6 +105,7 @@ Each pattern includes:
 ## When to Use This Skill
 
 Use this skill when you need:
+
 - Industry-specific workflow templates
 - Production-ready starting points
 - Common use case implementations
@@ -132,28 +141,30 @@ builder.add_node("NodeType", "id", {...})
 ## Quick Patterns
 
 ### ETL Workflow
+
 ```python
 builder.add_node("Extract", "extract", {"source": "..."})
 builder.add_node("Transform", "transform", {"logic": "..."})
 builder.add_node("Load", "load", {"destination": "..."})
-builder.add_connection("extract", "data", "transform", "input")
-builder.add_connection("transform", "output", "load", "data")
+builder.connect("extract", "data", "transform", "input")
+builder.connect("transform", "output", "load", "data")
 ```
 
 ### RAG Workflow
+
 ```python
 builder.add_node("Embed", "embed", {"model": "text-embedding-ada-002"})
 builder.add_node("Search", "search", {"index": "vectors"})
-builder.add_node("Generate", "generate", {"model": "gpt-4"})
+builder.add_node("Generate", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
 ```
 
 ## CRITICAL Warnings
 
-| Rule | Reason |
-|------|--------|
-| ❌ NEVER hardcode secrets | Use environment variables |
-| ✅ ALWAYS validate inputs | At workflow boundaries |
-| ❌ NEVER skip error handling | Required in production |
+| Rule                         | Reason                    |
+| ---------------------------- | ------------------------- |
+| ❌ NEVER hardcode secrets    | Use environment variables |
+| ✅ ALWAYS validate inputs    | At workflow boundaries    |
+| ❌ NEVER skip error handling | Required in production    |
 
 ## Related Skills
 
@@ -167,6 +178,7 @@ builder.add_node("Generate", "generate", {"model": "gpt-4"})
 ## Support
 
 For workflow pattern help, invoke:
+
 - `pattern-expert` - Workflow pattern selection and design
 - `framework-advisor` - Architecture decisions
 - `testing-specialist` - Pattern testing strategies

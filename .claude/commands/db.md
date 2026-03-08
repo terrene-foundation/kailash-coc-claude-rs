@@ -39,14 +39,11 @@ import kailash
 
 # DataFlow types
 df = kailash.DataFlow("sqlite:///app.db")
-model = kailash.ModelDefinition(
-    name="User",
-    fields=[
-        kailash.FieldDef("id", kailash.FieldType.Integer, primary_key=True),
-        kailash.FieldDef("name", kailash.FieldType.String),
-        kailash.FieldDef("email", kailash.FieldType.String),
-    ],
-)
+model = kailash.ModelDefinition("User", "users")
+# field(name, field_type, primary_key=, nullable=, required=, ...)
+model.field("id", kailash.FieldType.integer(), primary_key=True)
+model.field("name", kailash.FieldType.text())
+model.field("email", kailash.FieldType.text())
 
 # FilterCondition for queries
 filter = kailash.FilterCondition("name", "eq", "Alice")

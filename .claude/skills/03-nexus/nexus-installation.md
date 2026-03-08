@@ -36,17 +36,18 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{input.message}}"
 })
 
 # Create Nexus app
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
-nexus.register("chat", builder.build(reg))
+from kailash.nexus import NexusApp
+app = NexusApp()
+app.register("chat", builder.build(reg))
 
 # Run all channels
 if __name__ == "__main__":
-    nexus.start()
+    app.start()
 ```
 
 ## Running Modes

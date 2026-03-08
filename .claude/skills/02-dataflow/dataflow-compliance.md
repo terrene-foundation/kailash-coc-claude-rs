@@ -44,8 +44,8 @@ builder.add_node("APICallNode", "delete_external", {
     "method": "DELETE"
 })
 
-builder.add_connection("mark_deleted", "result", "anonymize_logs", "user_id")
-builder.add_connection("anonymize_logs", "result", "delete_external", "trigger")
+builder.connect("mark_deleted", "result", "anonymize_logs", "user_id")
+builder.connect("anonymize_logs", "result", "delete_external", "trigger")
 ```
 
 <!-- Trigger Keywords: GDPR dataflow, data compliance, right to be forgotten, data privacy -->

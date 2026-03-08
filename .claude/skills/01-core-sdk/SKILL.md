@@ -11,7 +11,7 @@ Comprehensive guide to Kailash Core SDK fundamentals for workflow automation and
 
 The Core SDK provides the foundational building blocks for creating custom workflows with fine-grained control:
 
-- **110+ Workflow Nodes**: Pre-built nodes for AI, API, database, file operations, logic, and more
+- **139 Workflow Nodes**: Pre-built nodes for AI, API, database, file operations, logic, and more
 - **WorkflowBuilder API**: String-based workflow construction with type safety
 - **Unified Runtime**: `kailash.Runtime` handles both sync and async execution
 - **Advanced Patterns**: Cyclic workflows, conditional execution, error handling
@@ -36,17 +36,20 @@ result = rt.execute(builder.build(reg))
 ## Reference Documentation
 
 ### Getting Started
+
 - **[workflow-quickstart](workflow-quickstart.md)** - Create basic workflows with WorkflowBuilder
 - **[kailash-installation](kailash-installation.md)** - Installation and setup guide
 - **[kailash-imports](kailash-imports.md)** - Import patterns and module organization
 
 ### Core Patterns
+
 - **[node-patterns-common](node-patterns-common.md)** - Common node usage patterns
 - **[connection-patterns](connection-patterns.md)** - Linking nodes and data flow
 - **[param-passing-quick](param-passing-quick.md)** - Parameter passing strategies
 - **[runtime-execution](runtime-execution.md)** - Executing workflows (sync/async)
 
 ### Advanced Topics
+
 - **[async-workflow-patterns](async-workflow-patterns.md)** - Asynchronous workflow execution
 - **[error-handling-patterns](error-handling-patterns.md)** - Error management strategies
 - **[switchnode-patterns](switchnode-patterns.md)** - Conditional routing with SwitchNode
@@ -55,7 +58,7 @@ result = rt.execute(builder.build(reg))
 
 ## Key Concepts
 
-### Canonical Node Pattern (4-Parameter)
+### Canonical Node Pattern (3-Parameter)
 
 **This is the single source of truth for node configuration.** All other skills reference this section.
 
@@ -66,53 +69,52 @@ builder.add_node(
     {                 # 3. Configuration dict
         "param1": "value",
         "param2": 123
-    },
-    connections=[]    # 4. Optional: input connections
+    }
 )
 ```
 
-| Parameter | Type | Description | Example |
-|-----------|------|-------------|---------|
-| Node type | str | The node class name (PascalCase) | `"LLMNode"`, `"HTTPRequest"` |
-| Node ID | str | Unique identifier (snake_case) | `"fetch_data"`, `"process_1"` |
-| Config | dict | Node-specific configuration | `{"url": "..."}`  |
-| Connections | list | Optional input connections (4-tuple) | `[("src", "out", "dst", "in")]` |
+| Parameter | Type | Description                      | Example                       |
+| --------- | ---- | -------------------------------- | ----------------------------- |
+| Node type | str  | The node class name (PascalCase) | `"LLMNode"`, `"HTTPRequest"`  |
+| Node ID   | str  | Unique identifier (snake_case)   | `"fetch_data"`, `"process_1"` |
+| Config    | dict | Node-specific configuration      | `{"url": "..."}`              |
 
-**Connection Methods**:
+**Connection Method**:
+
 ```python
-# Method 1: add_connection (4-positional params - explicit)
-builder.add_connection("read_file", "content", "transform", "input")
-
-# Method 2: connect (flexible API with keyword args)
-builder.connect("read_file", "transform", from_output="content", to_input="input")
-
-# Method 3: connect with mapping (multiple outputs)
-builder.connect("node1", "node2", mapping={"content": "input", "meta": "metadata"})
+# connect (4-positional params: source, source_output, target, target_input)
+builder.connect("read_file", "content", "transform", "input")
 ```
 
 ### WorkflowBuilder Pattern
+
 - String-based node API: `builder.add_node("NodeName", "id", {})`
 - Always call `.build()` before execution
 - Never `builder.execute(rt)` (invalid) - always `rt.execute(builder.build(reg))`
 
 ### Runtime
+
 - **kailash.Runtime**: Handles both sync and async execution automatically
 - Returns a dict: `{"results": {...}, "run_id": "...", "metadata": {...}}`
 
 ### Runtime Architecture
+
 `kailash.Runtime` is backed by BaseRuntime with shared capabilities:
 
 **BaseRuntime Foundation**:
+
 - 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
 - Execution metadata management
 - Common initialization and validation modes (strict, warn, off)
 
 **Shared Mixins**:
+
 - **CycleExecutionMixin**: Cyclic workflow execution with validation
 - **ValidationMixin**: Workflow structure validation (5 methods)
 - **ConditionalExecutionMixin**: Conditional execution and branching with SwitchNode support
 
 **Runtime Features**:
+
 - WorkflowAnalyzer for optimal execution strategy
 - Level-based parallelism for concurrent execution
 - Thread pool for sync nodes without blocking
@@ -129,6 +131,7 @@ builder.connect("node1", "node2", mapping={"content": "input", "meta": "metadata
 ## When to Use This Skill
 
 Use this skill when you need to:
+
 - Create custom workflows from scratch
 - Understand workflow fundamentals
 - Learn node patterns and connections
@@ -151,6 +154,7 @@ Use this skill when you need to:
 ## Support
 
 For complex workflows or debugging, invoke:
+
 - `pattern-expert` - Workflow patterns and cyclic debugging
 - `sdk-navigator` - Find specific nodes or patterns
 - `testing-specialist` - Test workflow implementations

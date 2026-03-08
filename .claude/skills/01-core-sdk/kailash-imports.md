@@ -45,33 +45,38 @@ result = rt.execute(builder.build(reg))
 ## Step-by-Step Guide
 
 ### 1. Core Workflow Imports (Required)
+
 ```python
 # Essential workflow components
 import kailash
 ```
 
 ### 2. Runtime (All Contexts)
+
 ```python
 # Same import for all contexts (Docker, CLI, NexusApp, etc.)
 import kailash
 ```
 
 ### 3. Node Usage (String-Based, No Imports Needed)
+
 ```python
 # Nodes are referenced by string name -- no imports needed
-builder.add_node("PythonCodeNode", "code", {"code": "result = {'ok': True}"})
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("EmbeddedPythonNode", "code", {"code": "result = {'ok': True}"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 builder.add_node("SwitchNode", "switch", {"conditions": [...]})
-builder.add_node("LLMAgentNode", "agent", {"model": "gpt-4"})
+builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
 ```
 
 ### 4. Access Control & Security
+
 ```python
 import kailash
 # Access control is built into kailash.Runtime
 ```
 
 ### 5. Custom Node Development
+
 ```python
 import kailash
 # Use kailash.NodeRegistry() and string-based node types
@@ -79,39 +84,43 @@ import kailash
 
 ## Key Import Patterns
 
-| Component | Import | When to Use |
-|-----------|--------|-------------|
-| **Everything** | `import kailash` | Always (single import) |
-| **Nodes** | String-based (no import) | Production workflows |
+| Component      | Import                   | When to Use            |
+| -------------- | ------------------------ | ---------------------- |
+| **Everything** | `import kailash`         | Always (single import) |
+| **Nodes**      | String-based (no import) | Production workflows   |
 
 ## Common Mistakes
 
 ### ❌ Mistake 1: Importing Node Classes
+
 ```python
 # Wrong - Node classes are not importable in the Rust-backed package
-from kailash.nodes.code import PythonCodeNode   # ERROR: no such module
-from kailash.nodes.data import CSVReaderNode     # ERROR: no such module
+from kailash.nodes.code import EmbeddedPythonNode   # ERROR: no such module
+from kailash.nodes.data import CSVProcessorNode     # ERROR: no such module
 
-builder.add_node("CSVReaderNode", "reader", {})
+builder.add_node("CSVProcessorNode", "reader", {})
 ```
 
 ### ✅ Fix: Minimal Imports
+
 ```python
 # Correct - Only import core components
 import kailash
 
 # String-based nodes don't need imports
-builder.add_node("CSVReaderNode", "reader", {})
-builder.add_node("PythonCodeNode", "processor", {})
+builder.add_node("CSVProcessorNode", "reader", {})
+builder.add_node("EmbeddedPythonNode", "processor", {})
 ```
 
 ### ❌ Mistake 2: Relative Imports in SDK Usage
+
 ```python
 # Wrong - Relative imports in user code
 from .workflow.builder import WorkflowBuilder  # Error
 ```
 
 ### ✅ Fix: Always Use Absolute Imports
+
 ```python
 # Correct - Single import
 import kailash
@@ -120,6 +129,7 @@ import kailash
 ## Examples
 
 ### Example 1: Basic Data Processing
+
 ```python
 import kailash
 
@@ -127,21 +137,22 @@ reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv"
 })
 
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'count': len(data)}"
 })
 
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("reader", "data", "processor", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
 ### Example 2: HTTP Request Workflow
+
 ```python
 import kailash
 
@@ -154,11 +165,11 @@ builder.add_node("HTTPRequestNode", "api_call", {
     "method": "GET"
 })
 
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": "result = {'status': 'processed'}"
 })
 
-builder.add_connection("api_call", "response", "process", "data")
+builder.connect("api_call", "response", "process", "data")
 
 # Execute workflow
 rt = kailash.Runtime(reg)
@@ -166,6 +177,7 @@ result = rt.execute(builder.build(reg))
 ```
 
 ### Example 3: Multi-Node Pipeline
+
 ```python
 import kailash
 
@@ -173,15 +185,15 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # All nodes are string-based -- no separate imports needed
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv"
 })
 
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'count': len(data) if data else 0}"
 })
 
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("reader", "data", "processor", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -197,12 +209,14 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use `sdk-navigator` subagent when:
+
 - Finding specific node imports
 - Exploring advanced SDK features
 - Understanding module structure
 - Resolving import errors
 
 Use `pattern-expert` subagent when:
+
 - Designing complex import patterns
 - Structuring large projects
 - Creating reusable components

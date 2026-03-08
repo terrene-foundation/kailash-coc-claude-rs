@@ -98,7 +98,7 @@ builder.add_node("APICallNode", "api", {
 | Vulnerability | Prevention Pattern |
 |--------------|-------------------|
 | SQL Injection | Use DataFlow parameterized nodes |
-| Code Injection | Avoid `eval()`, use PythonCodeNode safely |
+| Code Injection | Avoid `eval()`, use EmbeddedPythonNode safely |
 | Credential Exposure | Environment variables, secret managers |
 | XSS | Output encoding, CSP headers |
 | CSRF | Token validation, SameSite cookies |

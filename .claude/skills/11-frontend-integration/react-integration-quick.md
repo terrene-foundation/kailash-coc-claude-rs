@@ -12,6 +12,7 @@ description: "React + Kailash SDK integration. Use when asking 'react integratio
 ## Quick Setup
 
 ### 1. Backend API (Python)
+
 ```python
 import kailash
 
@@ -20,16 +21,17 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{input.message}}"
 })
 
 # Deploy as API
-api = kailash.Nexus(builder.build(reg))
-api.run(port=8000)  # POST /execute
+app = kailash.nexus.NexusApp(kailash.NexusConfig(port=8000))
+app.start()
 ```
 
 ### 2. React Frontend
+
 ```typescript
 // src/api/workflow.ts
 export async function executeWorkflow(message: string) {
@@ -73,7 +75,9 @@ export function Chat() {
 
 ```typescript
 // Backend (Python)
-api = kailash.Nexus(builder.build(reg), streaming=True)
+from kailash.nexus import NexusApp, NexusConfig
+app = NexusApp(NexusConfig(port=8000))
+app.start()
 
 // Frontend (React)
 async function streamWorkflow(message: string) {

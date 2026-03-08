@@ -10,6 +10,7 @@ Comprehensive guides for advanced Kailash SDK development, covering custom devel
 ## Overview
 
 In-depth guides for:
+
 - Custom node and workflow development
 - Advanced SDK features
 - Production deployment strategies
@@ -21,24 +22,28 @@ In-depth guides for:
 ## Core Development
 
 ### SDK Fundamentals
+
 - **[sdk-fundamentals](sdk-fundamentals.md)** - Core SDK concepts and architecture
 - **[sdk-essentials](sdk-essentials.md)** - Essential SDK patterns
 - **[feature-discovery](feature-discovery.md)** - Discovering SDK features
 - **[advanced-features](advanced-features.md)** - Advanced SDK capabilities
 
 ### Custom Development
+
 - **[custom-development](custom-development.md)** - Custom component development
 - **[async-node-development](async-node-development.md)** - Building async nodes
 - **[node-execution-internals](node-execution-internals.md)** - Node execution mechanics
 - **[parameter-passing-comprehensive](parameter-passing-comprehensive.md)** - Advanced parameter patterns
 
 ### Workflow Development
+
 - **[workflow-creation-guide](workflow-creation-guide.md)** - Complete workflow creation guide
 - **[intelligent-query-routing](intelligent-query-routing.md)** - Query routing strategies
 
 ## MCP Development
 
 ### MCP Implementation
+
 - **[mcp-development](mcp-development.md)** - MCP server development
 - **[mcp-advanced-features](mcp-advanced-features.md)** - Advanced MCP features
 - **[mcp-tool-execution](mcp-tool-execution.md)** - MCP tool patterns
@@ -48,6 +53,7 @@ In-depth guides for:
 ## Testing & Quality
 
 ### Testing Strategies
+
 - **[testing-best-practices](testing-best-practices.md)** - Testing best practices
 - **[test-organization](test-organization.md)** - Test organization strategies
 - **[production-testing](production-testing.md)** - Production testing approaches
@@ -56,38 +62,44 @@ In-depth guides for:
 ## Production & Operations
 
 ### Deployment
+
 - **[production-deployment-guide](production-deployment-guide.md)** - Production deployment guide
 - **[edge-computing](edge-computing.md)** - Edge deployment patterns
 - **[durable-gateway](durable-gateway.md)** - Durable gateway patterns
 
 ### Monitoring & Observability
+
 - **[monitoring-enterprise](monitoring-enterprise.md)** - Enterprise monitoring
 - **[metrics-collection](metrics-collection.md)** - Metrics and telemetry
 
 ### Resilience
+
 - **[resilience-enterprise](resilience-enterprise.md)** - Enterprise resilience patterns
 - **[circuit-breaker](circuit-breaker.md)** - Circuit breaker implementation
 
 ## Enterprise & Security
 
 ### Security
+
 - **[security-patterns-enterprise](security-patterns-enterprise.md)** - Enterprise security patterns
 - **[compliance-patterns](compliance-patterns.md)** - Compliance and governance
 
 ## AI & RAG
 
 ### RAG Development
+
 - **[rag-comprehensive](rag-comprehensive.md)** - Comprehensive RAG guide
 
 ## Quick Patterns
 
 ### Custom Node Development
+
 ```python
 import kailash
 
-# Custom logic via PythonCodeNode — no subclassing needed
+# Custom logic via EmbeddedPythonNode — no subclassing needed
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "custom_node", {
+builder.add_node("EmbeddedPythonNode", "custom_node", {
     "code": """
 data = input_data.get("data")
 result = {"output": process(data)}
@@ -96,6 +108,7 @@ result = {"output": process(data)}
 ```
 
 ### Async Node Pattern
+
 ```python
 import kailash
 
@@ -108,6 +121,7 @@ builder.add_node("HTTPRequestNode", "async_node", {
 ```
 
 ### MCP Server Setup
+
 ```python
 import kailash
 
@@ -122,16 +136,17 @@ server.run(transport="stdio")
 
 ## CRITICAL Warnings
 
-| Rule | Reason |
-|------|--------|
+| Rule                                                      | Reason                     |
+| --------------------------------------------------------- | -------------------------- |
 | ❌ NEVER override `__init__` without `super().__init__()` | Breaks node initialization |
-| ✅ ALWAYS handle errors in async nodes | Prevents hanging |
-| ❌ NEVER use blocking I/O in async nodes | Blocks event loop |
-| ✅ ALWAYS register MCP tools before start | Required for discovery |
+| ✅ ALWAYS handle errors in async nodes                    | Prevents hanging           |
+| ❌ NEVER use blocking I/O in async nodes                  | Blocks event loop          |
+| ✅ ALWAYS register MCP tools before start                 | Required for discovery     |
 
 ## When to Use This Skill
 
 Use this skill when you need:
+
 - In-depth understanding of SDK features
 - Custom node or workflow development guidance
 - Production deployment strategies
@@ -152,6 +167,7 @@ Use this skill when you need:
 ## Support
 
 For development guide questions, invoke:
+
 - `pattern-expert` - Implementation patterns and workflows
 - `testing-specialist` - Testing strategies and best practices
 - `deployment-specialist` - Production deployment guidance

@@ -14,12 +14,14 @@ Extend Nexus with custom plugins and integrations.
 Nexus provides a plugin system for extending functionality without modifying core code.
 
 **Validation Features:**
+
 - ✅ Plugin validation now checks for `name` and `apply` method
 - ✅ Specific error handling for TypeError (missing constructor args)
 - ✅ Improved logging for plugin failures
 - ✅ Validates plugin name is non-empty string
 
 **Plugin Interface:**
+
 ```python
 from kailash.nexus import NexusPlugin
 
@@ -401,10 +403,48 @@ plugin = ConfigurablePlugin({
 app.add_plugin(plugin)
 ```
 
-## Plugin Manager
+## PluginManager (Rust-backed)
+
+The `PluginManager` class from `kailash.nexus` provides a Rust-backed plugin lifecycle manager for loading, unloading, reloading, and health-checking plugins.
 
 ```python
-class PluginManager:
+from kailash.nexus import PluginManager
+
+pm = PluginManager()
+
+# Load a plugin with optional configuration
+pm.load("auth-plugin", config={"secret": "key"})
+
+# Check if a plugin is loaded
+assert pm.is_loaded("auth-plugin")
+
+# Reload a plugin (e.g., after config change)
+pm.reload("auth-plugin")
+
+# Health check all loaded plugins
+health = pm.health_check_all()
+# Returns dict with plugin health statuses
+
+# Unload a plugin
+pm.unload("auth-plugin")
+assert not pm.is_loaded("auth-plugin")
+```
+
+### PluginManager vs Custom PluginManager
+
+| Feature       | `kailash.nexus.PluginManager` | Custom Python PluginManager |
+| ------------- | ----------------------------- | --------------------------- |
+| Backend       | Rust (performance)            | Python                      |
+| Health checks | Built-in `health_check_all()` | Manual implementation       |
+| Hot reload    | `reload()` method             | Manual teardown + setup     |
+| Best for      | Production deployments        | Custom plugin logic         |
+
+### Custom Python PluginManager (Alternative)
+
+For custom plugin management logic beyond what the Rust-backed PluginManager provides:
+
+```python
+class CustomPluginManager:
     def __init__(self, nexus_app):
         self.app = nexus_app
         self.plugins = {}
@@ -434,8 +474,8 @@ class PluginManager:
         """List all registered plugins"""
         return list(self.plugins.keys())
 
-# Use plugin manager
-pm = PluginManager(app)
+# Use custom plugin manager
+pm = CustomPluginManager(app)
 pm.register(MyCustomPlugin())
 pm.register(MetricsPlugin())
 print(f"Active plugins: {pm.list()}")

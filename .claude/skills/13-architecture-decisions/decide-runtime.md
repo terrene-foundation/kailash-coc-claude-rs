@@ -112,7 +112,7 @@ Runtime automatically chooses the optimal execution strategy:
 **Pure Async Strategy**:
 - When: All nodes are AsyncNode subclasses
 - Benefit: Maximum concurrency, fastest execution
-- Example: Workflows with AsyncPythonCodeNode, async HTTP calls
+- Example: Workflows with EmbeddedPythonNode, async HTTP calls
 
 **Mixed Strategy**:
 - When: Combination of sync and async nodes

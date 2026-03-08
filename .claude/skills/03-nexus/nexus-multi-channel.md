@@ -15,10 +15,11 @@ Traditional platforms require separate implementations for each interface. Nexus
 
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
 reg = kailash.NodeRegistry()
 
-nexus = kailash.Nexus(kailash.NexusConfig(port=8000))
+app = NexusApp()
 
 # Build once
 builder = kailash.WorkflowBuilder()
@@ -28,7 +29,7 @@ builder.add_node("HTTPRequestNode", "fetch", {
 })
 
 # Register once
-nexus.register("github-user", builder.build(reg))
+app.register("github-user", builder.build(reg))
 
 # Now available as:
 # 1. REST API: POST /workflows/github-user/execute
@@ -59,6 +60,7 @@ nexus.register("github-user", builder.build(reg))
 ## API Channel
 
 **Automatic REST Endpoints**:
+
 ```bash
 # Execute workflow
 curl -X POST http://localhost:8000/workflows/github-user/execute \
@@ -76,12 +78,14 @@ curl http://localhost:8000/health
 ```
 
 **Configuration**:
+
 ```python
-app = kailash.Nexus(
-    api_port=8000,
-    enable_auth=True,
-    rate_limit=1000
-)
+from kailash.nexus import NexusApp
+
+app = NexusApp()
+
+# Add rate limiting
+app.add_rate_limit(1000)
 
 # Fine-tune API behavior
 app.api.response_compression = True
@@ -92,6 +96,7 @@ app.api.max_concurrent_requests = 100
 ## CLI Channel
 
 **Automatic Commands**:
+
 ```bash
 # Execute workflow
 nexus run github-user --username octocat
@@ -107,6 +112,7 @@ nexus --help
 ```
 
 **Configuration**:
+
 ```python
 # Configure CLI behavior
 app.cli.interactive = True          # Enable prompts
@@ -118,9 +124,11 @@ app.cli.colored_output = True       # Colors
 ## MCP Channel
 
 **AI Agent Integration**:
+
 ```python
 # Workflows automatically become MCP tools
-app = kailash.Nexus(mcp_port=3001)
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 # Add metadata for AI discovery
 builder = kailash.WorkflowBuilder()
@@ -140,6 +148,7 @@ app.register("github-lookup", builder.build(reg))
 ```
 
 **MCP Usage**:
+
 ```python
 import mcp_client
 
@@ -148,6 +157,7 @@ result = client.call_tool("github-lookup", {"username": "octocat"})
 ```
 
 **Configuration**:
+
 ```python
 app.mcp.tool_caching = True        # Cache tool results
 app.mcp.batch_operations = True    # Batch calls
@@ -231,10 +241,11 @@ tester.test_mcp("github-user", {"username": "octocat"})
 ## Best Practices
 
 ### 1. Channel-Agnostic Design
+
 Design workflows that work well across all channels:
 
 ```python
-builder.add_node("PythonCodeNode", "universal_output", {
+builder.add_node("EmbeddedPythonNode", "universal_output", {
     "code": """
 result = {
     'data': process(input_data),        # Core logic
@@ -247,10 +258,11 @@ result = {
 ```
 
 ### 2. Progressive Enhancement
+
 Start simple, add channel-specific features as needed:
 
 ```python
-app = kailash.Nexus()
+app = NexusApp()
 app.register("workflow", builder.build(reg))
 
 # Add API features
@@ -266,10 +278,11 @@ app.mcp.enable_tool_discovery = True
 ```
 
 ### 3. Consistent Error Handling
+
 Handle errors uniformly across channels:
 
 ```python
-builder.add_node("PythonCodeNode", "error_handler", {
+builder.add_node("EmbeddedPythonNode", "error_handler", {
     "code": """
 if 'error' in data:
     result = {

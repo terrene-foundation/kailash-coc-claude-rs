@@ -16,6 +16,7 @@ Patterns for implementing loops, iterations, and cyclic workflows.
 ## Quick Reference
 
 Cyclic workflows enable:
+
 - **Loop until condition** - Repeat until success/threshold
 - **Batch processing** - Process items in chunks
 - **Retry logic** - Automatic retry with backoff
@@ -66,12 +67,12 @@ builder.add_node("DelayNode", "wait", {
 })
 
 # 7. Loop back (connect to check_status)
-builder.add_connection("init_counter", "counter", "check_status", "input")
-builder.add_connection("check_status", "status", "check_complete", "condition")
-builder.add_connection("check_complete", "output_false", "increment", "input")
-builder.add_connection("increment", "result", "check_max", "condition")
-builder.add_connection("check_max", "output_true", "wait", "trigger")
-builder.add_connection("wait", "done", "check_status", "input")  # Loop!
+builder.connect("init_counter", "counter", "check_status", "input")
+builder.connect("check_status", "status", "check_complete", "condition")
+builder.connect("check_complete", "output_false", "increment", "input")
+builder.connect("increment", "result", "check_max", "condition")
+builder.connect("check_max", "output_true", "wait", "trigger")
+builder.connect("wait", "done", "check_status", "input")  # Loop!
 
 reg = kailash.NodeRegistry()
 
@@ -116,11 +117,11 @@ builder.add_node("ConditionalNode", "check_more", {
     "false_branch": "complete"
 })
 
-builder.add_connection("load_items", "results", "split_batches", "input")
-builder.add_connection("split_batches", "batches", "process_batch", "input")
-builder.add_connection("process_batch", "ids", "mark_processed", "ids")
-builder.add_connection("mark_processed", "result", "check_more", "condition")
-builder.add_connection("check_more", "output_true", "load_items", "trigger")
+builder.connect("load_items", "results", "split_batches", "input")
+builder.connect("split_batches", "batches", "process_batch", "input")
+builder.connect("process_batch", "ids", "mark_processed", "ids")
+builder.connect("mark_processed", "result", "check_more", "condition")
+builder.connect("check_more", "output_true", "load_items", "trigger")
 ```
 
 ## Pattern 3: Exponential Backoff Retry
@@ -175,13 +176,13 @@ builder.add_node("TransformNode", "increment_retry", {
 })
 
 # 8. Loop back to retry
-builder.add_connection("init_retry", "retry_count", "api_call", "retry")
-builder.add_connection("api_call", "status_code", "check_success", "condition")
-builder.add_connection("check_success", "output_false", "check_retry", "condition")
-builder.add_connection("check_retry", "output_true", "calculate_backoff", "input")
-builder.add_connection("calculate_backoff", "result", "backoff_wait", "duration_seconds")
-builder.add_connection("backoff_wait", "done", "increment_retry", "input")
-builder.add_connection("increment_retry", "result", "api_call", "retry")  # Loop!
+builder.connect("init_retry", "retry_count", "api_call", "retry")
+builder.connect("api_call", "status_code", "check_success", "condition")
+builder.connect("check_success", "output_false", "check_retry", "condition")
+builder.connect("check_retry", "output_true", "calculate_backoff", "input")
+builder.connect("calculate_backoff", "result", "backoff_wait", "duration_seconds")
+builder.connect("backoff_wait", "done", "increment_retry", "input")
+builder.connect("increment_retry", "result", "api_call", "retry")  # Loop!
 ```
 
 ## Pattern 4: Iterative Refinement
@@ -200,14 +201,14 @@ builder.add_node("SetVariableNode", "init_prompt", {
 # 2. Generate content (LLM)
 builder.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{init_prompt.prompt}}"
 })
 
 # 3. Evaluate quality
 builder.add_node("LLMNode", "evaluate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "Rate this description 1-10: {{generate.response}}"
 })
 
@@ -221,7 +222,7 @@ builder.add_node("ConditionalNode", "check_quality", {
 # 5. Refine prompt with feedback
 builder.add_node("LLMNode", "refine", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.feedback}}"
 })
 
@@ -239,13 +240,13 @@ builder.add_node("TransformNode", "increment", {
 })
 
 # Loop back for refinement
-builder.add_connection("init_prompt", "prompt", "generate", "prompt")
-builder.add_connection("generate", "response", "evaluate", "prompt")
-builder.add_connection("evaluate", "score", "check_quality", "condition")
-builder.add_connection("check_quality", "output_false", "refine", "input")
-builder.add_connection("refine", "response", "check_max", "condition")
-builder.add_connection("check_max", "output_true", "increment", "input")
-builder.add_connection("increment", "result", "generate", "iteration")  # Loop!
+builder.connect("init_prompt", "prompt", "generate", "prompt")
+builder.connect("generate", "response", "evaluate", "prompt")
+builder.connect("evaluate", "score", "check_quality", "condition")
+builder.connect("check_quality", "output_false", "refine", "input")
+builder.connect("refine", "response", "check_max", "condition")
+builder.connect("check_max", "output_true", "increment", "input")
+builder.connect("increment", "result", "generate", "iteration")  # Loop!
 ```
 
 ## Best Practices

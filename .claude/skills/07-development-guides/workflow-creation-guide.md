@@ -5,12 +5,14 @@ You are an expert in creating Kailash SDK workflows. Guide users through complet
 ## Core Responsibilities
 
 ### 1. Workflow Design Process
+
 - Help users map business requirements to workflow structure
 - Design node sequences and data flows
 - Plan error handling and edge cases
 - Optimize for performance and maintainability
 
 ### 2. Complete Workflow Pattern
+
 ```python
 import kailash
 
@@ -18,16 +20,16 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Step 2: Add nodes
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'status': 'processed', 'data': input_data}"
 })
 
-builder.add_node("PythonCodeNode", "validator", {
+builder.add_node("EmbeddedPythonNode", "validator", {
     "code": "result = {'valid': data.get('status') == 'processed'}"
 })
 
-# Step 3: Connect nodes (4-parameter syntax: from_node, output_key, to_node, input_key)
-builder.add_connection("processor", "result", "validator", "data")
+# Step 3: Connect nodes (4-parameter syntax: source, source_output, target, target_input)
+builder.connect("processor", "result", "validator", "data")
 
 # Step 4: Execute - ALWAYS call .build()
 reg = kailash.NodeRegistry()
@@ -50,18 +52,21 @@ result = rt.execute(builder.build(reg), parameters={
 ### 3. Connection Patterns
 
 **Direct Connection**:
+
 ```python
-# 4-parameter syntax: from_node, output_key, to_node, input_key
-builder.add_connection("source", "output_key", "target", "input_key")
+# 4-parameter syntax: source, source_output, target, target_input
+builder.connect("source", "output_key", "target", "input_key")
 ```
 
 **Multiple Outputs**:
+
 ```python
-builder.add_connection("processor", "result", "validator", "data")
-builder.add_connection("processor", "result", "logger", "log_data")
+builder.connect("processor", "result", "validator", "data")
+builder.connect("processor", "result", "logger", "log_data")
 ```
 
 **Conditional Routing**:
+
 ```python
 builder.add_node("SwitchNode", "router", {
     "cases": [
@@ -74,6 +79,7 @@ builder.add_node("SwitchNode", "router", {
 ### 4. Parameter Management
 
 **Static Parameters** (set at design time):
+
 ```python
 builder.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/data",
@@ -82,6 +88,7 @@ builder.add_node("HTTPRequestNode", "api_call", {
 ```
 
 **Dynamic Parameters** (set at runtime):
+
 ```python
 import kailash
 
@@ -94,6 +101,7 @@ result = rt.execute(builder.build(reg), parameters={
 ```
 
 **Environment Variables**:
+
 ```python
 builder.add_node("HTTPRequestNode", "api_call", {
     "url": "${API_URL}",  # References $API_URL from environment
@@ -104,21 +112,25 @@ builder.add_node("HTTPRequestNode", "api_call", {
 ### 5. Common Workflow Patterns
 
 **Linear Pipeline**:
+
 ```
 Source → Transform → Validate → Output
 ```
 
 **Branching Logic**:
+
 ```
 Input → Switch → [Path A, Path B, Path C] → Merge → Output
 ```
 
 **Error Handling**:
+
 ```
 Process → Try/Catch → [Success Path, Error Path]
 ```
 
 **Cyclic Processing**:
+
 ```
 Input → Process → Check → [Continue Loop, Exit]
               ↑           |
@@ -143,7 +155,7 @@ import kailash
 
 def test_workflow():
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "test_node", {
+    builder.add_node("EmbeddedPythonNode", "test_node", {
         "code": "result = {'test': 'passed'}"
     })
 
@@ -159,6 +171,7 @@ def test_workflow():
 ```
 
 ## When to Engage
+
 - User asks to "create workflow", "build workflow", "workflow guide"
 - User needs help designing workflow structure
 - User has connection or parameter questions
@@ -180,6 +193,7 @@ def test_workflow():
 4. **Cyclic Errors**: Ensure proper cycle handling for loops
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **advanced-features** for complex patterns
 - Route to **testing-best-practices** for testing guidance

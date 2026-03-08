@@ -26,7 +26,7 @@ Parameter passing compliance standard with three methods, automatic unwrapping, 
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv",
     "delimiter": ",",
     "has_header": True
@@ -38,11 +38,11 @@ builder.add_node("CSVReaderNode", "reader", {
 ### Method 2: Workflow Connections (Dynamic Data Flow)
 
 ```python
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 builder.add_node("DataTransformerNode", "transformer", {})
 
 # Pass data between nodes (4-parameter syntax)
-builder.add_connection("reader", "data", "transformer", "input_data")
+builder.connect("reader", "data", "transformer", "input_data")
 ```
 
 **Use when**: Dynamic data flow, pipelines, transformations
@@ -89,6 +89,7 @@ rt.execute(builder.build(reg), parameters=parameters)
 ```
 
 **Scoping Rules:**
+
 1. **Parameters filtered by node ID**: Only relevant params passed to each node
 2. **Node-specific params unwrapped**: Contents extracted from nested dict
 3. **Global params included**: Top-level non-node-ID keys go to all nodes
@@ -96,37 +97,37 @@ rt.execute(builder.build(reg), parameters=parameters)
 
 ## Explicit Parameter Declaration (Security)
 
-Custom nodes must declare parameters explicitly:
+Custom nodes must declare input and output parameters explicitly via `register_callback()`:
 
 ```python
+reg = kailash.NodeRegistry()
 
-class CustomNode(Node):
-    def get_parameters(self):
-        """Declare ALL expected parameters."""
-        return {
-            "file_path": NodeParameter(
-                type=str,
-                required=True,
-                description="Path to input file"
-            ),
-            "delimiter": NodeParameter(
-                type=str,
-                required=False,
-                default=",",
-                description="CSV delimiter"
-            )
-        }
+def csv_processor(inputs):
+    """Process CSV file with explicit parameter handling."""
+    file_path = inputs["file_path"]        # Required - must be provided
+    delimiter = inputs.get("delimiter", ",")  # Optional with default
+    return {"data": process_file(file_path, delimiter)}
 
-    def run(self, **kwargs):
-        file_path = kwargs["file_path"]  # Guaranteed to exist
-        delimiter = kwargs.get("delimiter", ",")  # Optional with default
-        return {"data": process_file(file_path, delimiter)}
+# Declare ALL expected inputs and outputs at registration time
+reg.register_callback(
+    "CSVProcessor",
+    csv_processor,
+    ["file_path", "delimiter"],   # input parameter names (explicit declaration)
+    ["data"]                       # output parameter names
+)
+
+# Pass parameters via config dict
+builder.add_node("CSVProcessor", "reader", {
+    "file_path": "data.csv",
+    "delimiter": ","
+})
 ```
 
 **Why explicit declaration?**
-- **Security**: Prevents parameter injection attacks
+
+- **Security**: Only declared inputs are passed to the handler
 - **Compliance**: Enables parameter tracking and auditing
-- **Debugging**: Clear parameter expectations
+- **Debugging**: Clear parameter expectations at registration time
 - **Testing**: Testable parameter contracts
 - **Isolation**: Automatic scoping prevents data leakage
 
@@ -134,75 +135,66 @@ class CustomNode(Node):
 
 ### Using "metadata" as a Parameter Name
 
-You can now use `metadata` as a parameter name in custom nodes:
+You can use `metadata` as a parameter name in custom nodes:
 
 ```python
-class CustomNode(Node):
-    def get_parameters(self):
-        return {
-            "data": NodeParameter(type=str, required=True),
-            "metadata": NodeParameter(
-                type=dict,
-                required=False,
-                default=None,
-                description="User metadata"
-            )
-        }
+reg = kailash.NodeRegistry()
 
-    def run(self, data: str, metadata: dict = None, **kwargs):
-        # Access user's metadata parameter
-        user_meta = metadata
+def custom_handler(inputs):
+    data = inputs["data"]
+    metadata = inputs.get("metadata")
+    processed = data.upper()
+    return {"data": processed, "metadata": metadata}
 
-        # Access node's internal metadata (different from parameter)
-        node_name = self.metadata.name
-        node_desc = self.metadata.description
+reg.register_callback(
+    "CustomNode",
+    custom_handler,
+    ["data", "metadata"],       # "metadata" is a valid parameter name
+    ["data", "metadata"]
+)
 
-        return {"data": processed, "metadata": user_meta}
+# Pass metadata via config dict
+builder.add_node("CustomNode", "node1", {
+    "data": "hello",
+    "metadata": {"source": "api", "version": 2}
+})
 ```
-
-**Two types of metadata:**
-- `metadata` parameter: User-defined metadata dict (your parameter)
-- `self.metadata`: Node's internal metadata object (Core SDK)
 
 ### Reserved Names
 
 The only reserved parameter name is `_node_id`:
 
 ```python
-def get_parameters(self):
-    return {
-        "_node_id": NodeParameter(...)  # ❌ Reserved - do not use
-    }
+# ❌ Do not use _node_id as input or output name
+reg.register_callback("MyNode", handler, ["_node_id"], ["result"])
 ```
 
 ## Common Pitfalls
 
-### Pitfall 1: Empty Parameter Declaration
+### Pitfall 1: Empty Input Declaration
 
 ```python
-# WRONG - No parameters declared
-class BadNode(Node):
-    def get_parameters(self):
-        return {}  # SDK injects nothing!
+# WRONG - No inputs declared
+reg.register_callback("BadNode", handler, [], ["result"])
+# Handler receives empty inputs dict!
 
-# CORRECT - Explicit declaration
-class GoodNode(Node):
-    def get_parameters(self):
-        return {
-            "config": NodeParameter(type=dict, required=True)
-        }
+# CORRECT - Explicit input declaration
+reg.register_callback("GoodNode", handler, ["config"], ["result"])
 ```
 
-### Pitfall 2: Expecting Undeclared Parameters
+### Pitfall 2: Using Class-Based Node Pattern (Does NOT Exist)
 
 ```python
-# WRONG - Expecting undeclared parameter
-def run(self, **kwargs):
-    value = kwargs.get('param')  # Always None if not declared!
+# WRONG - No Node base class, no get_parameters(), no NodeParameter in Rust binding
+class MyNode(Node):                         # ❌ Node class doesn't exist
+    def get_parameters(self):               # ❌ get_parameters() doesn't exist
+        return {"param": NodeParameter(...)}  # ❌ NodeParameter doesn't exist
 
-# CORRECT - Declare in get_parameters() first
-def get_parameters(self):
-    return {"param": NodeParameter(type=str, required=True)}
+# CORRECT - Use register_callback()
+def my_handler(inputs):
+    return {"result": inputs.get("param", "")}
+
+reg.register_callback("MyNode", my_handler, ["param"], ["result"])
 ```
 
 ## Validation Errors
@@ -231,6 +223,7 @@ except ValueError as e:  # Missing required parameters
 ## Documentation References
 
 ### Internal Implementation
+
 - `src/kailash/runtime/local.py:1621-1640` - Parameter scoping implementation
 
 ## Quick Tips
@@ -238,7 +231,7 @@ except ValueError as e:  # Missing required parameters
 - Use Method 1 (node configuration) for tests - most reliable
 - Use Method 2 (connections) for dynamic data flow between nodes
 - Use Method 3 (runtime parameters) for user input and overrides
-- Always declare parameters explicitly in custom nodes
+- Always declare inputs/outputs explicitly via `register_callback()`
 - Parameter scoping prevents data leakage automatically
 - Validation errors raise ValueError
 

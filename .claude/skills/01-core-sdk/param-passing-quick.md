@@ -16,6 +16,7 @@ Three methods to pass parameters to nodes in Kailash SDK workflows.
 ## Quick Reference
 
 **Three Methods:**
+
 1. **Node Configuration** (Static) - Most reliable ⭐⭐⭐⭐⭐
 2. **Workflow Connections** (Dynamic) - Most reliable ⭐⭐⭐⭐⭐
 3. **Runtime Parameters** (Override) - Reliable (unwrapped automatically) ⭐⭐⭐⭐⭐
@@ -39,7 +40,7 @@ builder.add_node("EmailNode", "send", {
 
 # Method 2: Workflow Connection (dynamic from another node)
 builder.add_node("UserLookupNode", "lookup", {"user_id": 123})
-builder.add_connection("lookup", "email", "send", "to")
+builder.connect("lookup", "email", "send", "to")
 
 # Method 3: Runtime Parameter (override at execution)
 rt = kailash.Runtime(reg)
@@ -71,6 +72,7 @@ rt.execute(builder.build(reg), parameters=parameters)
 ```
 
 **Scoping rules:**
+
 - **Node-specific params**: Nested under node ID → unwrapped automatically
 - **Global params**: Top-level (not node IDs) → go to all nodes
 - **Parameter isolation**: Each node receives only its params + globals
@@ -79,6 +81,7 @@ rt.execute(builder.build(reg), parameters=parameters)
 ## The Three Methods
 
 ### Method 1: Node Configuration (Static)
+
 **Use when**: Values known at design time
 
 ```python
@@ -90,12 +93,14 @@ builder.add_node("UserCreateNode", "create", {
 ```
 
 **Advantages:**
+
 - Most reliable
 - Clear and explicit
 - Easy to debug
 - Ideal for testing
 
 ### Method 2: Workflow Connections (Dynamic)
+
 **Use when**: Values come from other nodes
 
 ```python
@@ -105,17 +110,19 @@ builder.add_node("UserCreateNode", "create", {
     # 'email' comes from connection
 })
 
-# 4-parameter syntax: from_node, output_key, to_node, input_key
-builder.add_connection("form", "email_field", "create", "email")
+# 4-parameter syntax: source, source_output, target, target_input
+builder.connect("form", "email_field", "create", "email")
 ```
 
 **Advantages:**
+
 - Dynamic data flow
 - Loose coupling
 - Enables pipelines
 - Natural for transformations
 
 ### Method 3: Runtime Parameters (Override)
+
 **Use when**: Values determined at execution time
 
 ```python
@@ -135,6 +142,7 @@ rt.execute(builder.build(reg), parameters={
 ## Common Mistakes
 
 ### ❌ Mistake: Missing Required Parameter
+
 ```python
 builder.add_node("UserCreateNode", "create", {
     "name": "Alice"
@@ -143,6 +151,7 @@ builder.add_node("UserCreateNode", "create", {
 ```
 
 ### ✅ Fix: Use One of Three Methods
+
 ```python
 # Method 1: Add to config
 builder.add_node("UserCreateNode", "create", {
@@ -151,7 +160,7 @@ builder.add_node("UserCreateNode", "create", {
 })
 
 # OR Method 2: Connect from another node
-builder.add_connection("form", "email", "create", "email")
+builder.connect("form", "email", "create", "email")
 
 # OR Method 3: Provide at runtime
 rt.execute(builder.build(reg), parameters={
@@ -169,6 +178,7 @@ rt.execute(builder.build(reg), parameters={
 ## When to Escalate to Subagent
 
 Use `pattern-expert` when:
+
 - Complex parameter flow across many nodes
 - Custom node parameter validation
 - Enterprise parameter governance

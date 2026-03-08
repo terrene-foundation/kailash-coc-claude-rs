@@ -65,19 +65,20 @@ Zero-config database framework specialist for Kailash DataFlow implementation . 
 
 > `auto_migrate=True` works correctly in Docker/NexusApp environments. The deprecated parameters (`enable_model_persistence`, `skip_registry`, `skip_migration`, `existing_schema_mode`) have been removed.
 
-| Use Case        | Config                                              | Notes                               |
-| --------------- | --------------------------------------------------- | ----------------------------------- |
-| **Development** | `auto_migrate=True` (default)                       | Safe, automatic schema creation     |
-| **Production**  | `auto_migrate=True`                                 | Same config works in Docker/NexusApp |
-| **With Nexus**  | `auto_migrate=True` + `Nexus(auto_discovery=False)` | Deferred schema operations          |
+| Use Case        | Config                             | Notes                                |
+| --------------- | ---------------------------------- | ------------------------------------ |
+| **Development** | `auto_migrate=True` (default)      | Safe, automatic schema creation      |
+| **Production**  | `auto_migrate=True`                | Same config works in Docker/NexusApp |
+| **With Nexus**  | `auto_migrate=True` + `NexusApp()` | Register workflows manually          |
 
 ### Test Mode
 
-| Use Case        | Config                                              |
-| --------------- | --------------------------------------------------- |
-| Auto-detection  | `df = DataFlow("postgresql://...")`                 |
-| Explicit enable | `df = DataFlow("postgresql://...", test_mode=True)` |
-| Global enable   | `DataFlow.enable_test_mode()`                       |
+> **Note**: `test_mode` is a pure Python SDK feature and is NOT available in the Rust-backed binding (`kailash-enterprise`). Use separate test databases or SQLite in-memory databases (`:memory:`) for test isolation.
+
+| Use Case         | Config                                 |
+| ---------------- | -------------------------------------- |
+| In-memory (fast) | `df = DataFlow(":memory:")`            |
+| Separate test DB | `df = DataFlow("postgresql://testdb")` |
 
 ### Logging
 
@@ -196,14 +197,14 @@ builder.add_node("UserUpdateNode", "update", {
 
 ### Core Decision Matrix
 
-| Need              | Use                                        |
-| ----------------- | ------------------------------------------ |
-| Simple CRUD       | Create/Read/Update/Delete nodes            |
-| Bulk import       | BulkCreateNode                             |
-| Complex queries   | ListNode with filters                      |
-| Existing database | `auto_migrate=True`                        |
-| Count records     | CountNode                                  |
-| Upsert            | UpsertNode                                 |
+| Need              | Use                             |
+| ----------------- | ------------------------------- |
+| Simple CRUD       | Create/Read/Update/Delete nodes |
+| Bulk import       | BulkCreateNode                  |
+| Complex queries   | ListNode with filters           |
+| Existing database | `auto_migrate=True`             |
+| Count records     | CountNode                       |
+| Upsert            | UpsertNode                      |
 
 ## Key Rules
 
@@ -233,16 +234,17 @@ builder.add_node("UserUpdateNode", "update", {
 - [DataFlow SKILL](../../skills/02-dataflow/SKILL.md)
 - [DataFlow Quickstart](../../skills/02-dataflow/dataflow-quickstart.md)
 
-### Nexus Integration 
+### Nexus Integration
 
 ```python
 # Production-ready pattern (auto_migrate=True now works in Docker/NexusApp)
 df = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=True,  # Works in Docker/NexusApp
 )
 
-nexus = kailash.Nexus(api_port=8000, auto_discovery=False)  # Deferred schema operations
+from kailash.nexus import NexusApp, NexusConfig
+app = NexusApp(NexusConfig(port=8000))
 ```
 
 See: [`dataflow-nexus-integration`](../../skills/02-dataflow/dataflow-nexus-integration.md)
@@ -255,16 +257,16 @@ See: [`dataflow-nexus-integration`](../../skills/02-dataflow/dataflow-nexus-inte
 
 ## Skill Files for Deep Dives
 
-| Topic                    | Skill File                                                                                     |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| Async Lifecycle (DF-501) | [`dataflow-async-lifecycle`](../../skills/02-dataflow/dataflow-async-lifecycle.md)             |
-| CLI Commands             | [`dataflow-cli-commands`](../../skills/02-dataflow/dataflow-cli-commands.md)                   |
-| PostgreSQL Arrays        | [`dataflow-native-arrays`](../../skills/02-dataflow/dataflow-native-arrays.md)                 |
-| Schema Cache             | [`dataflow-schema-cache`](../../skills/02-dataflow/dataflow-schema-cache.md)                   |
-| CRUD Operations          | [`dataflow-crud-operations`](../../skills/02-dataflow/dataflow-crud-operations.md)             |
-| Gotchas                  | [`dataflow-gotchas`](../../skills/02-dataflow/dataflow-gotchas.md)                             |
-| Multi-Tenancy            | [`dataflow-multi-tenancy`](../../skills/02-dataflow/dataflow-multi-tenancy.md)                 |
-| TDD Mode                 | [`dataflow-tdd-mode`](../../skills/02-dataflow/dataflow-tdd-mode.md)                           |
+| Topic                    | Skill File                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| Async Lifecycle (DF-501) | [`dataflow-async-lifecycle`](../../skills/02-dataflow/dataflow-async-lifecycle.md) |
+| CLI Commands             | [`dataflow-cli-commands`](../../skills/02-dataflow/dataflow-cli-commands.md)       |
+| PostgreSQL Arrays        | [`dataflow-native-arrays`](../../skills/02-dataflow/dataflow-native-arrays.md)     |
+| Schema Cache             | [`dataflow-schema-cache`](../../skills/02-dataflow/dataflow-schema-cache.md)       |
+| CRUD Operations          | [`dataflow-crud-operations`](../../skills/02-dataflow/dataflow-crud-operations.md) |
+| Gotchas                  | [`dataflow-gotchas`](../../skills/02-dataflow/dataflow-gotchas.md)                 |
+| Multi-Tenancy            | [`dataflow-multi-tenancy`](../../skills/02-dataflow/dataflow-multi-tenancy.md)     |
+| TDD Mode                 | [`dataflow-tdd-mode`](../../skills/02-dataflow/dataflow-tdd-mode.md)               |
 
 ## Related Agents
 

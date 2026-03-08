@@ -84,7 +84,7 @@ When Kailash is detected, consult these skills:
 
 ### 4-Parameter Connections
 
-- [ ] `builder.add_connection(source_id, source_param, target_id, target_param)`
+- [ ] `builder.connect(source_id, source_param, target_id, target_param)`
 - [ ] Never 2-parameter shortcut
 
 ### Result Access
@@ -94,12 +94,12 @@ When Kailash is detected, consult these skills:
 
 ### Custom Nodes
 
-- [ ] `@register_node()` decorator on all custom nodes
-- [ ] Attributes set BEFORE `super().__init__()`
-- [ ] Implements `run()` method (NOT `execute()`)
-- [ ] `get_parameters()` declares all parameters explicitly
+- [ ] Registered via `reg.register_callback(name, handler_fn, inputs_list, outputs_list)`
+- [ ] Handler function receives `inputs` dict parameter
+- [ ] All input parameter names declared in `register_callback()` inputs list
+- [ ] All output keys declared in `register_callback()` outputs list
 
-### PythonCodeNode
+### EmbeddedPythonNode
 
 - [ ] 3 lines or fewer: string code acceptable
 - [ ] More than 3 lines: MUST use `.from_function()`

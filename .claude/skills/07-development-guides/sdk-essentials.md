@@ -5,6 +5,7 @@ You are an expert in Kailash SDK essentials - the quick reference for essential 
 ## Core Responsibilities
 
 ### 1. Essential Pattern (Copy-Paste Ready)
+
 ```python
 import kailash
 
@@ -12,12 +13,12 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 2. Add nodes
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'status': 'processed', 'data': input_data}"
 })
 
 # 3. Add connections (4-parameter syntax)
-builder.add_connection("source", "output", "processor", "input_data")
+builder.connect("source", "output", "processor", "input_data")
 
 # 4. Execute - ALWAYS call .build()
 reg = kailash.NodeRegistry()
@@ -29,18 +30,19 @@ result = rt.execute(builder.build(reg))
 ```
 
 ### 2. Quick Data Processing
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
 # Read CSV
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv"
 })
 
 # Process
-builder.add_node("PythonCodeNode", "process", {
+builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
 import pandas as pd
 df = pd.DataFrame(data)
@@ -49,22 +51,24 @@ result = {'count': len(df), 'summary': df.describe().to_dict()}
 })
 
 # Write output
-builder.add_node("CSVWriterNode", "writer", {
+builder.add_node("FileWriterNode", "writer", {
     "file_path": "output.csv"
 })
 
-# Connect (4-parameter syntax: from_node, output_key, to_node, input_key)
-builder.add_connection("reader", "data", "process", "data")
-builder.add_connection("process", "result", "writer", "data")
+# Connect (4-parameter syntax: source, source_output, target, target_input)
+builder.connect("reader", "data", "process", "data")
+builder.connect("process", "result", "writer", "data")
 ```
 
 ## When to Engage
+
 - User asks about "SDK essentials", "essential patterns", "SDK quick reference"
 - User needs quick patterns
 - User wants copy-paste solutions
 - User needs rapid prototyping
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** for detailed concepts
 - Route to **workflow-creation-guide** for complete workflow building
 - Route to **production-deployment-guide** for deployment

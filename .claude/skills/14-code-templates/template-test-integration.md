@@ -38,19 +38,19 @@ class Test[Component]Integration:
         builder = kailash.WorkflowBuilder()
 
         # Use real database node
-        builder.add_node("AsyncSQLDatabaseNode", "db_write", {
+        builder.add_node("SQLQueryNode", "db_write", {
             "connection_string": test_database_url,
             "query": "INSERT INTO test_table (name, value) VALUES ($1, $2)",
             "params": ["test_name", 42]
         })
 
-        builder.add_node("AsyncSQLDatabaseNode", "db_read", {
+        builder.add_node("SQLQueryNode", "db_read", {
             "connection_string": test_database_url,
             "query": "SELECT * FROM test_table WHERE name = $1",
             "params": ["test_name"]
         })
 
-        builder.add_connection("db_write", "result", "db_read", "trigger")
+        builder.connect("db_write", "result", "db_read", "trigger")
 
         # Execute with real database
         reg = kailash.NodeRegistry()
@@ -66,12 +66,12 @@ class Test[Component]Integration:
         builder = kailash.WorkflowBuilder()
 
         # Node 1: Data source
-        builder.add_node("PythonCodeNode", "source", {
+        builder.add_node("EmbeddedPythonNode", "source", {
             "code": "result = {'items': [1, 2, 3, 4, 5]}"
         })
 
         # Node 2: Processor
-        builder.add_node("PythonCodeNode", "process", {
+        builder.add_node("EmbeddedPythonNode", "process", {
             "code": """
 items = input_data
 filtered = [x for x in items if x > 2]
@@ -80,7 +80,7 @@ result = {'filtered': filtered, 'count': len(filtered)}
         })
 
         # Node 3: Validator
-        builder.add_node("PythonCodeNode", "validate", {
+        builder.add_node("EmbeddedPythonNode", "validate", {
             "code": """
 data = input_data
 valid = data['count'] > 0 and len(data['filtered']) == data['count']
@@ -89,8 +89,8 @@ result = {'valid': valid, 'data': data}
         })
 
         # Connect nodes
-        builder.add_connection("source", "result.items", "process", "input_data")
-        builder.add_connection("process", "result", "validate", "input_data")
+        builder.connect("source", "result.items", "process", "input_data")
+        builder.connect("process", "result", "validate", "input_data")
 
         # Execute
         reg = kailash.NodeRegistry()
@@ -144,6 +144,7 @@ def cleanup_database(test_database_url):
 ## NO MOCKING Policy
 
 ### ❌ FORBIDDEN in Tier 2
+
 ```python
 # ❌ Don't mock databases
 @patch('database.connect')
@@ -151,17 +152,18 @@ def test_database_integration(mock_db):
     mock_db.return_value = fake_connection
 
 # ❌ Don't mock SDK components
-@patch('kailash.nodes.CSVReaderNode')
+@patch('kailash.nodes.CSVProcessorNode')
 def test_workflow(mock_node):
     mock_node.execute.return_value = fake_data
 ```
 
 ### ✅ USE REAL SERVICES
+
 ```python
 # ✅ Use real database from Docker
 def test_database_integration(test_database_url):
     # Uses actual PostgreSQL from Docker
-    builder.add_node("AsyncSQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": test_database_url,
         "query": "SELECT * FROM users"
     })
@@ -177,17 +179,20 @@ def test_database_integration(test_database_url):
 ## When to Escalate
 
 Use `testing-specialist` when:
+
 - Complex test infrastructure needed
 - Custom Docker setup required
 - CI/CD integration
 
 Use `tdd-implementer` when:
+
 - Test-first development approach
 - Complete test suite design
 
 ## Documentation References
 
 ### Primary Sources
+
 - **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 178-209)](../../../../.claude/agents/testing-specialist.md#L178-L209)
 
 ## Quick Tips

@@ -16,9 +16,9 @@ Create basic Kailash workflows using WorkflowBuilder pattern with string-based n
 ## Quick Reference
 
 - **Import**: `import kailash` -- Rust-backed, all types from one import
-- **Pattern**: `WorkflowBuilder() -> add_node() -> add_connection() -> build()`
+- **Pattern**: `WorkflowBuilder() -> add_node() -> connect() -> build()`
 - **CRITICAL**: Always call `.build()` before execution
-- **Node API**: String-based (e.g., `"CSVReaderNode"`) not instance-based
+- **Node API**: String-based (e.g., `"CSVProcessorNode"`) not instance-based
 
 ## Basic Workflow
 
@@ -32,16 +32,16 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # 2. Add nodes (string-based, ALWAYS)
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv"
 })
 
-builder.add_node("PythonCodeNode", "processor", {
+builder.add_node("EmbeddedPythonNode", "processor", {
     "code": "result = {'count': len(data)}"
 })
 
-# 3. Connect nodes (4 parameters: from_node, from_output, to_node, to_input)
-builder.add_connection("reader", "data", "processor", "data")
+# 3. Connect nodes (4 parameters: source, source_output, target, target_input)
+builder.connect("reader", "data", "processor", "data")
 
 # 4. Build workflow (pass registry for validation)
 wf = builder.build(reg)
@@ -65,97 +65,109 @@ print(result["results"]["processor"]["count"])
 ## Enhanced API Patterns
 
 ### Auto ID Generation
+
 ```python
 builder = kailash.WorkflowBuilder()
 
-# Auto-generate node IDs for rapid prototyping (new feature!)
-reader_id = builder.add_node("CSVReaderNode", {"file_path": "data.csv"})
-processor_id = builder.add_node("PythonCodeNode", {"code": "result = len(input_data)"})
+# Auto-generate node IDs for rapid prototyping
+reader_id = builder.add_node_auto_id("CSVProcessorNode", {"file_path": "data.csv"})
+processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)"})
 
 # Use returned IDs for connections
-builder.add_connection(reader_id, "result", processor_id, "input_data")
+builder.connect(reader_id, "result", processor_id, "input_data")
 ```
 
 ### Flexible API Styles
+
 All these patterns are equivalent and work correctly:
 
 ```python
 # 1. Current/Preferred Pattern
-builder.add_node("PythonCodeNode", "processor", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "..."})
 
 # 2. Keyword-Only Pattern
-builder.add_node(node_type="PythonCodeNode", node_id="processor", config={"code": "..."})
+builder.add_node(node_type="EmbeddedPythonNode", node_id="processor", config={"code": "..."})
 
 # 3. Mixed Pattern (common in existing code)
-builder.add_node("PythonCodeNode", node_id="processor", config={"code": "..."})
+builder.add_node("EmbeddedPythonNode", node_id="processor", config={"code": "..."})
 
 # 4. Auto ID Pattern (returns generated ID)
-processor_id = builder.add_node("PythonCodeNode", {"code": "..."})
+processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "..."})
 ```
 
 ## Key Parameters / Options
 
 ### add_node(node_type, node_id, config)
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `node_type` | str | Yes | Node class name as string (e.g., "CSVReaderNode") |
-| `node_id` | str | Yes* | Unique identifier for this node (*optional with auto-ID) |
-| `config` | dict | Yes | Node configuration parameters |
 
-### add_connection(from_node, from_output, to_node, to_input)
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `from_node` | str | Yes | Source node ID |
-| `from_output` | str | Yes | Output field name from source |
-| `to_node` | str | Yes | Target node ID |
-| `to_input` | str | Yes | Input field name on target |
+| Parameter   | Type | Required | Description                                               |
+| ----------- | ---- | -------- | --------------------------------------------------------- |
+| `node_type` | str  | Yes      | Node class name as string (e.g., "CSVProcessorNode")      |
+| `node_id`   | str  | Yes\*    | Unique identifier for this node (\*optional with auto-ID) |
+| `config`    | dict | Yes      | Node configuration parameters                             |
+
+### connect(source, source_output, target, target_input)
+
+| Parameter       | Type | Required | Description                   |
+| --------------- | ---- | -------- | ----------------------------- |
+| `source`        | str  | Yes      | Source node ID                |
+| `source_output` | str  | Yes      | Output field name from source |
+| `target`        | str  | Yes      | Target node ID                |
+| `target_input`  | str  | Yes      | Input field name on target    |
 
 ## Common Mistakes
 
 ### ❌ Mistake 1: Missing .build() Call
+
 ```python
 # Wrong - missing .build()
 result = rt.execute(workflow)  # ERROR!
 ```
 
 ### ✅ Fix: Always Call .build()
+
 ```python
 # Correct
 result = rt.execute(builder.build(reg))  # ✓
 ```
 
 ### ❌ Mistake 2: Wrong Connection Parameters (Only 3)
+
 ```python
 # Wrong - only 3 parameters (deprecated)
-builder.add_connection("reader", "processor", "data")
+builder.connect("reader", "processor", "data")
 ```
 
 ### ✅ Fix: Use 4 Parameters
+
 ```python
 # Correct - 4 parameters (source + output → target + input)
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("reader", "data", "processor", "data")
 ```
 
 ### ❌ Mistake 3: Instance-Based Nodes
+
 ```python
 # Wrong - node classes are not importable in the Rust-backed package
-# from kailash.nodes import CSVReaderNode  # ERROR: no such module
-builder.add_node("reader", CSVReaderNode(file_path="data.csv"))
+# from kailash.nodes import CSVProcessorNode  # ERROR: no such module
+builder.add_node("reader", CSVProcessorNode(file_path="data.csv"))
 ```
 
 ### ✅ Fix: String-Based Nodes
+
 ```python
 # Correct - string-based (production pattern)
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 ```
 
 ### ❌ Mistake 4: Wrong Execution Pattern
+
 ```python
 # Wrong - builder doesn't have execute() method
 builder.execute(rt)  # ERROR!
 ```
 
 ### ✅ Fix: Runtime Executes Workflow
+
 ```python
 # Correct - runtime executes workflow
 rt.execute(builder.build(reg))  # ✓
@@ -168,11 +180,12 @@ rt.execute(builder.build(reg))  # ✓
 - **For runtime options**: [`runtime-execution`](../runtime-execution.md)
 - **For common nodes**: [`node-patterns-common`](../node-patterns-common.md)
 - **For cyclic workflows**: [`workflow-pattern-cyclic`](../../09-workflow-patterns/workflow-pattern-cyclic.md)
-- **For code templates**: [`template-workflow-basic`](../../5-cross-cutting/templates/template-workflow-basic.md)
+- **For code templates**: See `14-code-templates/` skills
 
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
+
 - Implementing complex cyclic workflows
 - Designing multi-path conditional logic
 - Debugging advanced parameter passing issues
@@ -180,6 +193,7 @@ Use `pattern-expert` subagent when:
 - Optimizing workflow performance
 
 Use `sdk-navigator` subagent when:
+
 - Need to find specific nodes for your use case
 - Looking for workflow examples in specific domains (finance, healthcare, etc.)
 - Exploring advanced features and enterprise patterns
@@ -187,11 +201,13 @@ Use `sdk-navigator` subagent when:
 ## Documentation References
 
 ### Primary Sources
+
 - **Essential Pattern**: [`CLAUDE.md` (lines 106-137)](../../../CLAUDE.md#L106-L137)
 
 ## Examples
 
 ### Example 1: Simple CSV Processing
+
 ```python
 import kailash
 
@@ -200,12 +216,12 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Read CSV file
-builder.add_node("CSVReaderNode", "read_data", {
+builder.add_node("CSVProcessorNode", "read_data", {
     "file_path": "input.csv"
 })
 
-# Transform data with PythonCodeNode
-builder.add_node("PythonCodeNode", "transform", {
+# Transform data with EmbeddedPythonNode
+builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
 import pandas as pd
 df = pd.DataFrame(data)
@@ -215,13 +231,13 @@ result = df.to_dict('records')
 })
 
 # Write results
-builder.add_node("CSVWriterNode", "write_data", {
+builder.add_node("FileWriterNode", "write_data", {
     "file_path": "output.csv"
 })
 
 # Connect the pipeline
-builder.add_connection("read_data", "data", "transform", "data")
-builder.add_connection("transform", "result", "write_data", "data")
+builder.connect("read_data", "data", "transform", "data")
+builder.connect("transform", "result", "write_data", "data")
 
 # Execute
 rt = kailash.Runtime(reg)
@@ -230,16 +246,17 @@ print(f"Processed {len(result["results"]['transform']['result']['result'])} reco
 ```
 
 ### Example 2: Data Processing ETL
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Extract (simulate data source)
-builder.add_node("PythonCodeNode", "extract", {
+builder.add_node("EmbeddedPythonNode", "extract", {
     "code": "result = {'data': [{'amount': 150}, {'amount': 50}, {'amount': 200}]}"
 })
 
 # Transform (filter and process)
-builder.add_node("PythonCodeNode", "transform", {
+builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
 data = input_data.get('data', [])
 filtered = [item for item in data if item.get('amount', 0) > 100]
@@ -249,13 +266,13 @@ result = transformed
 })
 
 # Load (save results)
-builder.add_node("PythonCodeNode", "load", {
+builder.add_node("EmbeddedPythonNode", "load", {
     "code": "result = {'saved': len(input_data), 'status': 'complete'}"
 })
 
 # Connect the pipeline
-builder.add_connection("extract", "result", "transform", "input_data")
-builder.add_connection("transform", "result", "load", "input_data")
+builder.connect("extract", "result", "transform", "input_data")
+builder.connect("transform", "result", "load", "input_data")
 
 # Execute
 rt = kailash.Runtime(reg)
@@ -264,6 +281,7 @@ print(f"Processed {result["results"]['load']['result']['saved']} items")
 ```
 
 ### Example 3: API Data Collection
+
 ```python
 builder = kailash.WorkflowBuilder()
 
@@ -275,7 +293,7 @@ builder.add_node("HTTPRequestNode", "fetch_data", {
 })
 
 # Process response
-builder.add_node("PythonCodeNode", "extract", {
+builder.add_node("EmbeddedPythonNode", "extract", {
     "code": """
 import json
 data = json.loads(response)
@@ -284,14 +302,14 @@ result = [item for item in data['items'] if item['active']]
 })
 
 # Store in database
-builder.add_node("AsyncSQLDatabaseNode", "store", {
+builder.add_node("SQLQueryNode", "store", {
     "connection_string": "postgresql://localhost/db",
     "query": "INSERT INTO data_table (json_data) VALUES (:data)",
     "params": {"data": "${extract.result}"}
 })
 
-builder.add_connection("fetch_data", "response", "extract", "response")
-builder.add_connection("extract", "result", "store", "data")
+builder.connect("fetch_data", "response", "extract", "response")
+builder.connect("extract", "result", "store", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -299,17 +317,17 @@ result = rt.execute(builder.build(reg))
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `AttributeError: 'WorkflowBuilder' object has no attribute 'execute'` | Calling `.execute()` on workflow instead of runtime | Use `rt.execute(builder.build(reg))` - see [`error-missing-build`](../../5-cross-cutti../15-error-troubleshooting/error-missing-build.md) |
-| `Node 'X' not found in workflow` | Node ID mismatch in connections | Verify node IDs match exactly between `add_node()` and `add_connection()` |
-| `TypeError: add_connection() takes 5 positional arguments but 4 were given` | Using old 3-parameter syntax | Update to 4 parameters: `(from_node, from_output, to_node, to_input)` |
-| `ValidationError: Missing required parameter 'X'` | Node config missing required fields | Check node documentation or use `node-patterns-common` for examples |
+| Issue                                                                 | Cause                                               | Solution                                                                      |
+| --------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `AttributeError: 'WorkflowBuilder' object has no attribute 'execute'` | Calling `.execute()` on workflow instead of runtime | Use `rt.execute(builder.build(reg))` — see `15-error-troubleshooting/` skills |
+| `Node 'X' not found in workflow`                                      | Node ID mismatch in connections                     | Verify node IDs match exactly between `add_node()` and `connect()`            |
+| `TypeError: connect() takes 5 positional arguments but 4 were given`  | Using old 3-parameter syntax                        | Update to 4 parameters: `(source, source_output, target, target_input)`       |
+| `ValidationError: Missing required parameter 'X'`                     | Node config missing required fields                 | Check node documentation or use `node-patterns-common` for examples           |
 
 ## Quick Tips
 
 - 💡 **Always build first**: Call `.build()` before `.execute()` - this is the #1 mistake
-- 💡 **String-based nodes**: Use `"CSVReaderNode"` (string), not `CSVReaderNode()` (instance)
+- 💡 **String-based nodes**: Use `"CSVProcessorNode"` (string), not `CSVProcessorNode()` (instance)
 - 💡 **Unique node IDs**: Each node needs a unique ID within the workflow (or use auto-ID)
 - 💡 **4-parameter connections**: Source (node + output) → Target (node + input)
 - 💡 **Nested output access**: Use dot notation: `"result.data"` for nested fields

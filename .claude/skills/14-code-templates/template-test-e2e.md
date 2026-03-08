@@ -39,12 +39,12 @@ class Test[BusinessScenario]E2E:
         builder = kailash.WorkflowBuilder()
 
         # Step 1: Data ingestion
-        builder.add_node("PythonCodeNode", "ingest", {
+        builder.add_node("EmbeddedPythonNode", "ingest", {
             "code": "result = {'data': [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]}"
         })
 
         # Step 2: Validation
-        builder.add_node("PythonCodeNode", "validate", {
+        builder.add_node("EmbeddedPythonNode", "validate", {
             "code": """
 items = input_data
 valid_items = [item for item in items if 'id' in item and 'name' in item]
@@ -53,21 +53,21 @@ result = {'validated': valid_items, 'count': len(valid_items)}
         })
 
         # Step 3: Database storage
-        builder.add_node("AsyncSQLDatabaseNode", "store", {
+        builder.add_node("SQLQueryNode", "store", {
             "connection_string": test_database_url,
             "query": "INSERT INTO users (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING"
         })
 
         # Step 4: Verification
-        builder.add_node("AsyncSQLDatabaseNode", "verify", {
+        builder.add_node("SQLQueryNode", "verify", {
             "connection_string": test_database_url,
             "query": "SELECT COUNT(*) as count FROM users"
         })
 
         # Connect complete pipeline
-        builder.add_connection("ingest", "result.data", "validate", "input_data")
-        builder.add_connection("validate", "result.validated", "store", "batch_data")
-        builder.add_connection("store", "result", "verify", "trigger")
+        builder.connect("ingest", "result.data", "validate", "input_data")
+        builder.connect("validate", "result.validated", "store", "batch_data")
+        builder.connect("store", "result", "verify", "trigger")
 
         # Execute complete workflow
         reg = kailash.NodeRegistry()
@@ -89,6 +89,7 @@ result = {'validated': valid_items, 'count': len(valid_items)}
 ## When to Escalate
 
 Use `testing-specialist` when:
+
 - Complex E2E scenario design
 - Performance testing needed
 - CI/CD integration
@@ -96,6 +97,7 @@ Use `testing-specialist` when:
 ## Documentation References
 
 ### Primary Sources
+
 - **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 211-262)](../../../../.claude/agents/testing-specialist.md#L211-L262)
 
 ## Quick Tips

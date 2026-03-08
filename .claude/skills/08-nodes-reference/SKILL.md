@@ -10,6 +10,7 @@ Comprehensive reference documentation for all 110+ workflow nodes in Kailash SDK
 ## Overview
 
 Complete node catalog covering:
+
 - **AI Nodes**: LLM, vision, audio, embeddings
 - **API Nodes**: HTTP, webhooks, GraphQL
 - **Code Nodes**: Python, JavaScript execution
@@ -25,11 +26,13 @@ Complete node catalog covering:
 ## Node Reference Documentation
 
 ### Quick Access
+
 - **[nodes-quick-index](nodes-quick-index.md)** - Quick node lookup index
 
 ### By Category
 
 #### AI & Machine Learning
+
 - **[nodes-ai-reference](nodes-ai-reference.md)** - AI and LLM nodes
   - LLMNode, AnthropicNode, OpenAINode
   - VisionNode, AudioNode
@@ -41,41 +44,49 @@ Complete node catalog covering:
 ### By Use Case
 
 **AI & LLM Tasks** → Use AI nodes (`nodes-ai-reference`)
+
 - Text generation: LLMNode, OpenAINode, AnthropicNode
 - Vision: VisionNode
 - Audio: AudioNode
 - Local LLMs: OllamaNode
 
 **API Integration** → Use API nodes (`nodes-api-reference`)
+
 - REST APIs: APICallNode, HTTPRequestNode
 - Webhooks: WebhookNode
 - GraphQL: GraphQLNode
 
 **Custom Logic** → Use Code nodes (`nodes-code-reference`)
-- Python: PythonCodeNode (recommended)
+
+- Python: EmbeddedPythonNode (recommended)
 - JavaScript: JavaScriptNode
 - Shell: BashNode
 
 **Database Work** → Use Database nodes (`nodes-database-reference`)
+
 - SQL queries: SQLQueryNode, AsyncSQLNode
 - CRUD with DataFlow: Auto-generated nodes
 
 **File Operations** → Use File nodes (`nodes-file-reference`)
+
 - Reading files: FileReaderNode
 - Bulk operations: DirectoryReaderNode
 - File watching: FileWatcherNode
 
 **Conditional Logic** → Use Logic nodes (`nodes-logic-reference`)
+
 - Simple conditions: SwitchNode
 - Complex routing: IfElseNode
 - Loops: LoopNode, CycleNode
 
 **Data Processing** → Use Data nodes (`nodes-data-reference`)
-- CSV: CSVReaderNode, CSVWriterNode
+
+- CSV: CSVProcessorNode, FileWriterNode
 - JSON: JSONParserNode
 - Validation: DataValidatorNode
 
 **Monitoring** → Use Monitoring nodes (`nodes-monitoring-reference`)
+
 - Logging: LoggerNode
 - Metrics: MetricsNode
 - Alerts: AlertNode
@@ -85,18 +96,20 @@ Complete node catalog covering:
 All nodes follow the **canonical 4-parameter pattern** from `/01-core-sdk`.
 
 ### Usage Example
+
 ```python
 # See /01-core-sdk for pattern details
-builder.add_node("PythonCodeNode", "node1", {
+builder.add_node("EmbeddedPythonNode", "node1", {
     "code": "result = input_data * 2"
 })
-builder.add_connection("node1", "result", "node2", "input_data")
+builder.connect("node1", "result", "node2", "input_data")
 ```
 
 ### Common Nodes
-- **PythonCodeNode**: Most flexible, use for custom logic
+
+- **EmbeddedPythonNode**: Most flexible, use for custom logic
 - **SwitchNode**: Conditional routing based on values
-- **CSVReaderNode**: Reading CSV files
+- **CSVProcessorNode**: Reading CSV files
 - **APICallNode**: HTTP API calls
 - **LoggerNode**: Debug and production logging
 
@@ -105,18 +118,20 @@ builder.add_connection("node1", "result", "node2", "input_data")
 ## Quick Patterns
 
 ### Common Node Usage
+
 ```python
 # AI/LLM Node
-builder.add_node("LLMNode", "chat", {"model": "gpt-4", "prompt": "..."})
+builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), "prompt": "..."})
 
 # API Call
 builder.add_node("HTTPRequest", "api", {"url": "...", "method": "POST"})
 
 # Python Code
-builder.add_node("PythonCodeNode", "transform", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "transform", {"code": "..."})
 ```
 
 ### Database Node
+
 ```python
 import kailash
 # DataFlow auto-generates these - don't use raw DB nodes
@@ -125,6 +140,7 @@ df = kailash.DataFlow("sqlite:///app.db")
 ```
 
 ### Conditional Logic
+
 ```python
 builder.add_node("SwitchNode", "router", {
     "conditions": [
@@ -136,15 +152,16 @@ builder.add_node("SwitchNode", "router", {
 
 ## CRITICAL Gotchas
 
-| Rule | Why |
-|------|-----|
-| ❌ NEVER use raw database nodes | Use DataFlow instead |
-| ✅ ALWAYS use string-based node IDs | Variables cause issues |
-| ❌ NEVER forget `.build()` | Required before execution |
+| Rule                                | Why                       |
+| ----------------------------------- | ------------------------- |
+| ❌ NEVER use raw database nodes     | Use DataFlow instead      |
+| ✅ ALWAYS use string-based node IDs | Variables cause issues    |
+| ❌ NEVER forget `.build()`          | Required before execution |
 
 ## When to Use This Skill
 
 Use this skill when you need to:
+
 - Find the right node for a task
 - Understand node capabilities
 - Look up node parameters
@@ -162,6 +179,7 @@ Use this skill when you need to:
 ## Support
 
 For node-related questions, invoke:
+
 - `pattern-expert` - Node pattern recommendations
 - `sdk-navigator` - Find specific nodes
 - `dataflow-specialist` - DataFlow-generated nodes

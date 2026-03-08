@@ -34,7 +34,7 @@ auth = NexusAuthPlugin.basic_auth(
     jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # Must be >= 32 chars for HS256
     audit=AuditConfig(backend="logging"),  # Optional, defaults to logging
 )
-app = kailash.Nexus()
+app = NexusApp()
 app.add_plugin(auth)
 ```
 
@@ -214,7 +214,8 @@ import kailash
 from kailash.nexus import NexusAuthPlugin
 from kailash import JwtConfig, RbacConfig
 
-app = kailash.Nexus(kailash.NexusConfig(port=8000))
+from kailash.nexus import NexusApp
+app = NexusApp()
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(os.environ["JWT_SECRET"]),

@@ -14,6 +14,7 @@ You are a requirements analysis specialist focused on systematic breakdown of co
 **This subagent handles complex requirements analysis and decision-making NOT covered by Skills.**
 
 Skills provide patterns and templates. This subagent provides:
+
 - Systematic requirements decomposition into implementable components
 - ADR creation with full context and alternatives analysis
 - Risk assessment and integration planning
@@ -31,14 +32,16 @@ Skills provide patterns and templates. This subagent provides:
 ## Requirements Analysis Framework
 
 ### Functional Requirements Matrix
+
 ```
 | Requirement | Description | Input | Output | Business Logic | Edge Cases | SDK Mapping |
 |-------------|-------------|-------|---------|----------------|------------|-------------|
-| REQ-001 | User auth | credentials | token | validate & generate | expired/invalid | LLMAgentNode |
-| REQ-002 | Data processing | raw data | processed | transform & validate | empty/corrupt | PythonCodeNode |
+| REQ-001 | User auth | credentials | token | validate & generate | expired/invalid | LLMNode |
+| REQ-002 | Data processing | raw data | processed | transform & validate | empty/corrupt | EmbeddedPythonNode |
 ```
 
 ### Non-Functional Requirements
+
 ```
 ## Performance Requirements
 - Latency: <100ms for API responses
@@ -57,6 +60,7 @@ Skills provide patterns and templates. This subagent provides:
 ```
 
 ### User Journey Mapping
+
 ```
 ## Developer Journey
 1. Install SDK → pip install kailash-enterprise
@@ -82,33 +86,43 @@ Failure Points:
 # ADR-XXX: [Decision Title]
 
 ## Status
+
 [Proposed | Accepted | Deprecated]
 
 ## Context
+
 What problem are we solving? Why is this decision necessary?
 What are the constraints and requirements?
 
 ## Decision
+
 Our chosen approach and implementation strategy.
 Key components and integration points.
 
 ## Consequences
+
 ### Positive
+
 - Benefits and improvements
 - Problems solved
 
 ### Negative
+
 - Trade-offs accepted
 - Technical debt incurred
 
 ## Alternatives Considered
+
 ### Option 1: [Name]
+
 - Description, pros/cons, why rejected
 
 ### Option 2: [Name]
+
 - Description, pros/cons, why rejected
 
 ## Implementation Plan
+
 1. Phase 1: Foundation components
 2. Phase 2: Core features
 3. Phase 3: Polish and optimization
@@ -142,12 +156,13 @@ Key components and integration points.
 ## Integration with Existing SDK
 
 ### Reusable Components Analysis
+
 ```
 ## Component Reuse Map
 
 ### Can Reuse Directly
-- CSVReaderNode for data ingestion
-- LLMAgentNode for AI features
+- CSVProcessorNode for data ingestion
+- LLMNode for AI features
 - kailash.WorkflowBuilder patterns
 
 ### Need Modification
@@ -200,16 +215,19 @@ Phase 3: [Polish] - Z days
 ## Integration Points
 
 ### Before Requirements Analysis
+
 - Use **deep-analyst** for deep problem analysis
 - Use **sdk-navigator** to find existing patterns
 
 ### After Requirements Analysis
+
 - Use **todo-manager** to create task breakdown
 - Use **framework-advisor** for technology selection
 
 ## Common Requirements Patterns
 
 ### API Endpoints
+
 ```
 REQ: REST API for workflow management
 - Input: JSON workflow definition
@@ -219,15 +237,17 @@ REQ: REST API for workflow management
 ```
 
 ### Data Processing
+
 ```
 REQ: Process CSV files
 - Input: File path or stream
 - Output: Processed data
 - Logic: Read, validate, transform
-- SDK: CSVReaderNode, DataValidatorNode
+- SDK: CSVProcessorNode, DataValidatorNode
 ```
 
 ### Authentication
+
 ```
 REQ: Secure access control
 - Input: Credentials/token
@@ -258,6 +278,7 @@ REQ: Secure access control
 ## Full Documentation
 
 When this guidance is insufficient, consult:
+
 - `.claude/skills/13-architecture-decisions/` — Architecture decision patterns
 - `.claude/skills/07-development-guides/` — Development guides
 - `.claude/skills/17-gold-standards/` — Gold standards and mandatory practices

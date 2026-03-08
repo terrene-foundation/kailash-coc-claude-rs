@@ -16,6 +16,7 @@ Retrieval Augmented Generation patterns for AI-powered document search and Q&A.
 ## Quick Reference
 
 RAG workflow components:
+
 - **Document ingestion** - Load and chunk documents
 - **Embedding generation** - Convert text to vectors
 - **Vector storage** - Store in vector database
@@ -61,9 +62,9 @@ builder.add_node("VectorStoreNode", "store_vectors", {
     }
 })
 
-builder.add_connection("load_doc", "content", "chunk_text", "input")
-builder.add_connection("chunk_text", "chunks", "generate_embeddings", "text")
-builder.add_connection("generate_embeddings", "embeddings", "store_vectors", "vectors")
+builder.connect("load_doc", "content", "chunk_text", "input")
+builder.connect("chunk_text", "chunks", "generate_embeddings", "text")
+builder.connect("generate_embeddings", "embeddings", "store_vectors", "vectors")
 
 reg = kailash.NodeRegistry()
 
@@ -122,15 +123,15 @@ Answer:'''
 # 5. Generate answer with LLM
 builder.add_node("LLMNode", "generate_answer", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{build_prompt.result}}",
     "temperature": 0.3
 })
 
-builder.add_connection("query_embedding", "embedding", "search_similar", "query_vector")
-builder.add_connection("search_similar", "results", "rerank", "documents")
-builder.add_connection("rerank", "documents", "build_prompt", "input")
-builder.add_connection("build_prompt", "result", "generate_answer", "prompt")
+builder.connect("query_embedding", "embedding", "search_similar", "query_vector")
+builder.connect("search_similar", "results", "rerank", "documents")
+builder.connect("rerank", "documents", "build_prompt", "input")
+builder.connect("build_prompt", "result", "generate_answer", "prompt")
 ```
 
 ## Pattern 3: Multi-Document RAG
@@ -185,7 +186,7 @@ builder.add_node("RerankNode", "rerank_all", {
 # 4. Generate comprehensive answer
 builder.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": """Answer using context from docs, code, and API:
 
 Context: {{rerank_all.documents}}
@@ -196,16 +197,16 @@ Provide a comprehensive answer with examples."""
 })
 
 # Parallel searches
-builder.add_connection("query_embed", "embedding", "search_docs", "query_vector")
-builder.add_connection("query_embed", "embedding", "search_code", "query_vector")
-builder.add_connection("query_embed", "embedding", "search_api", "query_vector")
+builder.connect("query_embed", "embedding", "search_docs", "query_vector")
+builder.connect("query_embed", "embedding", "search_code", "query_vector")
+builder.connect("query_embed", "embedding", "search_api", "query_vector")
 
-builder.add_connection("search_docs", "results", "merge_results", "input_docs")
-builder.add_connection("search_code", "results", "merge_results", "input_code")
-builder.add_connection("search_api", "results", "merge_results", "input_api")
+builder.connect("search_docs", "results", "merge_results", "input_docs")
+builder.connect("search_code", "results", "merge_results", "input_code")
+builder.connect("search_api", "results", "merge_results", "input_api")
 
-builder.add_connection("merge_results", "combined", "rerank_all", "documents")
-builder.add_connection("rerank_all", "documents", "generate", "context")
+builder.connect("merge_results", "combined", "rerank_all", "documents")
+builder.connect("rerank_all", "documents", "generate", "context")
 ```
 
 ## Pattern 4: Conversational RAG with Memory
@@ -246,7 +247,7 @@ builder.add_node("VectorSearchNode", "search", {
 # 5. Generate answer with history
 builder.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": """Conversation History:
 {{build_context.context}}
 
@@ -254,3 +255,4 @@ Relevant Documents:
 {{search.results}}
 
 User: {{input.query}}
+```

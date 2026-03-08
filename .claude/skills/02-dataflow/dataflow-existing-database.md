@@ -29,7 +29,7 @@ reg = kailash.NodeRegistry()
 
 # Connect safely to existing database
 df = kailash.DataFlow(
-    database_url="postgresql://user:pass@localhost/existing_db",
+    "postgresql://user:pass@localhost/existing_db",
     auto_migrate=False,           # Don't modify schema - prevents ALL changes
 )
 
@@ -115,7 +115,7 @@ result = db.register_schema_as_models(
 ```python
 # In different session/process
 db2 = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=False,  # Don't modify existing schema
 )
 
@@ -131,7 +131,7 @@ print(f"Available models: {models['reconstructed_models']}")
 ```python
 # DANGER - Will modify production!
 db = kailash.DataFlow(
-    database_url="postgresql://prod-db/database",
+    "postgresql://prod-db/database",
     auto_migrate=True  # BAD - could alter schema!
 )
 ```
@@ -141,7 +141,7 @@ db = kailash.DataFlow(
 ```python
 # Safe - readonly access, no schema modifications
 db = kailash.DataFlow(
-    database_url="postgresql://prod-db/database",
+    "postgresql://prod-db/database",
     auto_migrate=False,  # Don't create or modify tables
 )
 ```
@@ -191,7 +191,7 @@ Use `dataflow-specialist` when:
 ```python
 # Safe readonly access to production
 db_prod = kailash.DataFlow(
-    database_url="postgresql://readonly:pass@prod-db:5432/ecommerce",
+    "postgresql://readonly:pass@prod-db:5432/ecommerce",
     auto_migrate=False,  # Don't modify production schema
 )
 
@@ -219,7 +219,7 @@ builder.add_node(product_nodes['list'], "active_products", {
 ```python
 # LLM agent explores unknown database
 db_agent = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=False,  # Don't modify existing schema
 )
 
@@ -256,7 +256,7 @@ for node_id, result_data in results.items():
 ```python
 # SESSION 1: Data engineer discovers and registers
 db_engineer = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=False,  # Don't modify existing schema
 )
 
@@ -268,7 +268,7 @@ print(f"Registered for team: {result['registered_models']}")
 
 # SESSION 2: Developer uses registered models
 db_developer = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=False,  # Don't modify existing schema
 )
 

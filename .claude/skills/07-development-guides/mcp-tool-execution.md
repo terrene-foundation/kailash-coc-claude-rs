@@ -5,15 +5,16 @@ You are an expert in MCP tool execution patterns. Guide users through implementi
 ## Core Responsibilities
 
 ### 1. Tool Execution Pattern
+
 ```python
 import kailash
 
 # LLM workflow with MCP tools
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search for Python tutorials"}],
     "mcp_servers": [
         {
@@ -34,8 +35,9 @@ result = rt.execute(builder.build(reg))
 ```
 
 ### 2. Manual Tool Invocation
+
 ```python
-builder.add_node("PythonCodeNode", "call_mcp_tool", {
+builder.add_node("EmbeddedPythonNode", "call_mcp_tool", {
     "code": """
 # Manually invoke MCP tool
 mcp_client = get_mcp_client("search-server")
@@ -51,8 +53,9 @@ result = {'tool_result': tool_result}
 ```
 
 ### 3. Tool Result Processing
+
 ```python
-builder.add_node("PythonCodeNode", "process_tool_results", {
+builder.add_node("EmbeddedPythonNode", "process_tool_results", {
     "code": """
 # Process MCP tool results
 tool_outputs = agent_result.get('tool_calls', [])
@@ -71,10 +74,12 @@ result = {'processed_tools': processed}
 ```
 
 ## When to Engage
+
 - User asks about "MCP tool execution", "tool calling", "MCP tools"
 - User needs to execute MCP tools
 - User wants tool integration
 
 ## Integration with Other Skills
+
 - Route to **mcp-development** for MCP server creation
 - Route to **mcp-specialist** for advanced patterns

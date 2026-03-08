@@ -29,20 +29,20 @@ import kailash
 
 # PostgreSQL with special characters
 df = kailash.DataFlow(
-    database_url="postgresql://admin:MySecret#123$@localhost:5432/mydb",
+    "postgresql://admin:MySecret#123$@localhost:5432/mydb",
     pool_size=20,
     pool_max_overflow=30
 )
 
 # SQLite (development)
 db_dev = kailash.DataFlow(
-    database_url="sqlite:///dev.db"
+    "sqlite:///dev.db"
 )
 
 # Environment variable (recommended)
 import os
 db_prod = kailash.DataFlow(
-    database_url=os.getenv("DATABASE_URL")
+    os.getenv("DATABASE_URL")
 )
 ```
 
@@ -85,7 +85,7 @@ db_prod = kailash.DataFlow(
 ```python
 db = kailash.DataFlow(
     # Connection
-    database_url="postgresql://...",
+    "postgresql://...",
 
     # Connection pooling
     pool_size=20,              # Base connections
@@ -125,7 +125,7 @@ db = kailash.DataFlow("postgresql://user:MySecret#123$@host/db")
 ```python
 # Wrong - pool exhaustion under load
 db = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     pool_size=5  # Too small for production
 )
 ```
@@ -135,7 +135,7 @@ db = kailash.DataFlow(
 ```python
 # Correct
 db = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     pool_size=20,
     pool_max_overflow=30
 )
@@ -171,7 +171,7 @@ if os.getenv("ENV") == "development":
 # Staging
 elif os.getenv("ENV") == "staging":
     db = kailash.DataFlow(
-        database_url=os.getenv("DATABASE_URL"),
+        os.getenv("DATABASE_URL"),
         pool_size=10,
         auto_migrate=True
     )
@@ -179,7 +179,7 @@ elif os.getenv("ENV") == "staging":
 # Production
 else:
     db = kailash.DataFlow(
-        database_url=os.getenv("DATABASE_URL"),
+        os.getenv("DATABASE_URL"),
         pool_size=20,
         pool_max_overflow=30,
         auto_migrate=False,  # Don't modify existing schema
@@ -191,7 +191,7 @@ else:
 ```python
 # Password with special characters
 db = kailash.DataFlow(
-    database_url="postgresql://admin:P@ssw0rd!#$@db.example.com:5432/prod",
+    "postgresql://admin:P@ssw0rd!#$@db.example.com:5432/prod",
     pool_size=20,
     pool_pre_ping=True,
     connect_timeout=10

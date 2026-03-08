@@ -12,6 +12,7 @@ description: "3-tier testing strategy overview. Use when asking '3-tier testing'
 ## Testing Pyramid
 
 ### Tier 1: Unit Tests (Fast, In-Memory)
+
 ```python
 def test_workflow_build():
     """Test workflow construction"""
@@ -23,13 +24,14 @@ def test_workflow_build():
 ```
 
 ### Tier 2: Integration Tests (Real Infrastructure)
+
 ```python
 def test_llm_integration():
     """Test with real OpenAI API"""
     builder = kailash.WorkflowBuilder()
     builder.add_node("LLMNode", "llm", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
         "prompt": "Say hello"
     })
     reg = kailash.NodeRegistry()
@@ -39,6 +41,7 @@ def test_llm_integration():
 ```
 
 ### Tier 3: End-to-End Tests (Full System)
+
 ```python
 @pytest.mark.e2e
 def test_full_application():
@@ -57,11 +60,13 @@ def test_full_application():
 ## NO MOCKING Policy
 
 ✅ **Use real infrastructure** in Tiers 2-3:
+
 - Real OpenAI API calls
 - Real databases (SQLite/PostgreSQL)
 - Real file systems
 
 ❌ **No mocks** for:
+
 - LLM providers
 - Databases
 - External APIs (in integration tests)
@@ -86,6 +91,7 @@ def test_workflow_execution():
 ```
 
 **Key Features:**
+
 - Parametrized fixtures run same test on both runtimes
 - `execute_runtime()` helper normalizes parameters and return structures
 - Ensures identical behavior between sync and async runtimes

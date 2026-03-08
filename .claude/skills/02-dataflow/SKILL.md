@@ -25,7 +25,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Initialize DataFlow
-df = kailash.DataFlow(connection_string="postgresql://user:pass@localhost/db")
+df = kailash.DataFlow("postgresql://user:pass@localhost/db")
 
 # Define model (generates 11 nodes automatically)
 @df.model
@@ -49,13 +49,14 @@ rt = kailash.Runtime(reg)
 ## Generated Nodes (11 per model)
 
 Each `@db.model` class generates:
+
 1. `{Model}_Create` - Create single record
 2. `{Model}_Read` - Read by ID
 3. `{Model}_Update` - Update record
 4. `{Model}_Delete` - Delete record
 5. `{Model}_List` - List with filters
 6. `{Model}_Upsert` - Insert or update (atomic)
-7. `{Model}_Count` - Efficient COUNT(*) queries
+7. `{Model}_Count` - Efficient COUNT(\*) queries
 8. `{Model}_BulkCreate` - Bulk insert
 9. `{Model}_BulkUpdate` - Bulk update
 10. `{Model}_BulkDelete` - Bulk delete
@@ -75,12 +76,14 @@ Each `@db.model` class generates:
 ## Reference Documentation
 
 ### Getting Started
+
 - **[dataflow-quickstart](dataflow-quickstart.md)** - Quick start guide
 - **[dataflow-installation](dataflow-installation.md)** - Installation and setup
 - **[dataflow-models](dataflow-models.md)** - Defining models with @db.model
 - **[dataflow-connection-config](dataflow-connection-config.md)** - Database connection
 
 ### Core Operations
+
 - **[dataflow-crud-operations](dataflow-crud-operations.md)** - Create, Read, Update, Delete
 - **[dataflow-queries](dataflow-queries.md)** - Query patterns and filtering
 - **[dataflow-bulk-operations](dataflow-bulk-operations.md)** - Batch operations
@@ -88,51 +91,68 @@ Each `@db.model` class generates:
 - **[dataflow-connection-isolation](dataflow-connection-isolation.md)** - ⚠️ CRITICAL: ACID guarantees
 
 ### Advanced Features
+
 - **[dataflow-multi-instance](dataflow-multi-instance.md)** - Multiple database instances
 - **[dataflow-multi-tenancy](dataflow-multi-tenancy.md)** - Multi-tenant architectures
 - **[dataflow-existing-database](dataflow-existing-database.md)** - Working with existing databases
 - **[dataflow-custom-nodes](dataflow-custom-nodes.md)** - Custom database nodes
 
 ### Developer Experience Tools
+
 - **[dataflow-cli-commands](dataflow-cli-commands.md)** - CLI validation and analysis commands
 - **[dataflow-gotchas](dataflow-gotchas.md)** - Common pitfalls and solutions
 
 ### Troubleshooting
+
+- **[dataflow-troubleshooting](dataflow-troubleshooting.md)** - Error messages, diagnostics, Rust binding differences
 - **[dataflow-gotchas](dataflow-gotchas.md)** - Common pitfalls
 
 ## Database Support Matrix
 
-| Database | Type | Nodes/Model | Driver |
-|----------|------|-------------|--------|
-| PostgreSQL | SQL | 11 | sqlx |
-| MySQL | SQL | 11 | sqlx |
-| SQLite | SQL | 11 | sqlx |
-| pgvector | Vector | 3 | sqlx + pgvector |
+| Database   | Type   | Nodes/Model | Driver          |
+| ---------- | ------ | ----------- | --------------- |
+| PostgreSQL | SQL    | 11          | sqlx            |
+| MySQL      | SQL    | 11          | sqlx            |
+| SQLite     | SQL    | 11          | sqlx            |
+| pgvector   | Vector | 3           | sqlx + pgvector |
 
 **Not an ORM**: DataFlow generates workflow nodes, not ORM models. Uses string-based result access and integrates with Kailash's workflow execution model.
 
 ## Integration Patterns
 
 ### With Nexus (Multi-Channel)
+
 ```python
+from kailash.nexus import NexusApp, NexusConfig
 import kailash
 
-df = kailash.DataFlow(connection_string="...")
+df = kailash.DataFlow("...")
 @df.model
 class User:
     id: str
     name: str
 
-# Auto-generates API + CLI + MCP
-nexus = kailash.Nexus(df.get_workflows())
-nexus.run()  # Instant multi-channel platform
+# Register DataFlow operations as Nexus handlers
+app = NexusApp(config=NexusConfig(port=8000))
+
+@app.handler(name="create_user", description="Create a user")
+async def create_user(name: str) -> dict:
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("User_Create", "create", {"data": {"name": name}})
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["create"]["result"]
+
+app.start()  # Multi-channel platform (API + CLI + MCP)
 ```
 
 ### With Core SDK (Custom Workflows)
+
 ```python
 import kailash
 
-df = kailash.DataFlow(connection_string="...")
+df = kailash.DataFlow("...")
 # Use db-generated nodes in custom workflows
 builder = kailash.WorkflowBuilder()
 builder.add_node("User_Create", "user1", {...})
@@ -141,6 +161,7 @@ builder.add_node("User_Create", "user1", {...})
 ## When to Use This Skill
 
 Use DataFlow when you need to:
+
 - Perform database operations in workflows
 - Generate CRUD APIs automatically (with Nexus)
 - Implement multi-tenant systems
@@ -158,6 +179,7 @@ Use DataFlow when you need to:
 ## Support
 
 For DataFlow-specific questions, invoke:
+
 - `dataflow-specialist` - DataFlow implementation and patterns
 - `testing-specialist` - DataFlow testing strategies (NO MOCKING policy)
 - `framework-advisor` - Choose between Core SDK and DataFlow

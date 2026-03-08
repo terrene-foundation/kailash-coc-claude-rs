@@ -15,20 +15,22 @@ RuntimeError: Event loop is closed
 
 ## Async Methods Reference
 
-| Sync Method | Async Alternative | Usage |
-|-------------|-------------------|-------|
-| `create_tables()` | `create_tables_async()` | Table creation in async contexts |
-| `close()` | `close_async()` | Cleanup in async contexts |
-| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Internal migration tables |
+| Sync Method                  | Async Alternative                  | Usage                            |
+| ---------------------------- | ---------------------------------- | -------------------------------- |
+| `create_tables()`            | `create_tables_async()`            | Table creation in async contexts |
+| `close()`                    | `close_async()`                    | Cleanup in async contexts        |
+| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Internal migration tables        |
 
 ## When to Use Each
 
 **Use Async Methods When:**
+
 - Inside pytest async fixtures (`@pytest.fixture async def db()`)
 - Inside async main functions (`async def main()`)
 - Any code running in an async context with `asyncio.get_running_loop()`
 
 **Use Sync Methods When:**
+
 - CLI scripts and management commands
 - Sync pytest tests (non-async)
 - Any code NOT running in an async context
@@ -67,7 +69,7 @@ import kailash
 @pytest.fixture
 async def db():
     """Async fixture with proper cleanup."""
-    df = kailash.DataFlow("postgresql://...", test_mode=True)
+    df = kailash.DataFlow("postgresql://...")
 
     @df.model
     class User:
@@ -105,12 +107,14 @@ except RuntimeError as e:
 ## Error Messages
 
 **DF-501 for create_tables():**
+
 ```
 RuntimeError: Cannot use create_tables() in async context - use create_tables_async() instead.
 See DF-501 for details.
 ```
 
-**DF-501 for _ensure_migration_tables():**
+**DF-501 for \_ensure_migration_tables():**
+
 ```
 RuntimeError: Cannot use _ensure_migration_tables() in async context - use _ensure_migration_tables_async() instead.
 See DF-501 for details.
@@ -119,6 +123,7 @@ See DF-501 for details.
 ## Migration from Sync to Async
 
 **Before (DF-501 Error):**
+
 ```python
 # WRONG - Causes DF-501 in async context
 async def setup():
@@ -133,6 +138,7 @@ async def setup():
 ```
 
 **Correct Pattern:**
+
 ```python
 # CORRECT - Use async methods in async context
 async def setup():
@@ -159,6 +165,7 @@ async def close_async(self):
 ```
 
 **Safe to Call Multiple Times:**
+
 ```python
 await db.close_async()  # First call - cleans up
 await db.close_async()  # Second call - no-op, safe
@@ -183,12 +190,10 @@ with kailash.DataFlow("sqlite:///dev.db") as db:
 # For async contexts, use the lifespan pattern above
 ```
 
-## File References
+## References
 
-- **Implementation**: `src/dataflow/core/engine.py:7180-7230` (close_async, close methods)
-- **Async Table Creation**: `src/dataflow/core/engine.py:4100-4200` (create_tables_async)
-- **Error Messages**: `src/dataflow/platform/errors.py:2757-2783` (DF-501 error codes)
-- **Tests**: `tests/integration/test_dataflow_async_lifecycle.py` (16 comprehensive tests)
+- **Specialist**: `.claude/agents/frameworks/dataflow-specialist.md`
+- **Pattern**: Async lifecycle management for DataFlow in async Python contexts
 
 ## Requirements
 

@@ -26,6 +26,7 @@ Parameter validation failed for node 'X'
 ## Root Cause
 
 Kailash SDK raises `ValueError` for validation errors including:
+
 - Missing required parameters
 - Invalid validation modes
 - Parameter type mismatches
@@ -35,6 +36,7 @@ Parameters must be provided through one of **3 methods**.
 ## Quick Fix: The 3 Methods
 
 ### Method 1: Node Configuration (Most Reliable)
+
 ```python
 # ✅ Provide parameters directly in node config
 builder.add_node("UserCreateNode", "create", {
@@ -44,12 +46,14 @@ builder.add_node("UserCreateNode", "create", {
 ```
 
 ### Method 2: Workflow Connections (Dynamic)
+
 ```python
 # ✅ Connect parameter from another node's output
-builder.add_connection("form_data", "email", "create", "email")
+builder.connect("form_data", "email", "create", "email")
 ```
 
 ### Method 3: Runtime Parameters (Override)
+
 ```python
 # ✅ Provide at runtime execution
 rt.execute(builder.build(reg), parameters={
@@ -60,6 +64,7 @@ rt.execute(builder.build(reg), parameters={
 ## Complete Example
 
 ### ❌ Wrong: Missing Required Parameter
+
 ```python
 builder = kailash.WorkflowBuilder()
 
@@ -76,6 +81,7 @@ result = rt.execute(builder.build(reg))
 ```
 
 ### ✅ Fix Option 1: Add to Node Config
+
 ```python
 builder = kailash.WorkflowBuilder()
 
@@ -90,11 +96,12 @@ result = rt.execute(builder.build(reg))  # ✓ Works!
 ```
 
 ### ✅ Fix Option 2: Use Connection
+
 ```python
 builder = kailash.WorkflowBuilder()
 
 # Get email from form data
-builder.add_node("PythonCodeNode", "form", {
+builder.add_node("EmbeddedPythonNode", "form", {
     "code": "result = {'email': 'alice@example.com', 'name': 'Alice'}"
 })
 
@@ -104,7 +111,7 @@ builder.add_node("UserCreateNode", "create", {
 })
 
 # Connect email from form to create node
-builder.add_connection("form", "result.email", "create", "email")
+builder.connect("form", "result.email", "create", "email")
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
@@ -112,6 +119,7 @@ result = rt.execute(builder.build(reg))  # ✓ Works!
 ```
 
 ### ✅ Fix Option 3: Runtime Parameters
+
 ```python
 builder = kailash.WorkflowBuilder()
 
@@ -129,17 +137,18 @@ result = rt.execute(builder.build(reg), parameters={
 
 ## Parameter Method Selection Guide
 
-| Scenario | Best Method | Why |
-|----------|-------------|-----|
-| **Static values** | Method 1 (Config) | Clear, explicit, easy to test |
-| **Dynamic data flow** | Method 2 (Connections) | Data from previous nodes |
-| **User input** | Method 3 (Runtime) | Dynamic values at execution |
-| **Environment config** | Method 3 (Runtime) | Different per environment |
-| **Testing** | Method 1 (Config) | Most reliable, deterministic |
+| Scenario               | Best Method            | Why                           |
+| ---------------------- | ---------------------- | ----------------------------- |
+| **Static values**      | Method 1 (Config)      | Clear, explicit, easy to test |
+| **Dynamic data flow**  | Method 2 (Connections) | Data from previous nodes      |
+| **User input**         | Method 3 (Runtime)     | Dynamic values at execution   |
+| **Environment config** | Method 3 (Runtime)     | Different per environment     |
+| **Testing**            | Method 1 (Config)      | Most reliable, deterministic  |
 
 ## Common Variations
 
 ### Missing Multiple Parameters
+
 ```python
 # ❌ Multiple missing parameters
 builder.add_node("HTTPRequestNode", "api", {
@@ -154,9 +163,10 @@ builder.add_node("HTTPRequestNode", "api", {
 ```
 
 ### Optional vs Required Parameters
+
 ```python
 # Some parameters are optional (have defaults)
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data.csv"  # Required
     # has_header: optional (defaults to True)
     # delimiter: optional (defaults to ",")
@@ -166,6 +176,7 @@ builder.add_node("CSVReaderNode", "reader", {
 ## Edge Case Warning
 
 **Method 3 Edge Case** - Fails when ALL conditions met:
+
 ```python
 # ❌ DANGEROUS combination
 builder.add_node("CustomNode", "node", {})  # 1. Empty config
@@ -188,6 +199,7 @@ builder.add_node("CustomNode", "node", {
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
+
 - Complex parameter flow across many nodes
 - Custom node parameter definition issues
 - Advanced parameter validation requirements
@@ -196,6 +208,7 @@ Use `pattern-expert` subagent when:
 ## Documentation References
 
 ### Primary Sources
+
 - **Critical Rules**: [`CLAUDE.md` (lines 139-145)](../../../../CLAUDE.md#L139-L145)
 
 ## Quick Tips
@@ -207,6 +220,5 @@ Use `pattern-expert` subagent when:
 - 💡 **Avoid edge case**: Never use empty config `{}` with all optional params
 
 ## Version Notes
-
 
 <!-- Trigger Keywords: missing required inputs, parameter validation, required parameter not provided, parameter error, node missing inputs, validation error, missing parameter, required param, parameter validation failed -->

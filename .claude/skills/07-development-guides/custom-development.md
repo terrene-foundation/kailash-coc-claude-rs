@@ -5,6 +5,7 @@ You are an expert in extending Kailash SDK with custom nodes and extensions. Gui
 ## Core Responsibilities
 
 ### 1. Custom Node Development
+
 - Guide users through BaseNode and AsyncNode patterns
 - Teach parameter validation and type checking
 - Explain execution lifecycle
@@ -15,11 +16,11 @@ You are an expert in extending Kailash SDK with custom nodes and extensions. Gui
 ```python
 import kailash
 
-# In the Rust-backed SDK, custom logic goes into PythonCodeNode.
+# In the Rust-backed SDK, custom logic goes into EmbeddedPythonNode.
 # Parameters are passed as config dicts — no subclassing needed.
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("PythonCodeNode", "custom_processor", {
+builder.add_node("EmbeddedPythonNode", "custom_processor", {
     "code": """
 input_data = input_data.get("input_data", "")
 threshold = input_data.get("threshold", 100)
@@ -68,128 +69,94 @@ result = rt.execute(builder.build(reg))
 # result["results"]["api_call"] contains {"response": ..., "status_code": ..., "success": ...}
 ```
 
-### 4. Parameter Validation Patterns
+### 4. Parameter Validation in Custom Nodes
 
 ```python
-class ValidatedNode(Node):
-    """Node with comprehensive parameter validation."""
+import re
+import kailash
 
-    def __init__(self, node_id: str, parameters: Dict[str, Any]):
-        super().__init__(node_id, parameters)
+def validated_handler(inputs):
+    """Custom node with comprehensive parameter validation."""
+    # String with pattern validation
+    email = inputs.get("email", "")
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$", email):
+        raise ValueError(f"Invalid email: {email}")
 
-        # String with pattern validation
-        self.add_parameter(NodeParameter(
-            name="email",
-            param_type="string",
-            required=True,
-            pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$",
-            description="Valid email address"
-        ))
+    # Number with range validation
+    age = inputs.get("age", 0)
+    if not (0 <= age <= 150):
+        raise ValueError(f"Age must be 0-150, got {age}")
 
-        # Number with range validation
-        self.add_parameter(NodeParameter(
-            name="age",
-            param_type="number",
-            required=True,
-            minimum=0,
-            maximum=150,
-            description="Age in years"
-        ))
+    # Enum validation
+    status = inputs.get("status", "")
+    valid_statuses = ["active", "inactive", "pending"]
+    if status not in valid_statuses:
+        raise ValueError(f"Status must be one of {valid_statuses}")
 
-        # Enum validation
-        self.add_parameter(NodeParameter(
-            name="status",
-            param_type="string",
-            required=True,
-            enum=["active", "inactive", "pending"],
-            description="Account status"
-        ))
+    return {"validated": True, "email": email, "age": age, "status": status}
 
-    def execute(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        # Parameters are already validated by framework
-        email = self.get_parameter("email", inputs)
-        age = self.get_parameter("age", inputs)
-        status = self.get_parameter("status", inputs)
-
-        return {
-            "validated": True,
-            "email": email,
-            "age": age,
-            "status": status
-        }
+registry = kailash.NodeRegistry()
+registry.register_callback(
+    "ValidatedNode", validated_handler,
+    ["email", "age", "status"],
+    ["validated", "email", "age", "status"]
+)
 ```
 
 ### 5. Error Handling in Custom Nodes
 
 ```python
-class RobustNode(Node):
-    """Node with comprehensive error handling."""
+import kailash
+import traceback
 
-    def execute(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            # Get parameters with defaults
-            data = self.get_parameter("data", inputs)
+def robust_handler(inputs):
+    """Custom node with comprehensive error handling."""
+    try:
+        data = inputs.get("data")
+        if not data:
+            raise ValueError("Data parameter is required")
 
-            if not data:
-                raise ValueError("Data parameter is required")
+        result = risky_operation(data)
+        return {"status": "success", "result": result}
 
-            # Process
-            result = self.risky_operation(data)
+    except ValueError as e:
+        return {"status": "error", "error_type": "validation_error", "message": str(e)}
 
-            return {
-                "status": "success",
-                "result": result
-            }
+    except ConnectionError as e:
+        return {"status": "error", "error_type": "connection_error",
+                "message": str(e), "retry_possible": True}
 
-        except ValueError as e:
-            # Validation errors
-            return {
-                "status": "error",
-                "error_type": "validation_error",
-                "message": str(e)
-            }
+    except Exception as e:
+        return {"status": "error", "error_type": "internal_error",
+                "message": str(e), "traceback": traceback.format_exc()}
 
-        except ConnectionError as e:
-            # Connection errors
-            return {
-                "status": "error",
-                "error_type": "connection_error",
-                "message": str(e),
-                "retry_possible": True
-            }
+def risky_operation(data):
+    """Operation that might fail."""
+    return {"processed": data}
 
-        except Exception as e:
-            # Unexpected errors
-            import traceback
-            return {
-                "status": "error",
-                "error_type": "internal_error",
-                "message": str(e),
-                "traceback": traceback.format_exc()
-            }
-
-    def risky_operation(self, data):
-        """Operation that might fail."""
-        # Implementation
-        pass
+registry = kailash.NodeRegistry()
+registry.register_callback("RobustNode", robust_handler, ["data"],
+                           ["status", "result", "error_type", "message"])
 ```
 
 ### 6. Stateful Custom Node
 
 ```python
-class StatefulNode(Node):
-    """Node that maintains state between executions."""
+import kailash
+import threading
 
-    def __init__(self, node_id: str, parameters: Dict[str, Any]):
-        super().__init__(node_id, parameters)
+class StatefulProcessor:
+    """Callable that maintains state between executions."""
+    def __init__(self):
         self.execution_count = 0
         self.cache = {}
+        self.lock = threading.Lock()
 
-    def execute(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        self.execution_count += 1
-
-        data = self.get_parameter("data", inputs)
-        cache_key = str(data)
+    def __call__(self, inputs):
+        with self.lock:
+            self.execution_count += 1
+            data = inputs.get("data", "")
+            cache_key = str(data)
 
         # Use cache if available
         if cache_key in self.cache:
@@ -228,12 +195,12 @@ builder.add_node("MyCustomNode", "custom_processor", {
 })
 
 # Add standard node
-builder.add_node("PythonCodeNode", "output", {
+builder.add_node("EmbeddedPythonNode", "output", {
     "code": "result = {'final': result}"
 })
 
 # Connect
-builder.add_connection("custom_processor", "output", "result", "result")
+builder.connect("custom_processor", "output", "result", "result")
 
 # Execute
 reg = kailash.NodeRegistry()
@@ -301,6 +268,7 @@ def test_custom_node_threshold():
 7. **Resource Cleanup**: Clean up resources in finally blocks
 
 ## When to Engage
+
 - User asks about "custom nodes", "extend SDK", "custom development"
 - User needs to create specialized functionality
 - User wants to encapsulate complex logic
@@ -315,6 +283,7 @@ def test_custom_node_threshold():
 5. **Integration**: Show how to use in workflows
 
 ## Integration with Other Skills
+
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **async-node-development** for async patterns
 - Route to **testing-best-practices** for testing guidance

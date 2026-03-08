@@ -26,15 +26,16 @@ Configure MCP server connections using STDIO, HTTP, or WebSocket transports.
 
 ```python
 import kailash
+import os
 
 reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
 # STDIO: Launch MCP server as subprocess
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get weather for NYC"}],
     "mcp_servers": [{
         "name": "weather",
@@ -50,6 +51,7 @@ result = rt.execute(builder.build(reg))
 ```
 
 **When to Use STDIO:**
+
 - Local development and testing
 - Desktop applications
 - CLI tools
@@ -59,9 +61,9 @@ result = rt.execute(builder.build(reg))
 ### HTTP Transport (Production Deployments)
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "doc_search",
@@ -78,6 +80,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```
 
 **When to Use HTTP:**
+
 - Production deployments
 - Microservices architecture
 - Cloud-hosted MCP servers
@@ -87,9 +90,9 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ### WebSocket Transport (Real-Time Communication)
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Monitor system metrics"}],
     "mcp_servers": [{
         "name": "metrics",
@@ -106,6 +109,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```
 
 **When to Use WebSocket:**
+
 - Real-time streaming data
 - Long-running operations with progress updates
 - Bidirectional communication
@@ -116,9 +120,9 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ### Multiple Transports in One Workflow
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Analyze weather and documents"}],
     "mcp_servers": [
         {
@@ -147,9 +151,9 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 
 ```python
 # HTTP with retry logic
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Search"}],
     "mcp_servers": [{
         "name": "search",
@@ -186,9 +190,9 @@ transport_config = {
 
 env = os.getenv("ENV", "development")
 
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Process data"}],
     "mcp_servers": [{
         "name": "processor",
@@ -199,15 +203,15 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 
 ## Transport Comparison
 
-| Feature | STDIO | HTTP | WebSocket |
-|---------|-------|------|-----------|
-| **Latency** | Lowest | Medium | Low-Medium |
-| **Scalability** | Single machine | High | Medium |
-| **State** | Process-bound | Stateless | Stateful |
-| **Best For** | Local dev | Production | Real-time |
-| **Complexity** | Low | Medium | High |
-| **Load Balancing** | No | Yes | Limited |
-| **Reconnection** | Process restart | Per-request | Automatic |
+| Feature            | STDIO           | HTTP        | WebSocket  |
+| ------------------ | --------------- | ----------- | ---------- |
+| **Latency**        | Lowest          | Medium      | Low-Medium |
+| **Scalability**    | Single machine  | High        | Medium     |
+| **State**          | Process-bound   | Stateless   | Stateful   |
+| **Best For**       | Local dev       | Production  | Real-time  |
+| **Complexity**     | Low             | Medium      | High       |
+| **Load Balancing** | No              | Yes         | Limited    |
+| **Reconnection**   | Process restart | Per-request | Automatic  |
 
 ## Common Patterns
 
@@ -235,9 +239,9 @@ config = prod_config if os.getenv("ENV") == "production" else dev_config
 ### Pattern 2: Graceful Fallback
 
 ```python
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "messages": [{"role": "user", "content": "Get data"}],
     "mcp_servers": [
         {
@@ -254,7 +258,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
         }
     ]
 })
-# IterativeLLMAgentNode automatically tries fallback if primary fails
+# IterativeLLMNode automatically tries fallback if primary fails
 ```
 
 ## Troubleshooting
@@ -264,7 +268,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 # Issue: Process not found
 # Solution: Use absolute paths
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "server",
         "transport": "stdio",
@@ -280,7 +284,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 # Issue: Connection timeout
 # Solution: Increase timeout and add retry
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "server",
         "transport": "http",
@@ -299,7 +303,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 # Issue: Connection drops
 # Solution: Configure reconnection
-builder.add_node("IterativeLLMAgentNode", "agent", {
+builder.add_node("IterativeLLMNode", "agent", {
     "mcp_servers": [{
         "name": "server",
         "transport": "websocket",
@@ -333,6 +337,7 @@ builder.add_node("IterativeLLMAgentNode", "agent", {
 ## When to Escalate to Subagent
 
 Use `mcp-specialist` subagent when:
+
 - Implementing custom MCP server with multiple transports
 - Troubleshooting transport-specific connection issues
 - Configuring production load balancing and failover
@@ -347,9 +352,82 @@ Use `mcp-specialist` subagent when:
 - Always configure timeouts to prevent hanging
 - Test transport failover scenarios
 
+## McpApplication Transport Configuration (Phase 17)
+
+The `McpApplication` class from `kailash.mcp` provides a decorator-based MCP server with configurable transports:
+
+```python
+from kailash.mcp import McpApplication, prompt_argument
+
+app = McpApplication("my-server", "1.0")
+
+@app.tool(name="search", description="Search the web")
+def search(query: str) -> str:
+    return f"Results for {query}"
+
+@app.resource(uri="config://settings", name="Settings")
+def get_settings() -> str:
+    return '{"theme": "dark"}'
+
+@app.prompt(name="summarize", description="Summarize text")
+def summarize_prompt(text: str) -> str:
+    return f"Please summarize: {text}"
+```
+
+### Transport Selection
+
+```python
+from kailash.nexus.mcp import STDIO, SSE, HTTP
+
+server = app.server
+
+# STDIO transport (default -- for local development)
+server.set_transport(STDIO)
+
+# SSE transport (for web clients)
+server.set_transport(SSE)
+server.set_sse_config({"port": 8080, "path": "/mcp"})
+
+# HTTP transport (for REST clients)
+server.set_transport(HTTP)
+server.set_http_config({"port": 8080, "path": "/mcp"})
+```
+
+### McpApplication vs IterativeLLMNode
+
+| Feature   | `McpApplication`                    | `IterativeLLMNode` mcp_servers |
+| --------- | ----------------------------------- | ------------------------------ |
+| Role      | MCP server (serves tools/resources) | MCP client (consumes tools)    |
+| Pattern   | `@app.tool()` / `@app.resource()`   | Config dict                    |
+| Transport | STDIO / SSE / HTTP                  | STDIO / HTTP / WebSocket       |
+| Best for  | Building MCP servers                | Connecting to MCP servers      |
+
+### Production Deployment
+
+```python
+import os
+from kailash.mcp import McpApplication
+from kailash.nexus.mcp import SSE
+
+app = McpApplication("production-server", "1.0")
+
+@app.tool(name="query", description="Query the database")
+def query(sql: str) -> str:
+    # Execute query using DataFlow
+    return '{"rows": []}'
+
+server = app.server
+server.set_transport(SSE)
+server.set_sse_config({
+    "port": int(os.getenv("MCP_PORT", "8080")),
+    "path": os.getenv("MCP_PATH", "/mcp"),
+})
+```
+
 ## Version Notes
 
-- Real MCP tool execution in IterativeLLMAgentNode
+- Real MCP tool execution in IterativeLLMNode
 - Enhanced MCP transport support across STDIO, HTTP, and WebSocket
+- McpApplication decorator-based server with transport configuration (Phase 17)
 
-<!-- Trigger Keywords: MCP transport, stdio, websocket, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp websocket, transport configuration, mcp deployment -->
+<!-- Trigger Keywords: MCP transport, stdio, websocket, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp websocket, transport configuration, mcp deployment, McpApplication transport, SSE transport -->

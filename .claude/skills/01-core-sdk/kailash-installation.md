@@ -142,7 +142,7 @@ reg = kailash.NodeRegistry()
 
 # Test basic functionality
 builder = kailash.WorkflowBuilder()
-builder.add_node("PythonCodeNode", "test", {
+builder.add_node("EmbeddedPythonNode", "test", {
     "code": "result = {'status': 'installed', 'version': '2.1.0'}"
 })
 

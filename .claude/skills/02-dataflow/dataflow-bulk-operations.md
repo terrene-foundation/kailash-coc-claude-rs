@@ -356,7 +356,7 @@ DataFlow automatically converts ISO 8601 datetime strings to Python datetime obj
 - **With timezone Z**: `2024-01-01T12:00:00Z`
 - **With timezone offset**: `2024-01-01T12:00:00+05:30`
 
-### Example: BulkCreateNode with PythonCodeNode
+### Example: BulkCreateNode with EmbeddedPythonNode
 
 ```python
 import kailash
@@ -365,8 +365,8 @@ reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
-# PythonCodeNode generates bulk data with ISO strings
-builder.add_node("PythonCodeNode", "generate_bulk_data", {
+# EmbeddedPythonNode generates bulk data with ISO strings
+builder.add_node("EmbeddedPythonNode", "generate_bulk_data", {
     "code": """
 from datetime import datetime, timedelta
 
@@ -401,7 +401,7 @@ print(f"Imported {imported['success_count']} users with converted timestamps")
 
 ```python
 # Update last_login timestamps in bulk
-builder.add_node("PythonCodeNode", "generate_timestamps", {
+builder.add_node("EmbeddedPythonNode", "generate_timestamps", {
     "code": """
 from datetime import datetime
 
@@ -427,7 +427,7 @@ builder.add_node("UserBulkUpdateNode", "update_logins", {
 
 ```python
 # Sync external data with timestamps
-builder.add_node("PythonCodeNode", "fetch_external_data", {
+builder.add_node("EmbeddedPythonNode", "fetch_external_data", {
     "code": """
 import requests
 from datetime import datetime
@@ -457,7 +457,7 @@ builder.add_node("ProductBulkUpsertNode", "sync_products", {
 
 ```python
 # Import CSV with date columns
-builder.add_node("PythonCodeNode", "parse_csv_with_dates", {
+builder.add_node("EmbeddedPythonNode", "parse_csv_with_dates", {
     "code": """
 import csv
 from datetime import datetime
@@ -523,7 +523,7 @@ Datetime auto-conversion works on:
 **API Data Synchronization:**
 ```python
 # External API returns ISO timestamps
-builder.add_node("PythonCodeNode", "sync_api", {
+builder.add_node("EmbeddedPythonNode", "sync_api", {
     "code": """
 import requests
 response = requests.get("https://api.partner.com/inventory")
@@ -547,7 +547,7 @@ builder.add_node("InventoryBulkUpsertNode", "sync", {
 **Historical Data Import:**
 ```python
 # Import historical records with date ranges
-builder.add_node("PythonCodeNode", "generate_historical", {
+builder.add_node("EmbeddedPythonNode", "generate_historical", {
     "code": """
 from datetime import datetime, timedelta
 
@@ -573,7 +573,7 @@ builder.add_node("RecordBulkCreateNode", "import_historical", {
 **Real-Time Event Processing:**
 ```python
 # Process events with timestamps
-builder.add_node("PythonCodeNode", "process_events", {
+builder.add_node("EmbeddedPythonNode", "process_events", {
     "code": """
 from datetime import datetime
 

@@ -1,6 +1,6 @@
 ---
 name: node-selection-guide
-description: "Decision guide for choosing the right node instead of PythonCodeNode. Use when asking 'choose node', 'which node', 'node selection', 'right node type', or 'specialized nodes'."
+description: "Decision guide for choosing the right node instead of EmbeddedPythonNode. Use when asking 'choose node', 'which node', 'node selection', 'right node type', or 'specialized nodes'."
 ---
 
 # Node Selection Guide
@@ -50,6 +50,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies

@@ -1,6 +1,6 @@
 ---
 name: connection-patterns
-description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'add_connection', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', 'dot notation', or 'workflow connections'."
+description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'connect', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', 'dot notation', or 'workflow connections'."
 ---
 
 # Connection Patterns
@@ -13,7 +13,7 @@ Essential patterns for connecting workflow nodes using the 4-parameter connectio
 
 ## Quick Reference
 
-- **Syntax**: `add_connection(from_node, from_output, to_node, to_input)`
+- **Syntax**: `connect(source, source_output, target, target_input)`
 - **CRITICAL**: Always use 4 parameters (source + output → target + input)
 - **Dot Notation**: Access nested fields: `"result.metrics.accuracy"`
 - **Fan-Out**: One source → multiple targets
@@ -29,11 +29,11 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Add nodes
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
-builder.add_node("PythonCodeNode", "processor", {"code": "result = len(data)"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
 
 # ✅ CORRECT: 4-parameter connection
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("reader", "data", "processor", "data")
 #                      ^source  ^output   ^target    ^input
 
 rt = kailash.Runtime(reg)
@@ -51,32 +51,35 @@ result = rt.execute(builder.build(reg))
 ## Connection Types
 
 ### Type 1: Direct Mapping (Most Common)
+
 ```python
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("CSVReaderNode", "reader", {"file_path": "input.csv"})
-builder.add_node("PythonCodeNode", "processor", {"code": "result = len(data)"})
-builder.add_node("JSONWriterNode", "writer", {"file_path": "output.json"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "input.csv"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("JSONTransformNode", "writer", {"file_path": "output.json"})
 
 # Sequential connections
-builder.add_connection("reader", "data", "processor", "data")
-builder.add_connection("processor", "result", "writer", "data")
+builder.connect("reader", "data", "processor", "data")
+builder.connect("processor", "result", "writer", "data")
 ```
 
 ### Type 2: Port Name Mapping
+
 ```python
 # Different port names - explicit mapping
 builder.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
-builder.add_node("PythonCodeNode", "process", {"code": "result = {'parsed': data}"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}"})
 
 # Map 'response' output to 'data' input
-builder.add_connection("api", "response", "process", "data")
+builder.connect("api", "response", "process", "data")
 ```
 
 ### Type 3: Dot Notation for Nested Data
+
 ```python
 # Extract nested fields from complex outputs
-builder.add_node("PythonCodeNode", "analyzer", {
+builder.add_node("EmbeddedPythonNode", "analyzer", {
     "code": """
 result = {
     'summary': 'Analysis complete',
@@ -92,56 +95,59 @@ result = {
 """
 })
 
-builder.add_node("PythonCodeNode", "reporter", {
+builder.add_node("EmbeddedPythonNode", "reporter", {
     "code": "result = f'Accuracy: {accuracy}'"
 })
 
 # Extract nested field
-builder.add_connection("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
+builder.connect("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
 ```
 
 ### Type 4: Fan-Out (One-to-Many)
+
 ```python
 # Send same data to multiple processors
-builder.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
 
 # Parallel processors
-builder.add_node("PythonCodeNode", "validator", {"code": "result = {'valid': True}"})
-builder.add_node("PythonCodeNode", "logger", {"code": "result = {'logged': True}"})
-builder.add_node("PythonCodeNode", "analyzer", {"code": "result = {'analyzed': True}"})
+builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}"})
+builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': True}"})
+builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}"})
 
 # Fan-out: reader → multiple targets
-builder.add_connection("reader", "data", "validator", "data")
-builder.add_connection("reader", "data", "logger", "data")
-builder.add_connection("reader", "data", "analyzer", "data")
+builder.connect("reader", "data", "validator", "data")
+builder.connect("reader", "data", "logger", "data")
+builder.connect("reader", "data", "analyzer", "data")
 ```
 
 ### Type 5: Fan-In with MergeNode
+
 ```python
 # Combine multiple data sources
-builder.add_node("CSVReaderNode", "source1", {"file_path": "data1.csv"})
-builder.add_node("JSONReaderNode", "source2", {"file_path": "data2.json"})
+builder.add_node("CSVProcessorNode", "source1", {"file_path": "data1.csv"})
+builder.add_node("JSONTransformNode", "source2", {"file_path": "data2.json"})
 builder.add_node("HTTPRequestNode", "source3", {"url": "https://api.example.com"})
 
 builder.add_node("MergeNode", "merger", {})
 
 # Fan-in: multiple sources → merger
-builder.add_connection("source1", "data", "merger", "input1")
-builder.add_connection("source2", "data", "merger", "input2")
-builder.add_connection("source3", "response", "merger", "input3")
+builder.connect("source1", "data", "merger", "input1")
+builder.connect("source2", "data", "merger", "input2")
+builder.connect("source3", "response", "merger", "input3")
 
 # Process merged data
-builder.add_node("PythonCodeNode", "processor", {"code": "result = {'count': 3}"})
-builder.add_connection("merger", "result", "processor", "data")
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}"})
+builder.connect("merger", "result", "processor", "data")
 ```
 
 ### Type 6: Multi-Input Processing
+
 ```python
 # Custom multi-input node
-builder.add_node("CSVReaderNode", "customers", {"file_path": "customers.csv"})
-builder.add_node("CSVReaderNode", "orders", {"file_path": "orders.csv"})
+builder.add_node("CSVProcessorNode", "customers", {"file_path": "customers.csv"})
+builder.add_node("CSVProcessorNode", "orders", {"file_path": "orders.csv"})
 
-builder.add_node("PythonCodeNode", "join", {
+builder.add_node("EmbeddedPythonNode", "join", {
     "code": """
 customers_data = customers if customers else []
 orders_data = orders if orders else []
@@ -156,18 +162,19 @@ result = {
 })
 
 # Multiple inputs to same node
-builder.add_connection("customers", "data", "join", "customers")
-builder.add_connection("orders", "data", "join", "orders")
+builder.connect("customers", "data", "join", "customers")
+builder.connect("orders", "data", "join", "orders")
 ```
 
 ### Type 7: Complex Nested Extraction
+
 ```python
-builder.add_node("LLMAgentNode", "llm", {
-    "model": "gpt-4",
+builder.add_node("LLMNode", "llm", {
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "system_prompt": "Analyze data"
 })
 
-builder.add_node("PythonCodeNode", "metrics_reporter", {
+builder.add_node("EmbeddedPythonNode", "metrics_reporter", {
     "code": """
 report = {
     'accuracy': accuracy,
@@ -179,61 +186,69 @@ result = report
 })
 
 # Extract multiple nested fields
-builder.add_connection("llm", "result.metrics.accuracy", "metrics_reporter", "accuracy")
-builder.add_connection("llm", "result.summary", "metrics_reporter", "summary")
-builder.add_connection("llm", "result.confidence", "metrics_reporter", "confidence")
+builder.connect("llm", "result.metrics.accuracy", "metrics_reporter", "accuracy")
+builder.connect("llm", "result.summary", "metrics_reporter", "summary")
+builder.connect("llm", "result.confidence", "metrics_reporter", "confidence")
 ```
 
 ## Common Mistakes
 
 ### ❌ Mistake 1: Using 3-Parameter Syntax (Deprecated)
+
 ```python
 # Wrong - Old 3-parameter syntax
-builder.add_connection("reader", "processor", "data")  # DEPRECATED
+builder.connect("reader", "processor", "data")  # DEPRECATED
 ```
 
 ### ✅ Fix: Use 4-Parameter Syntax
+
 ```python
 # Correct - Modern 4-parameter syntax
-builder.add_connection("reader", "data", "processor", "data")
+builder.connect("reader", "data", "processor", "data")
 ```
 
 ### ❌ Mistake 2: Wrong Port Names
+
 ```python
 # Wrong - Using non-existent ports
-builder.add_connection("csv_reader", "output", "processor", "input")  # Error
+builder.connect("csv_reader", "output", "processor", "input")  # Error
 ```
 
 ### ✅ Fix: Use Correct Port Names
+
 ```python
-# Correct - CSVReaderNode outputs to 'data' port
-builder.add_connection("csv_reader", "data", "processor", "data")
+# Correct - CSVProcessorNode outputs to 'data' port
+builder.connect("csv_reader", "data", "processor", "data")
 ```
 
 ### ❌ Mistake 3: Missing Dot Notation for Nested Data
+
 ```python
 # Wrong - Trying to pass entire result when you need one field
-builder.add_connection("analyzer", "result", "reporter", "accuracy")  # Gets dict, not number
+builder.connect("analyzer", "result", "reporter", "accuracy")  # Gets dict, not number
 ```
 
 ### ✅ Fix: Use Dot Notation
+
 ```python
 # Correct - Extract specific field
-builder.add_connection("analyzer", "result.accuracy", "reporter", "accuracy")
+builder.connect("analyzer", "result.accuracy", "reporter", "accuracy")
 ```
 
 ### ❌ Mistake 4: Incorrect Node IDs
+
 ```python
 # Wrong - Node ID mismatch
-builder.add_node("CSVReaderNode", "csv_reader", {})
-builder.add_connection("reader", "data", "processor", "data")  # Error: 'reader' not found
+builder.add_node("CSVProcessorNode", "csv_reader", {})
+builder.connect("reader", "data", "processor", "data")  # Error: 'reader' not found
 ```
 
 ### ✅ Fix: Match Node IDs Exactly
+
 ```python
 # Correct - Consistent node IDs
-builder.add_node("CSVReaderNode", "csv_reader", {})
-builder.add_connection("csv_reader", "data", "processor", "data")
+builder.add_node("CSVProcessorNode", "csv_reader", {})
+builder.connect("csv_reader", "data", "processor", "data")
 ```
 
 ## Related Patterns
@@ -246,12 +261,14 @@ builder.add_connection("csv_reader", "data", "processor", "data")
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
+
 - Designing complex connection patterns
 - Implementing advanced data flow
 - Debugging connection issues
 - Optimizing workflow architecture
 
 Use `sdk-navigator` subagent when:
+
 - Finding node port names
 - Understanding node input/output structure
 - Resolving connection errors
@@ -271,4 +288,4 @@ Use `sdk-navigator` subagent when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: connect nodes, add_connection, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, dot notation, workflow connections, node connections, data mapping, connection patterns -->
+<!-- Trigger Keywords: connect nodes, connect, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, dot notation, workflow connections, node connections, data mapping, connection patterns -->

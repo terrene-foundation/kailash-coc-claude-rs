@@ -165,7 +165,7 @@ result = rt.execute(builder.build(reg))
 - **Account Updates**: Update user profile fields
 - **Account Deletion**: Soft or hard delete users
 - **User Search**: List users with filters and pagination
-- **Timestamp Handling**: Seamless datetime integration with PythonCodeNode
+- **Timestamp Handling**: Seamless datetime integration with EmbeddedPythonNode
 
 ## Generated Nodes Reference
 
@@ -390,12 +390,12 @@ builder.add_node("OrderCreateNode", "create", {
 builder.add_node("OrderCreateNode", "create", {
     "total": 100.0
 })
-builder.add_connection("create_customer", "id", "create", "customer_id")
+builder.connect("create_customer", "id", "create", "customer_id")
 ```
 
 ## Automatic Datetime Conversion
 
-DataFlow automatically converts ISO 8601 datetime strings to Python datetime objects for all datetime fields. This enables seamless integration with PythonCodeNode and external data sources.
+DataFlow automatically converts ISO 8601 datetime strings to Python datetime objects for all datetime fields. This enables seamless integration with EmbeddedPythonNode and external data sources.
 
 ### Supported ISO 8601 Formats
 
@@ -404,7 +404,7 @@ DataFlow automatically converts ISO 8601 datetime strings to Python datetime obj
 - **With timezone Z**: `2024-01-01T12:00:00Z`
 - **With timezone offset**: `2024-01-01T12:00:00+05:30`
 
-### Example: PythonCodeNode → CreateNode
+### Example: EmbeddedPythonNode → CreateNode
 
 ```python
 import kailash
@@ -413,8 +413,8 @@ reg = kailash.NodeRegistry()
 
 builder = kailash.WorkflowBuilder()
 
-# PythonCodeNode generates ISO 8601 string
-builder.add_node("PythonCodeNode", "generate_timestamp", {
+# EmbeddedPythonNode generates ISO 8601 string
+builder.add_node("EmbeddedPythonNode", "generate_timestamp", {
     "code": """
 from datetime import datetime
 result = {"registration_date": datetime.now().isoformat()}
@@ -439,8 +439,8 @@ print(f"User registered at: {created_user['registration_date']}")
 ### Example: UpdateNode with Datetime
 
 ```python
-# PythonCodeNode generates timestamp
-builder.add_node("PythonCodeNode", "generate_last_login", {
+# EmbeddedPythonNode generates timestamp
+builder.add_node("EmbeddedPythonNode", "generate_last_login", {
     "code": """
 from datetime import datetime
 result = {"last_login": datetime.now().isoformat()}
@@ -460,7 +460,7 @@ builder.add_node("UserUpdateNode", "update_last_login", {
 
 ```python
 # Prepare bulk data with ISO strings
-builder.add_node("PythonCodeNode", "generate_bulk_data", {
+builder.add_node("EmbeddedPythonNode", "generate_bulk_data", {
     "code": """
 from datetime import datetime, timedelta
 import json
@@ -519,7 +519,7 @@ Datetime auto-conversion works on:
 **External API Integration:**
 ```python
 # API returns ISO 8601 strings
-builder.add_node("PythonCodeNode", "fetch_api_data", {
+builder.add_node("EmbeddedPythonNode", "fetch_api_data", {
     "code": """
 import requests
 response = requests.get("https://api.example.com/users")
@@ -536,7 +536,7 @@ builder.add_node("UserBulkCreateNode", "import_api_users", {
 **CSV Import:**
 ```python
 # CSV contains date strings
-builder.add_node("PythonCodeNode", "parse_csv", {
+builder.add_node("EmbeddedPythonNode", "parse_csv", {
     "code": """
 import csv
 from datetime import datetime
@@ -611,14 +611,14 @@ builder.add_node("UserCreateNode", "create", {
 builder.add_node("UserReadNode", "read", {
     "filter": {}  # Will be provided via connection
 })
-builder.add_connection("create", "id", "read", "filter.id")
+builder.connect("create", "id", "read", "filter.id")
 
 # Update user
 builder.add_node("UserUpdateNode", "update", {
     "filter": {},  # Will be provided via connection
     "fields": {"active": False}
 })
-builder.add_connection("read", "id", "update", "filter.id")
+builder.connect("read", "id", "update", "filter.id")
 
 # List all inactive users
 builder.add_node("UserListNode", "list_inactive", {

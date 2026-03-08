@@ -37,7 +37,7 @@ builder.add_node("OrderCreateNode", "create_order", {
     "total": 100.0
 })
 
-builder.add_connection("create_user", "id", "create_order", "user_id")
+builder.connect("create_user", "id", "create_order", "user_id")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -104,10 +104,10 @@ builder.add_node("PaymentCreateNode", "create_payment", {
 builder.add_node("TransactionCommitNode", "commit", {})
 
 # Connect nodes
-builder.add_connection("tx", "result", "create_user", "input")
-builder.add_connection("create_user", "id", "create_order", "user_id")
-builder.add_connection("create_order", "id", "create_payment", "order_id")
-builder.add_connection("create_payment", "result", "commit", "input")
+builder.connect("tx", "result", "create_user", "input")
+builder.connect("create_user", "id", "create_order", "user_id")
+builder.connect("create_order", "id", "create_payment", "order_id")
+builder.connect("create_payment", "result", "commit", "input")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -286,11 +286,11 @@ builder.add_node("InventoryBulkUpdateNode", "update_inventory", {
 builder.add_node("TransactionCommitNode", "commit", {})
 
 # Connect nodes (all share transaction)
-builder.add_connection("tx", "result", "create_customer", "input")
-builder.add_connection("create_customer", "id", "create_order", "customer_id")
-builder.add_connection("create_order", "id", "create_items", "input")
-builder.add_connection("create_items", "result", "update_inventory", "input")
-builder.add_connection("update_inventory", "result", "commit", "input")
+builder.connect("tx", "result", "create_customer", "input")
+builder.connect("create_customer", "id", "create_order", "customer_id")
+builder.connect("create_order", "id", "create_items", "input")
+builder.connect("create_items", "result", "update_inventory", "input")
+builder.connect("update_inventory", "result", "commit", "input")
 ```
 
 ### Example 2: Bulk Import (No Transaction Needed)

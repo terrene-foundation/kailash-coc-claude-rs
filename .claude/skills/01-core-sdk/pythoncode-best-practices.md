@@ -1,11 +1,11 @@
 ---
 name: pythoncode-best-practices
-description: "Best practices for PythonCodeNode including result wrapping, from_function decorator, and common patterns. Use when asking 'PythonCodeNode', 'Python code', 'custom logic', 'from_function', 'result wrapping', 'PythonCode patterns', 'code node', 'Python in workflow', or 'code best practices'."
+description: "Best practices for EmbeddedPythonNode including result wrapping, from_function decorator, and common patterns. Use when asking 'EmbeddedPythonNode', 'Python code', 'custom logic', 'from_function', 'result wrapping', 'PythonCode patterns', 'code node', 'Python in workflow', or 'code best practices'."
 ---
 
-# PythonCodeNode Best Practices
+# EmbeddedPythonNode Best Practices
 
-PythonCodeNode Best Practices guide with patterns, examples, and best practices.
+EmbeddedPythonNode Best Practices guide with patterns, examples, and best practices.
 
 > **Skill Metadata**
 > Category: `core-sdk`
@@ -13,10 +13,10 @@ PythonCodeNode Best Practices guide with patterns, examples, and best practices.
 
 ## Quick Reference
 
-- **Primary Use**: PythonCodeNode Best Practices
+- **Primary Use**: EmbeddedPythonNode Best Practices
 - **Category**: core-sdk
 - **Priority**: CRITICAL
-- **Trigger Keywords**: PythonCodeNode, Python code, custom logic, from_function, result wrapping
+- **Trigger Keywords**: EmbeddedPythonNode, Python code, custom logic, from_function, result wrapping
 
 ## Core Pattern
 
@@ -58,10 +58,10 @@ Use specialized subagents when:
 
 ## Quick Tips
 
-- 💡 **Tip 1**: Always follow PythonCodeNode Best Practices best practices
+- 💡 **Tip 1**: Always follow EmbeddedPythonNode Best Practices best practices
 - 💡 **Tip 2**: Test patterns incrementally
 - 💡 **Tip 3**: Reference documentation for details
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: PythonCodeNode, Python code, custom logic, from_function, result wrapping -->
+<!-- Trigger Keywords: EmbeddedPythonNode, Python code, custom logic, from_function, result wrapping -->

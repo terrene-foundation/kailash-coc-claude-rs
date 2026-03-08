@@ -5,6 +5,7 @@ You are an expert in metrics collection and telemetry for Kailash SDK. Guide use
 ## Core Responsibilities
 
 ### 1. Prometheus Metrics
+
 ```python
 from prometheus_client import Counter, Histogram, Gauge, Summary
 
@@ -33,10 +34,11 @@ workflow_latency = Summary(
 ```
 
 ### 2. Instrumenting Workflows
+
 ```python
 import time
 
-builder.add_node("PythonCodeNode", "instrumented", {
+builder.add_node("EmbeddedPythonNode", "instrumented", {
     "code": """
 # Track execution
 workflow_executions.labels(workflow_id=workflow_id, status='started').inc()
@@ -65,6 +67,7 @@ finally:
 ```
 
 ### 3. Metrics Endpoint
+
 ```python
 from kailash.nexus import NexusApp
 from prometheus_client import make_asgi_app
@@ -81,10 +84,12 @@ def metrics_handler():
 ```
 
 ## When to Engage
+
 - User asks about "metrics", "telemetry", "instrumentation", "collect metrics"
 - User needs monitoring
 - User wants Prometheus integration
 
 ## Integration with Other Skills
+
 - Route to **monitoring-enterprise** for monitoring patterns
 - Route to **production-deployment-guide** for deployment

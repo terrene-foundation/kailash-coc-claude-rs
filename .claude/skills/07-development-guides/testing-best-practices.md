@@ -5,6 +5,7 @@ Testing strategies for Kailash SDK including 3-tier testing, runtime testing pat
 ## 3-Tier Testing Strategy
 
 ### Tier 1: Unit Tests
+
 - Test individual nodes and components
 - Fast execution (< 1s per test)
 - Mocking allowed for external dependencies
@@ -16,7 +17,7 @@ import kailash
 def test_workflow_creation():
     """Test workflow builder."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "process", {
+    builder.add_node("EmbeddedPythonNode", "process", {
         "code": "result = {'value': input_value * 2}"
     })
 
@@ -31,6 +32,7 @@ def test_workflow_creation():
 ```
 
 ### Tier 2: Integration Tests (NO MOCKING)
+
 - Test multi-node workflows with real infrastructure
 - Use real Docker services (PostgreSQL, Redis, Ollama)
 - Test with kailash.Runtime(reg)
@@ -59,6 +61,7 @@ def test_database_workflow():
 ```
 
 ### Tier 3: End-to-End Tests
+
 - Complete workflows with full scenarios
 - Real external services and Docker infrastructure
 - Test production-like deployments
@@ -87,13 +90,14 @@ async def test_complete_etl_pipeline():
 ## Runtime Testing Patterns
 
 ### Testing Runtime
+
 ```python
 import kailash
 
 def test_sync_execution():
     """Test synchronous runtime execution."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {
+    builder.add_node("EmbeddedPythonNode", "node", {
         "code": "result = {'status': 'completed'}"
     })
 
@@ -107,6 +111,7 @@ def test_sync_execution():
 ```
 
 ### Testing Async Patterns
+
 ```python
 import kailash
 
@@ -115,7 +120,7 @@ import pytest
 async def test_async_execution():
     """Test asynchronous runtime execution."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {
+    builder.add_node("EmbeddedPythonNode", "node", {
         "code": "result = {'status': 'completed'}"
     })
 
@@ -128,13 +133,14 @@ async def test_async_execution():
 ```
 
 ### Parametrized Runtime Testing
+
 ```python
 import kailash
 
 def test_workflow_execution():
     """Test pattern works with kailash.Runtime."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {
+    builder.add_node("EmbeddedPythonNode", "node", {
         "code": "result = {'value': 42}"
     })
 
@@ -148,6 +154,7 @@ def test_workflow_execution():
 ## Testing with Real Infrastructure
 
 ### Docker Services Setup
+
 ```bash
 # Start test services
 cd tests/utils
@@ -158,6 +165,7 @@ docker-compose -f docker-compose.test.yml ps
 ```
 
 ### Available Test Services
+
 - PostgreSQL: `localhost:5434`
 - Redis: `localhost:6380`
 - Ollama: `localhost:11435`
@@ -166,6 +174,7 @@ docker-compose -f docker-compose.test.yml ps
 - Mock API: `localhost:8888`
 
 ### Using Docker Config
+
 ```python
 from tests.utils.docker_config import (
     get_postgres_connection_string,
@@ -188,6 +197,7 @@ def test_with_redis():
 ## Test Organization
 
 ### Directory Structure
+
 ```
 tests/
 ├── unit/              # Tier 1: Fast, isolated tests
@@ -205,6 +215,7 @@ tests/
 ```
 
 ### Running Tests by Tier
+
 ```bash
 # Tier 1 - Unit tests (ALL unit tests)
 pytest tests/unit/
@@ -219,6 +230,7 @@ pytest tests/e2e/
 ## Critical Testing Policies
 
 ### 1. NO MOCKING in Tiers 2-3
+
 ```python
 # ❌ NEVER in integration/e2e tests
 from unittest.mock import patch
@@ -235,6 +247,7 @@ def test_api_integration():
 ```
 
 ### 2. Zero Skip Tolerance
+
 ```python
 # ❌ NEVER skip tests
 @pytest.mark.skip("Redis not available")
@@ -248,6 +261,7 @@ def test_redis_operations():
 ```
 
 ### 3. Test Isolation
+
 ```python
 @pytest.fixture
 def clean_database():
@@ -274,6 +288,7 @@ def test_two(clean_database):
 ## When to Escalate
 
 Use `testing-specialist` subagent when:
+
 - Complex test infrastructure setup needed
 - Performance testing strategy required
 - CI/CD integration issues

@@ -14,13 +14,13 @@ description: "Documentation validation patterns including test file creation, in
 
 ### Phase 1: Example Extraction
 
-```python
+````python
 # For each documentation file:
 1. Extract all code blocks (```python, ```bash, etc.)
 2. Identify imports, setup requirements, and dependencies
 3. Determine which infrastructure is needed (Docker services, etc.)
 4. Map examples to their test categories (unit, integration, E2E)
-```
+````
 
 ### Phase 2: Test File Creation
 
@@ -68,12 +68,14 @@ pytest /tmp/test_docs_feature.py -v
 ## Documentation Validation: [file_path]
 
 ### Summary
+
 - Total examples: 12
 - Validated: 11
 - Fixed: 1
 - Blocked: 0
 
 ### Validation Details
+
 1. **Example: CSV Processing** (lines 23-45)
    - Test: /tmp/test_csv_example.py::test_csv_processing
    - Result: PASSED
@@ -86,11 +88,13 @@ pytest /tmp/test_docs_feature.py -v
    - Fix: Updated to current API
 
 ### Infrastructure Requirements
+
 - Docker services: PostgreSQL, Redis
 - Python packages: All from requirements.txt
 - Environment variables: None required
 
 ### User Journey Validation
+
 - New user quickstart: ✅ Works as documented
 - Database integration: ✅ Connects successfully
 - Error handling: ✅ Errors match documentation
@@ -99,15 +103,17 @@ pytest /tmp/test_docs_feature.py -v
 ## Common Documentation Issues
 
 ### 1. Outdated API Examples
+
 ```python
 # ❌ OUTDATED
 workflow.addNode("CSVReader", {...})  # Old camelCase
 
 # ✅ CORRECT
-builder.add_node("CSVReaderNode", "reader", {...})  # Current snake_case
+builder.add_node("CSVProcessorNode", "reader", {...})  # Current snake_case
 ```
 
 ### 2. Missing Infrastructure Setup
+
 ```python
 # ❌ INCOMPLETE - no mention of Docker requirement
 
@@ -117,12 +123,13 @@ builder.add_node("CSVReaderNode", "reader", {...})  # Current snake_case
 ```
 
 ### 3. Incorrect Parameter Names
+
 ```python
 # ❌ WRONG (parameter renamed)
-builder.add_node("LLMAgentNode", "agent", {"max_length": 1000})
+builder.add_node("LLMNode", "agent", {"max_length": 1000})
 
 # ✅ CORRECT
-builder.add_node("LLMAgentNode", "agent", {"max_tokens": 1000})
+builder.add_node("LLMNode", "agent", {"max_tokens": 1000})
 ```
 
 ## Update Guidelines

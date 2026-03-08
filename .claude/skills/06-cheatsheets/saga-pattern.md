@@ -32,7 +32,7 @@ builder.add_node("SagaCoordinatorNode", "saga", {
 })
 
 # Configure saga steps with compensations
-builder.add_node("PythonCodeNode", "add_steps", {
+builder.add_node("EmbeddedPythonNode", "add_steps", {
     "code": """
 steps_config = [
     {
@@ -52,7 +52,7 @@ result = {"steps": steps_config}
 """
 })
 
-builder.add_connection("saga", "saga_id", "add_steps", "saga_id")
+builder.connect("saga", "saga_id", "add_steps", "saga_id")
 
 reg = kailash.NodeRegistry()
 
@@ -77,6 +77,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies

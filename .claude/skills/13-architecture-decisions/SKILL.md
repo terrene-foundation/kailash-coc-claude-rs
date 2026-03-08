@@ -51,7 +51,7 @@ Comprehensive decision guides for:
 - **[decide-node-for-task](decide-node-for-task.md)** - Choose the right node
   - AI tasks → AI nodes
   - API calls → API nodes
-  - Custom logic → PythonCodeNode
+  - Custom logic → EmbeddedPythonNode
   - Database → Database nodes or DataFlow
   - File operations → File nodes
   - Conditional logic → SwitchNode
@@ -103,7 +103,7 @@ What's your use case?
 
 ```
 What task are you doing?
-  ├─ Custom Python logic → PythonCodeNode
+  ├─ Custom Python logic → EmbeddedPythonNode
   ├─ LLM/AI tasks → LLMNode, OpenAINode, AnthropicNode
   ├─ Database operations → kailash.DataFlow auto-generated nodes
   ├─ HTTP API calls → APICallNode

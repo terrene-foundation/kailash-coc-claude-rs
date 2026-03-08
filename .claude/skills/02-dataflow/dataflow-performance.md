@@ -28,7 +28,7 @@ import kailash
 
 # Production-optimized configuration
 df = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
 
     # Connection pooling
     pool_size=20,              # Base connections
@@ -164,12 +164,14 @@ df._schema_cache.clear_table("User", database_url)
 ```
 
 **When to Clear Cache:**
+
 - After manual schema modifications
 - After external migrations
 - For debugging schema issues
 - Cache auto-clears on DataFlow schema operations
 
 **Performance Characteristics:**
+
 - **First operation**: ~1500ms (cache miss)
 - **Subsequent operations**: ~1ms (cache hit) - **99% faster**
 - **Multi-operation workflows**: 91-99% overall improvement

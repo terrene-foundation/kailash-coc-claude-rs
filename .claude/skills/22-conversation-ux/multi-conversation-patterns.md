@@ -8,6 +8,7 @@
 ---
 
 ## Table of Contents
+
 1. [Executive Summary](#executive-summary)
 2. [Research Insights: Lark & Industry Patterns](#research-insights-lark--industry-patterns)
 3. [Conversation List UX](#conversation-list-ux)
@@ -24,20 +25,25 @@
 ## Executive Summary
 
 ### The Problem
+
 Enterprise users need to manage complex multi-conversation workflows that current linear AI chat interfaces don't support:
+
 - **Research workflows**: Build understanding across multiple conversation threads
 - **Exploration workflows**: Branch from specific turns to explore alternative directions
 - **Synthesis workflows**: Combine insights from different conversations
 - **Comparison workflows**: View multiple conversations side-by-side
 
 ### The Solution
+
 A **Lark-inspired conversation management system** that treats conversations like Git branches:
+
 - **Turn-level branching**: Create new conversation from any message
 - **Conversation tree visualization**: Git-style branch diagram with interactive navigation
 - **Cross-conversation references**: Link and synthesize context from multiple conversations
 - **Multi-conversation workspace**: Side-by-side comparison and quick switching
 
 ### Success Metrics
+
 - Users can branch from any turn in < 2 clicks
 - Users can navigate conversation tree without confusion (90%+ task completion)
 - Users can reference other conversations without leaving context
@@ -51,18 +57,21 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Key Findings from Lark/Feishu
 
 **Lark's Approach to Conversation Management**:
+
 1. **Integrated collaboration**: Conversations aren't isolated—they connect to documents, calendars, and tasks
 2. **Persistent context**: Important dialogues can be pinned for quick access
 3. **Asynchronous communication**: Team members process information thoughtfully, not reactively
 4. **Cloud-based history**: All messages stored in cloud for easy retrieval
 
 **What Lark Does Well**:
+
 - Nested conversation organization (channels → threads → replies)
 - Pinning important conversations for visibility
 - Search-driven retrieval (find any conversation quickly)
 - Contextual actions within conversations (insert docs, check schedules)
 
 **What Lark Doesn't Do (Opportunity for Enterprise AI Hub)**:
+
 - Turn-level branching (create new conversation from any message)
 - Conversation tree visualization
 - Cross-conversation context synthesis
@@ -71,6 +80,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Industry Patterns: ChatGPT Branching (Sept 2025)
 
 **ChatGPT's Implementation**:
+
 - **Branch creation**: Hover over any message → "Branch in new chat"
 - **Branch labeling**: Clear indication of where fork originated
 - **Sidebar organization**: Branches displayed with parent-child relationship
@@ -78,6 +88,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 - **User satisfaction**: 4.6/5 vs 3.2/5 for linear chats
 
 **Key Learnings**:
+
 1. **Discoverability**: Branching must be obvious (hover menu on every message)
 2. **Visual hierarchy**: Main conversation vs branches must be clear
 3. **Context preservation**: Branch inherits context up to branch point
@@ -86,12 +97,14 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Industry Patterns: Lobe Chat
 
 **Lobe Chat's Approach**:
+
 - **Conversation forking**: Transform linear conversations into tree structures
 - **Visual styles**: Choice between chat bubble mode and document mode
 - **Export flexibility**: Multiple formats (CSV, PNG, PDF)
 - **Drill-down**: Interactive elements for deeper exploration
 
 **Key Learnings**:
+
 1. **Flexibility**: Users need multiple view modes (list, tree, document)
 2. **Export matters**: Users want to take conversation data elsewhere
 3. **Interactive elements**: Embedded actions reduce context switching
@@ -99,6 +112,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Git Branch Visualization Patterns
 
 **What We Can Borrow from Git UIs**:
+
 1. **Branch graph visualization**: Dots connected by lines showing parent-child relationships
 2. **Color coding**: Different branches have different colors for clarity
 3. **Collapse/expand**: Hide inactive branches to reduce clutter
@@ -106,6 +120,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 5. **Merge capabilities**: Combine insights from multiple branches
 
 **Tools for Inspiration**:
+
 - **GitKraken**: Clear graphical format with drag-drop merging
 - **Git Graph (VS Code)**: Commits visualized relative to each other
 - **SourceTree**: Detailed graph of branches and commits
@@ -118,15 +133,18 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Design Principles
 
 **P1: Content-First Hierarchy**
+
 - Most important conversations (active) occupy 70% of sidebar space
 - Less important (archived, old) are collapsed or hidden by default
 
 **P2: Progressive Disclosure**
+
 - Default: Show 5-7 active conversations
 - Expand: Show recent (10-20), starred, archived
 - Search: Full conversation history
 
 **P3: Visual Hierarchy**
+
 - Active conversations: Bold, colored dot, large text
 - Recent conversations: Regular weight, gray dot
 - Archived conversations: Light gray, small text
@@ -134,6 +152,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Layout: Conversation Sidebar
 
 **Desktop (240px width)**:
+
 ```
 ┌─ CONVERSATIONS ─────────────────────┐
 │ [🔍 Search] [+ New] [⚙ Settings]   │
@@ -166,6 +185,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ```
 
 **Key Features**:
+
 1. **Nested hierarchy**: Parent conversation → Branches (indented with ⑂ icon)
 2. **Status indicators**:
    - ● Active (colored dot)
@@ -178,6 +198,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ### Visual Indicators
 
 **Conversation Status** (Color-Coded Dots):
+
 ```
 ● Active (Blue)       = Currently viewing or edited in last hour
 ● Recent (Green)      = Edited in last 24 hours
@@ -187,6 +208,7 @@ A **Lark-inspired conversation management system** that treats conversations lik
 ```
 
 **Conversation Metadata** (Shown on hover):
+
 ```
 Hover over "Q2 Sales Analysis":
 
@@ -206,6 +228,7 @@ Hover over "Q2 Sales Analysis":
 ### Organization: Folders, Tags, Search
 
 **Folder Structure** (Optional, Advanced):
+
 ```
 ┌─ CONVERSATIONS ─────────────────────┐
 │ [+ New] [🔍 Search] [📁 Folders ▼]  │
@@ -229,11 +252,13 @@ Hover over "Q2 Sales Analysis":
 ```
 
 **Tag System**:
+
 - User-created tags: #finance, #urgent, #review-needed
 - Auto-generated tags: AI suggests based on conversation content
 - Tag filtering: Click tag → Show all conversations with that tag
 
 **Search**:
+
 ```
 ┌─ Search Conversations ──────────────┐
 │ [Search: "sales revenue Q2"______]  │
@@ -257,6 +282,7 @@ Hover over "Q2 Sales Analysis":
 ```
 
 **Search Features**:
+
 1. **Full-text search**: Search message content, not just titles
 2. **Snippet preview**: Show matching text with highlighting
 3. **Jump to turn**: Click result → Jump to specific message in conversation
@@ -265,6 +291,7 @@ Hover over "Q2 Sales Analysis":
 ### Quick Actions (Right-Click / Long-Press)
 
 **Context Menu**:
+
 ```
 Right-click on "Q2 Sales Analysis":
 
@@ -284,6 +311,7 @@ Right-click on "Q2 Sales Analysis":
 ```
 
 **Keyboard Shortcuts**:
+
 - `Cmd/Ctrl + N` = New conversation
 - `Cmd/Ctrl + K` = Search conversations
 - `Cmd/Ctrl + Shift + S` = Star/unstar current conversation
@@ -299,17 +327,20 @@ Right-click on "Q2 Sales Analysis":
 ### Conceptual Model
 
 **Mental Model**: Git branches for conversations
+
 - **Main conversation** = main branch
 - **Branch point** = specific turn/message where you fork
 - **Branch conversation** = feature branch with independent history
 - **Context inheritance** = Branch inherits all context up to branch point
 
 **User Story**:
+
 > "As a research analyst, I want to explore an alternative line of questioning from Turn 3 of my conversation without losing the main conversation thread. I want the AI to remember everything up to Turn 3, but allow me to take a different direction from there."
 
 ### UI Pattern: Branch Creation
 
 **Step 1: Hover Over Message** (Desktop)
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ User: Show me Q2 sales breakdown                    │
@@ -326,6 +357,7 @@ Right-click on "Q2 Sales Analysis":
 ```
 
 **Step 2: Click "Branch from here"**
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ ┌─ Create Branch from Turn 2 ────────────────────┐  │
@@ -354,6 +386,7 @@ Right-click on "Q2 Sales Analysis":
 ```
 
 **Step 3: Branch Created**
+
 ```
 MAIN CONVERSATION                   BRANCH CONVERSATION
 (Original remains unchanged)        (New direction from Turn 2)
@@ -380,6 +413,7 @@ Sidebar Updates:
 ### Mobile Pattern: Long-Press to Branch
 
 **Mobile Interaction**:
+
 ```
 ┌─────────────────────────────────────┐
 │ AI: Here's the Q2 breakdown:        │
@@ -411,11 +445,13 @@ Sidebar Updates:
 ### Branch Naming & Organization
 
 **Auto-Generated Names** (AI suggests):
+
 - Based on topic: "Regional Analysis", "North Region Deep Dive"
 - Based on question: "Customer Churn Study"
 - Based on date: "Q2 Sales - Oct 18 Branch"
 
 **User Renaming**:
+
 ```
 ┌─ Rename Branch ─────────────────────┐
 │ Current: "Regional Deep Dive"       │
@@ -426,6 +462,7 @@ Sidebar Updates:
 ```
 
 **Branch Metadata** (Stored in database):
+
 ```typescript
 interface ConversationBranch {
   id: string;
@@ -445,6 +482,7 @@ interface ConversationBranch {
 ### Parent-Child Relationship Display
 
 **In Conversation Header**:
+
 ```
 ┌─ Conversation Header ───────────────────────────────┐
 │ ⑂ Regional Deep Dive                                │
@@ -463,16 +501,19 @@ interface ConversationBranch {
 ### Design Principles
 
 **P1: Git-Style Graph**
+
 - Conversations are nodes, branches are edges
 - Visual parent-child relationships with connecting lines
 - Color-coded branches for clarity
 
 **P2: Interactive Navigation**
+
 - Click node → Jump to that conversation
 - Hover node → Preview conversation summary
 - Right-click → Context menu (branch, merge, delete)
 
 **P3: Collapse/Expand**
+
 - Hide inactive branches to reduce clutter
 - Expand to see full tree
 - Focus mode: Show only current branch lineage
@@ -480,11 +521,13 @@ interface ConversationBranch {
 ### Layout: Tree View Panel
 
 **Access**:
+
 - Click "🌲 Tree View" icon in conversation header
 - Keyboard shortcut: `Cmd/Ctrl + Shift + T`
 - Auto-open when conversation has 2+ branches
 
 **Full Tree View** (Modal overlay):
+
 ```
 ┌─ Conversation Tree: Q2 Sales Analysis ──────────────────────────────────┐
 │ [⊖ Collapse All] [⊕ Expand All] [🎯 Focus Current] [📥 Export]         │
@@ -524,6 +567,7 @@ interface ConversationBranch {
 ```
 
 **Compact Tree View** (Sidebar panel):
+
 ```
 ┌─ Tree: Q2 Sales ────────────┐
 │                             │
@@ -539,6 +583,7 @@ interface ConversationBranch {
 ### Visual Design: Graph Rendering
 
 **Node Styles**:
+
 ```
 ACTIVE CONVERSATION (Current):
 ┌────────────────────────────┐
@@ -566,6 +611,7 @@ INACTIVE BRANCH:
 ```
 
 **Connection Lines**:
+
 ```
 Solid line (━━━) = Active branch path
 Dotted line (┈┈┈) = Inactive branch path
@@ -573,6 +619,7 @@ Thick line (━━━━) = Current conversation lineage
 ```
 
 **Color Coding** (Optional):
+
 ```
 Main conversation = Green
 Branch 1 = Blue
@@ -584,6 +631,7 @@ Branch 3 = Orange
 ### Interactions
 
 **Click Node → Jump to Conversation**:
+
 ```
 User clicks "Regional Deep Dive" node:
 → Tree view closes
@@ -592,6 +640,7 @@ User clicks "Regional Deep Dive" node:
 ```
 
 **Hover Node → Preview**:
+
 ```
 Hover over "Customer Segments":
 
@@ -609,6 +658,7 @@ Hover over "Customer Segments":
 ```
 
 **Right-Click Node → Context Menu**:
+
 ```
 ┌─ Actions ───────────────────────────┐
 │ 📂 Open conversation                │
@@ -625,6 +675,7 @@ Hover over "Customer Segments":
 ### Collapse/Expand Controls
 
 **Collapse All**:
+
 ```
 BEFORE:
 ● Main
@@ -643,6 +694,7 @@ AFTER (Collapsed):
 ```
 
 **Focus Mode** (Show only current lineage):
+
 ```
 BEFORE (Full tree with 5 branches):
 ● Main
@@ -665,6 +717,7 @@ AFTER (Focus on "Regional"):
 ### Mobile Tree View
 
 **Mobile Adaptation**:
+
 ```
 ┌─ Tree: Q2 Sales ─────────────────────┐
 │ [Swipe left/right to navigate]      │
@@ -685,6 +738,7 @@ AFTER (Focus on "Regional"):
 ```
 
 **Mobile Gestures**:
+
 - **Tap node** = Open conversation
 - **Long-press node** = Context menu
 - **Pinch to zoom** = Zoom in/out on tree
@@ -698,6 +752,7 @@ AFTER (Focus on "Regional"):
 ### User Flow: Referencing Another Conversation
 
 **Step 1: User Types Reference**
+
 ```
 ┌─ Regional Deep Dive (Current) ──────────────────────┐
 │ User: In conversation "Q2 Sales Analysis", you     │
@@ -708,6 +763,7 @@ AFTER (Focus on "Regional"):
 ```
 
 **Step 2: AI Detects References**
+
 ```
 Backend (Python + Kailash SDK):
 
@@ -737,6 +793,7 @@ class ConversationReferenceDetector(BaseAgent):
 ```
 
 **Step 3: Visual Indicator in Message**
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ User: In conversation [Q2 Sales ▸] you showed me    │
@@ -747,6 +804,7 @@ class ConversationReferenceDetector(BaseAgent):
 ```
 
 **Step 4: AI Fetches Context & Responds**
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: I've analyzed data from both conversations:     │
@@ -780,6 +838,7 @@ class ConversationReferenceDetector(BaseAgent):
 ### Context Selection UI
 
 **Manual Context Selection** (Advanced):
+
 ```
 User wants to manually select which turns to include:
 
@@ -809,12 +868,14 @@ User wants to manually select which turns to include:
 ```
 
 **Access**:
+
 - Click "Add context from..." button in input area
 - Keyboard shortcut: `Cmd/Ctrl + Shift + C`
 
 ### Context Merge Visualization
 
 **Merged Context Indicator**:
+
 ```
 ┌─ Active Context (Current Conversation) ─────────────┐
 │                                                      │
@@ -843,6 +904,7 @@ User wants to manually select which turns to include:
 **Scenario**: Two conversations have contradictory data
 
 **Detection**:
+
 ```python
 class ConflictDetector(BaseAgent):
     async def detect_conflicts(self, contexts: List[ConversationContext]):
@@ -866,6 +928,7 @@ class ConflictDetector(BaseAgent):
 ```
 
 **UI Treatment**:
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ ⚠ Conflict Detected: Revenue Growth Rate            │
@@ -899,16 +962,19 @@ class ConflictDetector(BaseAgent):
 ### Design Principles
 
 **P1: Side-by-Side Comparison**
+
 - View 2-3 conversations simultaneously
 - Synchronized scrolling (optional)
 - Cross-reference highlighting
 
 **P2: Quick Switching**
+
 - Keyboard shortcuts (Cmd+1, Cmd+2, etc.)
 - Recent conversations menu
 - Conversation tabs
 
 **P3: Persistent Workspace**
+
 - Save workspace layout
 - Restore on next session
 - Named workspaces ("Sales Research", "HR Review")
@@ -916,6 +982,7 @@ class ConflictDetector(BaseAgent):
 ### Layout: Side-by-Side View
 
 **Desktop (2-conversation split)**:
+
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │ SIDEBAR │ CONVERSATION 1 (50%)      │ CONVERSATION 2 (50%)         │
@@ -939,6 +1006,7 @@ class ConflictDetector(BaseAgent):
 ```
 
 **Desktop (3-conversation grid)**:
+
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │ SIDEBAR │ CONV 1 (33%)  │ CONV 2 (33%)  │ CONV 3 (33%)            │
@@ -957,6 +1025,7 @@ class ConflictDetector(BaseAgent):
 ```
 
 **Controls**:
+
 ```
 ┌─ Workspace Controls ────────────────────────────────┐
 │ Layout: [● 1 col] [○ 2 col] [○ 3 col] [○ Grid]     │
@@ -968,6 +1037,7 @@ class ConflictDetector(BaseAgent):
 ### Tab-Based Navigation
 
 **Alternative Layout** (for users who prefer tabs):
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ [Q2 Sales ●] [HR Analytics] [Product Roadmap] [+]  │ ← Active tab
@@ -990,6 +1060,7 @@ class ConflictDetector(BaseAgent):
 ```
 
 **Tab Features**:
+
 - **Drag to reorder** tabs
 - **Close tab**: X button (conversation remains in sidebar)
 - **Duplicate tab**: Right-click → "Duplicate in new tab"
@@ -999,6 +1070,7 @@ class ConflictDetector(BaseAgent):
 ### Quick Switching
 
 **Keyboard Shortcuts**:
+
 ```
 Cmd/Ctrl + 1-9 = Switch to conversation #1-9 in sidebar
 Cmd/Ctrl + Tab = Next conversation (recent order)
@@ -1008,6 +1080,7 @@ Cmd/Ctrl + W = Close current tab (keep conversation)
 ```
 
 **Recent Conversations Menu**:
+
 ```
 Press Cmd/Ctrl + R:
 
@@ -1027,6 +1100,7 @@ Press Cmd/Ctrl + R:
 **Use Case**: Compare responses side-by-side
 
 **Enable**:
+
 ```
 ┌─ Workspace Controls ────────────────────────────────┐
 │ ☑ Sync scroll (Conversations 1 & 2)                │
@@ -1034,6 +1108,7 @@ Press Cmd/Ctrl + R:
 ```
 
 **Behavior**:
+
 - Scroll in Conversation 1 → Conversation 2 scrolls in sync
 - Scroll position maintained relative to conversation length
 - Disable for independent scrolling
@@ -1041,6 +1116,7 @@ Press Cmd/Ctrl + R:
 ### Named Workspaces
 
 **Save Workspace**:
+
 ```
 ┌─ Save Workspace ────────────────────────────────────┐
 │ Workspace Name:                                     │
@@ -1056,6 +1132,7 @@ Press Cmd/Ctrl + R:
 ```
 
 **Load Workspace**:
+
 ```
 ┌─ Workspaces ▼ ──────────────────────────────────────┐
 │ ★ Sales Research Q2 (saved 2h ago)                  │
@@ -1069,6 +1146,7 @@ Press Cmd/Ctrl + R:
 ### Breadcrumb Navigation
 
 **Show User's Path** (for complex multi-conversation workflows):
+
 ```
 ┌─ Breadcrumb ────────────────────────────────────────┐
 │ Q2 Sales Analysis → Regional Deep Dive → North...  │
@@ -1079,6 +1157,7 @@ Press Cmd/Ctrl + R:
 ```
 
 **Benefits**:
+
 - User always knows where they are in conversation hierarchy
 - Quick navigation back to parent conversations
 - Visual reminder of branching structure
@@ -1090,16 +1169,19 @@ Press Cmd/Ctrl + R:
 ### Design Principles
 
 **P1: Simplified Conversation Management**
+
 - Mobile = 1 conversation at a time (no split-screen)
 - Conversation list optimized for small screens
 - Swipe gestures for common actions
 
 **P2: Bottom Sheet for Tree View**
+
 - Tree view as slide-up bottom sheet
 - Touch-friendly node sizes
 - Pinch-to-zoom on large trees
 
 **P3: Swipe Gestures**
+
 - Swipe right on message → Branch from here
 - Swipe left on conversation → Archive
 - Long-press message → Context menu
@@ -1107,6 +1189,7 @@ Press Cmd/Ctrl + R:
 ### Layout: Mobile Conversation List
 
 **Mobile Sidebar** (Full screen when open):
+
 ```
 ┌─────────────────────────────────┐
 │ ☰ Conversations      [+ New]    │
@@ -1130,6 +1213,7 @@ Press Cmd/Ctrl + R:
 ```
 
 **Swipe Actions on Conversation**:
+
 ```
 Swipe left on "HR Analytics":
 
@@ -1142,6 +1226,7 @@ Swipe left on "HR Analytics":
 ### Mobile Conversation View
 
 **Simplified Header**:
+
 ```
 ┌─────────────────────────────────┐
 │ ☰ Q2 Sales Analysis    ⋮       │ ← Menu (tree, settings, etc.)
@@ -1165,6 +1250,7 @@ Swipe left on "HR Analytics":
 ### Mobile Branching: Long-Press
 
 **Step 1: Long-press message**
+
 ```
 ┌─────────────────────────────────┐
 │ AI: Here's the Q2 breakdown...  │ ← User long-presses this
@@ -1182,6 +1268,7 @@ Swipe left on "HR Analytics":
 ```
 
 **Step 2: Tap "Branch from here"**
+
 ```
 ┌─────────────────────────────────┐
 │ Create Branch                   │
@@ -1202,6 +1289,7 @@ Swipe left on "HR Analytics":
 **Access**: Tap "🌲 Tree" icon in conversation header
 
 **Layout**:
+
 ```
 ┌─────────────────────────────────┐
 │ (Conversation view dimmed)      │
@@ -1226,6 +1314,7 @@ Swipe left on "HR Analytics":
 ```
 
 **Interactions**:
+
 - **Swipe down** = Close bottom sheet
 - **Tap node** = Open that conversation
 - **Long-press node** = Context menu (rename, delete, etc.)
@@ -1254,11 +1343,13 @@ Swipe from right edge:
 ### Mobile Quick Switching
 
 **Swipe Gestures**:
+
 - **Swipe right** (from left edge) = Open conversation list
 - **Swipe left** (from right edge) = Open tree view
 - **Swipe down** (from top) = Recent conversations menu
 
 **Recent Conversations** (Pull down from top):
+
 ```
 ┌─────────────────────────────────┐
 │ Recent Conversations            │
@@ -1275,6 +1366,7 @@ Swipe from right edge:
 ### Mobile Cross-Conversation References
 
 **Auto-Detection** (same as desktop):
+
 ```
 User types: "In conversation Q2 Sales, you showed..."
 
@@ -1285,6 +1377,7 @@ User types: "In conversation Q2 Sales, you showed..."
 ```
 
 **Tap reference link**:
+
 ```
 ┌─────────────────────────────────┐
 │ Q2 Sales Analysis (Preview)     │
@@ -1301,16 +1394,19 @@ User types: "In conversation Q2 Sales, you showed..."
 ### Mobile Performance Optimizations
 
 **Lazy Loading**:
+
 - Load only visible conversations in list
 - Load messages on-demand (scroll to load more)
 - Defer tree rendering until user opens tree view
 
 **Caching**:
+
 - Cache last 3 conversations in memory
 - Cache tree structure for fast rendering
 - Pre-fetch likely next conversations
 
 **Gesture Debouncing**:
+
 - Prevent accidental swipes (debounce 100ms)
 - Confirm destructive actions (archive, delete)
 
@@ -1321,6 +1417,7 @@ User types: "In conversation Q2 Sales, you showed..."
 ### Backend: Database Schema (DataFlow)
 
 **Conversation Model**:
+
 ```python
 
 df = kailash.DataFlow()
@@ -1362,6 +1459,7 @@ class ConversationContext:
 ```
 
 **Branch Relationship Queries** (using DataFlow auto-generated nodes):
+
 ```python
 # Get all branches of a conversation
 branches = await db.query_conversation(
@@ -1392,6 +1490,7 @@ def get_conversation_tree(conversation_id: str):
 ### Frontend: Flutter State Management
 
 **Conversation Provider**:
+
 ```dart
 import 'package:flutter/foundation.dart';
 
@@ -1467,6 +1566,7 @@ enum WorkspaceLayout { single, twoColumn, threeColumn, grid }
 ### Frontend: Tree Visualization Component
 
 **Tree View Widget**:
+
 ```dart
 class ConversationTreeView extends StatelessWidget {
   final ConversationTree tree;
@@ -1575,6 +1675,7 @@ class ConversationTreeView extends StatelessWidget {
 ### Backend: Cross-Conversation Reference Detection
 
 **Using Kailash Kaizen AI Agent**:
+
 ```python
 
 class ConversationReferenceSignature(Signature):
@@ -1636,11 +1737,14 @@ references = await detector.detect(
 ### API: Nexus Endpoints
 
 **Multi-Conversation Endpoints**:
+
 ```python
 
-nexus = kailash.Nexus()
+from kailash.nexus import NexusApp
 
-@nexus.endpoint("/conversations/{conversation_id}/branch")
+app = NexusApp()
+
+@app.endpoint("/conversations/{conversation_id}/branch")
 async def create_branch(
     conversation_id: str,
     branch_point_turn_id: str,
@@ -1739,12 +1843,14 @@ async def merge_conversation_context(
 ### Usability Testing Plan
 
 **Phase 1: Mockup Testing (Week 1)**
+
 - **Goal**: Validate core concepts (branching, tree view, cross-references)
 - **Method**: 5-second tests, first-click tests, navigation testing
 - **Participants**: 10 enterprise users (analysts, managers, knowledge workers)
 - **Deliverable**: Iteration on wireframes
 
 **Phase 2: Prototype Testing (Week 3)**
+
 - **Goal**: Test interactive prototype (Figma/Flutter prototype)
 - **Method**: Task-based usability testing
 - **Tasks**:
@@ -1760,6 +1866,7 @@ async def merge_conversation_context(
   - User satisfaction (SUS score: target >80)
 
 **Phase 3: Alpha Testing (Week 6)**
+
 - **Goal**: Test working implementation with real data
 - **Method**: In-app feedback, analytics tracking
 - **Participants**: 20 enterprise users (2-week usage period)
@@ -1772,17 +1879,20 @@ async def merge_conversation_context(
 ### Key Metrics to Track
 
 **Adoption Metrics**:
+
 - % of users who create at least 1 branch per week
 - Average branches per conversation
 - % of conversations with cross-references
 - Workspace usage (single vs multi-conversation)
 
 **Performance Metrics**:
+
 - Time to create branch (target: <30 seconds)
 - Time to navigate tree (target: <10 seconds)
 - Time to switch conversations (target: <2 seconds)
 
 **User Satisfaction**:
+
 - NASA TLX cognitive load score (target: <4/10)
 - SUS (System Usability Scale) score (target: >80)
 - NPS (Net Promoter Score) for multi-conversation feature
@@ -1790,6 +1900,7 @@ async def merge_conversation_context(
 ### Success Criteria
 
 **Launch Criteria** (Phase 1 MVP):
+
 - ✅ Turn-level branching works on desktop & mobile
 - ✅ Conversation tree visualization renders correctly
 - ✅ Cross-conversation references detected & linked
@@ -1797,6 +1908,7 @@ async def merge_conversation_context(
 - ✅ Performance benchmarks met (branching <30s, switching <2s)
 
 **Success Criteria** (6 months post-launch):
+
 - ✅ 60% of active users create at least 1 branch per week
 - ✅ 40% of conversations use cross-conversation references
 - ✅ SUS score >80 (excellent usability)
@@ -1808,26 +1920,31 @@ async def merge_conversation_context(
 ## Appendix: Research References
 
 ### Lark/Feishu
+
 - [Lark Suite Overview](https://www.larksuite.com/)
 - [ByteDance Work Culture with Lark](https://www.larksuite.com/en_us/blog/bytedance-work-tips)
 - Lark MCP Server (GitHub): [larksuite/lark-openapi-mcp](https://github.com/larksuite/lark-openapi-mcp)
 
 ### ChatGPT Branching (Sept 2025)
+
 - [ChatGPT Branching Feature Guide](https://www.geeky-gadgets.com/chatgpt-5-branching-feature-guide/)
 - [Branching Boosts Conversation Flexibility](https://www.webpronews.com/openais-chatgpt-branching-feature-boosts-conversation-flexibility/)
 - Performance impact: 28% reduction in task completion time, 4.6/5 satisfaction vs 3.2/5 for linear chats
 
 ### Lobe Chat
+
 - [Lobe Chat GitHub](https://github.com/lobehub/lobe-chat)
 - Features: Conversation forking, visual styles (chat bubble vs document mode), multi-modal support
 
 ### Git Branch Visualization
+
 - GitKraken: Drag-drop merging, visual branch graphs
 - Git Graph (VS Code): Commit visualization relative to each other
 - SourceTree: Detailed branch and commit graphs
 - GitUp: Real-time graph updates with perfect clarity
 
 ### Academic Research
+
 - ["Branching Conversations Enable Nonlinear Exploration"](https://medium.com/@nikivergis/ai-chat-tools-dont-match-how-we-actually-think-exploring-the-ux-of-branching-conversations-259107496afb) - Medium article analyzing why branching matters
 - ["How AI Is Transforming User Interfaces"](https://promptengineering.org/how-ai-is-transforming-user-interfaces-the-conversation/) - Conversational UI design patterns
 
@@ -1839,6 +1956,7 @@ async def merge_conversation_context(
 **Maintainer**: UI/UX Designer Agent
 
 **Related Documents**:
+
 - [Part 1: Enterprise AI Hub UI/UX Design](./enterprise-ai-hub-uiux-design.md)
 - [Part 2: Interactive Widget Response System](./widget-response-technical-spec.md)
 - [Part 3: UI/UX Design Principles](./uiux-design-principles.md)

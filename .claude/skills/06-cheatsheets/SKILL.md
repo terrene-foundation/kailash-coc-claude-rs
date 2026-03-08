@@ -10,6 +10,7 @@ Comprehensive collection of quick reference guides, common patterns, and best pr
 ## Overview
 
 This skill provides quick access to:
+
 - Common workflow patterns and anti-patterns
 - Node selection and usage guides
 - Production-ready patterns
@@ -20,6 +21,7 @@ This skill provides quick access to:
 ## Quick Reference Guides
 
 ### Essential Guides
+
 - **[kailash-quick-tips](kailash-quick-tips.md)** - Essential tips for Kailash development
 - **[common-mistakes-catalog](common-mistakes-catalog.md)** - Common pitfalls and solutions
 - **[node-selection-guide](node-selection-guide.md)** - Choosing the right nodes
@@ -27,6 +29,7 @@ This skill provides quick access to:
 - **[README](README.md)** - Cheatsheets overview
 
 ### Node References
+
 - **[admin-nodes-reference](admin-nodes-reference.md)** - Admin and management nodes
 - **[asyncsql-advanced](asyncsql-advanced.md)** - AsyncSQL node patterns
 - **[pythoncode-data-science](pythoncode-data-science.md)** - Data science with PythonCode
@@ -36,6 +39,7 @@ This skill provides quick access to:
 - **[query-routing](query-routing.md)** - Intelligent query routing
 
 ### Production & Enterprise
+
 - **[production-patterns](production-patterns.md)** - Production-ready patterns
 - **[production-readiness](production-readiness.md)** - Production checklist
 - **[performance-optimization](performance-optimization.md)** - Performance tuning
@@ -45,6 +49,7 @@ This skill provides quick access to:
 - **[multi-tenancy-patterns](multi-tenancy-patterns.md)** - Multi-tenant architectures
 
 ### Enterprise Patterns
+
 - **[distributed-transactions](distributed-transactions.md)** - Distributed transaction patterns
 - **[saga-pattern](saga-pattern.md)** - Saga pattern for long transactions
 - **[enterprise-mcp](enterprise-mcp.md)** - Enterprise MCP patterns
@@ -52,6 +57,7 @@ This skill provides quick access to:
 - **[mcp-resource-subscriptions](mcp-resource-subscriptions.md)** - MCP resource patterns
 
 ### Development Tools
+
 - **[custom-node-guide](custom-node-guide.md)** - Creating custom nodes
 - **[developer-tools](developer-tools.md)** - Developer tooling
 - **[node-initialization](node-initialization.md)** - Node initialization patterns
@@ -60,18 +66,21 @@ This skill provides quick access to:
 - **[visualization](visualization.md)** - Workflow visualization
 
 ### Workflow Management
+
 - **[workflow-composition](workflow-composition.md)** - Composing complex workflows
 - **[workflow-design-process](workflow-design-process.md)** - Design process guide
 - **[workflow-api-deployment](workflow-api-deployment.md)** - Deploying workflows as APIs
 - **[workflow-export](workflow-export.md)** - Export and import patterns
 
 ### Integration Patterns
+
 - **[data-integration](data-integration.md)** - Data integration patterns
 - **[integration-mastery](integration-mastery.md)** - Advanced integration techniques
 
 ## Quick Patterns
 
 ### Basic Workflow
+
 ```python
 import kailash
 
@@ -83,6 +92,7 @@ result = rt.execute(builder.build(reg))
 ```
 
 ### Common Node Selection
+
 ```python
 # Data processing
 builder.add_node("PythonCode", "transform", {"code": "..."})
@@ -91,29 +101,31 @@ builder.add_node("PythonCode", "transform", {"code": "..."})
 builder.add_node("HTTPRequest", "api", {"url": "...", "method": "GET"})
 
 # AI/LLM
-builder.add_node("LLMNode", "chat", {"model": "gpt-4", "prompt": "..."})
+builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), "prompt": "..."})
 ```
 
 ### Cyclic Pattern
+
 ```python
 builder.add_node("LoopNode", "loop", {"max_iterations": 5})
 builder.add_node("ProcessNode", "process", {})
-builder.add_connection("loop", "item", "process", "input")
-builder.add_connection("process", "output", "loop", "feedback")
+builder.connect("loop", "item", "process", "input")
+builder.connect("process", "output", "loop", "feedback")
 ```
 
 ## CRITICAL Gotchas
 
-| Rule | Why |
-|------|-----|
-| ❌ NEVER use raw SQL | Use DataFlow instead |
-| ✅ ALWAYS call `.build()` | Before `rt.execute()` |
-| ❌ NEVER use relative imports | Use absolute imports |
-| ❌ NEVER mock in Tier 2-3 | Use real infrastructure |
+| Rule                          | Why                     |
+| ----------------------------- | ----------------------- |
+| ❌ NEVER use raw SQL          | Use DataFlow instead    |
+| ✅ ALWAYS call `.build()`     | Before `rt.execute()`   |
+| ❌ NEVER use relative imports | Use absolute imports    |
+| ❌ NEVER mock in Tier 2-3     | Use real infrastructure |
 
 ## When to Use This Skill
 
 Use this skill when you need:
+
 - Quick reference for common patterns
 - Solution to a specific problem
 - Best practices for production
@@ -134,6 +146,7 @@ Use this skill when you need:
 ## Support
 
 For cheatsheet-related questions, invoke:
+
 - `pattern-expert` - Pattern selection and usage
 - `sdk-navigator` - Find specific patterns in documentation
 - `framework-advisor` - Choose appropriate patterns for your use case

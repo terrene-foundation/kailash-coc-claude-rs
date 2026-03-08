@@ -1,12 +1,12 @@
-# DataFlow Dynamic Updates with PythonCodeNode
+# DataFlow Dynamic Updates with EmbeddedPythonNode
 
-**Multi-output PythonCodeNode** enables natural, intuitive dynamic update patterns.
+**Multi-output EmbeddedPythonNode** enables natural, intuitive dynamic update patterns.
 
 ## TL;DR
 
 ```python
 # NEW: Multi-output pattern
-builder.add_node("PythonCodeNode", "prepare", {
+builder.add_node("EmbeddedPythonNode", "prepare", {
     "code": """
 filter_data = {"id": summary_id}
 summary_markdown = updated_text
@@ -15,14 +15,14 @@ edited_by_user = True
 })
 
 builder.add_node("SummaryUpdateNode", "update", {})
-builder.add_connection("prepare", "filter_data", "update", "filter")
-builder.add_connection("prepare", "summary_markdown", "update", "summary_markdown")
-builder.add_connection("prepare", "edited_by_user", "update", "edited_by_user")
+builder.connect("prepare", "filter_data", "update", "filter")
+builder.connect("prepare", "summary_markdown", "update", "summary_markdown")
+builder.connect("prepare", "edited_by_user", "update", "edited_by_user")
 ```
 
 ## What Changed
 
-**PythonCodeNode** now supports exporting multiple variables without nesting in `result`.
+**EmbeddedPythonNode** now supports exporting multiple variables without nesting in `result`.
 
 ### Before (Legacy Pattern)
 ```python
@@ -59,7 +59,7 @@ class ConversationSummary:
 # Dynamic update workflow
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("PythonCodeNode", "prepare_update", {
+builder.add_node("EmbeddedPythonNode", "prepare_update", {
     "code": """
 import json
 
@@ -76,10 +76,10 @@ edited_by_user = True
 builder.add_node("ConversationSummaryUpdateNode", "update", {})
 
 # Clean, direct connections
-builder.add_connection("prepare_update", "filter_data", "update", "filter")
-builder.add_connection("prepare_update", "summary_markdown", "update", "summary_markdown")
-builder.add_connection("prepare_update", "topics_json", "update", "topics_json")
-builder.add_connection("prepare_update", "edited_by_user", "update", "edited_by_user")
+builder.connect("prepare_update", "filter_data", "update", "filter")
+builder.connect("prepare_update", "summary_markdown", "update", "summary_markdown")
+builder.connect("prepare_update", "topics_json", "update", "topics_json")
+builder.connect("prepare_update", "edited_by_user", "update", "edited_by_user")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg), {
@@ -95,8 +95,8 @@ Legacy patterns still work 100%:
 ```python
 # This still works fine
 result = {"filter": {...}, "fields": {...}}
-builder.add_connection("prepare", "result.filter", "update", "filter")
-builder.add_connection("prepare", "result.fields", "update", "fields")
+builder.connect("prepare", "result.filter", "update", "filter")
+builder.connect("prepare", "result.fields", "update", "fields")
 ```
 
 ## Benefits

@@ -103,7 +103,7 @@ For detailed implementation after framework selection, users should manually inv
 
 **Key Features:**
 
-- Zero-config initialization with `kailash.Nexus()`
+- Zero-config initialization with `NexusApp()`
 - Automatic workflow registration across API/CLI/MCP
 - Progressive enterprise enhancement
 - Built-in session management and authentication
@@ -178,7 +178,7 @@ Complete enterprise solution with database, platform, and AI capabilities:
 
 ### AI Integration Requirements
 
-1. **Simple AI tasks** → Core SDK + LLMAgentNode
+1. **Simple AI tasks** → Core SDK + LLMNode
 2. **Tool-using agents** → MCP integration (real execution)
 3. **Multi-agent coordination** → A2A agent patterns
 4. **Production AI** → Enterprise MCP features

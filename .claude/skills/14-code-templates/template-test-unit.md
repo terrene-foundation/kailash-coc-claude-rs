@@ -37,7 +37,7 @@ class Test[ComponentName]:
         # Create simple workflow
         builder = kailash.WorkflowBuilder()
 
-        builder.add_node("PythonCodeNode", "test_node", {
+        builder.add_node("EmbeddedPythonNode", "test_node", {
             "code": "result = {'value': 42, 'status': 'success'}"
         })
 
@@ -55,7 +55,7 @@ class Test[ComponentName]:
         """Test error handling in [component]."""
         builder = kailash.WorkflowBuilder()
 
-        builder.add_node("PythonCodeNode", "test_error", {
+        builder.add_node("EmbeddedPythonNode", "test_error", {
             "code": """
 if not input_data:
     result = {'error': 'No data provided', 'status': 'error'}
@@ -76,7 +76,7 @@ else:
         """Test edge cases and boundary conditions."""
         builder = kailash.WorkflowBuilder()
 
-        builder.add_node("PythonCodeNode", "edge_test", {
+        builder.add_node("EmbeddedPythonNode", "edge_test", {
             "code": """
 # Test empty list
 if not data:
@@ -98,53 +98,55 @@ else:
         assert result["results"]["edge_test"]["result"]["empty"] is True
 ```
 
-## Node-Specific Unit Test Template
+## Custom Node (register_callback) Unit Test Template
 
 ```python
-"""Unit tests for CustomNode"""
+"""Unit tests for custom node registered via register_callback()"""
 
 import pytest
+import kailash
 
 class TestCustomNode:
-    """Unit tests for CustomNode."""
+    """Unit tests for custom node handler."""
 
-    def test_node_initialization(self):
-        """Test node initializes correctly."""
+    def test_handler_direct_invocation(self):
+        """Test handler function directly with valid inputs."""
+        def my_handler(inputs):
+            return {"result": inputs.get("data", "").upper()}
 
-        node = CustomNode()
-        assert node is not None
-        assert hasattr(node, 'execute')
+        result = my_handler({"data": "hello"})
+        assert result["result"] == "HELLO"
 
-    def test_parameter_declaration(self):
-        """Test node declares parameters correctly."""
+    def test_handler_missing_input(self):
+        """Test handler handles missing inputs gracefully."""
+        def my_handler(inputs):
+            data = inputs.get("data")
+            if not data:
+                raise ValueError("data is required")
+            return {"result": data.upper()}
 
-        node = CustomNode()
-        params = node.get_parameters()
+        with pytest.raises(ValueError):
+            my_handler({})
 
-        # Verify required parameters are declared
-        assert "required_param" in params
-        assert params["required_param"].required is True
+    def test_register_callback_and_execute(self):
+        """Test custom node registration and workflow execution."""
+        def my_handler(inputs):
+            return {"result": inputs.get("value", 0) * 2}
 
-    def test_node_execution(self):
-        """Test node executes with valid inputs."""
-
-        node = CustomNode()
-        result = node.execute(
-            required_param="value",
-            optional_param=123
+        reg = kailash.NodeRegistry()
+        reg.register_callback(
+            "DoubleNode", my_handler,
+            ["value"],     # input parameter names
+            ["result"]     # output parameter names
         )
 
-        assert result is not None
-        assert "output_field" in result
+        builder = kailash.WorkflowBuilder()
+        builder.add_node("DoubleNode", "doubler", {"value": 21})
 
-    def test_node_validation(self):
-        """Test node validates inputs correctly."""
+        rt = kailash.Runtime(reg)
+        result = rt.execute(builder.build(reg))
 
-        node = CustomNode()
-
-        # Should raise error for invalid input
-        with pytest.raises(ValueError):
-            node.execute(required_param=None)
+        assert result["results"]["doubler"]["result"] == 42
 ```
 
 ## Mocking External Services (Allowed in Tier 1)
@@ -166,7 +168,7 @@ class TestWithMocking:
 
         # Test your workflow
         builder = kailash.WorkflowBuilder()
-        builder.add_node("PythonCodeNode", "api_handler", {
+        builder.add_node("EmbeddedPythonNode", "api_handler", {
             "code": """
 # This would call external_api_client.request in real code
 result = {'processed': True, 'value': 100}
@@ -196,17 +198,20 @@ result = {'processed': True, 'value': 100}
 ## When to Escalate to Subagent
 
 Use `testing-specialist` subagent when:
+
 - Designing comprehensive test strategy
 - Custom test architecture needed
 - CI/CD integration planning
 
 Use `tdd-implementer` when:
+
 - Implementing test-first development
 - Need complete test coverage plan
 
 ## Documentation References
 
 ### Primary Sources
+
 - **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 146-176)](../../../../.claude/agents/testing-specialist.md#L146-L176)
 
 <!-- Trigger Keywords: unit test template, Tier 1 test, create unit test, test structure, unit test example, unit test boilerplate, pytest unit test, fast test template -->

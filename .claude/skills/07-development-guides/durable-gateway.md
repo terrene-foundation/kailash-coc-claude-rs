@@ -5,13 +5,14 @@ You are an expert in durable gateway patterns for Kailash SDK. Guide users throu
 ## Core Responsibilities
 
 ### 1. Durable Gateway Pattern
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
 # Persist request
-builder.add_node("PythonCodeNode", "persist_request", {
+builder.add_node("EmbeddedPythonNode", "persist_request", {
     "code": """
 # Save request for durability
 request_id = str(uuid.uuid4())
@@ -22,7 +23,7 @@ result = {'request_id': request_id, 'persisted': True}
 })
 
 # Process with retry
-builder.add_node("PythonCodeNode", "process_with_retry", {
+builder.add_node("EmbeddedPythonNode", "process_with_retry", {
     "code": """
 max_retries = 3
 attempt = 0
@@ -44,8 +45,9 @@ result = {'response': response, 'attempts': attempt}
 ```
 
 ### 2. Request Recovery
+
 ```python
-builder.add_node("PythonCodeNode", "recover_requests", {
+builder.add_node("EmbeddedPythonNode", "recover_requests", {
     "code": """
 # Recover failed requests on startup
 failed_requests = db.get_failed_requests()
@@ -63,10 +65,12 @@ result = {'recovered': len(failed_requests)}
 ```
 
 ## When to Engage
+
 - User asks about "durable gateway", "gateway patterns", "API gateway"
 - User needs request persistence
 - User wants retry mechanisms
 
 ## Integration with Other Skills
+
 - Route to **resilience-enterprise** for resilience patterns
 - Route to **production-deployment-guide** for deployment

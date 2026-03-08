@@ -16,7 +16,7 @@ Configuration patterns for integrating DataFlow with Nexus for multi-channel API
 ## Quick Reference
 
 - `auto_migrate=True` (default) works in Docker
-- Use `auto_discovery=False` in Nexus to prevent blocking during startup
+- Use `NexusApp()` from `kailash.nexus` for Nexus platform
 - **Integration**: DataFlow nodes must be manually registered as workflows with Nexus
 
 ## Core Pattern
@@ -28,7 +28,7 @@ reg = kailash.NodeRegistry()
 
 # Step 1: Initialize DataFlow
 df = kailash.DataFlow(
-    database_url="postgresql://user:pass@localhost/db",
+    "postgresql://user:pass@localhost/db",
     auto_migrate=True,  # DEFAULT - works in Docker
 )
 
@@ -39,12 +39,10 @@ class Product:
     price: float
     active: bool = True
 
-# Step 3: Create Nexus platform
-nexus = kailash.Nexus(
-    api_port=8000,
-    mcp_port=3001,
-    auto_discovery=False,  # CRITICAL: Prevents blocking during startup
-)
+# Step 3: Create NexusApp
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(NexusConfig(port=8000))
 
 # Step 4: Register DataFlow workflows with Nexus
 # DataFlow auto-generates 11 nodes per model - register them as workflows
@@ -53,41 +51,41 @@ builder.add_node("ProductCreateNode", "create", {
     "name": "${input.name}",
     "price": "${input.price}"
 })
-nexus.register("create_product", builder.build(reg))
+app.register("create_product", builder.build(reg))
 
 # Step 5: Start the platform
-nexus.start()  # Blocks until Ctrl+C
+app.start()  # Blocks until Ctrl+C
 ```
 
-## Nexus Constructor Parameters
+## NexusApp & NexusConfig Parameters
 
 ```python
-app = kailash.Nexus(
-    api_port=8000,              # REST API port (default: 8000)
-    mcp_port=3001,              # MCP server port (default: 3001)
-    enable_auth=None,           # Authentication (auto-enabled in production)
-    enable_monitoring=False,    # Metrics collection
-    rate_limit=100,             # Requests per minute (None to disable)
-    auto_discovery=False,       # Workflow auto-discovery (keep False!)
-    enable_http_transport=False,# HTTP transport for MCP
-    enable_sse_transport=False, # SSE transport for MCP
-    enable_discovery=False,     # MCP service discovery
-    enable_durability=True,     # Durability/caching
+from kailash.nexus import NexusApp, NexusConfig
+
+config = NexusConfig(
+    port=8000,                  # REST API port (default: 8000)
+    host="0.0.0.0",             # Host to bind to
+    cli_name="my-app",          # CLI command name
+    enable_api=True,            # Enable API channel
+    enable_cli=True,            # Enable CLI channel
+    enable_mcp=True,            # Enable MCP channel
 )
+app = NexusApp(config)
 ```
 
-**NOTE**: The following parameters do NOT exist in Nexus:
+**NOTE**: The following parameters do NOT exist in NexusApp/NexusConfig:
 
 - `title`
-- `enable_api`, `enable_cli`, `enable_mcp`
 - `dataflow_config`
 - `auth_config`
+- `auto_discovery`
+- `api_port`, `mcp_port` (use `port` in NexusConfig instead)
 
 ## DataFlow Configuration
 
 ```python
 db = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=True,       # DEFAULT - works in Docker
     pool_size=3,             # Reduced: PgBouncer handles pooling
     pool_max_overflow=2,
@@ -104,25 +102,27 @@ db = kailash.DataFlow(
 
 ## Common Mistakes
 
-### Mistake 1: Using auto_discovery=True
+### Mistake 1: Using unsupported parameters
 
 ```python
-# WRONG - auto_discovery=True causes blocking
-app = kailash.Nexus(auto_discovery=True)  # BLOCKS! Scans filesystem
+# WRONG - auto_discovery does not exist in NexusApp
+app = NexusApp(auto_discovery=True)  # THIS WILL FAIL
 ```
 
 **Fix:**
 
 ```python
 # CORRECT
-app = kailash.Nexus(auto_discovery=False)
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 ```
 
 ### Mistake 2: Expecting dataflow_config Parameter
 
 ```python
-# WRONG - dataflow_config does NOT exist in Nexus!
-app = kailash.Nexus(
+# WRONG - dataflow_config does NOT exist in NexusApp!
+app = NexusApp(
     dataflow_config={"integration": db}  # THIS WILL FAIL
 )
 ```
@@ -131,7 +131,9 @@ app = kailash.Nexus(
 
 ```python
 # CORRECT - Manual workflow registration
-app = kailash.Nexus(auto_discovery=False)
+from kailash.nexus import NexusApp
+
+app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("ProductListNode", "list", {"filter": "${input.filter}"})
@@ -161,7 +163,7 @@ reg = kailash.NodeRegistry()
 
 # Initialize DataFlow
 df = kailash.DataFlow(
-    database_url="postgresql://user:pass@localhost/ecommerce",
+    "postgresql://user:pass@localhost/ecommerce",
     auto_migrate=True,
 )
 
@@ -174,36 +176,32 @@ class Product:
     stock: int
     active: bool = True
 
-# Create Nexus platform
-nexus = kailash.Nexus(
-    api_port=8000,
-    mcp_port=3001,
-    auto_discovery=False,
-    enable_auth=True,
-    rate_limit=100,
-)
+# Create NexusApp
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(NexusConfig(port=8000))
 
 # Register product operations as workflows
 for node_name in ["ProductCreateNode", "ProductListNode", "ProductReadNode"]:
     builder = kailash.WorkflowBuilder()
     builder.add_node(node_name, "op", {"input": "${input}"})
-    nexus.register(node_name.lower(), builder.build(reg))
+    app.register(node_name.lower(), builder.build(reg))
 
 # Start platform
-nexus.start()
+app.start()
 ```
 
 ## Troubleshooting
 
-| Issue                       | Cause                 | Solution                           |
-| --------------------------- | --------------------- | ---------------------------------- |
-| Nexus hangs on startup      | `auto_discovery=True` | Set `auto_discovery=False`         |
-| Workflow not found          | Not registered        | Use `app.register(name, workflow)` |
-| DataFlow tables not created | `auto_migrate=False`  | Use `auto_migrate=True` (default)  |
+| Issue                       | Cause                  | Solution                           |
+| --------------------------- | ---------------------- | ---------------------------------- |
+| Nexus hangs on startup      | Unsupported parameters | Use `NexusApp()` with no args      |
+| Workflow not found          | Not registered         | Use `app.register(name, workflow)` |
+| DataFlow tables not created | `auto_migrate=False`   | Use `auto_migrate=True` (default)  |
 
 ## Quick Tips
 
 - Use `auto_migrate=True` (default) - works in Docker
-- ALWAYS use `auto_discovery=False` in Nexus to prevent blocking
+- Use `NexusApp()` from `kailash.nexus` for Nexus platform
 - Register DataFlow workflows manually with `app.register()`
 - Test startup time - should be <2 seconds

@@ -16,6 +16,7 @@ Patterns for automated file processing, transformation, and batch operations.
 ## Quick Reference
 
 File processing patterns:
+
 - **Batch file processing** - Process multiple files
 - **File transformation** - Convert formats
 - **Document extraction** - PDF, DOCX to text
@@ -47,15 +48,15 @@ builder.add_node("MergeNode", "merge_results", {
 })
 
 # 4. Write consolidated output
-builder.add_node("CSVWriterNode", "write_output", {
+builder.add_node("FileWriterNode", "write_output", {
     "file_path": "data/output/consolidated.csv",
     "data": "{{merge_results.combined}}",
     "headers": ["id", "name", "value"]
 })
 
-builder.add_connection("list_files", "files", "process_files", "input")
-builder.add_connection("process_files", "results", "merge_results", "inputs")
-builder.add_connection("merge_results", "combined", "write_output", "data")
+builder.connect("list_files", "files", "process_files", "input")
+builder.connect("process_files", "results", "merge_results", "inputs")
+builder.connect("merge_results", "combined", "write_output", "data")
 
 reg = kailash.NodeRegistry()
 
@@ -93,12 +94,12 @@ builder.add_node("TransformNode", "extract_text", {
 # 4. Analyze with AI
 builder.add_node("LLMNode", "analyze_document", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "Summarize this document: {{extract_text.text}}"
 })
 
 # 5. Save results
-builder.add_node("JSONWriterNode", "save_results", {
+builder.add_node("JSONTransformNode", "save_results", {
     "file_path": "output/{{input.pdf_name}}_analysis.json",
     "data": {
         "metadata": "{{extract_pdf.metadata}}",
@@ -108,10 +109,10 @@ builder.add_node("JSONWriterNode", "save_results", {
     "indent": 2
 })
 
-builder.add_connection("extract_pdf", "content", "extract_tables", "input")
-builder.add_connection("extract_pdf", "content", "extract_text", "input")
-builder.add_connection("extract_text", "text", "analyze_document", "prompt")
-builder.add_connection("analyze_document", "response", "save_results", "data")
+builder.connect("extract_pdf", "content", "extract_tables", "input")
+builder.connect("extract_pdf", "content", "extract_text", "input")
+builder.connect("extract_text", "text", "analyze_document", "prompt")
+builder.connect("analyze_document", "response", "save_results", "data")
 ```
 
 ## Pattern 3: File Format Conversion
@@ -132,11 +133,11 @@ builder.add_node("ConditionalNode", "detect_format", {
 })
 
 # 2. Read different formats
-builder.add_node("CSVReaderNode", "read_csv", {
+builder.add_node("CSVProcessorNode", "read_csv", {
     "file_path": "{{input.file_path}}"
 })
 
-builder.add_node("JSONReaderNode", "read_json", {
+builder.add_node("JSONTransformNode", "read_json", {
     "file_path": "{{input.file_path}}"
 })
 
@@ -160,8 +161,8 @@ builder.add_node("ConditionalNode", "write_format", {
     }
 })
 
-builder.add_connection("detect_format", "result", "normalize", "input")
-builder.add_connection("normalize", "data", "write_format", "input")
+builder.connect("detect_format", "result", "normalize", "input")
+builder.connect("normalize", "data", "write_format", "input")
 ```
 
 ## Pattern 4: Watch Folder Automation
@@ -203,9 +204,9 @@ builder.add_node("FileMoveNode", "move_failed", {
     "destination": "data/failed/{{watch_folder.filename}}"
 })
 
-builder.add_connection("watch_folder", "file_path", "validate", "file_path")
-builder.add_connection("validate", "file_path", "process", "file_path")
-builder.add_connection("process", "result", "move_file", "source")
+builder.connect("watch_folder", "file_path", "validate", "file_path")
+builder.connect("validate", "file_path", "process", "file_path")
+builder.connect("process", "result", "move_file", "source")
 # Error handling connection
 workflow.add_error_handler("process", "move_failed")
 ```

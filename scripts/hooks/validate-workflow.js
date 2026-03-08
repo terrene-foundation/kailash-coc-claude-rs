@@ -68,13 +68,15 @@ function validateFile(data) {
 
   const rustExts = [".rs"];
   const jsExts = [".ts", ".tsx", ".js", ".jsx"];
+  const pyExts = [".py"];
   const configExts = [".yaml", ".yml", ".json", ".env", ".sh", ".toml"];
 
   const isRust = rustExts.includes(ext);
   const isJs = jsExts.includes(ext);
+  const isPython = pyExts.includes(ext);
   const isConfig = configExts.includes(ext);
 
-  if (!isRust && !isJs && !isConfig) {
+  if (!isRust && !isJs && !isPython && !isConfig) {
     return {
       continue: true,
       exitCode: 0,
@@ -101,8 +103,13 @@ function validateFile(data) {
     checkRustPatterns(content, filePath, messages);
   }
 
+  // -- Python-specific checks (.py only) -----------------------------------
+  if (isPython) {
+    checkPythonPatterns(content, filePath, messages);
+  }
+
   // -- Hardcoded model detection (code files only -- configs may list models intentionally)
-  if (isRust || isJs) {
+  if (isRust || isJs || isPython) {
     const modelResult = checkHardcodedModels(content, filePath, env, isRust);
     messages.push(...modelResult.messages);
     if (modelResult.block) shouldBlock = true;
@@ -112,7 +119,7 @@ function validateFile(data) {
   checkHardcodedKeys(content, filePath, messages);
 
   // -- Stub/TODO/simulation detection (code files only) -------------------
-  if (isRust || isJs) {
+  if (isRust || isJs || isPython) {
     checkStubsAndSimulations(content, filePath, messages);
   }
 
@@ -247,6 +254,95 @@ function checkRustPatterns(content, filePath, messages) {
     messages.push(
       "CRITICAL: Possible hardcoded secret in Rust code. Use std::env::var() or dotenvy.",
     );
+  }
+}
+
+// =====================================================================
+// Kailash SDK pattern checks (Python only)
+// =====================================================================
+
+function checkPythonPatterns(content, filePath, messages) {
+  // Anti-pattern: workflow.execute(runtime) -- wrong direction
+  if (/workflow\s*\.\s*execute\s*\(\s*runtime/.test(content)) {
+    messages.push(
+      "WARNING: workflow.execute(runtime) found. Use runtime.execute(workflow).",
+    );
+  }
+
+  // Anti-pattern: DataFlowInspector() constructor (static methods only)
+  if (/DataFlowInspector\s*\(/.test(content)) {
+    messages.push(
+      "WARNING: DataFlowInspector has NO constructor. Use static methods: DataFlowInspector.tables(df), .table_info(df, table), etc.",
+    );
+  }
+
+  // Anti-pattern: MigrationManager(config) -- no-arg constructor
+  if (/MigrationManager\s*\([^)]+\)/.test(content)) {
+    messages.push(
+      "WARNING: MigrationManager() takes no arguments. Use MigrationManager() then mgr.apply(migration, dataflow).",
+    );
+  }
+
+  // Anti-pattern: FieldType.Text (should be FieldType.text())
+  if (
+    /FieldType\.(?:Text|Integer|Real|Boolean|Float|Json|Timestamp|Uuid)\b(?!\()/.test(
+      content,
+    )
+  ) {
+    messages.push(
+      "WARNING: FieldType uses method constructors: FieldType.text(), not FieldType.Text.",
+    );
+  }
+
+  // Anti-pattern: callback= in ToolDef (should be handler=)
+  if (/ToolDef\s*\([^)]*callback\s*=/.test(content)) {
+    messages.push("WARNING: ToolDef uses handler=fn, NOT callback=fn.");
+  }
+
+  // Stub/TODO detection in non-test Python files
+  if (!isTestFile(filePath)) {
+    if (/\braise\s+NotImplementedError\b/.test(content)) {
+      messages.push(
+        "WARNING: raise NotImplementedError found. Implement the method fully.",
+      );
+    }
+    if (/\bpass\s*#\s*(?:stub|placeholder|todo)/i.test(content)) {
+      messages.push("WARNING: Stub/placeholder pass found. Implement fully.");
+    }
+  }
+
+  // SQL injection risk: f-string with SQL
+  if (/f["'](?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(content)) {
+    messages.push(
+      "CRITICAL: f-string with SQL detected -- potential SQL injection. Use parameterized queries.",
+    );
+  }
+
+  // Mocking in integration/e2e Python tests
+  if (isTestFile(filePath)) {
+    const isIntegrationTest =
+      filePath.includes("/integration/") ||
+      filePath.includes("/e2e/") ||
+      filePath.includes("_integration") ||
+      filePath.includes("_e2e");
+
+    if (isIntegrationTest) {
+      const mockPatterns = [
+        [/from\s+unittest\.mock\s+import/, "unittest.mock import"],
+        [/from\s+unittest\s+import\s+mock/, "unittest mock import"],
+        [/@patch\b/, "@patch decorator"],
+        [/\bMagicMock\s*\(/, "MagicMock()"],
+        [/\bMock\s*\(/, "Mock()"],
+        [/mocker\.patch/, "mocker.patch"],
+      ];
+      for (const [pat, name] of mockPatterns) {
+        if (pat.test(content)) {
+          messages.push(
+            `WARNING: ${name} detected in integration/e2e test. NO MOCKING in Tier 2-3 tests.`,
+          );
+        }
+      }
+    }
   }
 }
 

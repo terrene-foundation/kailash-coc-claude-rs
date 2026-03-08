@@ -147,12 +147,12 @@ await progress.complete_progress(token)
 
 ```python
 # Default: Real MCP execution
-builder.add_node("LLMAgentNode", "agent", {
+builder.add_node("LLMNode", "agent", {
     "mcp_servers": [config]  # Real execution by default
 })
 
 # Explicit mock for testing only
-builder.add_node("LLMAgentNode", "agent", {
+builder.add_node("LLMNode", "agent", {
     "mcp_servers": [config],
     "use_real_mcp": False  # Only for testing
 })

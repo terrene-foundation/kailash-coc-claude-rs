@@ -19,28 +19,30 @@ Complete reference for file I/O and data processing nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available data nodes: CSVReaderNode, CSVWriterNode,
-#   JSONReaderNode, JSONWriterNode, TextReaderNode, ExcelReaderNode,
+# Available data nodes: CSVProcessorNode, FileWriterNode,
+#   JSONTransformNode, JSONTransformNode, TextReaderNode, ExcelReaderNode,
 #   DocumentProcessorNode (Multi-format support)
 ```
 
 ## CSV Nodes
 
-### CSVReaderNode
+### CSVProcessorNode
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVReaderNode", "reader", {
+builder.add_node("CSVProcessorNode", "reader", {
     "file_path": "data/users.csv",
     "delimiter": ",",
     "encoding": "utf-8"
 })
 ```
 
-### CSVWriterNode
+### FileWriterNode
+
 ```python
-builder.add_node("CSVWriterNode", "writer", {
+builder.add_node("FileWriterNode", "writer", {
     "file_path": "output/results.csv",
     "data": [],  # From previous node
     "headers": ["id", "name", "email"]
@@ -49,17 +51,19 @@ builder.add_node("CSVWriterNode", "writer", {
 
 ## JSON Nodes
 
-### JSONReaderNode
+### JSONTransformNode
+
 ```python
-builder.add_node("JSONReaderNode", "json_reader", {
+builder.add_node("JSONTransformNode", "json_reader", {
     "file_path": "config/settings.json",
     "encoding": "utf-8"
 })
 ```
 
-### JSONWriterNode
+### JSONTransformNode
+
 ```python
-builder.add_node("JSONWriterNode", "json_writer", {
+builder.add_node("JSONTransformNode", "json_writer", {
     "file_path": "output/data.json",
     "data": {},  # From previous node
     "indent": 2
@@ -69,6 +73,7 @@ builder.add_node("JSONWriterNode", "json_writer", {
 ## Document Processing
 
 ### DocumentProcessorNode ⭐
+
 ```python
 # Multi-format document processing (PDF, DOCX, MD, HTML, RTF, TXT)
 builder.add_node("DocumentProcessorNode", "doc_processor", {
@@ -84,6 +89,7 @@ builder.add_node("DocumentProcessorNode", "doc_processor", {
 ## Text Nodes
 
 ### TextReaderNode
+
 ```python
 builder.add_node("TextReaderNode", "text_reader", {
     "file_path": "data/content.txt",
@@ -94,6 +100,7 @@ builder.add_node("TextReaderNode", "text_reader", {
 ## Excel Nodes
 
 ### ExcelReaderNode
+
 ```python
 builder.add_node("ExcelReaderNode", "excel_reader", {
     "file_path": "data/sales.xlsx",
@@ -107,4 +114,4 @@ builder.add_node("ExcelReaderNode", "excel_reader", {
 - **Transform Nodes**: [`nodes-transform-reference`](nodes-transform-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: CSV node, JSON node, Excel, data nodes, file reader, data I/O, CSVReaderNode, JSONReaderNode -->
+<!-- Trigger Keywords: CSV node, JSON node, Excel, data nodes, file reader, data I/O, CSVProcessorNode, JSONTransformNode -->

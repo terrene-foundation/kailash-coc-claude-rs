@@ -26,13 +26,13 @@ import kailash
 
 # Development instance
 db_dev = kailash.DataFlow(
-    database_url="sqlite:///dev.db",
+    "sqlite:///dev.db",
     auto_migrate=True,  # Default - auto-creates and migrates tables
 )
 
 # Production instance (existing database, no schema changes)
 db_prod = kailash.DataFlow(
-    database_url="postgresql://user:pass@localhost/prod",
+    "postgresql://user:pass@localhost/prod",
     auto_migrate=False,  # Don't modify schema
 )
 

@@ -23,18 +23,22 @@ Nexus transforms workflows into a complete platform with:
 ## Quick Start
 
 ```python
-import kailash
+from kailash.nexus import NexusApp, NexusConfig
 
-# Define workflow
-workflow = create_my_workflow()
+# Create app with custom port (or use defaults: host=0.0.0.0, port=3000)
+app = NexusApp(config=NexusConfig(port=8000))
 
-# Deploy to all channels at once
-nexus = kailash.Nexus([workflow])
-nexus.run(port=8000)
+# Register handler - deployed to all channels at once
+@app.handler(name="greet", description="Greet a user")
+async def greet(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
+
+# Start the server (no arguments - host/port come from NexusConfig)
+app.start()
 
 # Now available via:
-# - HTTP API: POST http://localhost:8000/api/workflow/{workflow_id}
-# - CLI: nexus run {workflow_id} --input '{"key": "value"}'
+# - HTTP API: POST http://localhost:8000/api/greet
+# - CLI: nexus run greet --name "World"
 # - MCP: Connect via MCP client (Claude Desktop, etc.)
 ```
 
@@ -135,76 +139,97 @@ Use Nexus when you need to:
 
 ## Integration Patterns
 
-### With DataFlow (Auto CRUD API)
+### With DataFlow (Database-Backed Handlers)
 
 ```python
+from kailash.nexus import NexusApp, NexusConfig
 import kailash
 
-# Define models
-df = kailash.DataFlow(...)
+# Initialize DataFlow
+df = kailash.DataFlow("postgresql://user:pass@localhost/db")
+
 @df.model
 class User:
     id: str
     name: str
 
-# Auto-generates CRUD endpoints for all models
-nexus = kailash.Nexus(df.get_workflows())
-nexus.run()
+# Create Nexus app and register database-backed handlers
+app = NexusApp(config=NexusConfig(port=8000))
 
-# GET  /api/User/list
-# POST /api/User/create
-# GET  /api/User/read/{id}
-# PUT  /api/User/update/{id}
-# DELETE /api/User/delete/{id}
+@app.handler(name="create_user", description="Create a new user")
+async def create_user(name: str) -> dict:
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("User_Create", "create", {"data": {"name": name}})
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["create"]["result"]
+
+app.start()
 ```
 
 ### With Kaizen (Agent Platform)
 
 ```python
-import kailash
+from kailash.nexus import NexusApp
 from kailash.kaizen import BaseAgent
 
-# Deploy agents via all channels
-agent_workflow = create_agent_workflow()
-nexus = kailash.Nexus([agent_workflow])
-nexus.run()
+# Deploy agents via all channels using handlers
+app = NexusApp()
 
-# Agents accessible via API, CLI, and MCP
+@app.handler(name="agent_chat", description="Chat with AI agent")
+async def agent_chat(message: str) -> dict:
+    agent = BaseAgent()
+    result = agent.execute(message)
+    return {"response": result.get("output", "")}
+
+app.start()  # Agents accessible via API, CLI, and MCP
 ```
 
 ### With Core SDK (Custom Workflows)
 
 ```python
+from kailash.nexus import NexusApp, NexusConfig
 import kailash
 
-# Deploy custom workflows
-workflows = [
-    create_workflow_1(),
-    create_workflow_2(),
-    create_workflow_3(),
-]
+app = NexusApp(config=NexusConfig(port=8000))
 
-nexus = kailash.Nexus(workflows)
-nexus.run(port=8000)
+# Register workflow execution as handlers
+@app.handler(name="process_data", description="Run data processing workflow")
+async def process_data(input_text: str) -> dict:
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EmbeddedPythonNode", "process", {
+        "code": "result = {'processed': True}"
+    })
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["process"]["result"]
+
+app.start()
 ```
 
 ### Standalone Platform
 
 ```python
-import kailash
+from kailash.nexus import NexusApp, NexusConfig, Preset
 
-# Complete platform from workflows
-nexus = kailash.Nexus(
-    workflows=[...],
-    plugins=[custom_plugin],
-    health_checks=True,
-    monitoring=True
+# Complete platform with enterprise preset and custom config
+app = NexusApp(
+    config=NexusConfig(host="0.0.0.0", port=8000),
+    preset="enterprise",  # or Preset.enterprise()
 )
-nexus.run(
-    host="0.0.0.0",
-    port=8000,
-    workers=4
-)
+
+# Add middleware
+app.add_cors(origins=["https://app.example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+# Register handlers
+@app.handler(name="status", description="Platform status")
+async def status() -> dict:
+    return app.health_check()
+
+app.start()  # Host/port configured via NexusConfig
 ```
 
 ## Critical Rules
@@ -224,20 +249,32 @@ nexus.run(
 ### Development
 
 ```python
-nexus = kailash.Nexus(workflows)
-nexus.run(port=8000)  # Single process, hot reload
+from kailash.nexus import NexusApp
+
+app = NexusApp()  # Defaults: host=0.0.0.0, port=3000
+
+@app.handler(name="hello", description="Hello world")
+async def hello(name: str = "World") -> dict:
+    return {"message": f"Hello, {name}!"}
+
+app.start()
 ```
 
 ### Production (Docker)
 
 ```python
-import kailash
+from kailash.nexus import NexusApp, NexusConfig
 
-nexus = kailash.Nexus(
-    workflows,
-    runtime_factory=lambda: kailash.Runtime(reg)
+app = NexusApp(
+    config=NexusConfig(host="0.0.0.0", port=8000),
+    preset="enterprise",
 )
-nexus.run(host="0.0.0.0", port=8000, workers=4)
+app.add_cors(origins=["https://app.example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+# Register production handlers...
+
+app.start()
 ```
 
 ### With Load Balancer

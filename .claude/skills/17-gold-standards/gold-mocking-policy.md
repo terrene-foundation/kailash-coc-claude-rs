@@ -261,7 +261,7 @@ def test_workflow(mock_execute):
 
 def test_workflow():
     builder = kailash.WorkflowBuilder()
-    builder.add_node("PythonCodeNode", "node", {"code": "result = 42"})
+    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 42"})
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)

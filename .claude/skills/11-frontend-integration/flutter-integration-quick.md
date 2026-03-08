@@ -12,6 +12,7 @@ description: "Flutter + Kailash integration. Use when asking 'flutter integratio
 ## Quick Setup
 
 ### 1. Backend API (Python)
+
 ```python
 import kailash
 
@@ -19,15 +20,16 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
     "prompt": "{{input.message}}"
 })
 
-api = kailash.Nexus(builder.build(reg))
-api.run(port=8000)
+app = kailash.nexus.NexusApp(kailash.NexusConfig(port=8000))
+app.start()
 ```
 
 ### 2. Flutter Frontend
+
 ```dart
 // lib/services/workflow_service.dart
 import 'package:http/http.dart' as http;

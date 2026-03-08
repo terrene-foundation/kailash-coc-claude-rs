@@ -25,15 +25,12 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Step 1: Create Nexus with auto_discovery=False
-nexus = kailash.Nexus(
-    api_port=8000,
-    mcp_port=3001,
-    auto_discovery=False  # CRITICAL: Prevents blocking
-)
+app = NexusApp(NexusConfig(port=8000))
+# Register workflows manually (no auto_discovery param)
 
 # Step 2: Create DataFlow (defaults work fine)
 df = kailash.DataFlow(
-    database_url="postgresql://user:pass@host:port/db",
+    "postgresql://user:pass@host:port/db",
     auto_migrate=True,  # Default - works in Docker
 )
 
@@ -47,10 +44,10 @@ class User:
 # Step 4: Register workflows manually
 builder = kailash.WorkflowBuilder()
 builder.add_node("UserCreateNode", "create", {"email": "{{email}}"})
-nexus.register("create_user", builder.build(reg))
+app.register("create_user", builder.build(reg))
 
 # Step 5: Start
-nexus.start()
+app.start()
 ```
 
 ## Why This Configuration
@@ -77,14 +74,11 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Fast initialization
-nexus = kailash.Nexus(
-    api_port=8000,
-    mcp_port=3001,
-    auto_discovery=False  # CRITICAL
-)
+app = NexusApp(NexusConfig(port=8000))
+# Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
-    database_url="postgresql://localhost:5432/mydb",
+    "postgresql://localhost:5432/mydb",
 )
 
 # Define models
@@ -115,10 +109,10 @@ def create_contact_workflow():
     return builder.build(reg)
 
 # Register workflow
-nexus.register("create_contact", create_contact_workflow())
+app.register("create_contact", create_contact_workflow())
 
 # Start
-nexus.start()
+app.start()
 ```
 
 ## What You Get
@@ -159,7 +153,7 @@ builder.add_node("ContactListNode", "search", {
 })
 
 # Connect nodes
-builder.add_connection("create", "result", "search", "input")
+builder.connect("create", "result", "search", "input")
 
 app.register("contact_workflow", builder.build(reg))
 ```
@@ -183,18 +177,16 @@ curl -X POST http://localhost:8000/workflows/create_contact/execute \
 
 ```python
 import os
+import kailash
+from kailash.nexus import NexusApp, NexusConfig
 
 def create_production_app():
-    app = kailash.Nexus(
-        api_port=int(os.getenv("API_PORT", "8000")),
-        mcp_port=int(os.getenv("MCP_PORT", "3001")),
-        auto_discovery=False,
-        enable_auth=True,
-        enable_monitoring=True
-    )
+    app = NexusApp(NexusConfig(
+        port=int(os.getenv("API_PORT", "8000")),
+    ))
 
     db = kailash.DataFlow(
-        database_url=os.getenv("DATABASE_URL"),
+        os.getenv("DATABASE_URL"),
     )
 
     # Register models
@@ -214,7 +206,7 @@ app = create_production_app()
 
 ```python
 # Must disable auto_discovery
-app = kailash.Nexus(auto_discovery=False)
+app = NexusApp()  # Register workflows manually
 ```
 
 ### Workflows Not Found
@@ -229,7 +221,7 @@ app.register("workflow-name", builder.build(reg))
 ```python
 # Ensure auto_migrate=True (default)
 db = kailash.DataFlow(
-    database_url="postgresql://...",
+    "postgresql://...",
     auto_migrate=True,  # This is the default
 )
 ```
@@ -244,7 +236,7 @@ def test_nexus_dataflow_integration():
     # Test fast startup
     start_time = time.time()
 
-    app = kailash.Nexus(auto_discovery=False)
+    app = NexusApp()  # Register workflows manually
     db = kailash.DataFlow("sqlite:///:memory:")
 
     @db.model

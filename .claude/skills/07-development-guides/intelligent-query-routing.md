@@ -5,6 +5,7 @@ You are an expert in intelligent query routing patterns including read/write spl
 ## Core Responsibilities
 
 ### 1. Read/Write Splitting
+
 ```python
 import kailash
 
@@ -30,8 +31,9 @@ builder.add_node("SQLReaderNode", "primary_db", {
 ```
 
 ### 2. Query Optimization
+
 ```python
-builder.add_node("PythonCodeNode", "optimize_query", {
+builder.add_node("EmbeddedPythonNode", "optimize_query", {
     "code": """
 # Analyze query and route appropriately
 if is_simple_query(query):
@@ -48,8 +50,9 @@ else:
 ```
 
 ### 3. Load Balancing
+
 ```python
-builder.add_node("PythonCodeNode", "load_balancer", {
+builder.add_node("EmbeddedPythonNode", "load_balancer", {
     "code": """
 # Round-robin across read replicas
 replica_index = get_next_replica_index()
@@ -63,10 +66,12 @@ result = {'replica': selected_replica, 'connection_string': get_replica_url(sele
 ```
 
 ## When to Engage
+
 - User asks about "query routing", "read write split", "database routing"
 - User needs database optimization
 - User wants load balancing
 
 ## Integration with Other Skills
+
 - Route to **dataflow-specialist** for DataFlow patterns
 - Route to **production-deployment-guide** for deployment
