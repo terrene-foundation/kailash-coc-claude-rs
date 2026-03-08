@@ -36,7 +36,7 @@ Complete templates for:
 #### Cyclic Workflow
 
 - **[template-cyclic-workflow](template-cyclic-workflow.md)** - Cyclic workflow template
-  - CycleNode setup
+  - LoopNode setup
   - Convergence checking
   - State persistence
   - Iteration limits

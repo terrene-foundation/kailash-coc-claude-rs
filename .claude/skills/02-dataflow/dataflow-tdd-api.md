@@ -27,7 +27,7 @@ def test_db():
         id: str
         email: str
 
-    df.initialize_schema()
+    df.create_tables()
     yield db
     df.close()
 
@@ -53,7 +53,7 @@ def test_user_creation(test_db):
 def isolated_db():
     """Each test gets isolated database"""
     db = kailash.DataFlow("sqlite:///:memory:")
-    db.initialize_schema()
+    db.create_tables()
     yield db
     db.close()  # Clean up
 

@@ -65,7 +65,7 @@ Common error patterns and solutions for:
   - **Symptom**: Workflow fails during execution
   - **Cause**: Various runtime issues
   - **Solutions**: Check logs, validate inputs, test nodes individually
-  - **Debug**: Use LoggerNode for visibility
+  - **Debug**: Use LogNode for visibility
 
 ### Cyclic Workflow Errors
 
@@ -155,7 +155,7 @@ builder.connect("node1", "result", "node2", "data")
 
 ```python
 # ❌ WRONG (infinite loop)
-builder.add_node("CycleNode", "cycle", {
+builder.add_node("LoopNode", "cycle", {
     "max_iterations": 1000  # Will run all 1000
 })
 
@@ -199,7 +199,7 @@ query = "SELECT * FROM users WHERE id = {{user_id}}"  # kailash.DataFlow templat
 
 - Test nodes individually
 - Test with minimal workflow
-- Add LoggerNode for visibility
+- Add LogNode for visibility
 - Check intermediate results
 
 ### Step 4: Check Documentation

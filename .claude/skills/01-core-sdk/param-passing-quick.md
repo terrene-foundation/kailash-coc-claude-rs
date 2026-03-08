@@ -25,7 +25,7 @@ Three methods to pass parameters to nodes in Kailash SDK workflows.
 
 ## Core Pattern
 
-> **Note**: Some node names below (e.g., EmailNode, UserLookupNode) are hypothetical examples to illustrate parameter passing patterns. For real node names, see `node-patterns-common` or query `NodeRegistry().list_types()`. Real equivalents include `EmailSenderNode`, `EmbeddedPythonNode`, etc.
+> **Note**: Some node names below (e.g., EmailNode, UserLookupNode) are hypothetical examples to illustrate parameter passing patterns. For real node names, see `node-patterns-common` or query `NodeRegistry().list_types()`. Real equivalents include `EmailAlertNode`, `EmbeddedPythonNode`, etc.
 
 ```python
 import kailash
@@ -35,7 +35,7 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Method 1: Node Configuration (static values)
-builder.add_node("EmailSenderNode", "send", {
+builder.add_node("EmailAlertNode", "send", {
     "to": "user@example.com",
     "subject": "Welcome"
 })

@@ -33,7 +33,7 @@ def test_user_create(test_db):
 def test_user_workflow():
     """Test full workflow with real SQLite database"""
     db = kailash.DataFlow("sqlite:///test.db")
-    db.initialize_schema()
+    db.create_tables()
 
     # Run full CRUD workflow
     # Cleanup after
