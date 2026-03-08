@@ -48,6 +48,7 @@ builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path":
 ### 🤖 AI/ML (20+ nodes)
 
 ```python
+import os
 import kailash
 
 # AI/LLM nodes (string-based):

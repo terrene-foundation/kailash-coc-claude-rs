@@ -109,6 +109,7 @@ fields = {
 ## Core Pattern
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
 
@@ -599,6 +600,7 @@ Use `dataflow-specialist` subagent when:
 ### Example 1: Complete User CRUD Workflow
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
 

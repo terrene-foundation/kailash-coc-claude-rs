@@ -168,6 +168,7 @@ app.start()  # Now accessible via API, CLI, and MCP!
 **Example:**
 
 ```python
+import os
 from dataclasses import dataclass
 
 class QASignature(Signature):

@@ -32,6 +32,7 @@ Parameter validation failed for '{{...}}'
 ### ❌ WRONG: Using {{}} Template Syntax
 
 ```python
+import os
 import kailash
 
 df = kailash.DataFlow(os.environ["DATABASE_URL"])

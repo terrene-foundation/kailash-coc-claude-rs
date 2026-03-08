@@ -34,6 +34,7 @@ Each node type uses specific output keys:
 ## Core Pattern
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
 

@@ -15,6 +15,7 @@ AI-powered document analysis, extraction, and classification workflows.
 ## Pattern: Invoice Processing with AI
 
 ```python
+import os
 import kailash
 
 builder = kailash.WorkflowBuilder()

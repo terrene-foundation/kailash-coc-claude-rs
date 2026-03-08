@@ -173,7 +173,7 @@ from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 import os
 
 # Configure auth explicitly — there is no auto-enable via env vars
-auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 app = NexusApp()
 ```
 
@@ -400,7 +400,7 @@ app = NexusApp()  # No rate limit    # SECURITY WARNING
 from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 
 # Configure auth via NexusAuthPlugin (NEXUS_ENV does not exist)
-auth = NexusAuthPlugin(jwt=JwtConfig(secret="from-env-var"))
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ.get("JWT_SECRET", "dev-secret-key-at-least-32-bytes-long!")))
 app = NexusApp()
 
 # Add rate limiting

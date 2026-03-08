@@ -19,8 +19,8 @@ from kailash.dataflow import LoggingConfig, SchemaCache
 
 df = kailash.DataFlow("postgresql://localhost/app")
 
-# Enable query logging via LoggingConfig
-logging = LoggingConfig(log_queries=True, log_slow_threshold_ms=100)
+# Enable query logging via LoggingConfig factory method
+logging = LoggingConfig.development()  # Or: LoggingConfig.custom(log_queries=True, log_results=False, log_timing=True, level="info")
 
 # Schema cache for introspection performance
 cache = SchemaCache(ttl_secs=300)

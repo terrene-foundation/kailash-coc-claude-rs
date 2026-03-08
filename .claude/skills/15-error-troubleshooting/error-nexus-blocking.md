@@ -29,6 +29,7 @@ Fix Nexus blocking and 5-30 second startup delays when integrating with DataFlow
 ### ❌ WRONG: Default Configuration (Blocks)
 
 ```python
+import os
 import kailash
 
 # This pattern can cause slow startup if misconfigured

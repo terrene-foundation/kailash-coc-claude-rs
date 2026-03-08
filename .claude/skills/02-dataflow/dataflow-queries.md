@@ -18,6 +18,7 @@ Use MongoDB-style query operators for filtering, searching, and aggregating Data
 DataFlow uses MongoDB-style filter syntax translated to SQL. Only the following operators are supported:
 
 **Supported Operators:**
+
 - ✅ `$eq` (equal — or direct value match: `{"active": True}`)
 - ✅ `$ne` (not equal)
 - ✅ `$gt`, `$gte`, `$lt`, `$lte` (comparison)
@@ -53,7 +54,9 @@ DataFlow uses MongoDB-style filter syntax translated to SQL. Only the following 
 ## Core Pattern
 
 ```python
+import os
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 
@@ -119,17 +122,17 @@ result = rt.execute(builder.build(reg))
 
 ### Comparison Operators
 
-| Operator | SQL Equivalent | Example |
-|----------|---------------|---------|
-| `$eq` | `=` | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
-| `$ne` | `!=` | `{"status": {"$ne": "inactive"}}` |
-| `$gt` | `>` | `{"age": {"$gt": 18}}` |
-| `$gte` | `>=` | `{"age": {"$gte": 18}}` |
-| `$lt` | `<` | `{"price": {"$lt": 100}}` |
-| `$lte` | `<=` | `{"price": {"$lte": 100}}` |
-| `$in` | `IN` | `{"category": {"$in": ["a", "b", "c"]}}` |
-| `$like` | `LIKE` | `{"name": {"$like": "%laptop%"}}` |
-| `$null` | `IS NULL` / `IS NOT NULL` | `{"deleted_at": {"$null": True}}` |
+| Operator | SQL Equivalent            | Example                                                  |
+| -------- | ------------------------- | -------------------------------------------------------- |
+| `$eq`    | `=`                       | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
+| `$ne`    | `!=`                      | `{"status": {"$ne": "inactive"}}`                        |
+| `$gt`    | `>`                       | `{"age": {"$gt": 18}}`                                   |
+| `$gte`   | `>=`                      | `{"age": {"$gte": 18}}`                                  |
+| `$lt`    | `<`                       | `{"price": {"$lt": 100}}`                                |
+| `$lte`   | `<=`                      | `{"price": {"$lte": 100}}`                               |
+| `$in`    | `IN`                      | `{"category": {"$in": ["a", "b", "c"]}}`                 |
+| `$like`  | `LIKE`                    | `{"name": {"$like": "%laptop%"}}`                        |
+| `$null`  | `IS NULL` / `IS NOT NULL` | `{"deleted_at": {"$null": True}}`                        |
 
 ### Null Checking
 
@@ -148,6 +151,7 @@ builder.add_node("ListPatient", "deleted_patients", {
 ```
 
 **Common Pattern - Soft Delete Filtering:**
+
 ```python
 # soft_delete: True only affects DELETE operations, NOT queries!
 # You MUST manually filter in queries:
@@ -320,6 +324,7 @@ builder.add_node("ListProduct", "query", {
 ## When to Escalate to Subagent
 
 Use `dataflow-specialist` subagent when:
+
 - Designing complex aggregation queries
 - Optimizing slow query performance
 - Working with full-text search
@@ -385,12 +390,12 @@ builder.add_node("ListUser", "power_users", {
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `Invalid operator: gt` | Missing $ prefix | Use `$gt` not `gt` |
-| `TypeError: unsupported operand` | SQL syntax in filter | Use MongoDB-style operators |
-| `No results returned` | Filter too restrictive | Check individual conditions |
-| `Query timeout` | Inefficient query | Add indexes, simplify filter |
+| Issue                            | Cause                  | Solution                     |
+| -------------------------------- | ---------------------- | ---------------------------- |
+| `Invalid operator: gt`           | Missing $ prefix       | Use `$gt` not `gt`           |
+| `TypeError: unsupported operand` | SQL syntax in filter   | Use MongoDB-style operators  |
+| `No results returned`            | Filter too restrictive | Check individual conditions  |
+| `Query timeout`                  | Inefficient query      | Add indexes, simplify filter |
 
 ## Quick Tips
 

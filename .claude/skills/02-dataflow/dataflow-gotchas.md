@@ -362,6 +362,7 @@ builder.add_node("UpdateUser", "update", {
 
 ```python
 # WRONG - Models are not instantiable
+import os
 import kailash
 from kailash.dataflow import db
 

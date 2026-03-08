@@ -273,7 +273,7 @@ Nexus includes production-safe security defaults:
 # Auth must be configured explicitly (NEXUS_ENV does not exist)
 from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 app = NexusApp()
-auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 # ⚠️  SECURITY WARNING: Authentication is DISABLED in production environment!
 ```
 

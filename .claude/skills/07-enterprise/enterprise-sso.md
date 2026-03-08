@@ -25,6 +25,7 @@ from kailash.enterprise import SSOProvider
 ## Basic Usage
 
 ```python
+import os
 from kailash.enterprise import SSOProvider
 
 # Create an SSO provider with a config dict
@@ -37,6 +38,7 @@ sso = SSOProvider({
     "metadata_url": "https://dev-123456.okta.com/.well-known/openid-configuration",
     "issuer": "https://dev-123456.okta.com",
     "scopes": ["openid", "profile", "email"],
+    "attribute_mapping": {"user_id": "sub", "email": "email", "name": "name"},
 })
 
 # Generate a login URL (no args -- uses redirect_uri from config)
@@ -62,6 +64,7 @@ sso = SSOProvider({
     "metadata_url": "https://dev-123456.okta.com/.well-known/openid-configuration",
     "issuer": "https://dev-123456.okta.com",
     "scopes": ["openid", "profile", "email"],
+    "attribute_mapping": {"user_id": "sub", "email": "email", "name": "name"},
 })
 
 # Configure OIDC discovery for auto-configuration of endpoints
@@ -109,6 +112,7 @@ sso = SSOProvider({
     "metadata_url": "https://dev-123456.okta.com/.well-known/openid-configuration",
     "issuer": "https://dev-123456.okta.com",
     "scopes": ["openid", "profile", "email"],
+    "attribute_mapping": {"user_id": "sub", "email": "email", "name": "name"},
 })
 
 # Set up OIDC discovery endpoints

@@ -104,6 +104,7 @@ result = {'stored': len(embeddings), 'collection': 'documents'}
 ### 3. Query Workflow
 
 ```python
+import os
 import kailash
 
 def create_query_workflow():
@@ -336,6 +337,7 @@ result = {'prompt': prompt, 'sources': source_ids}
 ### 7. Conversation RAG (Chat History)
 
 ```python
+import os
 import kailash
 
 def create_conversational_rag():

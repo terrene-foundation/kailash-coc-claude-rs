@@ -12,6 +12,7 @@ description: "Validate node parameters. Use when asking 'validate parameters', '
 ## Parameter Validation
 
 ```python
+import os
 import kailash
 
 builder = kailash.WorkflowBuilder()

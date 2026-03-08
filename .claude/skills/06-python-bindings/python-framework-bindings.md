@@ -674,7 +674,7 @@ def search(query, limit=10):
     return {"query": query, "limit": limit}
 ```
 
-`HandlerParam` has `name` and `required` attributes but NOT `param_type`.
+`HandlerParam` has `name`, `param_type` (default `"string"`), `required` (default `True`), and `description` attributes.
 
 ---
 

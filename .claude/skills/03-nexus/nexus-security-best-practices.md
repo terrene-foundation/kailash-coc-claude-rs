@@ -47,7 +47,7 @@ from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 load_dotenv()
 
 # Configure auth explicitly via NexusAuthPlugin
-auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 app = NexusApp()
 
 # Add rate limiting
@@ -488,7 +488,7 @@ app = NexusApp()  # No auth plugin added
 # RIGHT - Configure auth explicitly (NEXUS_ENV does not exist)
 from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 app = NexusApp()
-auth = NexusAuthPlugin(jwt=JwtConfig(secret=os.environ["JWT_SECRET"]))
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 ```
 
 ### ❌ Mistake 2: No Rate Limiting

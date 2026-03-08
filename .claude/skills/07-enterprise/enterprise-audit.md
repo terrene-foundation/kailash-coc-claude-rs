@@ -1,6 +1,6 @@
 ---
 name: enterprise-audit
-description: "Audit event logging, querying, and filtering for kailash-enterprise. Use when asking 'audit logging', 'AuditLogger', 'AuditFilter', 'audit trail', 'audit events', 'log_event', 'query_events', 'get_events', or 'event_count'."
+description: "Audit event logging, querying, and filtering for kailash-enterprise. Use when asking 'audit logging', 'AuditLogger', 'AuditFilter', 'audit trail', 'audit events', 'log_event', 'query', 'get_events', or 'event_count'."
 ---
 
 # Enterprise Audit Logging
@@ -21,10 +21,7 @@ The `AuditLogger` captures structured audit events with actor, resource, action,
 
 ```python
 # Default: in-memory storage
-logger = AuditLogger()
-
-# With tracing backend (events emitted via Rust tracing, not stored in memory)
-logger = AuditLogger(store="tracing")
+logger = AuditLogger()  # No constructor parameters
 ```
 
 ### Logging Events
@@ -64,15 +61,15 @@ logger.log_event(
 
 ### Event Types
 
-| Event Type          | Purpose                                 |
-| ------------------- | --------------------------------------- |
-| `authentication`    | Login, logout, token refresh            |
-| `authorization`     | Permission granted/denied               |
-| `data_access`       | Reads, queries                          |
-| `data_modification` | Creates, updates, deletes               |
-| `system_event`      | Startup, shutdown, config changes       |
-| `security_event`    | Failed logins, brute force              |
-| `admin_action`      | Role changes, user management           |
+| Event Type          | Purpose                           |
+| ------------------- | --------------------------------- |
+| `authentication`    | Login, logout, token refresh      |
+| `authorization`     | Permission granted/denied         |
+| `data_access`       | Reads, queries                    |
+| `data_modification` | Creates, updates, deletes         |
+| `system_event`      | Startup, shutdown, config changes |
+| `security_event`    | Failed logins, brute force        |
+| `admin_action`      | Role changes, user management     |
 
 ### Retrieving Events
 
@@ -99,20 +96,16 @@ Build filters to query specific audit events.
 f = AuditFilter()
 
 # Filter by actor
-f = f.with_actor_id("alice")
+f = f.with_actor("alice")
 
-# Filter by tenant
-f = f.with_tenant_id("tenant-abc")
+# Filter by action
+f = f.with_action("login")
 
-# Filter by event type
-f = f.with_event_type("authentication")
+# Filter by resource type
+f = f.with_resource_type("session")
 
 # Filter by outcome
-f = f.with_outcome("success")       # or "failure", "partial_success"
-
-# Pagination
-f = f.with_limit(100)
-f = f.with_offset(0)
+f = f.with_success(True)       # True for success, False for failure
 ```
 
 ### Chaining Filters
@@ -120,23 +113,18 @@ f = f.with_offset(0)
 Filters are immutable and chainable:
 
 ```python
-# Find all failed authentication events for alice, limit 50
+# Find all failed events for alice
 f = (AuditFilter()
-     .with_actor_id("alice")
-     .with_event_type("authentication")
-     .with_outcome("failure")
-     .with_limit(50))
+     .with_actor("alice")
+     .with_success(False))
 ```
 
 ### Querying with Filters
 
 ```python
 # Query events matching a filter
-events = logger.query_events(f)
+events = logger.query(f)
 # Returns: List[Dict[str, Any]]
-
-# Check if a single event dict matches a filter
-matches = f.matches(event_dict)  # -> bool
 ```
 
 ## Typical Audit Patterns
@@ -201,22 +189,20 @@ def update_record(record_id: str, user_id: str, changes: dict, logger: AuditLogg
 ### Security Event Monitoring
 
 ```python
-# Query recent security events
+# Query recent security events by action
 security_filter = (AuditFilter()
-    .with_event_type("security_event")
-    .with_limit(100))
+    .with_action("security_scan"))
 
-events = logger.query_events(security_filter)
+events = logger.query(security_filter)
 for event in events:
     print(f"Security event: {event['action']} by {event['actor_id']}")
 
 # Count failed login attempts for a specific user
 failed_logins = (AuditFilter()
-    .with_actor_id("bob")
-    .with_event_type("authentication")
-    .with_outcome("failure"))
+    .with_actor("bob")
+    .with_success(False))
 
-attempts = logger.query_events(failed_logins)
+attempts = logger.query(failed_logins)
 if len(attempts) > 5:
     print("Account lockout threshold reached")
 ```
@@ -234,13 +220,13 @@ def test_audit_logging():
     assert logger.event_count() == 3
 
     # Filter by actor
-    f = AuditFilter().with_actor_id("alice")
-    events = logger.query_events(f)
+    f = AuditFilter().with_actor("alice")
+    events = logger.query(f)
     assert len(events) == 2
 
     # Filter by outcome
-    f = AuditFilter().with_outcome("failure")
-    events = logger.query_events(f)
+    f = AuditFilter().with_success(False)
+    events = logger.query(f)
     assert len(events) == 1
     assert events[0]["actor_id"] == "alice"
 
@@ -255,16 +241,16 @@ def test_audit_filter_chaining():
     logger.log_event("authentication", "user", "alice", "session", "login", False)
 
     f = (AuditFilter()
-         .with_actor_id("alice")
-         .with_event_type("authentication")
-         .with_outcome("success"))
-    events = logger.query_events(f)
+         .with_actor("alice")
+         .with_action("login")
+         .with_success(True))
+    events = logger.query(f)
     assert len(events) == 1
 ```
 
 ## API Reference
 
-| Class         | Key Methods                                                                |
-| ------------- | -------------------------------------------------------------------------- |
-| `AuditLogger` | `__init__(store=None)`, `.log_event(...)`, `.get_events()`, `.query_events(filter)`, `.clear()`, `.event_count()` |
-| `AuditFilter` | `__init__()`, `.with_actor_id(id)`, `.with_tenant_id(id)`, `.with_event_type(type)`, `.with_outcome(outcome)`, `.with_limit(n)`, `.with_offset(n)` |
+| Class         | Key Methods                                                                                                 |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `AuditLogger` | `__init__()`, `.log_event(...)`, `.get_events()`, `.query(filter)`, `.clear()`, `.event_count()`            |
+| `AuditFilter` | `__init__()`, `.with_actor(id)`, `.with_action(action)`, `.with_resource_type(type)`, `.with_success(bool)` |

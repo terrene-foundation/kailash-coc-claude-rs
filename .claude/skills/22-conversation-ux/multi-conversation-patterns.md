@@ -1419,6 +1419,7 @@ User types: "In conversation Q2 Sales, you showed..."
 **Conversation Model**:
 
 ```python
+import os
 
 df = kailash.DataFlow(os.environ["DATABASE_URL"])
 

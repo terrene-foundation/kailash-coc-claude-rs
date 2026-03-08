@@ -33,11 +33,12 @@ builder.add_node("SQLQueryNode", "query")             # SQL
 
 Basic infrastructure nodes.
 
-| Type Name     | Description                                         |
-| ------------- | --------------------------------------------------- |
-| `HandlerNode` | Generic passthrough/handler                         |
-| `NoOpNode`    | No-op passthrough — passes inputs through unchanged |
-| `LogNode`     | Log a message or value to the tracing output        |
+| Type Name  | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `NoOpNode` | No-op passthrough — passes inputs through unchanged |
+| `LogNode`  | Log a message or value to the tracing output        |
+
+> **Note**: `HandlerNode` is intentionally absent from the Python binding (see DIV-016). Use `@app.handler()` in NexusApp instead.
 
 ### Control Flow (8 nodes)
 
@@ -117,8 +118,8 @@ AI model integrations via raw HTTP to provider APIs.
 | `LLMNode`             | Text generation (OpenAI, Anthropic, Google, Mistral, Cohere) |
 | `EmbeddingNode`       | Generate text embeddings                                     |
 | `ClassificationNode`  | Classify text into categories                                |
-| `SentimentNode` | Sentiment analysis                                         |
-| `SummarizationNode` | Text summarization                                         |
+| `SentimentNode`       | Sentiment analysis                                           |
+| `SummarizationNode`   | Text summarization                                           |
 | `VisionNode`          | Image understanding (multimodal LLMs)                        |
 | `AudioNode`           | Audio transcription and analysis                             |
 | `ImageGenerationNode` | Generate images (DALL-E, etc.)                               |
@@ -269,11 +270,11 @@ Redis operations (feature-gated in Rust, enabled in Python binding).
 
 pgvector-backed vector storage.
 
-| Type Name          | Description                  |
-| ------------------ | ---------------------------- |
-| `UpsertVector` | Upsert vectors with metadata |
-| `VectorQueryNode`  | Query by vector similarity   |
-| `DeleteVector` | Delete vectors by ID         |
+| Type Name         | Description                  |
+| ----------------- | ---------------------------- |
+| `UpsertVector`    | Upsert vectors with metadata |
+| `VectorQueryNode` | Query by vector similarity   |
+| `DeleteVector`    | Delete vectors by ID         |
 
 ### Kafka (3 nodes)
 

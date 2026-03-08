@@ -13,10 +13,10 @@ Master workflow registration patterns from basic to advanced.
 
 Nexus provides two registration approaches:
 
-| Method           | Use Case                       | Example                                    |
-| ---------------- | ------------------------------ | ------------------------------------------ |
+| Method           | Use Case                       | Example                                                         |
+| ---------------- | ------------------------------ | --------------------------------------------------------------- |
 | `app.register()` | WorkflowBuilder workflows      | `app.register("name", lambda **inputs: rt.execute(wf, inputs))` |
-| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                     |
+| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                                          |
 
 **Recommendation**: Use `@app.handler()` for most cases. It bypasses EmbeddedPythonNode sandbox restrictions and provides better IDE support.
 
@@ -474,22 +474,26 @@ conditional_register(
 The `WorkflowRegistry` class from `kailash.nexus` provides a Rust-backed workflow registry for registering, retrieving, and executing workflows by name.
 
 ```python
+import kailash
 from kailash.nexus import WorkflowRegistry
 
-registry = WorkflowRegistry()
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("HTTPRequestNode", "fetch", {"url": "https://api.example.com/data"})
+builder.add_node("JSONTransformNode", "parse", {"expression": "@.results"})
+builder.connect("fetch", "response", "parse", "data")
+wf = builder.build(reg)
 
-# Register a workflow definition
-registry.register("my-workflow", {"steps": [
-    {"type": "HTTPRequestNode", "id": "fetch", "params": {"url": "https://api.example.com/data"}},
-    {"type": "JSONTransformNode", "id": "parse", "params": {"expression": "@.results"}},
-]})
+# Register a built Workflow object
+wr = WorkflowRegistry()
+wr.register("my-workflow", wf, description="Fetch and parse data")
 
 # Retrieve a registered workflow
-wf = registry.get("my-workflow")
-# Returns the workflow definition dict
+stored_wf = wr.get("my-workflow")
 
-# Execute a registered workflow with input data
-result = registry.execute("my-workflow", {"input": "data"})
+# Execute a registered workflow with a Runtime
+rt = kailash.Runtime(reg)
+result = wr.execute("my-workflow", rt, inputs={"url": "https://api.example.com/data"})
 ```
 
 ### WorkflowRegistry vs NexusApp Registration
@@ -504,21 +508,28 @@ result = registry.execute("my-workflow", {"input": "data"})
 ### Production Pattern
 
 ```python
+import kailash
 from kailash.nexus import WorkflowRegistry, NexusApp
 
-# Use WorkflowRegistry for centralized workflow management
-registry = WorkflowRegistry()
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
 
-# Register workflow definitions
-registry.register("data-pipeline", {"steps": [...]})
-registry.register("report-generator", {"steps": [...]})
+# Use WorkflowRegistry for centralized workflow management
+wr = WorkflowRegistry()
+
+# Build and register workflows
+builder1 = kailash.WorkflowBuilder()
+builder1.add_node("HTTPRequestNode", "fetch", {"url": "https://api.example.com/data"})
+wf1 = builder1.build(reg)
+wr.register("data-pipeline", wf1)
 
 # Bridge to NexusApp for multi-channel deployment
 app = NexusApp()
 
 @app.handler(name="run_workflow", description="Execute a registered workflow")
-async def run_workflow(workflow_name: str, input_data: dict) -> dict:
-    return registry.execute(workflow_name, input_data)
+async def run_workflow(workflow_name: str) -> dict:
+    result = wr.execute(workflow_name, rt)
+    return result
 
 app.start()
 ```

@@ -52,6 +52,7 @@ builder.add_node("BulkUpsertProduct", "sync", {
 ## Core Pattern
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
 

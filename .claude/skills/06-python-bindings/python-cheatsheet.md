@@ -460,8 +460,9 @@ def summarize_prompt(arguments):
 from kailash.kaizen import ObservabilityManager
 
 obs = ObservabilityManager()
-obs.record_execution(agent_name="my-agent", duration_ms=1250, success=True)
-stats = obs.get_stats("my-agent")
+obs.metrics.record_latency("my-agent", 1250)
+obs.metrics.record_tokens("my-agent", 500, 200)
+snapshot = obs.export_metrics_json()
 ```
 
 ## Kaizen: MetricsCollector
@@ -470,8 +471,9 @@ stats = obs.get_stats("my-agent")
 from kailash.kaizen import MetricsCollector
 
 metrics = MetricsCollector()
-metrics.record("agent.latency", 1.25, tags={"agent": "researcher"})
-summary = metrics.summary("agent.latency")
+metrics.record_latency("my-agent", 1250)
+metrics.record_error("my-agent", "timeout")
+snapshot = metrics.get_metrics()
 ```
 
 ## Error Handling
