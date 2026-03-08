@@ -24,6 +24,7 @@ description: "CountNode for efficient COUNT(*) queries with 10-50x performance i
 ## ⚠️ CRITICAL: Performance Comparison
 
 ### Before CountNode
+
 ```python
 # ❌ SLOW - Fetches all records to count (20-50ms for 10,000 records)
 builder.add_node("UserListNode", "count_users", {
@@ -36,6 +37,7 @@ count = len(result["results"]["count_users"])  # Retrieved 10,000 records!
 ```
 
 ### After CountNode
+
 ```python
 # ✅ FAST - Uses COUNT(*) query (1-5ms regardless of record count)
 builder.add_node("UserCountNode", "count_users", {
@@ -49,6 +51,7 @@ count = result["results"]["count_users"]["count"]  # Only count value (99% faste
 ## Basic Usage
 
 ### Simple Count
+
 ```python
 # Count all users
 builder.add_node("UserCountNode", "count_all", {})
@@ -57,6 +60,7 @@ builder.add_node("UserCountNode", "count_all", {})
 ```
 
 ### Count with Filter
+
 ```python
 # Count active users
 builder.add_node("UserCountNode", "count_active", {
@@ -67,6 +71,7 @@ builder.add_node("UserCountNode", "count_active", {
 ```
 
 ### Complex Filter
+
 ```python
 # Count premium users created in last 30 days
 builder.add_node("UserCountNode", "count_recent_premium", {
@@ -82,6 +87,7 @@ builder.add_node("UserCountNode", "count_recent_premium", {
 ## Common Patterns
 
 ### 1. Pagination Metadata
+
 ```python
 # Get total count for pagination
 builder.add_node("UserCountNode", "total_users", {
@@ -101,6 +107,7 @@ builder.add_node("UserListNode", "page_users", {
 ```
 
 ### 2. Existence Checks
+
 ```python
 # Check if any records exist matching criteria
 builder.add_node("OrderCountNode", "pending_orders", {
@@ -115,6 +122,7 @@ builder.add_node("OrderCountNode", "pending_orders", {
 ```
 
 ### 3. Dashboard Metrics
+
 ```python
 # Dashboard: Active vs Inactive users
 builder.add_node("UserCountNode", "active_count", {
@@ -132,6 +140,7 @@ builder.add_node("UserCountNode", "inactive_count", {
 ```
 
 ### 4. Conditional Logic Based on Count
+
 ```python
 # Count items in cart before checkout
 builder.add_node("CartItemCountNode", "item_count", {
@@ -146,6 +155,7 @@ builder.add_node("SwitchNode", "check_empty", {
 ```
 
 ### 5. Multi-Tenant Counts
+
 ```python
 # Count records per tenant
 builder.add_node("OrderCountNode", "tenant_orders", {
@@ -156,6 +166,7 @@ builder.add_node("OrderCountNode", "tenant_orders", {
 ```
 
 ### 6. Time Series Counts
+
 ```python
 # Count events in last hour
 builder.add_node("EventCountNode", "recent_events", {
@@ -174,6 +185,7 @@ builder.add_node("EventCountNode", "recent_events", {
 CountNode supports all MongoDB-style filter operators:
 
 ### Comparison Operators
+
 ```python
 # Greater than
 builder.add_node("UserCountNode", "adults", {
@@ -190,13 +202,14 @@ builder.add_node("ProductCountNode", "active_categories", {
     "filter": {"category": {"$in": ["electronics", "books"]}}
 })
 
-# Not in list
-builder.add_node("ProductCountNode", "exclude_categories", {
-    "filter": {"category": {"$nin": ["archived", "deleted"]}}
+# Not equal
+builder.add_node("ProductCountNode", "exclude_inactive", {
+    "filter": {"status": {"$ne": "archived"}}
 })
 ```
 
 ### Complex Filters
+
 ```python
 # Multiple conditions
 builder.add_node("OrderCountNode", "high_value_recent", {
@@ -211,6 +224,7 @@ builder.add_node("OrderCountNode", "high_value_recent", {
 ## Performance Optimization
 
 ### Index Usage
+
 ```python
 # Ensure indexes on filtered fields for optimal performance
 @db.model
@@ -233,6 +247,7 @@ builder.add_node("OrderCountNode", "count", {
 ```
 
 ### Avoiding Full Table Scans
+
 ```python
 # ✅ GOOD - Uses index on 'status'
 builder.add_node("OrderCountNode", "pending", {
@@ -241,14 +256,15 @@ builder.add_node("OrderCountNode", "pending", {
 
 # ❌ SLOW - No index, full table scan
 builder.add_node("OrderCountNode", "search_notes", {
-    "filter": {"notes": {"$regex": "important"}}
+    "filter": {"notes": {"$like": "%important%"}}
 })
-# Solution: Add text search index or use dedicated search node
+# Solution: Add index on frequently searched fields
 ```
 
 ## Database Behavior
 
 ### PostgreSQL
+
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = true;
@@ -256,6 +272,7 @@ SELECT COUNT(*) FROM users WHERE active = true;
 ```
 
 ### MySQL
+
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = 1;
@@ -263,6 +280,7 @@ SELECT COUNT(*) FROM users WHERE active = 1;
 ```
 
 ### SQLite
+
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = 1;
@@ -270,6 +288,7 @@ SELECT COUNT(*) FROM users WHERE active = 1;
 ```
 
 ### MongoDB
+
 ```python
 # Generated MongoDB query
 collection.count_documents({"active": True})
@@ -279,6 +298,7 @@ collection.count_documents({"active": True})
 ## Best Practices
 
 ### 1. Use CountNode Instead of ListNode for Counts
+
 ```python
 # ✅ CORRECT - Use CountNode (99% faster)
 builder.add_node("UserCountNode", "count", {
@@ -295,6 +315,7 @@ count = len(result["results"]["list"])
 ```
 
 ### 2. Add Indexes for Frequently Counted Fields
+
 ```python
 # ✅ CORRECT - Index frequently filtered fields
 @db.model
@@ -307,6 +328,7 @@ class Order:
 ```
 
 ### 3. Use CountNode for Existence Checks
+
 ```python
 # ✅ CORRECT - Fast existence check
 builder.add_node("OrderCountNode", "has_pending", {
@@ -329,6 +351,7 @@ has_pending = len(result["results"]["pending_list"]) > 0
 ```
 
 ### 4. Combine with Pagination
+
 ```python
 # ✅ CORRECT - Efficient pagination
 builder.add_node("UserCountNode", "total", {
@@ -348,9 +371,11 @@ builder.add_node("UserListNode", "page", {
 ## Troubleshooting
 
 ### ❌ Slow CountNode Queries
+
 **Cause:** Missing index on filtered fields
 
 **Solution:**
+
 ```python
 # Add index to model
 @db.model
@@ -361,9 +386,11 @@ class Order:
 ```
 
 ### ❌ Count Returns 0 Unexpectedly
+
 **Cause:** Filter condition too restrictive or incorrect
 
 **Solution:**
+
 ```python
 # Debug with ListNode first
 builder.add_node("OrderListNode", "debug_list", {
@@ -387,6 +414,7 @@ builder.add_node("OrderCountNode", "count", {
 ## When to Use This Skill
 
 Use CountNode when you:
+
 - Count records without fetching data (10-50x faster)
 - Calculate pagination metadata (total pages, records)
 - Perform existence checks (any matching records?)

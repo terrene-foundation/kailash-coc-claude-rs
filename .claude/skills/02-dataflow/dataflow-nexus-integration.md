@@ -84,21 +84,20 @@ app = NexusApp(config)
 ## DataFlow Configuration
 
 ```python
-db = kailash.DataFlow(
+# Simple (default pool settings are fine for most apps)
+db = kailash.DataFlow("postgresql://...", auto_migrate=True)
+
+# With custom pool config
+config = kailash.DataFlowConfig(
     "postgresql://...",
-    auto_migrate=True,       # DEFAULT - works in Docker
-    pool_size=3,             # Reduced: PgBouncer handles pooling
-    pool_max_overflow=2,
-    monitoring=True,
-    slow_query_threshold=100,
+    max_connections=10,
+    min_connections=1,
 )
+db = kailash.DataFlow("postgresql://...", config=config, auto_migrate=True)
 ```
 
-**Removed Parameters** (no longer valid):
-
-- `existing_schema_mode`, `enable_model_persistence`, `skip_registry`, `skip_migration` - all removed
-- Use `auto_migrate=True` (default) or `auto_migrate=False` instead
-- `connection_pool_size` -> use `pool_size`; `enable_metrics` -> use `monitoring=True`
+**DataFlow constructor parameters**: `database_url`, `config` (DataFlowConfig), `auto_migrate`, `test_mode`
+**DataFlowConfig parameters**: `database_url`, `max_connections`, `min_connections`, `connect_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `auto_migrate`, `test_mode`
 
 ## Common Mistakes
 

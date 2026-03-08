@@ -26,7 +26,7 @@ import kailash
 # Automatic pattern selection (Saga vs 2PC)
 # In the Rust-backed SDK, nodes are string-based via builder.add_node()
 builder = kailash.WorkflowBuilder()
-builder.add_node("DistributedDistributedTransactionManagerNode", "manager", {
+builder.add_node("DistributedTransactionManagerNode", "manager", {
     "transaction_name": "business_process",
     "state_storage": "redis",
     "storage_config": {
@@ -83,7 +83,7 @@ Use specialized subagents when:
 
 ## Quick Tips
 
-- 💡 **Let DTM Choose Pattern**: Specify requirements (consistency, availability) and let DistributedDistributedTransactionManagerNode select optimal pattern - "immediate" consistency forces 2PC, "eventual" prefers Saga
+- 💡 **Let DTM Choose Pattern**: Specify requirements (consistency, availability) and let DistributedTransactionManagerNode select optimal pattern - "immediate" consistency forces 2PC, "eventual" prefers Saga
 - 💡 **Mixed Capabilities Default to Saga**: If ANY participant doesn't support 2PC, DTM automatically uses Saga pattern for maximum compatibility
 - 💡 **Use Redis for Production**: Configure state_storage="redis" with Redis cluster for high-performance, durable transaction state management
 - 💡 **Implement Compensation Actions**: Every Saga step needs a compensation - refund payment, release inventory, cancel shipment, etc.

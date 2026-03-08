@@ -242,10 +242,11 @@ pip install kailash-enterprise
 
 ✅ All filter operators now work correctly:
 
+- $eq (equal, or direct value match)
 - $ne (not equal)
-- $nin (not in)
-- $in (in)
-- $not (logical NOT)
+- $in (in list)
+- $like (pattern match)
+- $null (IS NULL check)
 - All comparison operators ($gt, $lt, $gte, $lte)
 
 #### Prevention Pattern

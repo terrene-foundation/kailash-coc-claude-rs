@@ -29,21 +29,23 @@ import kailash
 
 # PostgreSQL with special characters
 df = kailash.DataFlow(
-    "postgresql://admin:MySecret#123$@localhost:5432/mydb",
-    pool_size=20,
-    pool_max_overflow=30
+    "postgresql://admin:MySecret#123$@localhost:5432/mydb"
 )
 
-# SQLite (development)
-db_dev = kailash.DataFlow(
-    "sqlite:///dev.db"
+# With connection pool config
+config = kailash.DataFlowConfig(
+    "postgresql://admin:MySecret#123$@localhost:5432/mydb",
+    max_connections=20,
+    min_connections=2,
 )
+df = kailash.DataFlow("postgresql://...", config=config)
+
+# SQLite (development)
+db_dev = kailash.DataFlow("sqlite:///dev.db")
 
 # Environment variable (recommended)
 import os
-db_prod = kailash.DataFlow(
-    os.getenv("DATABASE_URL")
-)
+db_prod = kailash.DataFlow(os.getenv("DATABASE_URL"))
 ```
 
 ## Common Use Cases
@@ -83,24 +85,22 @@ db_prod = kailash.DataFlow(
 ## Key Parameters
 
 ```python
-db = kailash.DataFlow(
-    # Connection
+# DataFlowConfig controls connection pool settings
+config = kailash.DataFlowConfig(
     "postgresql://...",
-
-    # Connection pooling
-    pool_size=20,              # Base connections
-    pool_max_overflow=30,      # Extra connections
-    pool_recycle=3600,         # Recycle after 1 hour
-    pool_pre_ping=True,        # Validate connections
-
-    # Timeouts
-    connect_timeout=10,        # Connection timeout (seconds)
-    command_timeout=30,        # Query timeout
-
-    # Behavior
-    echo=False,                # SQL logging (debug only)
-    auto_migrate=True,         # Auto schema updates (default)
+    max_connections=20,          # Max pool connections (default: 10)
+    min_connections=1,           # Min pool connections (default: 1)
+    connect_timeout_secs=30,     # Connection timeout (default: 30)
+    idle_timeout_secs=600,       # Idle connection timeout (optional)
+    max_lifetime_secs=3600,      # Max connection lifetime (optional)
+    auto_migrate=False,          # Auto schema updates
 )
+
+# Pass config to DataFlow
+db = kailash.DataFlow("postgresql://...", config=config)
+
+# Or use simple constructor (defaults are fine for most cases)
+db = kailash.DataFlow("postgresql://...", auto_migrate=True)
 ```
 
 ## Common Mistakes
@@ -123,22 +123,20 @@ db = kailash.DataFlow("postgresql://user:MySecret#123$@host/db")
 ### Mistake 2: Small Connection Pool
 
 ```python
-# Wrong - pool exhaustion under load
-db = kailash.DataFlow(
-    "postgresql://...",
-    pool_size=5  # Too small for production
-)
+# Wrong - default max_connections=10 may be too small for production
+config = kailash.DataFlowConfig("postgresql://...", max_connections=5)
 ```
 
 **Fix: Adequate Pool Size**
 
 ```python
-# Correct
-db = kailash.DataFlow(
+# Correct - increase max_connections for production
+config = kailash.DataFlowConfig(
     "postgresql://...",
-    pool_size=20,
-    pool_max_overflow=30
+    max_connections=20,
+    min_connections=2,
 )
+db = kailash.DataFlow("postgresql://...", config=config)
 ```
 
 ## Related Patterns
@@ -170,31 +168,31 @@ if os.getenv("ENV") == "development":
 
 # Staging
 elif os.getenv("ENV") == "staging":
-    db = kailash.DataFlow(
-        os.getenv("DATABASE_URL"),
-        pool_size=10,
-        auto_migrate=True
-    )
+    config = kailash.DataFlowConfig(os.getenv("DATABASE_URL"), max_connections=10)
+    db = kailash.DataFlow(os.getenv("DATABASE_URL"), config=config, auto_migrate=True)
 
 # Production
 else:
-    db = kailash.DataFlow(
+    config = kailash.DataFlowConfig(
         os.getenv("DATABASE_URL"),
-        pool_size=20,
-        pool_max_overflow=30,
-        auto_migrate=False,  # Don't modify existing schema
+        max_connections=20,
+        min_connections=2,
     )
+    db = kailash.DataFlow(os.getenv("DATABASE_URL"), config=config)
 ```
 
 ### Example 2: Connection with Complex Password
 
 ```python
 # Password with special characters
+config = kailash.DataFlowConfig(
+    "postgresql://admin:P@ssw0rd!#$@db.example.com:5432/prod",
+    max_connections=20,
+    connect_timeout_secs=10,
+)
 db = kailash.DataFlow(
     "postgresql://admin:P@ssw0rd!#$@db.example.com:5432/prod",
-    pool_size=20,
-    pool_pre_ping=True,
-    connect_timeout=10
+    config=config,
 )
 ```
 
@@ -204,7 +202,7 @@ db = kailash.DataFlow(
 | ------------------------------ | ------------------------- | ------------------------ |
 | Connection refused             | Wrong host/port           | Verify connection string |
 | Password authentication failed | Special chars in password | Use latest DataFlow      |
-| Pool exhausted                 | pool_size too small       | Increase pool_size       |
+| Pool exhausted                 | max_connections too small  | Increase max_connections  |
 | Connection timeout             | Network/firewall          | Check connect_timeout    |
 
 ## Quick Tips
@@ -212,8 +210,8 @@ db = kailash.DataFlow(
 - Use environment variables for credentials
 - Special characters work with no encoding required
 - SQLite for development, PostgreSQL for production
-- pool_size = 2x CPU cores (typical)
-- Enable pool_pre_ping for reliability
+- max_connections = 2x CPU cores (typical)
+- Use DataFlowConfig for pool tuning
 - Test connection before deployment
 
 ## Keywords for Auto-Trigger

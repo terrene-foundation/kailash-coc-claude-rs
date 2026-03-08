@@ -246,10 +246,7 @@ async def get_user(user_id: str) -> dict:
 
 ```python
 # DO: Create at module level, reuse across requests
-db = kailash.DataFlow(
-    "postgresql://...",
-    pool_size=20
-)
+db = kailash.DataFlow("postgresql://...")
 
 @db.model
 class User:
@@ -512,7 +509,7 @@ async def list_contacts(
     """List contacts in the authenticated user's organization."""
     filters = {}
     if company:
-        filters["company"] = {"$regex": company}
+        filters["company"] = {"$like": f"%{company}%"}
 
     builder = kailash.WorkflowBuilder()
     builder.add_node("ContactListNode", "list", {
@@ -720,9 +717,6 @@ class DatabaseConfig:
     primary_url: str
     analytics_url: str
     audit_url: str
-    pool_size: int = 20
-    analytics_pool_size: int = 30
-    audit_pool_size: int = 10
 
 config = DatabaseConfig(
     primary_url=os.environ.get("PRIMARY_DATABASE_URL", "sqlite:///primary.db"),

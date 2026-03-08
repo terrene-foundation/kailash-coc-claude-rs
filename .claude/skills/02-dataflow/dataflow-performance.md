@@ -27,37 +27,14 @@ Performance tuning for DataFlow applications with connection pooling, caching, a
 import kailash
 
 # Production-optimized configuration
-df = kailash.DataFlow(
+config = kailash.DataFlowConfig(
     "postgresql://...",
-
-    # Connection pooling
-    pool_size=20,              # Base connections
-    pool_max_overflow=30,      # Extra connections
-    pool_recycle=3600,         # Recycle after 1 hour
-    pool_pre_ping=True,        # Validate connections
-
-    # Performance
-    monitoring=True,
-    slow_query_threshold=100,  # Log queries >100ms
-
-    # Caching (if Redis available)
-    cache_enabled=True,
-    cache_ttl=300  # 5 minutes
+    max_connections=20,          # Increase from default 10
+    min_connections=2,           # Keep warm connections
+    max_lifetime_secs=3600,      # Recycle after 1 hour
 )
 
-# Add indexes to models
-@db.model
-class Product:
-    name: str
-    category: str
-    price: float
-    active: bool
-
-    __indexes__ = [
-        {"fields": ["category", "active"]},
-        {"fields": ["price"]},
-        {"fields": ["created_at"]}
-    ]
+df = kailash.DataFlow("postgresql://...", config=config)
 ```
 
 ## Performance Optimization Strategies
@@ -65,11 +42,12 @@ class Product:
 ### 1. Connection Pooling
 
 ```python
-db = kailash.DataFlow(
-    pool_size=20,           # 2x CPU cores typical
-    pool_max_overflow=30,
-    pool_recycle=3600
+config = kailash.DataFlowConfig(
+    "postgresql://...",
+    max_connections=20,           # 2x CPU cores typical
+    max_lifetime_secs=3600,
 )
+db = kailash.DataFlow("postgresql://...", config=config)
 ```
 
 ### 2. Use Bulk Operations
@@ -191,14 +169,15 @@ df._schema_cache.clear_table("User", database_url)
 ### Mistake 1: Small Connection Pool
 
 ```python
-# Wrong - pool exhaustion
-db = kailash.DataFlow(pool_size=5)
+# Wrong - default max_connections=10 may exhaust under load
+db = kailash.DataFlow("postgresql://...")
 ```
 
 **Fix: Adequate Pool**
 
 ```python
-db = kailash.DataFlow(pool_size=20, pool_max_overflow=30)
+config = kailash.DataFlowConfig("postgresql://...", max_connections=20)
+db = kailash.DataFlow("postgresql://...", config=config)
 ```
 
 ### Mistake 2: Single Operations for Bulk
@@ -220,7 +199,7 @@ builder.add_node("ItemBulkCreateNode", "import", {
 
 ## Quick Tips
 
-- pool_size = 2x CPU cores (typical)
+- max_connections = 2x CPU cores (typical)
 - Use bulk operations for >100 records
 - Add indexes to queried fields
 - Enable caching for read-heavy

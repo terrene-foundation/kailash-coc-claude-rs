@@ -161,11 +161,11 @@ db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
 db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb?sslmode=require")
 
 # With pool config
-db = kailash.DataFlow(
+config = kailash.DataFlowConfig(
     "postgresql://user:pass@localhost:5432/mydb",
-    pool_size=20,
-    max_overflow=30
+    max_connections=20,
 )
+db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb", config=config)
 ```
 
 ### MySQL
@@ -177,12 +177,8 @@ db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb")
 # With charset
 db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4")
 
-# With SSL
-db = kailash.DataFlow(
-    "mysql://user:pass@localhost:3306/mydb",
-    ssl_ca="/path/to/ca.pem",
-    charset="utf8mb4"
-)
+# With SSL (via connection string params)
+db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?ssl-mode=required")
 ```
 
 ### SQLite
@@ -194,8 +190,8 @@ db = kailash.DataFlow(":memory:")
 # File-based
 db = kailash.DataFlow("sqlite:///path/to/database.db")
 
-# With WAL mode
-db = kailash.DataFlow("sqlite:///db.db", enable_wal=True, pool_size=5)
+# File-based with auto_migrate
+db = kailash.DataFlow("sqlite:///db.db", auto_migrate=True)
 ```
 
 ## Database Selection Guide

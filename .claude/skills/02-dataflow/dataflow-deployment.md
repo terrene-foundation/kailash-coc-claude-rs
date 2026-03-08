@@ -83,7 +83,7 @@ CMD ["python", "app.py"]
 ### Docker Compose
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   app:
@@ -150,10 +150,10 @@ df = kailash.DataFlow(
 
 ## Production Settings
 
-| Setting | Development | Production |
-|---------|-------------|------------|
-| `auto_migrate` | `True` (default) | `True` or `False` |
-| `log_config` | `LoggingConfig.development()` | `LoggingConfig.production()` |
-| `pool_size` | Default | Configure via database URL |
+| Setting           | Development                   | Production                   |
+| ----------------- | ----------------------------- | ---------------------------- |
+| `auto_migrate`    | `True` (default)              | `True` or `False`            |
+| `log_config`      | `LoggingConfig.development()` | `LoggingConfig.production()` |
+| `max_connections` | 10                            | Via DataFlowConfig           |
 
 <!-- Trigger Keywords: deploy dataflow, dataflow production, dataflow docker, dataflow kubernetes, dataflow nexus -->

@@ -15,26 +15,23 @@ Use MongoDB-style query operators for filtering, searching, and aggregating Data
 
 ## ⚠️ Important: Filter Operators
 
-All MongoDB-style filter operators are fully supported. Ensure you're using the latest DataFlow version for complete operator support.
-
-**To ensure all operators work correctly:**
-```bash
-pip install kailash-enterprise
-```
+DataFlow uses MongoDB-style filter syntax translated to SQL. Only the following operators are supported:
 
 **Supported Operators:**
-- ✅ $ne (not equal)
-- ✅ $nin (not in)
-- ✅ $in (in)
-- ✅ $not (logical NOT)
-- ✅ All comparison operators ($gt, $lt, $gte, $lte)
+- ✅ `$eq` (equal — or direct value match: `{"active": True}`)
+- ✅ `$ne` (not equal)
+- ✅ `$gt`, `$gte`, `$lt`, `$lte` (comparison)
+- ✅ `$in` (value in list)
+- ✅ `$like` (SQL LIKE pattern match)
+- ✅ `$null` (IS NULL / IS NOT NULL check)
+
+**NOT supported:** `$nin`, `$regex`, `$or`, `$and`, `$not`, `$contains`, `$overlap`, `$text`, `$exists`
 
 ## Quick Reference
 
-- **Operators**: `$gt`, `$gte`, `$lt`, `$lte`, `$ne`, `$in`, `$nin`, `$regex`, `$or`, `$and`, `$not`
-- **Performance**: <10ms for most queries, <100ms for aggregations
-- **SQL Database Agnostic**: Works across PostgreSQL, MySQL, SQLite (MongoDB has native query language)
+- **Operators**: `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$like`, `$null`
 - **Pattern**: Use in `filter` parameter of ListNode
+- **Multiple conditions at same level = implicit AND**
 
 ```python
 # Basic comparison
@@ -43,14 +40,14 @@ pip install kailash-enterprise
 # Multiple conditions (implicit AND)
 {"active": True, "age": {"$gte": 18}}
 
-# OR conditions
-{"$or": [{"role": "admin"}, {"role": "manager"}]}
-
 # IN operator
 {"category": {"$in": ["electronics", "computers"]}}
 
-# Text search
-{"name": {"$regex": "laptop"}}
+# Pattern match (SQL LIKE)
+{"name": {"$like": "%laptop%"}}
+
+# NULL check
+{"deleted_at": {"$null": True}}   # WHERE deleted_at IS NULL
 ```
 
 ## Core Pattern
@@ -99,13 +96,10 @@ builder.add_node("ProductListNode", "electronics", {
     }
 })
 
-# OR conditions
-builder.add_node("ProductListNode", "featured_or_popular", {
+# NULL check
+builder.add_node("ProductListNode", "with_description", {
     "filter": {
-        "$or": [
-            {"featured": True},
-            {"views": {"$gt": 1000}}
-        ]
+        "description": {"$null": False}  # Has a description
     }
 })
 
@@ -127,16 +121,17 @@ result = rt.execute(builder.build(reg))
 
 | Operator | SQL Equivalent | Example |
 |----------|---------------|---------|
+| `$eq` | `=` | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
+| `$ne` | `!=` | `{"status": {"$ne": "inactive"}}` |
 | `$gt` | `>` | `{"age": {"$gt": 18}}` |
 | `$gte` | `>=` | `{"age": {"$gte": 18}}` |
 | `$lt` | `<` | `{"price": {"$lt": 100}}` |
 | `$lte` | `<=` | `{"price": {"$lte": 100}}` |
-| `$ne` | `!=` | `{"status": {"$ne": "inactive"}}` |
-| `$eq` | `=` | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
-| `$null` | `IS NULL` | `{"deleted_at": {"$null": True}}` |
-| `$exists` | `IS NOT NULL` | `{"email": {"$exists": True}}` |
+| `$in` | `IN` | `{"category": {"$in": ["a", "b", "c"]}}` |
+| `$like` | `LIKE` | `{"name": {"$like": "%laptop%"}}` |
+| `$null` | `IS NULL` / `IS NOT NULL` | `{"deleted_at": {"$null": True}}` |
 
-### Null Checking Operators
+### Null Checking
 
 **For soft-delete filtering and nullable field queries:**
 
@@ -148,12 +143,7 @@ builder.add_node("PatientListNode", "active_patients", {
 
 # Query for NOT NULL values
 builder.add_node("PatientListNode", "deleted_patients", {
-    "filter": {"deleted_at": {"$exists": True}}  # WHERE deleted_at IS NOT NULL
-})
-
-# Alternative: $eq with None also works
-builder.add_node("PatientListNode", "active", {
-    "filter": {"deleted_at": {"$eq": None}}  # Also generates IS NULL
+    "filter": {"deleted_at": {"$null": False}}  # WHERE deleted_at IS NOT NULL
 })
 ```
 
@@ -166,30 +156,35 @@ builder.add_node("ModelListNode", "active_records", {
 })
 ```
 
-### Logical Operators
+### Pattern Matching
 
-| Operator | Purpose | Example |
-|----------|---------|---------|
-| `$and` | All conditions | `{"$and": [{"active": true}, {"verified": true}]}` |
-| `$or` | Any condition | `{"$or": [{"role": "admin"}, {"super_user": true}]}` |
-| `$not` | Negation | `{"$not": {"status": "suspended"}}` |
+```python
+# SQL LIKE pattern matching
+builder.add_node("UserListNode", "search", {
+    "filter": {"name": {"$like": "%john%"}}  # Contains "john"
+})
 
-### Array Operators
+builder.add_node("UserListNode", "starts_with", {
+    "filter": {"email": {"$like": "admin%"}}  # Starts with "admin"
+})
+```
 
-| Operator | Purpose | Example |
-|----------|---------|---------|
-| `$in` | Value in list | `{"category": {"$in": ["a", "b", "c"]}}` |
-| `$nin` | Value not in list | `{"role": {"$nin": ["guest", "banned"]}}` |
-| `$contains` | Array contains value | `{"tags": {"$contains": "featured"}}` |
-| `$overlap` | Arrays overlap | `{"tags": {"$overlap": ["sale", "new"]}}` |
+### Multiple Conditions (Implicit AND)
 
-### Text Operators
+Multiple filter keys at the same level are combined with AND:
 
-| Operator | Purpose | Example |
-|----------|---------|---------|
-| `$regex` | Pattern match | `{"name": {"$regex": "laptop"}}` |
-| `$regex` + `$options` | Case-insensitive | `{"email": {"$regex": "john", "$options": "i"}}` |
-| `$text` | Full-text search | `{"$text": {"$search": "gaming laptop"}}` |
+```python
+# All conditions must be true (implicit AND)
+builder.add_node("UserListNode", "query", {
+    "filter": {
+        "active": True,
+        "role": {"$ne": "banned"},
+        "age": {"$gte": 18}
+    }
+})
+```
+
+**Note:** Explicit `$or`, `$and`, `$not` logical operators are NOT supported. Use multiple filter fields for AND conditions. For OR-like behavior, run separate queries.
 
 ## Key Parameters / Options
 
@@ -274,29 +269,25 @@ builder.add_node("ProductListNode", "query", {
 })
 ```
 
-### Mistake 2: Implicit AND with OR
+### Mistake 2: Using Unsupported Logical Operators
 
 ```python
-# Wrong - will fail
+# Wrong - $or and $and are NOT supported
 builder.add_node("UserListNode", "query", {
     "filter": {
-        "active": True,
-        "$or": [{"role": "admin"}, {"role": "manager"}]
-        # Mixing levels incorrectly
+        "$or": [{"role": "admin"}, {"role": "manager"}]  # FAILS
     }
 })
 ```
 
-**Fix: Use $and for Mixed Conditions**
+**Fix: Use $in for OR-like Behavior on Same Field**
 
 ```python
-# Correct
+# Correct - use $in for multiple values on one field
 builder.add_node("UserListNode", "query", {
     "filter": {
-        "$and": [
-            {"active": True},
-            {"$or": [{"role": "admin"}, {"role": "manager"}]}
-        ]
+        "active": True,
+        "role": {"$in": ["admin", "manager"]}
     }
 })
 ```
@@ -343,18 +334,16 @@ Use `dataflow-specialist` subagent when:
 ```python
 builder = kailash.WorkflowBuilder()
 
-# Complex product search
+# Product search with multiple filters (implicit AND)
 builder.add_node("ProductListNode", "search_results", {
     "filter": {
-        "$and": [
-            {"active": True},
-            {"name": {"$regex": "laptop", "$options": "i"}},
-            {"price": {"$gte": 500.00, "$lte": 2000.00}},
-            {"category": {"$in": ["computers", "electronics"]}},
-            {"stock": {"$gt": 0}}
-        ]
+        "active": True,
+        "name": {"$like": "%laptop%"},
+        "price": {"$gte": 500.00, "$lte": 2000.00},
+        "category": {"$in": ["computers", "electronics"]},
+        "stock": {"$gt": 0}
     },
-    "order_by": ["-views", "-rating"],
+    "order_by": ["-created_at"],
     "limit": 20
 })
 ```
@@ -381,23 +370,15 @@ builder.add_node("OrderListNode", "category_revenue", {
 ### Example 3: User Search with Multiple Filters
 
 ```python
-# Advanced user search
+# Advanced user search (all conditions = implicit AND)
 builder.add_node("UserListNode", "power_users", {
     "filter": {
-        "$and": [
-            {"active": True},
-            {"verified": True},
-            {
-                "$or": [
-                    {"subscription": "premium"},
-                    {"purchases": {"$gte": 10}}
-                ]
-            },
-            {"last_login": {"$gte": "30 days ago"}},
-            {"role": {"$nin": ["guest", "banned"]}}
-        ]
+        "active": True,
+        "verified": True,
+        "subscription": "premium",
+        "role": {"$ne": "banned"},
     },
-    "order_by": ["-total_spent", "-created_at"],
+    "order_by": ["-created_at"],
     "limit": 100
 })
 ```
@@ -415,8 +396,9 @@ builder.add_node("UserListNode", "power_users", {
 
 - Always use $ prefix for operators
 - Multiple conditions at same level = implicit AND
-- Use $and explicitly when mixing with $or
-- Regex is case-sensitive unless `$options: "i"`
+- Use `$in` for OR-like behavior on same field
+- Use `$like` for pattern matching (SQL LIKE syntax: `%` for wildcard)
+- Use `$null` for NULL/NOT NULL checks
 - Add indexes for frequently queried fields
 - Use cursor pagination for better performance
 - Limit + offset for simple pagination

@@ -333,10 +333,11 @@ users_df = kailash.DataFlow(
 )
 
 # Analytics database (read-heavy, different optimization)
-analytics_df = kailash.DataFlow(
+analytics_config = kailash.DataFlowConfig(
     os.environ["ANALYTICS_DATABASE_URL"],
-    pool_size=30  # Higher pool for read-heavy workload
+    max_connections=30,  # Higher pool for read-heavy workload
 )
+analytics_df = kailash.DataFlow(os.environ["ANALYTICS_DATABASE_URL"], config=analytics_config)
 
 # Logs database (append-only, high throughput)
 logs_df = kailash.DataFlow(
@@ -718,9 +719,9 @@ async def search_contacts(
     """
     filters = {}
     if company:
-        filters["company"] = {"$regex": company}
+        filters["company"] = {"$like": f"%{company}%"}
     if email_pattern:
-        filters["email"] = {"$regex": email_pattern}
+        filters["email"] = {"$like": f"%{email_pattern}%"}
 
     results = await query_contacts(filters, limit)
     return {"contacts": results, "count": len(results)}

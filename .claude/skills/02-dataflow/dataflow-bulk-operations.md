@@ -1,6 +1,6 @@
 ---
 name: dataflow-bulk-operations
-description: "High-performance bulk operations for DataFlow with MongoDB-style operators. Use when bulk operations, batch insert, BulkCreateNode, BulkUpdateNode, mass data import, $in/$nin operators, or high-throughput processing."
+description: "High-performance bulk operations for DataFlow with MongoDB-style operators. Use when bulk operations, batch insert, BulkCreateNode, BulkUpdateNode, mass data import, $in operators, or high-throughput processing."
 ---
 
 # DataFlow Bulk Operations
@@ -13,7 +13,7 @@ High-performance bulk nodes for processing thousands of records efficiently with
 > Related Skills: [`dataflow-crud-operations`](#), [`dataflow-models`](#), [`dataflow-queries`](#)
 > Related Subagents: `dataflow-specialist` (performance optimization, troubleshooting)
 >
-> **⚡ New Feature**: MongoDB-style operators ($in, $nin, $gt, $gte, $lt, $lte, $ne) for bulk UPDATE and DELETE
+> **⚡ New Feature**: MongoDB-style operators ($eq, $ne, $gt, $gte, $lt, $lte, $in, $like, $null) for bulk UPDATE and DELETE
 
 ## Quick Reference
 
@@ -186,13 +186,15 @@ builder.add_node("ProductBulkDeleteNode", "cleanup", {
 **Supported Operators:**
 | Operator | SQL | Description | Example |
 |----------|-----|-------------|---------|
-| `$in` | `IN` | Match any value in list | `{"status": {"$in": ["active", "pending"]}}` |
-| `$nin` | `NOT IN` | Match values NOT in list | `{"type": {"$nin": ["test", "demo"]}}` |
+| `$eq` | `=` | Equal (or direct value match) | `{"status": "active"}` |
+| `$ne` | `!=` | Not equal | `{"status": {"$ne": "deleted"}}` |
 | `$gt` | `>` | Greater than | `{"price": {"$gt": 100.00}}` |
 | `$gte` | `>=` | Greater than or equal | `{"stock": {"$gte": 10}}` |
 | `$lt` | `<` | Less than | `{"views": {"$lt": 1000}}` |
 | `$lte` | `<=` | Less than or equal | `{"age": {"$lte": 18}}` |
-| `$ne` | `!=` | Not equal | `{"status": {"$ne": "deleted"}}` |
+| `$in` | `IN` | Match any value in list | `{"status": {"$in": ["active", "pending"]}}` |
+| `$like` | `LIKE` | Pattern match | `{"name": {"$like": "%test%"}}` |
+| `$null` | `IS NULL` | Null check | `{"deleted_at": {"$null": True}}` |
 
 **Examples:**
 
@@ -202,9 +204,9 @@ builder.add_node("OrderBulkDeleteNode", "cleanup", {
     "filter": {"status": {"$in": ["cancelled", "expired", "failed"]}}
 })
 
-# $nin operator - Keep only specific statuses
-builder.add_node("OrderBulkDeleteNode", "cleanup_except", {
-    "filter": {"status": {"$nin": ["completed", "shipped"]}}
+# $ne operator - Delete non-completed orders
+builder.add_node("OrderBulkDeleteNode", "cleanup_pending", {
+    "filter": {"status": {"$ne": "completed"}}
 })
 
 # Comparison operators - Update based on numeric comparison
