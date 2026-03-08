@@ -39,7 +39,7 @@ dataflow debug my_workflow.py --node "user_create"
 
 # Output:
 # Node Debug Report: user_create
-# - Type: UserCreateNode
+# - Type: CreateUser
 # - Parameters: id, name, email
 # - Connections: 3 outgoing, 0 incoming
 # - Validation: PASSED

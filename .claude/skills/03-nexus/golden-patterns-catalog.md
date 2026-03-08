@@ -51,7 +51,7 @@ async def create_user(email: str, name: str) -> dict:
     import uuid
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": f"user-{uuid.uuid4()}",
         "email": email,
         "name": name
@@ -108,8 +108,8 @@ class User:
     org_id: Optional[str] = None      # Optional foreign key
 
 # Auto-generates 11 nodes:
-# CRUD: UserCreateNode, UserReadNode, UserUpdateNode, UserDeleteNode, UserListNode, UserUpsertNode, UserCountNode
-# Bulk: UserBulkCreateNode, UserBulkUpdateNode, UserBulkDeleteNode, UserBulkUpsertNode
+# CRUD: CreateUser, ReadUser, UpdateUser, DeleteUser, ListUser, UpsertUser, CountUser
+# Bulk: BulkCreateUser, BulkUpdateUser, BulkDeleteUser, BulkUpsertUser
 ```
 
 ### Common Mistakes
@@ -162,7 +162,7 @@ class Contact:
 @app.handler("create_contact")
 async def create_contact(email: str, name: str, company_id: str) -> dict:
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ContactCreateNode", "create", {
+    builder.add_node("CreateContact", "create", {
         "id": f"contact-{uuid.uuid4()}",
         "email": email,
         "name": name,
@@ -176,7 +176,7 @@ async def create_contact(email: str, name: str, company_id: str) -> dict:
 @app.handler("list_contacts")
 async def list_contacts(company_id: str, limit: int = 20) -> dict:
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ContactListNode", "list", {
+    builder.add_node("ListContact", "list", {
         "filter": {"company_id": company_id},
         "limit": limit,
         "order_by": ["-created_at"]
@@ -386,7 +386,7 @@ Extend SDK with project-specific logic as reusable workflow nodes.
 ### When NOT to Use
 
 - One-off logic (use `@app.handler()` instead)
-- Simple transformations (use built-in TransformNode)
+- Simple transformations (use built-in JSONTransformNode or TextTransformNode)
 
 ### Canonical Example
 
@@ -554,7 +554,7 @@ result = {
     })
 
     # Step 3: Create order in database
-    builder.add_node("OrderCreateNode", "create_order", {
+    builder.add_node("CreateOrder", "create_order", {
         "product_id": None,
         "quantity": None,
         "price": None,
@@ -625,9 +625,9 @@ rt = kailash.Runtime(reg)
 
 async def process_data(data: dict) -> dict:
     builder = kailash.WorkflowBuilder()
-    builder.add_node("TransformNode", "transform", {
-        "data": data,
-        "operation": "normalize"
+    builder.add_node("EmbeddedPythonNode", "transform", {
+        "code": "result = normalize(data)",
+        "output_vars": ["result"]
     })
 
     # kailash.Runtime handles event loop correctly

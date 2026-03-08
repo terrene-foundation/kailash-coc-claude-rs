@@ -37,7 +37,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Monitor slow queries
-builder.add_node("UserListNode", "get_users", {
+builder.add_node("ListUser", "get_users", {
     "filters": {"status": "active"},
     "track_performance": True  # Enable timing
 })
@@ -50,7 +50,7 @@ builder.add_node("ConditionalNode", "check_slow", {
 
 builder.add_node("SQLQueryNode", "log_slow_query", {
     "query": "INSERT INTO slow_queries (operation, duration_ms) VALUES (?, ?)",
-    "parameters": ["UserListNode", "{{get_users.execution_time_ms}}"]
+    "parameters": ["ListUser", "{{get_users.execution_time_ms}}"]
 })
 ```
 

@@ -49,13 +49,15 @@ builder.add_node("DataValidationNode", "validate", {
 })
 
 # 3. TRANSFORM: Clean data
-builder.add_node("TransformNode", "clean", {
-    "input": "{{validate.valid_data}}",
-    "transformations": [
-        {"field": "email", "operation": "lowercase"},
-        {"field": "name", "operation": "trim"},
-        {"field": "phone", "operation": "normalize_phone"}
-    ]
+builder.add_node("EmbeddedPythonNode", "clean", {
+    "code": """
+for row in data:
+    row['email'] = row['email'].lower()
+    row['name'] = row['name'].strip()
+    row['phone'] = normalize_phone(row['phone'])
+result = data
+    """,
+    "output_vars": ["result"]
 })
 
 # 4. TRANSFORM: Enrich data
@@ -117,14 +119,18 @@ builder.add_node("SQLQueryNode", "extract_source", {
 })
 
 # 2. TRANSFORM: Data mapping
-builder.add_node("TransformNode", "transform_schema", {
-    "input": "{{extract_source.results}}",
-    "transformations": [
-        {"source": "id", "target": "legacy_id", "type": "string"},
-        {"source": "name", "target": "full_name", "type": "string"},
-        {"source": "email", "target": "email_address", "type": "lowercase"},
-        {"source": "created_at", "target": "registration_date", "type": "datetime"}
-    ]
+builder.add_node("EmbeddedPythonNode", "transform_schema", {
+    "code": """
+result = []
+for row in data:
+    result.append({
+        'legacy_id': str(row['id']),
+        'full_name': str(row['name']),
+        'email_address': row['email'].lower(),
+        'registration_date': row['created_at']
+    })
+    """,
+    "output_vars": ["result"]
 })
 
 # 3. TRANSFORM: Validate business rules
@@ -190,13 +196,20 @@ builder.add_node("MessageQueueConsumerNode", "extract_stream", {
 })
 
 # 2. TRANSFORM: Parse events
-builder.add_node("TransformNode", "parse_events", {
-    "input": "{{extract_stream.messages}}",
-    "parsing": {
-        "format": "json",
-        "flatten": True,
-        "extract_fields": ["user_id", "event_type", "timestamp", "data"]
-    }
+builder.add_node("EmbeddedPythonNode", "parse_events", {
+    "code": """
+import json
+result = []
+for msg in messages:
+    event = json.loads(msg) if isinstance(msg, str) else msg
+    result.append({
+        'user_id': event['user_id'],
+        'event_type': event['event_type'],
+        'timestamp': event['timestamp'],
+        'data': event.get('data', {})
+    })
+    """,
+    "output_vars": ["result"]
 })
 
 # 3. TRANSFORM: Aggregate metrics

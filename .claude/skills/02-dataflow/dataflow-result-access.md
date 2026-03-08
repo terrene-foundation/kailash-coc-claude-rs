@@ -37,13 +37,13 @@ class User:
 builder = kailash.WorkflowBuilder()
 
 # Create user
-builder.add_node("UserCreateNode", "create_user", {
+builder.add_node("CreateUser", "create_user", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
 # List users
-builder.add_node("UserListNode", "list_users", {
+builder.add_node("ListUser", "list_users", {
     "filter": {"active": True}
 })
 
@@ -179,13 +179,13 @@ user_name = users_list[0]["name"]  # Works
 builder = kailash.WorkflowBuilder()
 
 # Create user
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
 # Read created user
-builder.add_node("UserReadNode", "read", {})
+builder.add_node("ReadUser", "read", {})
 builder.connect("create", "id", "read", "id")
 
 rt = kailash.Runtime(reg)
@@ -203,7 +203,7 @@ print(f"User name: {user_details['name']}")
 ### Example 2: Processing List Results
 
 ```python
-builder.add_node("ProductListNode", "list_products", {
+builder.add_node("ListProduct", "list_products", {
     "filter": {"active": True},
     "limit": 10
 })

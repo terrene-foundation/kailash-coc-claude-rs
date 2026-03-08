@@ -33,19 +33,19 @@ builder.add_node("ConditionalNode", "check_tier", {
 })
 
 # 3. Calculate discounts
-builder.add_node("TransformNode", "gold_discount", {
-    "input": "{{input.amount}}",
-    "transformation": "value * 0.80"  # 20% off
+builder.add_node("EmbeddedPythonNode", "gold_discount", {
+    "code": "result = value * 0.80",  # 20% off
+    "output_vars": ["result"]
 })
 
-builder.add_node("TransformNode", "silver_discount", {
-    "input": "{{input.amount}}",
-    "transformation": "value * 0.90"  # 10% off
+builder.add_node("EmbeddedPythonNode", "silver_discount", {
+    "code": "result = value * 0.90",  # 10% off
+    "output_vars": ["result"]
 })
 
-builder.add_node("TransformNode", "bronze_discount", {
-    "input": "{{input.amount}}",
-    "transformation": "value * 0.95"  # 5% off
+builder.add_node("EmbeddedPythonNode", "bronze_discount", {
+    "code": "result = value * 0.95",  # 5% off
+    "output_vars": ["result"]
 })
 
 # 4. Apply additional rules

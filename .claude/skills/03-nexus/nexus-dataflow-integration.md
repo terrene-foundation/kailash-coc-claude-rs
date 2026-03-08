@@ -43,7 +43,7 @@ class User:
 
 # Step 4: Register workflows manually
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create", {"email": "{{email}}"})
+builder.add_node("CreateUser", "create", {"email": "{{email}}"})
 app.register("create_user", builder.build(reg))
 
 # Step 5: Start
@@ -100,7 +100,7 @@ def create_contact_workflow():
     builder = kailash.WorkflowBuilder()
 
     # Use DataFlow's auto-generated nodes
-    builder.add_node("ContactCreateNode", "create", {
+    builder.add_node("CreateContact", "create", {
         "name": "{{name}}",
         "email": "{{email}}",
         "company": "{{company}}"
@@ -141,13 +141,13 @@ With `auto_discovery=False`:
 builder = kailash.WorkflowBuilder()
 
 # Create node
-builder.add_node("ContactCreateNode", "create", {
+builder.add_node("CreateContact", "create", {
     "name": "{{name}}",
     "email": "{{email}}"
 })
 
 # Search node
-builder.add_node("ContactListNode", "search", {
+builder.add_node("ListContact", "search", {
     "filter": {"company": "{{company}}"},
     "limit": 10
 })
@@ -249,7 +249,7 @@ def test_nexus_dataflow_integration():
 
     # Test workflow execution
     builder = kailash.WorkflowBuilder()
-    builder.add_node("TestModelCreateNode", "create", {"name": "test"})
+    builder.add_node("CreateTestModel", "create", {"name": "test"})
     app.register("test", builder.build(reg))
 ```
 

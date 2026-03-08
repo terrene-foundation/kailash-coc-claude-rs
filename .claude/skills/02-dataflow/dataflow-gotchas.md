@@ -247,7 +247,7 @@ if "filter" in kwargs:
 Two locations had truthiness bugs:
 
 1. ListNode at nodes.py:1810 - `if filter_dict:` → `if "filter" in kwargs:`
-2. BulkDeleteNode at bulk_delete.py:177 - `not filter_conditions` → `"filter" not in validated_inputs`
+2. BulkDelete{Model} at bulk_delete.py:177 - `not filter_conditions` → `"filter" not in validated_inputs`
 
 #### Impact
 

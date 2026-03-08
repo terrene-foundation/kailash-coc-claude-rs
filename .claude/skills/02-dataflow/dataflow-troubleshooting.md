@@ -98,7 +98,7 @@ md.field("active", FieldType.boolean())
 **Error**:
 
 ```
-RuntimeError: workflow build failed: unknown node type: UserCreateNode
+RuntimeError: workflow build failed: unknown node type: CreateUser
 ```
 
 **Cause**: DataFlow-generated node types (CreateNode, ReadNode, etc.) are not registered in `NodeRegistry` by default. The Rust binding does not auto-generate nodes from model definitions like the pure Python SDK does.

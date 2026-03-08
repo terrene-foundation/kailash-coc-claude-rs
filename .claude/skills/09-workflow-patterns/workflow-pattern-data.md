@@ -35,12 +35,14 @@ builder.add_node("DataValidationNode", "validate", {
 })
 
 # 4. Clean fields
-builder.add_node("TransformNode", "clean", {
-    "input": "{{validate.valid_data}}",
-    "transformations": [
-        {"field": "email", "operation": "lowercase"},
-        {"field": "name", "operation": "trim"}
-    ]
+builder.add_node("EmbeddedPythonNode", "clean", {
+    "code": """
+for row in data:
+    row['email'] = row['email'].lower()
+    row['name'] = row['name'].strip()
+result = data
+    """,
+    "output_vars": ["result"]
 })
 
 # 5. Aggregate metrics

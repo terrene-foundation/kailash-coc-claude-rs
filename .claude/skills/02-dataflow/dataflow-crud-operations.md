@@ -31,7 +31,7 @@ Use the 11 automatically generated workflow nodes for Create, Read, Update, Dele
 | ------------------ | -------------------------- | ---------------------------------------------------------------- |
 | **CreateNode**     | **FLAT** individual fields | `{"name": "Alice", "email": "alice@example.com"}`                |
 | **UpdateNode**     | **NESTED** filter + fields | `{"filter": {"id": 1}, "fields": {"name": "Alice Updated"}}`     |
-| **BulkUpdateNode** | **NESTED** filter + fields | `{"filter": {"active": True}, "fields": {"status": "verified"}}` |
+| **BulkUpdate{Model}** | **NESTED** filter + fields | `{"filter": {"active": True}, "fields": {"status": "verified"}}` |
 
 ### CreateNode: FLAT Individual Fields
 
@@ -457,7 +457,7 @@ builder.add_node("UpdateUser", "update_last_login", {
 })
 ```
 
-### Example: BulkCreateNode with Datetime
+### Example: BulkCreate{Model} with Datetime
 
 ```python
 # Prepare bulk data with ISO strings
@@ -478,7 +478,7 @@ result = {"users": json.dumps(users)}
     """
 })
 
-# BulkCreateNode automatically converts all datetime strings
+# BulkCreate{Model} automatically converts all datetime strings
 builder.add_node("BulkCreateUser", "bulk_import", {
     "data": "{{generate_bulk_data.users}}"  # All ISO strings → datetime
 })

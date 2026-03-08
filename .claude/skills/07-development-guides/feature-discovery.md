@@ -27,11 +27,11 @@ available_nodes = reg.list_types()  # Returns 139+ node types
 # Core node categories:
 # - Data: CSVProcessorNode, SQLQueryNode, FileReaderNode
 # - API: HTTPRequestNode
-# - AI: LLMNode, EmbeddingNode, ClassificationNode, SentimentNode
+# - AI: LLMNode, EmbeddingNode, ClassificationNode, SentimentAnalysisNode
 # - Logic: SwitchNode, MergeNode, ConditionalNode
 # - Transform: DataMapperNode, JSONTransformNode
 # - Code: EmbeddedPythonNode
-# - Utility: VariableNode, DelayNode
+# - Utility: NoOpNode, LogNode, WaitNode
 ```
 
 ### 3. Framework Discovery
@@ -60,7 +60,7 @@ builder.add_node("EmbeddedPythonNode", "test", {
 })
 
 # Explore connections
-builder.connect("node1", "node2", "output", "input")
+builder.connect("node1", "output", "node2", "input")
 
 # Test execution
 reg = kailash.NodeRegistry()

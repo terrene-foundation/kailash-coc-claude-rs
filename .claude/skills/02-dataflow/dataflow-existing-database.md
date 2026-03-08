@@ -39,12 +39,12 @@ class User:
     email: str
     name: str
 
-# Register the model -- generates CRUD nodes (UserCreateNode, UserReadNode, etc.)
+# Register the model -- generates CRUD nodes (CreateUser, ReadUser, etc.)
 df.register_model(User._model_definition)
 
 # Use generated nodes
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserListNode", "get_users", {
+builder.add_node("ListUser", "get_users", {
     "filter": {"active": True},
     "limit": 10
 })
@@ -72,9 +72,9 @@ model.field("category", kailash.FieldType.text(), nullable=True)
 # Register generates CRUD nodes
 df.register_model(model)
 
-# Now ProductListNode, ProductCreateNode, etc. are available
+# Now ListProduct, CreateProduct, etc. are available
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductListNode", "list_products", {
+builder.add_node("ListProduct", "list_products", {
     "filter": {"category": "electronics"},
     "limit": 50
 })
@@ -141,7 +141,7 @@ df.register_model(Order._model_definition)
 
 # Safe read operations
 builder = kailash.WorkflowBuilder()
-builder.add_node("OrderListNode", "recent_orders", {
+builder.add_node("ListOrder", "recent_orders", {
     "filter": {"status": "completed"},
     "limit": 100
 })

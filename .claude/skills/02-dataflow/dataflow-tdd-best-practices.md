@@ -17,7 +17,7 @@ description: "DataFlow TDD best practices. Use when asking 'dataflow test practi
 def test_user_create(test_db):
     """Test single node operation"""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": "user_001",
         "email": "test@example.com"
     })

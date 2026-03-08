@@ -65,7 +65,7 @@ START: What are you building?
 |   |   --> Call workflow from APScheduler or Celery
 |   |
 |   +-- Bulk data import?
-|       --> Pattern 2 (DataFlow) with BulkCreateNode/BulkUpsertNode
+|       --> Pattern 2 (DataFlow) with BulkCreate{Model}/BulkUpsert{Model}
 |       --> Use batch_size parameter for memory efficiency
 |
 +-- Infrastructure/auth only?
@@ -248,7 +248,7 @@ class User:
 async def get_user(user_id: str) -> dict:
     # Reuse module-level db instance
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserReadNode", "read", {"id": user_id})
+    builder.add_node("ReadUser", "read", {"id": user_id})
     # ...
 ```
 
@@ -265,7 +265,7 @@ async def get_user(user_id: str) -> dict:
 def create_user(name: str, email: str):
     builder = kailash.WorkflowBuilder()
     builder.add_node("ValidateInputNode", "validate", {"name": name, "email": email})
-    builder.add_node("UserCreateNode", "create", {})
+    builder.add_node("CreateUser", "create", {})
     builder.connect("validate", "validated", "create", "data")
     # 20 lines for what should be 5
 ```
@@ -280,7 +280,7 @@ async def create_user(name: str, email: str) -> dict:
         return {"error": "Invalid email"}
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": f"user-{uuid.uuid4()}",
         "name": name,
         "email": email
@@ -330,7 +330,7 @@ def real_db():
 
 def test_create_user(real_db):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": "test-123",
         "name": "John",
         "email": "john@example.com"
@@ -465,7 +465,7 @@ async def create_contact(
 ) -> dict:
     """Create a contact in the authenticated user's organization."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ContactCreateNode", "create", {
+    builder.add_node("CreateContact", "create", {
         "id": f"contact-{uuid.uuid4()}",
         "email": email,
         "name": name,
@@ -490,7 +490,7 @@ async def list_contacts(
         filters["company"] = {"$like": f"%{company}%"}
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ContactListNode", "list", {
+    builder.add_node("ListContact", "list", {
         "filter": filters,
         "limit": limit,
         "offset": offset,
@@ -511,7 +511,7 @@ async def delete_contact(
 ) -> dict:
     """Soft-delete a contact."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ContactDeleteNode", "delete", {
+    builder.add_node("DeleteContact", "delete", {
         "filter": {"id": contact_id},
         "soft_delete": True
     })
@@ -793,7 +793,7 @@ async def create_project(
 ) -> dict:
     project_id = f"proj-{uuid.uuid4()}"
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ProjectCreateNode", "create", {
+    builder.add_node("CreateProject", "create", {
         "id": project_id,
         "name": name,
         "description": description,
@@ -810,7 +810,7 @@ async def list_projects(
     # Auth enforced by NexusAuthPlugin middleware
 ) -> dict:
     builder = kailash.WorkflowBuilder()
-    builder.add_node("ProjectListNode", "list", {
+    builder.add_node("ListProject", "list", {
         "filter": {"status": status},
         "limit": limit,
         "order_by": ["-created_at"]

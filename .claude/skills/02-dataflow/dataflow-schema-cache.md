@@ -54,7 +54,7 @@ class User:
 
 # First operation: Cache miss (~1500ms)
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "id": "user-1",
     "name": "Alice"
 })
@@ -63,7 +63,7 @@ result = rt.execute(builder.build(reg))
 
 # Subsequent operations: Cache hit (~1ms)
 workflow2 = kailash.WorkflowBuilder()
-workflow2.add_node("UserCreateNode", "create2", {
+workflow2.add_node("CreateUser", "create2", {
     "id": "user-2",
     "name": "Bob"
 })
@@ -103,7 +103,7 @@ class User:
 
 def create_user(user_id: str):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": user_id,
         "name": f"User {user_id}"
     })

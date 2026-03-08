@@ -36,7 +36,7 @@ app = NexusApp()
 @app.handler()
 def create_user(name: str, email: str):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "name": name, "email": email
     })
     rt = kailash.Runtime(reg)
@@ -45,14 +45,14 @@ def create_user(name: str, email: str):
 @app.handler()
 def get_user(id: str):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserReadNode", "read", {"id": id})
+    builder.add_node("ReadUser", "read", {"id": id})
     rt = kailash.Runtime(reg)
     return rt.execute(builder.build(reg))
 
 @app.handler()
 def list_users(limit: int = 100):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserListNode", "list", {"limit": limit})
+    builder.add_node("ListUser", "list", {"limit": limit})
     rt = kailash.Runtime(reg)
     return rt.execute(builder.build(reg))
 ```

@@ -47,7 +47,7 @@ app = NexusApp(NexusConfig(port=3000))
 # Step 4: Register DataFlow workflows with Nexus
 # DataFlow auto-generates 11 nodes per model - register them as workflows
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductCreateNode", "create", {
+builder.add_node("CreateProduct", "create", {
     "name": "${input.name}",
     "price": "${input.price}"
 })
@@ -135,7 +135,7 @@ from kailash.nexus import NexusApp
 app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductListNode", "list", {"filter": "${input.filter}"})
+builder.add_node("ListProduct", "list", {"filter": "${input.filter}"})
 app.register("list_products", builder.build(reg))
 ```
 
@@ -181,7 +181,7 @@ from kailash.nexus import NexusApp, NexusConfig
 app = NexusApp(NexusConfig(port=3000))
 
 # Register product operations as workflows
-for node_name in ["ProductCreateNode", "ProductListNode", "ProductReadNode"]:
+for node_name in ["CreateProduct", "ListProduct", "ReadProduct"]:
     builder = kailash.WorkflowBuilder()
     builder.add_node(node_name, "op", {"input": "${input}"})
     app.register(node_name.lower(), builder.build(reg))

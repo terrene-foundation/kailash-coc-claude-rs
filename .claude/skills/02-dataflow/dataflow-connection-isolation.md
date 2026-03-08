@@ -27,12 +27,12 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 # Each node gets SEPARATE connection from pool
-builder.add_node("UserCreateNode", "create_user", {
+builder.add_node("CreateUser", "create_user", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
-builder.add_node("OrderCreateNode", "create_order", {
+builder.add_node("CreateOrder", "create_order", {
     "user_id": "${create_user.id}",  # Will work
     "total": 100.0
 })
@@ -51,7 +51,7 @@ result = rt.execute(builder.build(reg))
 **This means:**
 
 - No automatic rollback across multiple nodes
-- No ACID guarantees between UserCreateNode -> OrderCreateNode
+- No ACID guarantees between CreateUser -> CreateOrder
 - Partial data commits if workflow fails midway
 - Each node gets fresh connection from pool
 - Better concurrency (no connection blocking)
@@ -118,17 +118,17 @@ builder.add_node("TransactionContextNode", "tx_begin", {
 })
 
 # 2. All subsequent nodes participate in the transaction
-builder.add_node("UserCreateNode", "create_user", {
+builder.add_node("CreateUser", "create_user", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
-builder.add_node("OrderCreateNode", "create_order", {
+builder.add_node("CreateOrder", "create_order", {
     "user_id": "${create_user.id}",
     "total": 100.0
 })
 
-builder.add_node("PaymentCreateNode", "create_payment", {
+builder.add_node("CreatePayment", "create_payment", {
     "order_id": "${create_order.id}",
     "amount": 100.0
 })
@@ -181,13 +181,13 @@ execute(inputs, ctx):
 **Without Transaction:**
 
 ```
-UserCreateNode:
+CreateUser:
   1. Get connection from pool
   2. Execute INSERT
   3. Commit
   4. Return connection to pool
 
-OrderCreateNode:
+CreateOrder:
   1. Get NEW connection from pool
   2. Execute INSERT
   3. Commit
@@ -203,11 +203,11 @@ TransactionContextNode (operation: "create"):
   3. Store connection in workflow context
   4. Return transaction_id
 
-UserCreateNode:
+CreateUser:
   1. Use shared connection from context
   2. Execute INSERT (no commit)
 
-OrderCreateNode:
+CreateOrder:
   1. Use shared connection from context
   2. Execute INSERT (no commit)
 
@@ -234,8 +234,8 @@ TransactionContextNode (operation: "end", end_status: "committed"):
 builder = kailash.WorkflowBuilder()
 
 # These operations are automatically in a transaction -- FALSE
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("AccountCreateNode", "create_account", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateAccount", "create_account", {...})
 
 # If any operation fails, all are rolled back -- FALSE
 ```
@@ -247,16 +247,16 @@ builder.add_node("AccountCreateNode", "create_account", {...})
 builder = kailash.WorkflowBuilder()
 
 # WITHOUT TransactionContextNode: separate connections
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("AccountCreateNode", "create_account", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateAccount", "create_account", {...})
 # If create_account fails, create_user is NOT rolled back
 
 # WITH TransactionContextNode: shared connection
 builder.add_node("TransactionContextNode", "tx_begin", {
     "operation": "create"
 })
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("AccountCreateNode", "create_account", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateAccount", "create_account", {...})
 builder.add_node("TransactionContextNode", "tx_commit", {
     "operation": "end",
     "end_status": "committed"
@@ -308,19 +308,19 @@ builder.add_node("TransactionContextNode", "tx_begin", {
 })
 
 # Create customer
-builder.add_node("CustomerCreateNode", "create_customer", {
+builder.add_node("CreateCustomer", "create_customer", {
     "name": "John Doe",
     "email": "john@example.com"
 })
 
 # Create order
-builder.add_node("OrderCreateNode", "create_order", {
+builder.add_node("CreateOrder", "create_order", {
     "customer_id": "${create_customer.id}",
     "total": 250.00
 })
 
 # Create order items
-builder.add_node("OrderItemBulkCreateNode", "create_items", {
+builder.add_node("BulkCreateOrderItem", "create_items", {
     "data": [
         {"order_id": "${create_order.id}", "product_id": 1, "quantity": 2},
         {"order_id": "${create_order.id}", "product_id": 2, "quantity": 1}
@@ -328,7 +328,7 @@ builder.add_node("OrderItemBulkCreateNode", "create_items", {
 })
 
 # Update inventory
-builder.add_node("InventoryBulkUpdateNode", "update_inventory", {
+builder.add_node("BulkUpdateInventory", "update_inventory", {
     "filter": {"product_id": {"$in": [1, 2]}},
     "fields": {"quantity": "${quantity - reserved}"}
 })
@@ -353,7 +353,7 @@ builder.connect("tx_begin", "transaction_id", "tx_commit", "transaction_id")
 builder = kailash.WorkflowBuilder()
 
 # No transaction - partial success acceptable
-builder.add_node("ProductBulkCreateNode", "import_products", {
+builder.add_node("BulkCreateProduct", "import_products", {
     "data": product_list,  # 10,000 products
     "batch_size": 1000,
     "on_conflict": "skip"  # Skip duplicates
@@ -374,8 +374,8 @@ builder.add_node("TransactionContextNode", "tx_begin", {
     "timeout_seconds": 30
 })
 
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("ProfileCreateNode", "create_profile", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateProfile", "create_profile", {...})
 
 # If an error occurs, explicitly roll back
 builder.add_node("TransactionContextNode", "tx_rollback", {
@@ -400,15 +400,15 @@ builder.add_node("TransactionContextNode", "tx_commit", {
 
 ```python
 # Before (partial commits):
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("ProfileCreateNode", "create_profile", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateProfile", "create_profile", {...})
 
 # After (atomic):
 builder.add_node("TransactionContextNode", "tx_begin", {
     "operation": "create"
 })
-builder.add_node("UserCreateNode", "create_user", {...})
-builder.add_node("ProfileCreateNode", "create_profile", {...})
+builder.add_node("CreateUser", "create_user", {...})
+builder.add_node("CreateProfile", "create_profile", {...})
 builder.add_node("TransactionContextNode", "tx_commit", {
     "operation": "end",
     "end_status": "committed"
@@ -430,7 +430,7 @@ reg = kailash.NodeRegistry()
 builder.add_node("TransactionContextNode", "tx_begin", {
     "operation": "create"
 })
-builder.add_node("UserCreateNode", "create_user", {...})
+builder.add_node("CreateUser", "create_user", {...})
 builder.add_node("TransactionContextNode", "tx_commit", {
     "operation": "end",
     "end_status": "committed"

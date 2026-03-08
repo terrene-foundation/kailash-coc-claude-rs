@@ -91,9 +91,9 @@ result = {'stored': len(embeddings), 'collection': 'documents'}
     })
 
     # Connections
-    builder.connect("reader", "chunker", "content", "content")
-    builder.connect("chunker", "embedder", "result", "chunks")
-    builder.connect("embedder", "store", "result", "embeddings")
+    builder.connect("reader", "content", "chunker", "content")
+    builder.connect("chunker", "result", "embedder", "chunks")
+    builder.connect("embedder", "result", "store", "embeddings")
 
     return workflow
 ```
@@ -166,9 +166,9 @@ result = {'prompt': prompt}
     })
 
     # Connections
-    builder.connect("query_embedder", "search", "result", "query_embedding")
-    builder.connect("search", "construct_prompt", "result", "documents")
-    builder.connect("construct_prompt", "generator", "prompt", "messages")
+    builder.connect("query_embedder", "result", "search", "query_embedding")
+    builder.connect("search", "result", "construct_prompt", "documents")
+    builder.connect("construct_prompt", "prompt", "generator", "messages")
 
     return workflow
 ```
@@ -219,7 +219,7 @@ result = {
 """
     })
 
-    builder.connect("initial_search", "reranker", "result", "candidates")
+    builder.connect("initial_search", "result", "reranker", "candidates")
 
     return workflow
 ```
@@ -287,9 +287,9 @@ result = {'documents': [doc for doc, score in ranked[:5]]}
 """
     })
 
-    builder.connect("semantic_search", "merger", "result", "semantic")
-    builder.connect("keyword_search", "merger", "result", "keyword")
-    builder.connect("merger", "final_ranker", "merged", "input")
+    builder.connect("semantic_search", "result", "merger", "semantic")
+    builder.connect("keyword_search", "result", "merger", "keyword")
+    builder.connect("merger", "merged", "final_ranker", "input")
 
     return workflow
 ```

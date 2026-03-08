@@ -23,7 +23,7 @@ Quick reference to all 139+ tested and validated Kailash workflow nodes.
 | Use LLM/AI               | `LLMNode` ⭐                          | ❌ OpenAI SDK          |
 | Filter/Transform         | `FilterNode`, `DataMapperNode`        | ❌ List comprehensions |
 | Route Logic              | `SwitchNode`, `ConditionalNode`       | ❌ if/else blocks      |
-| Send Alerts              | `DiscordAlertNode`, `EmailAlertNode`  | ❌ SMTP/webhook code   |
+| Send Alerts              | `TeamsAlertNode`, `EmailAlertNode`    | ❌ SMTP/webhook code   |
 | Distributed Transactions | `DistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
 
 ## Node Categories (139+ total)
@@ -55,8 +55,8 @@ import kailash
 #   LLMNode (multi-provider chat completions with tool calling)
 #   EmbeddingNode (text-to-vector embedding generation)
 #   ClassificationNode (zero-shot/few-shot text classification)
-#   SentimentNode (sentiment analysis)
-#   SummarizationNode (text summarization)
+#   SentimentAnalysisNode (sentiment analysis)
+#   TextSummarizationNode (text summarization)
 #   VisionNode (image analysis)
 #   AudioNode (audio processing)
 #   ImageGenerationNode (image generation)

@@ -39,14 +39,14 @@ class Order:
 # Use with_tenant context manager for automatic filtering
 with with_tenant(df, "tenant_abc"):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("OrderCreateNode", "create", {
+    builder.add_node("CreateOrder", "create", {
         "customer_id": 123,
         "total": 250.00,
         # tenant_id is auto-injected by QueryInterceptor
     })
 
     # List only shows current tenant's orders
-    builder.add_node("OrderListNode", "list", {
+    builder.add_node("ListOrder", "list", {
         "filter": {"status": "completed"},
         # tenant_id filter is auto-injected
     })

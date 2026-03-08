@@ -103,19 +103,19 @@ builder.add_node("RerankNode", "rerank", {
 })
 
 # 4. Build context prompt
-builder.add_node("TransformNode", "build_prompt", {
-    "input": "{{rerank.documents}}",
-    "transformation": """
-        context = '\n\n'.join([doc['text'] for doc in input])
-        return f'''Answer the question based on this context:
+builder.add_node("EmbeddedPythonNode", "build_prompt", {
+    "code": """
+context = '\n\n'.join([doc['text'] for doc in input])
+result = f'''Answer the question based on this context:
 
 Context:
 {context}
 
-Question: {{input.query}}
+Question: {query}
 
 Answer:'''
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # 5. Generate answer with LLM
@@ -220,9 +220,9 @@ builder.add_node("SQLQueryNode", "load_history", {
 })
 
 # 2. Build conversation context
-builder.add_node("TransformNode", "build_context", {
-    "input": "{{load_history.results}}",
-    "transformation": "'\n'.join([f'{m.role}: {m.content}' for m in input])"
+builder.add_node("EmbeddedPythonNode", "build_context", {
+    "code": "result = '\\n'.join([f'{m[\"role\"]}: {m[\"content\"]}' for m in input])",
+    "output_vars": ["result"]
 })
 
 # 3. Embed query with context

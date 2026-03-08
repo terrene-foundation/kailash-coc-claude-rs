@@ -1,6 +1,6 @@
 ---
 name: dataflow-bulk-operations
-description: "High-performance bulk operations for DataFlow with MongoDB-style operators. Use when bulk operations, batch insert, BulkCreateNode, BulkUpdateNode, mass data import, $in operators, or high-throughput processing."
+description: "High-performance bulk operations for DataFlow with MongoDB-style operators. Use when bulk operations, batch insert, BulkCreate{Model}, BulkUpdate{Model}, mass data import, $in operators, or high-throughput processing."
 ---
 
 # DataFlow Bulk Operations
@@ -25,25 +25,25 @@ High-performance bulk nodes for processing thousands of records efficiently with
 
 ```python
 # Bulk create
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products_list,
     "batch_size": 1000
 })
 
 # Bulk update
-builder.add_node("ProductBulkUpdateNode", "update_prices", {
+builder.add_node("BulkUpdateProduct", "update_prices", {
     "filter": {"category": "electronics"},
     "fields": {"price": {"$multiply": 0.9}}
 })
 
 # Bulk delete
-builder.add_node("ProductBulkDeleteNode", "cleanup", {
+builder.add_node("BulkDeleteProduct", "cleanup", {
     "filter": {"active": False},
     "soft_delete": True
 })
 
 # Bulk upsert
-builder.add_node("ProductBulkUpsertNode", "sync", {
+builder.add_node("BulkUpsertProduct", "sync", {
     "data": products_list,
     "conflict_resolution": "update"  # "update" or "skip"/"ignore"
 })
@@ -74,7 +74,7 @@ products = [
 builder = kailash.WorkflowBuilder()
 
 # Bulk create (high performance)
-builder.add_node("ProductBulkCreateNode", "import_products", {
+builder.add_node("BulkCreateProduct", "import_products", {
     "data": products,
     "batch_size": 1000,           # Process 1000 at a time
     "conflict_resolution": "skip"  # Skip duplicates
@@ -101,17 +101,17 @@ print(f"Success: {imported['success_count']}, Failed: {imported['failure_count']
 
 | Node | Throughput | Use Case | Key Parameters |
 |------|-----------|----------|----------------|
-| **BulkCreateNode** | 10k+/sec | Data import | `data`, `batch_size`, `conflict_resolution` |
-| **BulkUpdateNode** | 50k+/sec | Mass updates | `filter`, `updates`, `batch_size` |
-| **BulkDeleteNode** | 100k+/sec | Cleanup | `filter`, `soft_delete`, `batch_size` |
-| **BulkUpsertNode** | 3k+/sec | Sync operations | `data`, `conflict_resolution`, `batch_size` |
+| **BulkCreate{Model}** | 10k+/sec | Data import | `data`, `batch_size`, `conflict_resolution` |
+| **BulkUpdate{Model}** | 50k+/sec | Mass updates | `filter`, `updates`, `batch_size` |
+| **BulkDelete{Model}** | 100k+/sec | Cleanup | `filter`, `soft_delete`, `batch_size` |
+| **BulkUpsert{Model}** | 3k+/sec | Sync operations | `data`, `conflict_resolution`, `batch_size` |
 
 ## Key Parameters / Options
 
-### BulkCreateNode
+### BulkCreate{Model}
 
 ```python
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     # Required
     "data": products_list,  # List of dicts
 
@@ -134,10 +134,10 @@ builder.add_node("ProductBulkCreateNode", "import", {
 })
 ```
 
-### BulkUpdateNode
+### BulkUpdate{Model}
 
 ```python
-builder.add_node("ProductBulkUpdateNode", "update", {
+builder.add_node("BulkUpdateProduct", "update", {
     # Filter (which records to update)
     "filter": {
         "category": "electronics",
@@ -156,10 +156,10 @@ builder.add_node("ProductBulkUpdateNode", "update", {
 })
 ```
 
-### BulkDeleteNode
+### BulkDelete{Model}
 
 ```python
-builder.add_node("ProductBulkDeleteNode", "cleanup", {
+builder.add_node("BulkDeleteProduct", "cleanup", {
     # Filter (which records to delete) - MongoDB-style operators supported
     "filter": {
         "active": False,
@@ -200,23 +200,23 @@ builder.add_node("ProductBulkDeleteNode", "cleanup", {
 
 ```python
 # $in operator - Delete multiple statuses
-builder.add_node("OrderBulkDeleteNode", "cleanup", {
+builder.add_node("BulkDeleteOrder", "cleanup", {
     "filter": {"status": {"$in": ["cancelled", "expired", "failed"]}}
 })
 
 # $ne operator - Delete non-completed orders
-builder.add_node("OrderBulkDeleteNode", "cleanup_pending", {
+builder.add_node("BulkDeleteOrder", "cleanup_pending", {
     "filter": {"status": {"$ne": "completed"}}
 })
 
 # Comparison operators - Update based on numeric comparison
-builder.add_node("ProductBulkUpdateNode", "restock", {
+builder.add_node("BulkUpdateProduct", "restock", {
     "filter": {"stock": {"$lt": 10}},  # Stock less than 10
     "fields": {"needs_restock": True}
 })
 
 # Combined operators - Complex filtering
-builder.add_node("UserBulkUpdateNode", "flag_inactive", {
+builder.add_node("BulkUpdateUser", "flag_inactive", {
     "filter": {
         "last_login": {"$lt": "2024-01-01"},
         "account_type": {"$in": ["free", "trial"]},
@@ -226,7 +226,7 @@ builder.add_node("UserBulkUpdateNode", "flag_inactive", {
 })
 
 # Multiple IDs - Common pattern
-builder.add_node("ProductBulkDeleteNode", "delete_specific", {
+builder.add_node("BulkDeleteProduct", "delete_specific", {
     "filter": {"id": {"$in": ["prod_1", "prod_2", "prod_3"]}}
 })
 ```
@@ -237,10 +237,10 @@ builder.add_node("ProductBulkDeleteNode", "delete_specific", {
 - ✅ Duplicates: `{"id": {"$in": ["prod_1", "prod_1"]}}` → Deduped automatically
 - ✅ Mixed operators: Multiple operators in same filter work correctly
 
-### BulkUpsertNode
+### BulkUpsert{Model}
 
 ```python
-builder.add_node("ProductBulkUpsertNode", "sync", {
+builder.add_node("BulkUpsertProduct", "sync", {
     # Required: Data to upsert (must include 'id' field)
     "data": products_list,
 
@@ -268,7 +268,7 @@ products = [
     {"id": "prod-002", "name": "Widget B", "price": 29.99, "stock": 50},
 ]
 
-builder.add_node("ProductBulkUpsertNode", "upsert_products", {
+builder.add_node("BulkUpsertProduct", "upsert_products", {
     "data": products,
     "conflict_resolution": "update",  # Update if id exists
     "batch_size": 1000
@@ -278,7 +278,7 @@ builder.add_node("ProductBulkUpsertNode", "upsert_products", {
 **Example: Skip Conflicts (Insert Only New)**
 ```python
 # Insert only new products, skip existing ones
-builder.add_node("ProductBulkUpsertNode", "insert_new_products", {
+builder.add_node("BulkUpsertProduct", "insert_new_products", {
     "data": products,
     "conflict_resolution": "skip",  # Skip if id exists
     "batch_size": 1000
@@ -292,14 +292,14 @@ builder.add_node("ProductBulkUpsertNode", "insert_new_products", {
 ```python
 # Wrong - very slow for 1000+ records
 for product in products:
-    builder.add_node("ProductCreateNode", f"create_{product['sku']}", product)
+    builder.add_node("CreateProduct", f"create_{product['sku']}", product)
 ```
 
 **Fix: Use Bulk Operations**
 
 ```python
 # Correct - 10-100x faster
-builder.add_node("ProductBulkCreateNode", "import_products", {
+builder.add_node("BulkCreateProduct", "import_products", {
     "data": products,
     "batch_size": 1000
 })
@@ -309,7 +309,7 @@ builder.add_node("ProductBulkCreateNode", "import_products", {
 
 ```python
 # Wrong - overhead dominates
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "batch_size": 10  # Too small!
 })
@@ -319,7 +319,7 @@ builder.add_node("ProductBulkCreateNode", "import", {
 
 ```python
 # Correct - optimal performance
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "batch_size": 1000  # 1000-5000 typical
 })
@@ -329,7 +329,7 @@ builder.add_node("ProductBulkCreateNode", "import", {
 
 ```python
 # Wrong - stops on first error
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "error_strategy": "stop"  # Fails entire batch
 })
@@ -339,7 +339,7 @@ builder.add_node("ProductBulkCreateNode", "import", {
 
 ```python
 # Correct - resilient import
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "error_strategy": "continue",
     "max_errors": 1000,
@@ -358,7 +358,7 @@ DataFlow automatically converts ISO 8601 datetime strings to Python datetime obj
 - **With timezone Z**: `2024-01-01T12:00:00Z`
 - **With timezone offset**: `2024-01-01T12:00:00+05:30`
 
-### Example: BulkCreateNode with EmbeddedPythonNode
+### Example: BulkCreate{Model} with EmbeddedPythonNode
 
 ```python
 import kailash
@@ -385,8 +385,8 @@ result = {"users": users}
     """
 })
 
-# BulkCreateNode automatically converts all ISO strings to datetime
-builder.add_node("UserBulkCreateNode", "bulk_import", {
+# BulkCreate{Model} automatically converts all ISO strings to datetime
+builder.add_node("BulkCreateUser", "bulk_import", {
     "data": "{{generate_bulk_data.users}}",  # All ISO strings → datetime
     "batch_size": 1000
 })
@@ -399,7 +399,7 @@ imported = result["results"]["bulk_import"]["data"]
 print(f"Imported {imported['success_count']} users with converted timestamps")
 ```
 
-### Example: BulkUpdateNode with Datetime
+### Example: BulkUpdate{Model} with Datetime
 
 ```python
 # Update last_login timestamps in bulk
@@ -418,14 +418,14 @@ result = {"updates": updates}
     """
 })
 
-# BulkUpdateNode auto-converts ISO strings
-builder.add_node("UserBulkUpdateNode", "update_logins", {
+# BulkUpdate{Model} auto-converts ISO strings
+builder.add_node("BulkUpdateUser", "update_logins", {
     "fields": "{{generate_timestamps.updates}}",  # ISO strings → datetime
     "batch_size": 100
 })
 ```
 
-### Example: BulkUpsertNode with Datetime
+### Example: BulkUpsert{Model} with Datetime
 
 ```python
 # Sync external data with timestamps
@@ -447,8 +447,8 @@ result = {"products": products}
     """
 })
 
-# BulkUpsertNode converts all datetime strings
-builder.add_node("ProductBulkUpsertNode", "sync_products", {
+# BulkUpsert{Model} converts all datetime strings
+builder.add_node("BulkUpsertProduct", "sync_products", {
     "data": "{{fetch_external_data.products}}",  # ISO strings → datetime
     "conflict_resolution": "update",  # Update existing products
     "batch_size": 500
@@ -478,8 +478,8 @@ result = {"products": products}
     """
 })
 
-# BulkCreateNode handles datetime conversion
-builder.add_node("ProductBulkCreateNode", "import_csv", {
+# BulkCreate{Model} handles datetime conversion
+builder.add_node("BulkCreateProduct", "import_csv", {
     "data": "{{parse_csv_with_dates.products}}",  # All timestamps auto-converted
     "batch_size": 5000
 })
@@ -506,7 +506,7 @@ products = [
     }
 ]
 
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "batch_size": 1000
 })
@@ -515,10 +515,10 @@ builder.add_node("ProductBulkCreateNode", "import", {
 ### Applies To All Bulk Nodes
 
 Datetime auto-conversion works on:
-- ✅ `ProductBulkCreateNode` - Bulk inserts
-- ✅ `ProductBulkUpdateNode` - Bulk updates
-- ✅ `ProductBulkUpsertNode` - Bulk upserts
-- ✅ `ProductBulkDeleteNode` - Bulk deletes (for timestamp filters)
+- ✅ `BulkCreateProduct` - Bulk inserts
+- ✅ `BulkUpdateProduct` - Bulk updates
+- ✅ `BulkUpsertProduct` - Bulk upserts
+- ✅ `BulkDeleteProduct` - Bulk deletes (for timestamp filters)
 
 ### Common Use Cases
 
@@ -539,7 +539,7 @@ result = {"inventory": inventory_data}  # Contains ISO datetime strings
     """
 })
 
-builder.add_node("InventoryBulkUpsertNode", "sync", {
+builder.add_node("BulkUpsertInventory", "sync", {
     "data": "{{sync_api.inventory}}",  # Timestamps auto-converted
     "conflict_resolution": "update",  # Update existing inventory
     "batch_size": 1000
@@ -565,7 +565,7 @@ result = {"records": records}
     """
 })
 
-builder.add_node("RecordBulkCreateNode", "import_historical", {
+builder.add_node("BulkCreateRecord", "import_historical", {
     "data": "{{generate_historical.records}}",  # All dates converted
     "batch_size": 5000,
     "use_copy": True  # PostgreSQL optimization
@@ -591,7 +591,7 @@ result = {"events": events}
     """
 })
 
-builder.add_node("EventBulkCreateNode", "log_events", {
+builder.add_node("BulkCreateEvent", "log_events", {
     "data": "{{process_events.events}}",  # Timestamps auto-converted
     "batch_size": 100
 })
@@ -635,7 +635,7 @@ with open('products.csv', 'r') as f:
 
 # Bulk import
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductBulkCreateNode", "import_csv", {
+builder.add_node("BulkCreateProduct", "import_csv", {
     "data": products,
     "batch_size": 5000,
     "use_copy": True,                # PostgreSQL optimization
@@ -652,7 +652,7 @@ result = rt.execute(builder.build(reg))
 
 ```python
 # 10% discount on all electronics
-builder.add_node("ProductBulkUpdateNode", "discount_electronics", {
+builder.add_node("BulkUpdateProduct", "discount_electronics", {
     "filter": {
         "category": "electronics",
         "active": True
@@ -682,7 +682,7 @@ for product in external_products:
     product["id"] = product.get("id") or product.get("external_id")
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductBulkUpsertNode", "sync_products", {
+builder.add_node("BulkUpsertProduct", "sync_products", {
     "data": external_products,
     "conflict_resolution": "update",  # Update existing, insert new
     "batch_size": 3000
@@ -715,4 +715,4 @@ print(f"Inserted: {sync_result['inserted']}, Updated: {sync_result['updated']}")
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: bulk operations, batch insert, BulkCreateNode, BulkUpdateNode, BulkDeleteNode, BulkUpsertNode, mass data import, high-throughput, bulk create, bulk update, bulk delete, batch operations, data import, mass updates -->
+<!-- Trigger Keywords: bulk operations, batch insert, BulkCreate{Model}, BulkUpdate{Model}, BulkDelete{Model}, BulkUpsert{Model}, mass data import, high-throughput, bulk create, bulk update, bulk delete, batch operations, data import, mass updates -->

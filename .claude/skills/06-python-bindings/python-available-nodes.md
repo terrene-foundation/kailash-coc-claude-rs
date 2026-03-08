@@ -117,8 +117,8 @@ AI model integrations via raw HTTP to provider APIs.
 | `LLMNode`             | Text generation (OpenAI, Anthropic, Google, Mistral, Cohere) |
 | `EmbeddingNode`       | Generate text embeddings                                     |
 | `ClassificationNode`  | Classify text into categories                                |
-| `SentimentNode`       | Sentiment analysis                                           |
-| `SummarizationNode`   | Text summarization                                           |
+| `SentimentAnalysisNode` | Sentiment analysis                                         |
+| `TextSummarizationNode` | Text summarization                                         |
 | `VisionNode`          | Image understanding (multimodal LLMs)                        |
 | `AudioNode`           | Audio transcription and analysis                             |
 | `ImageGenerationNode` | Generate images (DALL-E, etc.)                               |
@@ -135,7 +135,7 @@ Authentication and identity management.
 | `APIKeyAuthNode`           | API key validation                               |
 | `MFANode`                  | Multi-factor auth (TOTP via totp-rs)             |
 | `SSONode`                  | Single sign-on integration                       |
-| `SessionManagerNode`       | Session lifecycle management                     |
+| `SessionAuthNode`          | Session lifecycle management                     |
 | `DirectoryIntegrationNode` | LDAP directory integration                       |
 
 ### Security (12 nodes)
@@ -146,7 +146,7 @@ Encryption, hashing, and threat detection.
 | ----------------------- | ---------------------------------- |
 | `EncryptionNode`        | Encrypt and decrypt data (ring)    |
 | `HashingNode`           | Hash data (argon2, blake3)         |
-| `CertificateNode`       | X.509 certificate operations       |
+| `CertificateAuthNode`   | X.509 certificate operations       |
 | `InputSanitizationNode` | Sanitize untrusted input (ammonia) |
 | `DataMaskingNode`       | Mask PII and sensitive fields      |
 | `ThreatDetectionNode`   | Detect known attack patterns       |
@@ -160,13 +160,12 @@ Health checks, metrics, and alerting.
 | ---------------------- | ----------------------------------- |
 | `HealthCheckNode`      | Check service health endpoint       |
 | `MetricsCollectorNode` | Collect Prometheus metrics          |
-| `LogProcessorNode`     | Parse and route log entries         |
+| `LogAggregatorNode`    | Parse and route log entries         |
 | `AlertNode`            | Send alerts via configured channels |
-| `DiscordAlertNode`     | Send alerts to Discord webhook      |
+| `TeamsAlertNode`       | Send Microsoft Teams Adaptive Cards |
 | `SlackAlertNode`       | Send alerts to Slack webhook        |
 | `EmailAlertNode`       | Send alerts via email (lettre/SMTP) |
 | `PagerDutyAlertNode`   | Send PagerDuty incidents            |
-| `TeamsAlertNode`       | Send Microsoft Teams Adaptive Cards |
 
 ### Admin (5 nodes)
 
@@ -188,7 +187,7 @@ Kubernetes, Docker, and cloud operations.
 | `KubernetesNode`       | Kubernetes API operations (kube-rs)   |
 | `DockerNode`           | Docker container operations (bollard) |
 | `CloudNode`            | Cloud provider API calls              |
-| `ResourceAnalyzerNode` | System resource analysis (sysinfo)    |
+| `ResourceMonitorNode`  | System resource analysis (sysinfo)    |
 | `EdgeStateMachineNode` | State machine for edge logic          |
 
 ### Transaction (5 nodes)
@@ -272,9 +271,9 @@ pgvector-backed vector storage.
 
 | Type Name          | Description                  |
 | ------------------ | ---------------------------- |
-| `VectorUpsertNode` | Upsert vectors with metadata |
+| `UpsertVector` | Upsert vectors with metadata |
 | `VectorQueryNode`  | Query by vector similarity   |
-| `VectorDeleteNode` | Delete vectors by ID         |
+| `DeleteVector` | Delete vectors by ID         |
 
 ### Kafka (3 nodes)
 

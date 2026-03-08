@@ -200,7 +200,7 @@ builder.add_node("EmbeddedPythonNode", "output", {
 })
 
 # Connect
-builder.connect("custom_processor", "output", "result", "result")
+builder.connect("custom_processor", "result", "output", "result")
 
 # Execute
 reg = kailash.NodeRegistry()

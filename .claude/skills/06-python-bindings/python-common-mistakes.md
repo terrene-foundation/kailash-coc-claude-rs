@@ -123,14 +123,14 @@ builder.add_node("JSONTransformNode", "t", {})
 
 ```python
 # WRONG -- DataFlow auto-manages these
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "id": "1",
     "name": "Alice",
     "created_at": "2024-01-01T00:00:00Z"  # CAUSES ERROR
 })
 
 # CORRECT -- omit timestamp fields
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "id": "1",
     "name": "Alice"
 })

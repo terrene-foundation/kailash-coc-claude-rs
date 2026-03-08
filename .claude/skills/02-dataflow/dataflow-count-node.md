@@ -27,7 +27,7 @@ description: "CountNode for efficient COUNT(*) queries with 10-50x performance i
 
 ```python
 # ❌ SLOW - Fetches all records to count (20-50ms for 10,000 records)
-builder.add_node("UserListNode", "count_users", {
+builder.add_node("ListUser", "count_users", {
     "filter": {"active": True},
     "limit": 10000  # Must fetch all to count
 })
@@ -40,7 +40,7 @@ count = len(result["results"]["count_users"])  # Retrieved 10,000 records!
 
 ```python
 # ✅ FAST - Uses COUNT(*) query (1-5ms regardless of record count)
-builder.add_node("UserCountNode", "count_users", {
+builder.add_node("CountUser", "count_users", {
     "filter": {"active": True}
 })
 
@@ -54,7 +54,7 @@ count = result["results"]["count_users"]["count"]  # Only count value (99% faste
 
 ```python
 # Count all users
-builder.add_node("UserCountNode", "count_all", {})
+builder.add_node("CountUser", "count_all", {})
 
 # Result: {"count": 1000}
 ```
@@ -63,7 +63,7 @@ builder.add_node("UserCountNode", "count_all", {})
 
 ```python
 # Count active users
-builder.add_node("UserCountNode", "count_active", {
+builder.add_node("CountUser", "count_active", {
     "filter": {"active": True}
 })
 
@@ -74,7 +74,7 @@ builder.add_node("UserCountNode", "count_active", {
 
 ```python
 # Count premium users created in last 30 days
-builder.add_node("UserCountNode", "count_recent_premium", {
+builder.add_node("CountUser", "count_recent_premium", {
     "filter": {
         "subscription_tier": "premium",
         "created_at": {"$gte": "2024-01-01"}
@@ -90,11 +90,11 @@ builder.add_node("UserCountNode", "count_recent_premium", {
 
 ```python
 # Get total count for pagination
-builder.add_node("UserCountNode", "total_users", {
+builder.add_node("CountUser", "total_users", {
     "filter": {"active": True}
 })
 
-builder.add_node("UserListNode", "page_users", {
+builder.add_node("ListUser", "page_users", {
     "filter": {"active": True},
     "offset": 0,
     "limit": 20
@@ -110,7 +110,7 @@ builder.add_node("UserListNode", "page_users", {
 
 ```python
 # Check if any records exist matching criteria
-builder.add_node("OrderCountNode", "pending_orders", {
+builder.add_node("CountOrder", "pending_orders", {
     "filter": {
         "user_id": "user-123",
         "status": "pending"
@@ -125,11 +125,11 @@ builder.add_node("OrderCountNode", "pending_orders", {
 
 ```python
 # Dashboard: Active vs Inactive users
-builder.add_node("UserCountNode", "active_count", {
+builder.add_node("CountUser", "active_count", {
     "filter": {"active": True}
 })
 
-builder.add_node("UserCountNode", "inactive_count", {
+builder.add_node("CountUser", "inactive_count", {
     "filter": {"active": False}
 })
 
@@ -143,7 +143,7 @@ builder.add_node("UserCountNode", "inactive_count", {
 
 ```python
 # Count items in cart before checkout
-builder.add_node("CartItemCountNode", "item_count", {
+builder.add_node("CountCartItem", "item_count", {
     "filter": {"cart_id": "cart-123"}
 })
 
@@ -163,7 +163,7 @@ builder.connect("check_empty", "result", "proceed_checkout", "data")
 
 ```python
 # Count records per tenant
-builder.add_node("OrderCountNode", "tenant_orders", {
+builder.add_node("CountOrder", "tenant_orders", {
     "filter": {"tenant_id": current_tenant_id}
 })
 
@@ -174,7 +174,7 @@ builder.add_node("OrderCountNode", "tenant_orders", {
 
 ```python
 # Count events in last hour
-builder.add_node("EventCountNode", "recent_events", {
+builder.add_node("CountEvent", "recent_events", {
     "filter": {
         "timestamp": {
             "$gte": datetime.now() - timedelta(hours=1)
@@ -193,22 +193,22 @@ CountNode supports all MongoDB-style filter operators:
 
 ```python
 # Greater than
-builder.add_node("UserCountNode", "adults", {
+builder.add_node("CountUser", "adults", {
     "filter": {"age": {"$gte": 18}}
 })
 
 # Not equal
-builder.add_node("UserCountNode", "not_admin", {
+builder.add_node("CountUser", "not_admin", {
     "filter": {"role": {"$ne": "admin"}}
 })
 
 # In list
-builder.add_node("ProductCountNode", "active_categories", {
+builder.add_node("CountProduct", "active_categories", {
     "filter": {"category": {"$in": ["electronics", "books"]}}
 })
 
 # Not equal
-builder.add_node("ProductCountNode", "exclude_inactive", {
+builder.add_node("CountProduct", "exclude_inactive", {
     "filter": {"status": {"$ne": "archived"}}
 })
 ```
@@ -217,7 +217,7 @@ builder.add_node("ProductCountNode", "exclude_inactive", {
 
 ```python
 # Multiple conditions
-builder.add_node("OrderCountNode", "high_value_recent", {
+builder.add_node("CountOrder", "high_value_recent", {
     "filter": {
         "amount": {"$gte": 1000},
         "status": "completed",
@@ -242,7 +242,7 @@ class Order:
     # for optimal count query performance
 
 # Query uses index for fast counting
-builder.add_node("OrderCountNode", "count", {
+builder.add_node("CountOrder", "count", {
     "filter": {
         "status": "pending",
         "created_at": {"$gte": "2024-01-01"}
@@ -255,12 +255,12 @@ builder.add_node("OrderCountNode", "count", {
 
 ```python
 # ✅ GOOD - Uses index on 'status'
-builder.add_node("OrderCountNode", "pending", {
+builder.add_node("CountOrder", "pending", {
     "filter": {"status": "pending"}
 })
 
 # ❌ SLOW - No index, full table scan
-builder.add_node("OrderCountNode", "search_notes", {
+builder.add_node("CountOrder", "search_notes", {
     "filter": {"notes": {"$like": "%important%"}}
 })
 # Solution: Add index on frequently searched fields
@@ -306,13 +306,13 @@ collection.count_documents({"active": True})
 
 ```python
 # ✅ CORRECT - Use CountNode (99% faster)
-builder.add_node("UserCountNode", "count", {
+builder.add_node("CountUser", "count", {
     "filter": {"active": True}
 })
 count = result["results"]["count"]["count"]
 
 # ❌ WRONG - Use ListNode (10-50x slower)
-builder.add_node("UserListNode", "list", {
+builder.add_node("ListUser", "list", {
     "filter": {"active": True},
     "limit": 10000
 })
@@ -336,7 +336,7 @@ class Order:
 
 ```python
 # ✅ CORRECT - Fast existence check
-builder.add_node("OrderCountNode", "has_pending", {
+builder.add_node("CountOrder", "has_pending", {
     "filter": {
         "user_id": user_id,
         "status": "pending"
@@ -345,7 +345,7 @@ builder.add_node("OrderCountNode", "has_pending", {
 has_pending = result["results"]["has_pending"]["count"] > 0
 
 # ❌ WRONG - Fetches unnecessary data
-builder.add_node("OrderListNode", "pending_list", {
+builder.add_node("ListOrder", "pending_list", {
     "filter": {
         "user_id": user_id,
         "status": "pending"
@@ -359,11 +359,11 @@ has_pending = len(result["results"]["pending_list"]) > 0
 
 ```python
 # ✅ CORRECT - Efficient pagination
-builder.add_node("UserCountNode", "total", {
+builder.add_node("CountUser", "total", {
     "filter": {"active": True}
 })
 
-builder.add_node("UserListNode", "page", {
+builder.add_node("ListUser", "page", {
     "filter": {"active": True},
     "offset": page * limit,
     "limit": limit
@@ -398,14 +398,14 @@ class Order:
 
 ```python
 # Debug with ListNode first
-builder.add_node("OrderListNode", "debug_list", {
+builder.add_node("ListOrder", "debug_list", {
     "filter": {"status": "pending"},
     "limit": 5
 })
 # Check if ListNode returns records
 
 # Then use CountNode
-builder.add_node("OrderCountNode", "count", {
+builder.add_node("CountOrder", "count", {
     "filter": {"status": "pending"}
 })
 ```

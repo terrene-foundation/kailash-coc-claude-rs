@@ -35,9 +35,9 @@ builder.add_node("SQLQueryNode", "fetch_record", {
 })
 
 # 4. Decrypt data
-builder.add_node("TransformNode", "decrypt", {
-    "input": "{{fetch_record.encrypted_data}}",
-    "transformation": "aes_decrypt(value, secret_key)"
+builder.add_node("EmbeddedPythonNode", "decrypt", {
+    "code": "result = aes_decrypt(input, secret_key)",
+    "output_vars": ["result"]
 })
 
 # 5. Audit log

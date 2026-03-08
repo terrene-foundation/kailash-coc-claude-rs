@@ -59,7 +59,7 @@ Use specialized subagents when:
 ## Documentation References
 
 ### Primary Sources
-- [`CLAUDE.md#L117-132`](../../{doc})
+- See the project's `CLAUDE.md` for architecture details
 
 ## Quick Tips
 

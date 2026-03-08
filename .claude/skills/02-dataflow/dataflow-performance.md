@@ -55,10 +55,10 @@ db = kailash.DataFlow("postgresql://...", config=config)
 ```python
 # Slow - 1 op at a time
 for product in products:
-    builder.add_node("ProductCreateNode", f"create_{product['id']}", product)
+    builder.add_node("CreateProduct", f"create_{product['id']}", product)
 
 # Fast - 10-100x faster
-builder.add_node("ProductBulkCreateNode", "import", {
+builder.add_node("BulkCreateProduct", "import", {
     "data": products,
     "batch_size": 1000
 })
@@ -81,7 +81,7 @@ class User:
 ### 4. Enable Caching
 
 ```python
-builder.add_node("ProductListNode", "cached_query", {
+builder.add_node("ListProduct", "cached_query", {
     "filter": {"active": True},
     "cache_key": "active_products",
     "cache_ttl": 300
@@ -92,7 +92,7 @@ builder.add_node("ProductListNode", "cached_query", {
 
 ```python
 # Good - selective filter first
-builder.add_node("ProductListNode", "query", {
+builder.add_node("ListProduct", "query", {
     "filter": {
         "active": True,  # Most selective first
         "category": "electronics",
@@ -101,7 +101,7 @@ builder.add_node("ProductListNode", "query", {
 })
 
 # Good - field selection
-builder.add_node("UserListNode", "names_only", {
+builder.add_node("ListUser", "names_only", {
     "fields": ["id", "name"],  # Only needed fields
     "filter": {"active": True}
 })
@@ -185,13 +185,13 @@ db = kailash.DataFlow("postgresql://...", config=config)
 ```python
 # Wrong - very slow
 for item in items:
-    builder.add_node("ItemCreateNode", f"create_{item['id']}", item)
+    builder.add_node("CreateItem", f"create_{item['id']}", item)
 ```
 
 **Fix: Use Bulk Operations**
 
 ```python
-builder.add_node("ItemBulkCreateNode", "import", {
+builder.add_node("BulkCreateItem", "import", {
     "data": items,
     "batch_size": 1000
 })

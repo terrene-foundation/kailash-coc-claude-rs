@@ -83,13 +83,13 @@ builder.add_node("EmbeddedPythonNode", "processor_c", {
 builder.add_node("MergeNode", "merge", {})
 
 # Connections for parallel execution
-builder.connect("source", "processor_a", "result", "data")
-builder.connect("source", "processor_b", "result", "data")
-builder.connect("source", "processor_c", "result", "data")
+builder.connect("source", "result", "processor_a", "data")
+builder.connect("source", "result", "processor_b", "data")
+builder.connect("source", "result", "processor_c", "data")
 
-builder.connect("processor_a", "merge", "result", "sum_data")
-builder.connect("processor_b", "merge", "result", "avg_data")
-builder.connect("processor_c", "merge", "result", "stats_data")
+builder.connect("processor_a", "result", "merge", "sum_data")
+builder.connect("processor_b", "result", "merge", "avg_data")
+builder.connect("processor_c", "result", "merge", "stats_data")
 ```
 
 ### 4. Dynamic Workflow Composition
@@ -112,7 +112,7 @@ def create_processing_workflow(processors):
 
         # Connect to previous node
         prev_id = "source" if i == 0 else f"processor_{i-1}"
-        builder.connect(prev_id, node_id, "result", "input_data")
+        builder.connect(prev_id, "result", node_id, "input_data")
 
     return workflow
 ```
@@ -171,8 +171,8 @@ class WorkflowTemplates:
         builder.add_node("EmbeddedPythonNode", "transform", transform_config)
         builder.add_node("EmbeddedPythonNode", "load", load_config)
 
-        builder.connect("extract", "transform", "result", "data")
-        builder.connect("transform", "load", "result", "data")
+        builder.connect("extract", "result", "transform", "data")
+        builder.connect("transform", "result", "load", "data")
 
         return workflow
 

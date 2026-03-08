@@ -148,7 +148,7 @@ result = {
 })
 
 # Node 2: Execute search
-builder.add_node("ContactListNode", "search", {
+builder.add_node("ListContact", "search", {
     "filter": {},   # Will be populated via connection
     "limit": 100
 })
@@ -209,13 +209,13 @@ curl -X POST http://localhost:3000/workflows/contact_search/execute \
 
 ```python
 # ❌ WRONG: Template syntax not evaluated
-builder.add_node("ContactListNode", "search", {
+builder.add_node("ListContact", "search", {
     "filter": "${prepare_filters.result.filters}",  # Not evaluated!
     "limit": "${prepare_filters.result.limit}"
 })
 
 # ✅ CORRECT: Use explicit connections
-builder.add_node("ContactListNode", "search", {
+builder.add_node("ListContact", "search", {
     "filter": {},   # Default value
     "limit": 100
 })

@@ -14,7 +14,7 @@ edited_by_user = True
 """
 })
 
-builder.add_node("SummaryUpdateNode", "update", {})
+builder.add_node("UpdateSummary", "update", {})
 builder.connect("prepare", "filter_data", "update", "filter")
 builder.connect("prepare", "summary_markdown", "update", "summary_markdown")
 builder.connect("prepare", "edited_by_user", "update", "edited_by_user")
@@ -73,7 +73,7 @@ edited_by_user = True
 """
 })
 
-builder.add_node("ConversationSummaryUpdateNode", "update", {})
+builder.add_node("ConversationUpdateSummary", "update", {})
 
 # Clean, direct connections
 builder.connect("prepare_update", "filter_data", "update", "filter")

@@ -22,7 +22,7 @@ class User:
     id: str
     email: str
 
-# Auto-generates 11 nodes: UserCreateNode, UserReadNode, UserUpsertNode, UserCountNode, etc.
+# Auto-generates 11 nodes: CreateUser, ReadUser, UpsertUser, CountUser, etc.
 
 # ❌ WRONG: Manual node creation for database ops
 # builder.add_node("SQLQueryNode", "create_user", {
@@ -33,7 +33,7 @@ class User:
 ## Validation Rules
 
 1. **Use @db.model** - Not manual SQL
-2. **Use generated nodes** - UserCreateNode, UserReadNode
+2. **Use generated nodes** - CreateUser, ReadUser
 3. **String IDs** - Required for all models
 4. **No direct SQLAlchemy** - DataFlow handles it
 

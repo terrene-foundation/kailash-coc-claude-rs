@@ -49,7 +49,7 @@ result = {'items': items, 'processed': processed}
 
 # Connect pipeline
 builder.connect("setup", "result", "loop", "input")
-builder.connect("loop", "item", "process", "data")
+builder.connect("loop", "results", "process", "data")
 
 wf = builder.build(reg)
 rt = kailash.Runtime(reg)
@@ -133,7 +133,7 @@ builder.add_node("EmbeddedPythonNode", "load", {
 # Connect pipeline
 builder.connect("extract", "result", "transform", "input_data")
 builder.connect("transform", "result", "validate", "input")
-builder.connect("validate", "output_true", "load", "data")
+builder.connect("validate", "result", "load", "data")
 
 wf = builder.build(reg)
 rt = kailash.Runtime(reg)

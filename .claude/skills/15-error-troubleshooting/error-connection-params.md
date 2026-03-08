@@ -112,7 +112,7 @@ builder.add_node("EmbeddedPythonNode", "prep", {
     "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
 })
 
-builder.add_node("UserListNode", "search", {})
+builder.add_node("ListUser", "search", {})
 
 # WRONG: Only 3 parameters
 builder.connect("prep", "search", "filters")
@@ -133,7 +133,7 @@ builder.add_node("EmbeddedPythonNode", "prep", {
     "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
 })
 
-builder.add_node("UserListNode", "search", {})
+builder.add_node("ListUser", "search", {})
 
 # CORRECT: 4 parameters in right order with nested path
 builder.connect("prep", "result.filters", "search", "filter")

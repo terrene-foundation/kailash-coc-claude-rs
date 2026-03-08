@@ -30,15 +30,21 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. List CSV files
-builder.add_node("FileListNode", "list_files", {
+builder.add_node("ListFile", "list_files", {
     "directory": "data/input",
     "pattern": "*.csv"
 })
 
 # 2. Process each file
-builder.add_node("MapNode", "process_files", {
-    "input": "{{list_files.files}}",
-    "workflow": "process_single_csv"
+builder.add_node("EmbeddedPythonNode", "process_files", {
+    "code": """
+import csv, io
+results = []
+for f in files:
+    # Process each CSV file
+    results.append({'file': f, 'status': 'processed'})
+result = {'results': results}
+"""
 })
 
 # 3. Merge results
@@ -80,15 +86,15 @@ builder.add_node("PDFReaderNode", "extract_pdf", {
 })
 
 # 2. Extract tables
-builder.add_node("TransformNode", "extract_tables", {
-    "input": "{{extract_pdf.content}}",
-    "transformation": "extract_tables()"
+builder.add_node("EmbeddedPythonNode", "extract_tables", {
+    "code": "result = extract_tables(content)",
+    "output_vars": ["result"]
 })
 
 # 3. Extract text
-builder.add_node("TransformNode", "extract_text", {
-    "input": "{{extract_pdf.content}}",
-    "transformation": "extract_text()"
+builder.add_node("EmbeddedPythonNode", "extract_text", {
+    "code": "result = extract_text(content)",
+    "output_vars": ["result"]
 })
 
 # 4. Analyze with AI
@@ -140,9 +146,9 @@ builder.add_node("ExcelReaderNode", "read_excel", {
 })
 
 # 3. Normalize to common format
-builder.add_node("TransformNode", "normalize", {
-    "input": "{{read_csv.rows || read_json.data || read_excel.data}}",
-    "transformation": "normalize_to_dict_list()"
+builder.add_node("EmbeddedPythonNode", "normalize", {
+    "code": "result = normalize_to_dict_list(input)",
+    "output_vars": ["result"]
 })
 
 # 4. Write in target format

@@ -55,7 +55,7 @@ app = NexusApp()
 @app.handler()
 def get_user(user_id: str):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserReadNode", "read", {"id": user_id})
+    builder.add_node("ReadUser", "read", {"id": user_id})
     rt = kailash.Runtime(reg)
     return rt.execute(builder.build(reg))
 ```

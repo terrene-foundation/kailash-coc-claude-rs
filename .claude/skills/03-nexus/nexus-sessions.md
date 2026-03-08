@@ -99,7 +99,7 @@ df.register_model(WorkflowSession._model_definition)
 
 # Save state during workflow execution
 builder = kailash.WorkflowBuilder()
-builder.add_node("WorkflowSessionCreateNode", "save_state", {
+builder.add_node("CreateWorkflowSession", "save_state", {
     "workflow_name": "multi_step",
     "status": "in_progress",
     "step": 1,
@@ -112,7 +112,7 @@ result = rt.execute(builder.build(reg))
 
 # Resume: query state in next execution
 builder2 = kailash.WorkflowBuilder()
-builder2.add_node("WorkflowSessionListNode", "get_state", {
+builder2.add_node("ListWorkflowSession", "get_state", {
     "filter": {"user_id": "user-123", "workflow_name": "multi_step"}
 })
 ```

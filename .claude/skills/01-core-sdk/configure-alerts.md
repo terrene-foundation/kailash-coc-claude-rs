@@ -1,6 +1,6 @@
 # Configure Alerts Skill
 
-Set up alert and notification nodes for Discord, Slack, email, or PagerDuty.
+Set up alert and notification nodes for Teams, Slack, email, or PagerDuty.
 
 ## Usage
 
@@ -8,7 +8,7 @@ Set up alert and notification nodes for Discord, Slack, email, or PagerDuty.
 
 Examples:
 
-- `/configure-alerts discord`
+- `/configure-alerts teams`
 - `/configure-alerts slack`
 - `/configure-alerts email`
 - `/configure-alerts pagerduty`
@@ -27,14 +27,14 @@ Each provider requires specific environment variables in `.env`:
 
 | Provider    | Required Variables                                                      |
 | ----------- | ----------------------------------------------------------------------- |
-| `discord`   | `DISCORD_WEBHOOK_URL`                                                   |
+| `teams`     | `TEAMS_WEBHOOK_URL`                                                     |
 | `slack`     | `SLACK_WEBHOOK_URL`                                                     |
 | `email`     | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` |
 | `pagerduty` | `PAGERDUTY_ROUTING_KEY`                                                 |
 
 ## Template
 
-### Discord Alert
+### Teams Alert
 
 ```python
 import os
@@ -44,12 +44,12 @@ from kailash import NodeRegistry, WorkflowBuilder, Runtime
 load_dotenv()
 
 # Read webhook URL from .env -- NEVER hardcode
-webhook_url = os.environ["DISCORD_WEBHOOK_URL"]
+webhook_url = os.environ["TEAMS_WEBHOOK_URL"]
 
 registry = NodeRegistry()
 
 builder = WorkflowBuilder()
-builder.add_node("DiscordAlertNode", "alert", {
+builder.add_node("TeamsAlertNode", "alert", {
     "webhook_url": webhook_url,
 })
 
@@ -162,7 +162,7 @@ print(f"PagerDuty incident created: {result['run_id']}")
 python -c "
 from kailash import NodeRegistry
 registry = NodeRegistry()
-for name in ['DiscordAlertNode', 'SlackAlertNode', 'EmailAlertNode', 'PagerDutyAlertNode']:
+for name in ['TeamsAlertNode', 'SlackAlertNode', 'EmailAlertNode', 'PagerDutyAlertNode']:
     assert registry.has_type(name), f'{name} not found'
     print(f'{name}: OK')
 "

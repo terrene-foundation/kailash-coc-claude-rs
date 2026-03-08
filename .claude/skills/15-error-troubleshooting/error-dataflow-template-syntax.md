@@ -42,7 +42,7 @@ class Order:
     total: float
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "customer_id": "{{customer.id}}",  # ❌ ERROR! Wrong syntax
     "total": 100.0
 })
@@ -62,13 +62,13 @@ class Order:
 builder = kailash.WorkflowBuilder()
 
 # Create customer first
-builder.add_node("CustomerCreateNode", "customer", {
+builder.add_node("CreateCustomer", "customer", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
 # Create order with connection (not template)
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "total": 100.0
     # customer_id comes from connection
 })
@@ -119,7 +119,7 @@ class Order:
     total: float
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "customer_id": "{{customer.id}}",  # ❌ Template causes int() error
     "total": "{{cart.total}}"          # ❌ Template breaks validation
 })
@@ -138,7 +138,7 @@ class Order:
 builder = kailash.WorkflowBuilder()
 
 # Source nodes
-builder.add_node("CustomerReadNode", "customer", {
+builder.add_node("ReadCustomer", "customer", {
     "id": 123
 })
 
@@ -147,7 +147,7 @@ builder.add_node("EmbeddedPythonNode", "cart", {
 })
 
 # Target node (kailash.DataFlow)
-builder.add_node("OrderCreateNode", "create", {})
+builder.add_node("CreateOrder", "create", {})
 
 # ✅ Use connections for dynamic values
 builder.connect("customer", "id", "create", "customer_id")

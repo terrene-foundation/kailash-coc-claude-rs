@@ -39,7 +39,7 @@ Parameters must be provided through one of **3 methods**.
 
 ```python
 # ✅ Provide parameters directly in node config
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice",
     "email": "alice@example.com"  # Required parameter provided
 })
@@ -69,7 +69,7 @@ rt.execute(builder.build(reg), inputs={
 builder = kailash.WorkflowBuilder()
 
 # Missing required 'email' parameter
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice"
     # ERROR: email is required!
 })
@@ -85,7 +85,7 @@ result = rt.execute(builder.build(reg))
 ```python
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice",
     "email": "alice@example.com"  # Required parameter provided
 })
@@ -105,7 +105,7 @@ builder.add_node("EmbeddedPythonNode", "form", {
     "code": "result = {'email': 'alice@example.com', 'name': 'Alice'}"
 })
 
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice"
     # email will come from connection
 })
@@ -123,7 +123,7 @@ result = rt.execute(builder.build(reg))  # ✓ Works!
 ```python
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice"
     # email will come from runtime
 })

@@ -49,8 +49,8 @@ builder.add_node("SQLQueryNode", "reject", {
 
 builder.connect("get_item", "id", "quality_test", "item_id")
 builder.connect("quality_test", "score", "check_quality", "condition")
-builder.connect("check_quality", "output_true", "approve", "trigger")
-builder.connect("check_quality", "output_false", "reject", "trigger")
+builder.connect("check_quality", "result", "approve", "trigger")
+builder.connect("check_quality", "result", "reject", "trigger")
 ```
 
 <!-- Trigger Keywords: manufacturing workflow, production line, quality control, inventory management -->

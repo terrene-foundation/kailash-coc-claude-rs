@@ -16,7 +16,7 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "node1", {})
-builder.add_node("TransformNode", "node2", {})
+builder.add_node("JSONTransformNode", "node2", {})
 
 # ✅ Valid connection (4-parameter pattern)
 builder.connect("node1", "result", "node2", "input")

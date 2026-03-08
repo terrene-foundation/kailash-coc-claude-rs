@@ -109,7 +109,7 @@ builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL"
 ```python
 builder.add_node("LoopNode", "loop", {"max_iterations": 5})
 builder.add_node("ProcessNode", "process", {})
-builder.connect("loop", "item", "process", "input")
+builder.connect("loop", "results", "process", "input")
 builder.connect("process", "output", "loop", "feedback")
 ```
 

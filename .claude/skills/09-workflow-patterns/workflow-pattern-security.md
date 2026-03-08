@@ -26,10 +26,9 @@ builder.add_node("SQLQueryNode", "check_user", {
 })
 
 # 2. Verify password
-builder.add_node("TransformNode", "verify_password", {
-    "input": "{{input.password}}",
-    "stored_hash": "{{check_user.password_hash}}",
-    "transformation": "bcrypt.verify(input, stored_hash)"
+builder.add_node("EmbeddedPythonNode", "verify_password", {
+    "code": "import bcrypt\nresult = bcrypt.verify(input, stored_hash)",
+    "output_vars": ["result"]
 })
 
 # 3. Check authorization
@@ -40,9 +39,9 @@ builder.add_node("ConditionalNode", "check_auth", {
 })
 
 # 4. Generate JWT
-builder.add_node("TransformNode", "generate_token", {
-    "input": {"user_id": "{{check_user.id}}", "role": "{{check_user.role}}"},
-    "transformation": "jwt.encode(input, secret, algorithm='HS256')"
+builder.add_node("EmbeddedPythonNode", "generate_token", {
+    "code": "import jwt\nresult = jwt.encode({'user_id': user_id, 'role': role}, secret, algorithm='HS256')",
+    "output_vars": ["result"]
 })
 
 # 5. Audit log
@@ -58,9 +57,9 @@ builder.add_node("SQLQueryNode", "audit_failure", {
 
 builder.connect("check_user", "password_hash", "verify_password", "stored_hash")
 builder.connect("verify_password", "match", "check_auth", "condition")
-builder.connect("check_auth", "output_true", "generate_token", "input")
+builder.connect("check_auth", "result", "generate_token", "input")
 builder.connect("generate_token", "token", "audit_success", "parameters")
-builder.connect("check_auth", "output_false", "audit_failure", "trigger")
+builder.connect("check_auth", "result", "audit_failure", "trigger")
 ```
 
 <!-- Trigger Keywords: security workflow, authentication, encryption workflow, audit trail, user auth -->

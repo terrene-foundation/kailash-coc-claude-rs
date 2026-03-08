@@ -30,9 +30,8 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Initialize counter
-builder.add_node("SetVariableNode", "init_counter", {
-    "variable_name": "counter",
-    "value": 0
+builder.add_node("EmbeddedPythonNode", "init_counter", {
+    "code": "result = {'counter': 0}"
 })
 
 # 2. Process iteration
@@ -49,9 +48,9 @@ builder.add_node("ConditionalNode", "check_complete", {
 })
 
 # 4. Increment counter
-builder.add_node("TransformNode", "increment", {
-    "input": "{{init_counter.counter}}",
-    "transformation": "value + 1"
+builder.add_node("EmbeddedPythonNode", "increment", {
+    "code": "result = value + 1",
+    "output_vars": ["result"]
 })
 
 # 5. Check max iterations
@@ -62,16 +61,16 @@ builder.add_node("ConditionalNode", "check_max", {
 })
 
 # 6. Wait before retry
-builder.add_node("DelayNode", "wait", {
+builder.add_node("WaitNode", "wait", {
     "duration_seconds": 5
 })
 
 # 7. Loop back (connect to check_status)
 builder.connect("init_counter", "counter", "check_status", "input")
 builder.connect("check_status", "status", "check_complete", "condition")
-builder.connect("check_complete", "output_false", "increment", "input")
+builder.connect("check_complete", "result", "increment", "input")
 builder.connect("increment", "result", "check_max", "condition")
-builder.connect("check_max", "output_true", "wait", "trigger")
+builder.connect("check_max", "result", "wait", "trigger")
 builder.connect("wait", "done", "check_status", "input")  # Loop!
 
 reg = kailash.NodeRegistry()
@@ -94,15 +93,21 @@ builder.add_node("SQLQueryNode", "load_items", {
 })
 
 # 2. Split into batches
-builder.add_node("BatchSplitNode", "split_batches", {
-    "input": "{{load_items.results}}",
-    "batch_size": 10
+builder.add_node("EmbeddedPythonNode", "split_batches", {
+    "code": """
+items = results
+batch_size = 10
+batches = [items[i:i+batch_size] for i in range(0, len(items), batch_size)]
+result = {'batches': batches, 'count': len(batches)}
+"""
 })
 
 # 3. Process each batch
-builder.add_node("MapNode", "process_batch", {
-    "input": "{{split_batches.batches}}",
-    "operation": "process_item"
+builder.add_node("EmbeddedPythonNode", "process_batch", {
+    "code": """
+ids = [item['id'] for batch in batches for item in batch]
+result = {'ids': ids, 'processed': len(ids)}
+"""
 })
 
 # 4. Update database
@@ -121,7 +126,7 @@ builder.connect("load_items", "results", "split_batches", "input")
 builder.connect("split_batches", "batches", "process_batch", "input")
 builder.connect("process_batch", "ids", "mark_processed", "ids")
 builder.connect("mark_processed", "result", "check_more", "condition")
-builder.connect("check_more", "output_true", "load_items", "trigger")
+builder.connect("check_more", "result", "load_items", "trigger")
 ```
 
 ## Pattern 3: Exponential Backoff Retry
@@ -132,9 +137,8 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Initialize retry state
-builder.add_node("SetVariableNode", "init_retry", {
-    "retry_count": 0,
-    "backoff_seconds": 1
+builder.add_node("EmbeddedPythonNode", "init_retry", {
+    "code": "result = {'retry_count': 0, 'backoff_seconds': 1}"
 })
 
 # 2. Execute operation
@@ -159,27 +163,27 @@ builder.add_node("ConditionalNode", "check_retry", {
 })
 
 # 5. Calculate exponential backoff
-builder.add_node("TransformNode", "calculate_backoff", {
-    "input": "{{init_retry.backoff_seconds}}",
-    "transformation": "value * 2"  # Exponential: 1, 2, 4, 8, 16 seconds
+builder.add_node("EmbeddedPythonNode", "calculate_backoff", {
+    "code": "result = value * 2",  # Exponential: 1, 2, 4, 8, 16 seconds
+    "output_vars": ["result"]
 })
 
 # 6. Wait with backoff
-builder.add_node("DelayNode", "backoff_wait", {
+builder.add_node("WaitNode", "backoff_wait", {
     "duration_seconds": "{{calculate_backoff.result}}"
 })
 
 # 7. Increment retry counter
-builder.add_node("TransformNode", "increment_retry", {
-    "input": "{{init_retry.retry_count}}",
-    "transformation": "value + 1"
+builder.add_node("EmbeddedPythonNode", "increment_retry", {
+    "code": "result = value + 1",
+    "output_vars": ["result"]
 })
 
 # 8. Loop back to retry
 builder.connect("init_retry", "retry_count", "api_call", "retry")
 builder.connect("api_call", "status_code", "check_success", "condition")
-builder.connect("check_success", "output_false", "check_retry", "condition")
-builder.connect("check_retry", "output_true", "calculate_backoff", "input")
+builder.connect("check_success", "result", "check_retry", "condition")
+builder.connect("check_retry", "result", "calculate_backoff", "input")
 builder.connect("calculate_backoff", "result", "backoff_wait", "duration_seconds")
 builder.connect("backoff_wait", "done", "increment_retry", "input")
 builder.connect("increment_retry", "result", "api_call", "retry")  # Loop!
@@ -193,9 +197,8 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # 1. Initial prompt
-builder.add_node("SetVariableNode", "init_prompt", {
-    "prompt": "Write a product description for: {{product_name}}",
-    "iteration": 0
+builder.add_node("EmbeddedPythonNode", "init_prompt", {
+    "code": "result = {'prompt': 'Write a product description for: ' + input_data.get('product_name', ''), 'iteration': 0}"
 })
 
 # 2. Generate content (LLM)
@@ -231,18 +234,18 @@ builder.add_node("ConditionalNode", "check_max", {
 })
 
 # 7. Increment iteration
-builder.add_node("TransformNode", "increment", {
-    "input": "{{init_prompt.iteration}}",
-    "transformation": "value + 1"
+builder.add_node("EmbeddedPythonNode", "increment", {
+    "code": "result = value + 1",
+    "output_vars": ["result"]
 })
 
 # Loop back for refinement
 builder.connect("init_prompt", "prompt", "generate", "prompt")
 builder.connect("generate", "response", "evaluate", "prompt")
 builder.connect("evaluate", "score", "check_quality", "condition")
-builder.connect("check_quality", "output_false", "refine", "input")
+builder.connect("check_quality", "result", "refine", "input")
 builder.connect("refine", "response", "check_max", "condition")
-builder.connect("check_max", "output_true", "increment", "input")
+builder.connect("check_max", "result", "increment", "input")
 builder.connect("increment", "result", "generate", "iteration")  # Loop!
 ```
 

@@ -51,7 +51,7 @@ builder.add_node("EmbeddedPythonNode", "body", {
     "code": "result = {'count': count + 1}"
 })
 
-builder.connect("loop", "item", "body", "data")
+builder.connect("loop", "results", "body", "data")
 
 wf = builder.build(reg)
 rt = kailash.Runtime(reg)

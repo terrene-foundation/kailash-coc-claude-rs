@@ -27,7 +27,7 @@ class User:
 
 # Use auto-generated nodes
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create_user", {
+builder.add_node("CreateUser", "create_user", {
     "email": "{{input.email}}",
     "status": "active"
 })
@@ -58,21 +58,21 @@ builder.connect("send_welcome_email", "result", "check_domain", "input")
 
 ```python
 # Use DataFlow nodes + custom aggregation
-builder.add_node("UserListNode", "get_users", {
+builder.add_node("ListUser", "get_users", {
     "filters": {"status": "active"}
 })
 
-# Custom aggregation with TransformNode
-builder.add_node("TransformNode", "calculate_metrics", {
-    "input": "{{get_users.users}}",
-    "transformation": """
-        total = len(input)
-        domains = {}
-        for user in input:
-            domain = user['email'].split('@')[1]
-            domains[domain] = domains.get(domain, 0) + 1
-        return {'total': total, 'domains': domains}
-    """
+# Custom aggregation with EmbeddedPythonNode
+builder.add_node("EmbeddedPythonNode", "calculate_metrics", {
+    "code": """
+total = len(input)
+domains = {}
+for user in input:
+    domain = user['email'].split('@')[1]
+    domains[domain] = domains.get(domain, 0) + 1
+result = {'total': total, 'domains': domains}
+    """,
+    "output_vars": ["result"]
 })
 
 builder.connect("get_users", "users", "calculate_metrics", "input")

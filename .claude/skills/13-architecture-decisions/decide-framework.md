@@ -92,11 +92,11 @@ class User:
     name: str
     email: str
 
-# Automatically generates: UserCreateNode, UserReadNode, UserUpdateNode,
-# UserDeleteNode, UserListNode, UserBulkCreateNode, etc.
+# Automatically generates: CreateUser, ReadUser, UpdateUser,
+# DeleteUser, ListUser, BulkCreateUser, etc.
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice",
     "email": "alice@example.com"
 })
@@ -209,7 +209,7 @@ class User:
 
 # Step 3: Register workflows
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserListNode", "list_users", {})
+builder.add_node("ListUser", "list_users", {})
 reg = kailash.NodeRegistry()
 app.register("list_users", builder.build(reg))
 

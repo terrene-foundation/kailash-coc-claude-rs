@@ -67,7 +67,7 @@ class User:
 
 # Step 4: Register workflows manually
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "Alice",
     "email": "alice@example.com"
 })

@@ -49,7 +49,7 @@ def db():
 def test_user_creation(db):
     """Test runs in <100ms with isolation."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "name": "Test User",
         "email": "test@example.com"
     })
@@ -95,7 +95,7 @@ def test_suite_performance(db):
     """100 tests in <10 seconds."""
     for i in range(100):
         builder = kailash.WorkflowBuilder()
-        builder.add_node("UserCreateNode", f"create_{i}", {
+        builder.add_node("CreateUser", f"create_{i}", {
             "name": f"User {i}",
             "email": f"user{i}@test.com"
         })

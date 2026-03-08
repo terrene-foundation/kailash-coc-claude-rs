@@ -49,7 +49,7 @@ def test_workflow_database_integration():
     # Uses real PostgreSQL from Docker
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("UserCreateNode", "create_user", {
+    builder.add_node("CreateUser", "create_user", {
         "name": "Integration Test User",
         "email": "integration@test.com"
     })
@@ -80,9 +80,9 @@ def test_complete_data_processing_pipeline():
 
     # Data pipeline
     builder.add_node("CSVProcessorNode", "ingest", {"action": "read", "source_path": "tests/fixtures/real_data.csv"})
-    builder.add_node("DataValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
+    builder.add_node("SchemaValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
     builder.add_node("DataMapperNode", "transform", {"operations": ["clean_names"]})
-    builder.add_node("UserBatchCreateNode", "store", {"batch_size": 100})
+    builder.add_node("BulkCreateUser", "store", {"batch_size": 100})
 
     # Connect pipeline
     builder.connect("ingest", "rows", "validate", "input_data")

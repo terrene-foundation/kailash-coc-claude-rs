@@ -70,12 +70,12 @@ class Product:
 builder = kailash.WorkflowBuilder()
 
 # Simple filter
-builder.add_node("ProductListNode", "active_products", {
+builder.add_node("ListProduct", "active_products", {
     "filter": {"active": True}
 })
 
 # Comparison operators
-builder.add_node("ProductListNode", "affordable_products", {
+builder.add_node("ListProduct", "affordable_products", {
     "filter": {
         "price": {"$lt": 100.00},
         "stock": {"$gt": 0}
@@ -83,21 +83,21 @@ builder.add_node("ProductListNode", "affordable_products", {
 })
 
 # Range query
-builder.add_node("ProductListNode", "mid_range_products", {
+builder.add_node("ListProduct", "mid_range_products", {
     "filter": {
         "price": {"$gte": 50.00, "$lte": 150.00}
     }
 })
 
 # IN operator
-builder.add_node("ProductListNode", "electronics", {
+builder.add_node("ListProduct", "electronics", {
     "filter": {
         "category": {"$in": ["phones", "laptops", "tablets"]}
     }
 })
 
 # NULL check
-builder.add_node("ProductListNode", "with_description", {
+builder.add_node("ListProduct", "with_description", {
     "filter": {
         "description": {"$null": False}  # Has a description
     }
@@ -137,12 +137,12 @@ result = rt.execute(builder.build(reg))
 
 ```python
 # Query for NULL values (e.g., non-deleted records)
-builder.add_node("PatientListNode", "active_patients", {
+builder.add_node("ListPatient", "active_patients", {
     "filter": {"deleted_at": {"$null": True}}  # WHERE deleted_at IS NULL
 })
 
 # Query for NOT NULL values
-builder.add_node("PatientListNode", "deleted_patients", {
+builder.add_node("ListPatient", "deleted_patients", {
     "filter": {"deleted_at": {"$null": False}}  # WHERE deleted_at IS NOT NULL
 })
 ```
@@ -151,7 +151,7 @@ builder.add_node("PatientListNode", "deleted_patients", {
 ```python
 # soft_delete: True only affects DELETE operations, NOT queries!
 # You MUST manually filter in queries:
-builder.add_node("ModelListNode", "active_records", {
+builder.add_node("ListModel", "active_records", {
     "filter": {"deleted_at": {"$null": True}}  # Exclude soft-deleted records
 })
 ```
@@ -160,11 +160,11 @@ builder.add_node("ModelListNode", "active_records", {
 
 ```python
 # SQL LIKE pattern matching
-builder.add_node("UserListNode", "search", {
+builder.add_node("ListUser", "search", {
     "filter": {"name": {"$like": "%john%"}}  # Contains "john"
 })
 
-builder.add_node("UserListNode", "starts_with", {
+builder.add_node("ListUser", "starts_with", {
     "filter": {"email": {"$like": "admin%"}}  # Starts with "admin"
 })
 ```
@@ -175,7 +175,7 @@ Multiple filter keys at the same level are combined with AND:
 
 ```python
 # All conditions must be true (implicit AND)
-builder.add_node("UserListNode", "query", {
+builder.add_node("ListUser", "query", {
     "filter": {
         "active": True,
         "role": {"$ne": "banned"},
@@ -191,7 +191,7 @@ builder.add_node("UserListNode", "query", {
 ### Sorting
 
 ```python
-builder.add_node("ProductListNode", "sorted_products", {
+builder.add_node("ListProduct", "sorted_products", {
     "filter": {"active": True},
     "order_by": ["-price", "name"]  # - prefix for descending
 })
@@ -201,7 +201,7 @@ builder.add_node("ProductListNode", "sorted_products", {
 
 ```python
 # Offset-based
-builder.add_node("ProductListNode", "page_2", {
+builder.add_node("ListProduct", "page_2", {
     "filter": {"active": True},
     "order_by": ["created_at"],
     "limit": 20,
@@ -209,7 +209,7 @@ builder.add_node("ProductListNode", "page_2", {
 })
 
 # Cursor-based (more efficient)
-builder.add_node("ProductListNode", "next_page", {
+builder.add_node("ListProduct", "next_page", {
     "filter": {
         "active": True,
         "id": {"$gt": last_id}  # After last seen ID
@@ -223,13 +223,13 @@ builder.add_node("ProductListNode", "next_page", {
 
 ```python
 # Select specific fields only
-builder.add_node("UserListNode", "names_only", {
+builder.add_node("ListUser", "names_only", {
     "filter": {"active": True},
     "fields": ["id", "name", "email"]  # Only these fields
 })
 
 # Exclude fields
-builder.add_node("ProductListNode", "no_description", {
+builder.add_node("ListProduct", "no_description", {
     "filter": {"active": True},
     "exclude_fields": ["description", "long_text"]
 })
@@ -239,7 +239,7 @@ builder.add_node("ProductListNode", "no_description", {
 
 ```python
 # Group by and aggregate
-builder.add_node("OrderListNode", "revenue_by_status", {
+builder.add_node("ListOrder", "revenue_by_status", {
     "group_by": "status",
     "aggregations": {
         "total_revenue": {"$sum": "total"},
@@ -255,7 +255,7 @@ builder.add_node("OrderListNode", "revenue_by_status", {
 
 ```python
 # Wrong - SQL operators don't work
-builder.add_node("ProductListNode", "query", {
+builder.add_node("ListProduct", "query", {
     "filter": {"price > 100"}  # FAILS
 })
 ```
@@ -264,7 +264,7 @@ builder.add_node("ProductListNode", "query", {
 
 ```python
 # Correct
-builder.add_node("ProductListNode", "query", {
+builder.add_node("ListProduct", "query", {
     "filter": {"price": {"$gt": 100.00}}
 })
 ```
@@ -273,7 +273,7 @@ builder.add_node("ProductListNode", "query", {
 
 ```python
 # Wrong - $or and $and are NOT supported
-builder.add_node("UserListNode", "query", {
+builder.add_node("ListUser", "query", {
     "filter": {
         "$or": [{"role": "admin"}, {"role": "manager"}]  # FAILS
     }
@@ -284,7 +284,7 @@ builder.add_node("UserListNode", "query", {
 
 ```python
 # Correct - use $in for multiple values on one field
-builder.add_node("UserListNode", "query", {
+builder.add_node("ListUser", "query", {
     "filter": {
         "active": True,
         "role": {"$in": ["admin", "manager"]}
@@ -296,7 +296,7 @@ builder.add_node("UserListNode", "query", {
 
 ```python
 # Wrong - missing $ prefix
-builder.add_node("ProductListNode", "query", {
+builder.add_node("ListProduct", "query", {
     "filter": {"price": {"gt": 100}}  # FAILS
 })
 ```
@@ -305,7 +305,7 @@ builder.add_node("ProductListNode", "query", {
 
 ```python
 # Correct
-builder.add_node("ProductListNode", "query", {
+builder.add_node("ListProduct", "query", {
     "filter": {"price": {"$gt": 100}}
 })
 ```
@@ -335,7 +335,7 @@ Use `dataflow-specialist` subagent when:
 builder = kailash.WorkflowBuilder()
 
 # Product search with multiple filters (implicit AND)
-builder.add_node("ProductListNode", "search_results", {
+builder.add_node("ListProduct", "search_results", {
     "filter": {
         "active": True,
         "name": {"$like": "%laptop%"},
@@ -352,7 +352,7 @@ builder.add_node("ProductListNode", "search_results", {
 
 ```python
 # Revenue by category
-builder.add_node("OrderListNode", "category_revenue", {
+builder.add_node("ListOrder", "category_revenue", {
     "filter": {
         "status": {"$in": ["completed", "shipped"]},
         "created_at": {"$gte": "2024-01-01"}
@@ -371,7 +371,7 @@ builder.add_node("OrderListNode", "category_revenue", {
 
 ```python
 # Advanced user search (all conditions = implicit AND)
-builder.add_node("UserListNode", "power_users", {
+builder.add_node("ListUser", "power_users", {
     "filter": {
         "active": True,
         "verified": True,

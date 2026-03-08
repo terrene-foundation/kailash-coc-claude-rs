@@ -34,7 +34,7 @@ def test_db():
 def test_user_creation(test_db):
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {
+    builder.add_node("CreateUser", "create", {
         "id": "user_001",
         "email": "test@example.com"
     })

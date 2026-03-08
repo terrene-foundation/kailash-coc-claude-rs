@@ -26,7 +26,7 @@ class User:
 builder = kailash.WorkflowBuilder()
 
 # 1. Mark as deleted (soft delete)
-builder.add_node("UserUpdateNode", "mark_deleted", {
+builder.add_node("UpdateUser", "mark_deleted", {
     "id": "{{input.user_id}}",
     "gdpr_deleted": True,
     "email": "[REDACTED]"
