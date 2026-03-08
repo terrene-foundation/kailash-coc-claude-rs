@@ -13,12 +13,16 @@ Event-driven pub/sub architecture using the Rust-backed EventBus.
 
 The `EventBus` class provides publish/subscribe for lifecycle events and custom events.
 
+> **Important**: `event_bus()`, `on()`, and `subscribe()` are methods on the
+> lower-level `Nexus` class, NOT on `NexusApp`. Access them via `app._nexus`
+> or use `Nexus` directly.
+
 ```python
 import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Subscribe to all events
 bus.subscribe(lambda event: print(f"Event: {event}"))
@@ -32,7 +36,7 @@ bus.publish("user.created", {"user_id": "123", "email": "alice@example.com"})
 ### Subscribe to All Events
 
 ```python
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # All events delivered as dicts with at least a "type" field
 bus.subscribe(lambda event: print(f"[{event['type']}] {event}"))
@@ -41,16 +45,16 @@ bus.subscribe(lambda event: print(f"[{event['type']}] {event}"))
 ### Subscribe to Specific Event Types
 
 ```python
-# Filter by event type using app.on()
-app.on("workflow_started", lambda event: print(f"Started: {event}"))
-app.on("workflow_completed", lambda event: print(f"Completed: {event}"))
-app.on("workflow_failed", lambda event: print(f"Failed: {event}"))
+# Filter by event type using app._nexus.on()
+app._nexus.on("workflow_started", lambda event: print(f"Started: {event}"))
+app._nexus.on("workflow_completed", lambda event: print(f"Completed: {event}"))
+app._nexus.on("workflow_failed", lambda event: print(f"Failed: {event}"))
 ```
 
 ### Multiple Handlers
 
 ```python
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Multiple handlers for the same event
 bus.subscribe(lambda event: log_event(event))
@@ -63,7 +67,7 @@ bus.subscribe(lambda event: send_notification(event))
 ### Custom Events
 
 ```python
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Publish with payload (optional dict)
 bus.publish("order.completed", {"order_id": "456", "total": 99.99})
@@ -83,7 +87,7 @@ import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Wire up event-driven side effects
 bus.subscribe(lambda data: handle_event(data))
@@ -111,9 +115,9 @@ import logging
 logger = logging.getLogger("nexus")
 
 # Track all workflow events
-app.on("workflow_started", lambda e: logger.info(f"Workflow started: {e}"))
-app.on("workflow_completed", lambda e: logger.info(f"Workflow completed: {e}"))
-app.on("workflow_failed", lambda e: logger.error(f"Workflow failed: {e}"))
+app._nexus.on("workflow_started", lambda e: logger.info(f"Workflow started: {e}"))
+app._nexus.on("workflow_completed", lambda e: logger.info(f"Workflow completed: {e}"))
+app._nexus.on("workflow_failed", lambda e: logger.error(f"Workflow failed: {e}"))
 ```
 
 ### Slack Notifications
@@ -121,7 +125,7 @@ app.on("workflow_failed", lambda e: logger.error(f"Workflow failed: {e}"))
 ```python
 import requests as http_requests
 
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 def notify_slack(event):
     if event.get("type") != "workflow_failed":
@@ -139,11 +143,11 @@ bus.subscribe(notify_slack)
 
 | Method | Description |
 | --- | --- |
-| `app.event_bus()` | Get the EventBus for this Nexus instance |
+| `app._nexus.event_bus()` | Get the EventBus (on `Nexus`, not `NexusApp`) |
 | `bus.publish(event_type, payload)` | Publish an event (payload is optional dict) |
 | `bus.subscribe(callback)` | Subscribe to all events |
-| `app.on(event_type, callback)` | Subscribe to events of a specific type |
-| `app.subscribe(callback)` | Subscribe to all events (convenience wrapper) |
+| `app._nexus.on(event_type, callback)` | Subscribe to events of a specific type |
+| `app._nexus.subscribe(callback)` | Subscribe to all events (convenience wrapper) |
 
 ## Custom Event Router (Python)
 
@@ -181,7 +185,7 @@ bus.subscribe(lambda event: router.route(event.get("type", ""), event))
 1. **Use EventBus for decoupled communication** -- publishers and subscribers are independent
 2. **Keep event payloads small** -- store large data externally, reference by ID
 3. **Handle errors in subscribers** -- a failing subscriber should not crash others
-4. **Use `app.on()` for typed events** -- filter early rather than in each handler
+4. **Use `app._nexus.on()` for typed events** -- filter early rather than in each handler
 5. **Log events for debugging** -- subscribe a logger during development
 
 ## Related Skills

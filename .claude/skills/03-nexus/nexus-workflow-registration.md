@@ -129,20 +129,18 @@ app.register(builder.build(reg), name)
 ## Enhanced Registration with Metadata
 
 **NOTE**: Metadata is currently NOT supported in the `register()` method signature.
-The method only accepts `(name, callable)` - no metadata parameter.
+The method accepts `(name, callable, params=None, description=None, auto_params=False)`.
 
 ```python
-# Current: No metadata parameter
+# Current: register with callable + optional params/description
 workflow = builder.build(reg)
 rt = kailash.Runtime(reg)
 app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs))
 
-# Planned for future version:
-# app.register("data-fetcher", builder.build(reg), metadata={
-#     "version": "1.0.0",
-#     "description": "Fetches data from external API",
-#     "tags": ["data", "api"]
-# })
+# With description:
+# app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs),
+#     description="Fetches data from external API"
+# )
 
 # Current workaround: Store metadata separately
 app._workflow_metadata = getattr(app, '_workflow_metadata', {})

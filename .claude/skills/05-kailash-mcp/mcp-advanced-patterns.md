@@ -111,7 +111,11 @@ from kailash.nexus import NexusApp, HandlerParam
 
 app = NexusApp()
 
-# Define handler with explicit parameters
+# Define handler function first
+async def search_handler(query: str, limit: int = 10) -> dict:
+    return {"results": ["item1", "item2"], "count": 2}
+
+# Register with explicit parameters
 app.register(
     "search",
     search_handler,
@@ -121,9 +125,6 @@ app.register(
     ],
     description="Search for items"
 )
-
-async def search_handler(query: str, limit: int = 10) -> dict:
-    return {"results": ["item1", "item2"], "count": 2}
 ```
 
 ## Progress Reporting

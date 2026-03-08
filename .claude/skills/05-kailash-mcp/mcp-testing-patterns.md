@@ -141,12 +141,12 @@ def test_mcp_server_production_flow():
     def get_settings(uri: str) -> str:
         return '{"version": "1.0", "environment": "test"}'
 
-    # Test tool
-    search_result = search("python tutorials")
+    # Test tool -- handler receives params dict
+    search_result = search({"query": "python tutorials"})
     assert "result 1" in search_result
 
-    # Test resource
-    settings = get_settings()
+    # Test resource -- handler receives uri string
+    settings = get_settings("config://settings")
     assert "version" in settings
 ```
 

@@ -201,7 +201,7 @@ app.start()
 | Issue                       | Cause                  | Solution                           |
 | --------------------------- | ---------------------- | ---------------------------------- |
 | Nexus hangs on startup      | Unsupported parameters | Use `NexusApp()` with no args      |
-| Workflow not found          | Not registered         | Use `app.register(name, workflow)` |
+| Workflow not found          | Not registered         | Use `app.register(name, callable)` |
 | DataFlow tables not created | `auto_migrate=False`   | Use `auto_migrate=True` (default)  |
 
 ## Quick Tips

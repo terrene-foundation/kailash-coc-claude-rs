@@ -13,6 +13,10 @@ Retrieval Augmented Generation patterns for AI-powered document search and Q&A.
 > Related Skills: [`nodes-ai-reference`](../nodes/nodes-ai-reference.md), [`workflow-pattern-ai-document`](workflow-pattern-ai-document.md)
 > Related Subagents: `pattern-expert` (RAG workflows), `kaizen-specialist` (AI agents)
 
+> **Note**: `{{...}}` values in node configs below are illustrative placeholders
+> showing what data each node expects. Actual data flows via `builder.connect()`
+> calls — template syntax does NOT work in Kailash node config at runtime.
+
 ## Quick Reference
 
 RAG workflow components:
@@ -95,10 +99,7 @@ builder.add_node("VectorSearchNode", "search_similar", {
 })
 
 # 3. Rerank results (optional)
-builder.add_node("RerankNode", "rerank", {
-    "query": "{{input.query}}",
-    "model": "rerank-english-v2.0"
-})
+builder.add_node("RerankNode", "rerank", {})
 
 # 4. Build context prompt
 builder.add_node("EmbeddedPythonNode", "build_prompt", {
@@ -164,9 +165,7 @@ builder.add_node("VectorSearchNode", "search_api", {
 # 3. Merge and rerank all results
 builder.add_node("MergeNode", "merge_results", {})
 
-builder.add_node("RerankNode", "rerank_all", {
-    "query": "{{input.query}}"
-})
+builder.add_node("RerankNode", "rerank_all", {})
 
 # 4. Generate comprehensive answer
 builder.add_node("LLMNode", "generate", {
@@ -230,20 +229,9 @@ builder.add_node("LLMNode", "generate", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
 })
 
-# Data flows via connect(), NOT template strings:
-builder.connect("build_context", "outputs", "embed_query", "text")
-builder.connect("embed_query", "embedding", "search", "query_embedding")
-builder.connect("search", "results", "generate", "prompt")
-
-# NOTE: For complex prompt assembly, use an EmbeddedPythonNode to combine
+# Data flows via connect(), NOT template strings.
+# For complex prompt assembly, use an EmbeddedPythonNode to combine
 # conversation history + search results + query into a single prompt string.
-# Template syntax like {{...}} does NOT work in Kailash node config.
-
-"""
-
-Answer:"""
-})
-
 builder.connect("load_history", "rows", "build_context", "inputs")
 builder.connect("build_context", "outputs", "embed_query", "text")
 builder.connect("embed_query", "embedding", "search", "query_embedding")
