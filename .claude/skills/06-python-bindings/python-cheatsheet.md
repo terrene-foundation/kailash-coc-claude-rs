@@ -441,17 +441,17 @@ from kailash.mcp import McpApplication, prompt_argument
 
 app = McpApplication("my-server", "1.0")
 
-@app.tool(name="search", description="Search the web")
-def search(query: str) -> str:
-    return f"Results for {query}"
+@app.tool("search", "Search the web")
+def search(params):
+    return f"Results for {params['query']}"
 
 @app.resource(uri="config://settings", name="Settings")
-def get_settings() -> str:
+def get_settings(uri: str) -> str:
     return '{"theme": "dark"}'
 
-@app.prompt(name="summarize", description="Summarize text")
-def summarize_prompt(text: str) -> str:
-    return f"Please summarize: {text}"
+@app.prompt("summarize", description="Summarize text")
+def summarize_prompt(arguments):
+    return [{"role": "user", "content": f"Please summarize: {arguments['text']}"}]
 ```
 
 ## Kaizen: ObservabilityManager

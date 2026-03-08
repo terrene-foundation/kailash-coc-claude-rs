@@ -431,7 +431,9 @@ reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("CreateProduct", "create", {})
 # Use connect() to pass input data to nodes (NOT ${} template syntax)
-app.register("create_product", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("create_product", lambda **inputs: rt.execute(workflow, inputs))
 ```
 
 ### 4. Wrong Result Access Pattern ⚠️

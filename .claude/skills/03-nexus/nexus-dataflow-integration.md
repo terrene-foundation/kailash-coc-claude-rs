@@ -44,7 +44,9 @@ class User:
 # Step 4: Register workflows manually
 builder = kailash.WorkflowBuilder()
 builder.add_node("CreateUser", "create", {"email": "{{email}}"})
-app.register("create_user", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("create_user", lambda **inputs: rt.execute(workflow, inputs))
 
 # Step 5: Start
 app.start()
@@ -109,7 +111,9 @@ def create_contact_workflow():
     return builder.build(reg)
 
 # Register workflow
-app.register("create_contact", create_contact_workflow())
+contact_wf = create_contact_workflow()
+rt = kailash.Runtime(reg)
+app.register("create_contact", lambda **inputs: rt.execute(contact_wf, inputs))
 
 # Start
 app.start()
@@ -155,7 +159,9 @@ builder.add_node("ListContact", "search", {
 # Connect nodes
 builder.connect("create", "result", "search", "input")
 
-app.register("contact_workflow", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("contact_workflow", lambda **inputs: rt.execute(workflow, inputs))
 ```
 
 ## API Usage
@@ -213,7 +219,9 @@ app = NexusApp()  # Register workflows manually
 
 ```python
 # Register manually since auto_discovery is off
-app.register("workflow-name", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("workflow-name", lambda **inputs: rt.execute(workflow, inputs))
 ```
 
 ### Schema Not Created
@@ -250,7 +258,9 @@ def test_nexus_dataflow_integration():
     # Test workflow execution
     builder = kailash.WorkflowBuilder()
     builder.add_node("CreateTestModel", "create", {"name": "test"})
-    app.register("test", builder.build(reg))
+    workflow = builder.build(reg)
+    rt = kailash.Runtime(reg)
+    app.register("test", lambda **inputs: rt.execute(workflow, inputs))
 ```
 
 ## Key Takeaways

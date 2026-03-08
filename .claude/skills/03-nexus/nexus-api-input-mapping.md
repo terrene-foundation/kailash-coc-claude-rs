@@ -166,7 +166,9 @@ builder.connect(
 )
 
 # Register
-app.register("contact_search", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("contact_search", lambda **inputs: rt.execute(wf, inputs))
 app.start()
 ```
 

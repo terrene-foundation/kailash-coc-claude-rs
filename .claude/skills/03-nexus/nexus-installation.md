@@ -42,7 +42,9 @@ builder.add_node("LLMNode", "chat", {
 # Create Nexus app
 from kailash.nexus import NexusApp
 app = NexusApp()
-app.register("chat", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("chat", lambda **inputs: rt.execute(wf, inputs))
 
 # Run all channels
 if __name__ == "__main__":

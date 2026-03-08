@@ -152,7 +152,9 @@ auth = NexusAuthPlugin(
 app = NexusApp(config=NexusConfig(port=3000))
 
 # Register workflows
-app.register("my-workflow", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("my-workflow", lambda **inputs: rt.execute(wf, inputs))
 
 # List registered handlers
 handlers = app.get_registered_handlers()
@@ -227,7 +229,9 @@ builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "test", {...})
 
 # Nexus registers and exposes it
-app.register("test", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("test", lambda **inputs: rt.execute(wf, inputs))
 ```
 
 ## Request Flow

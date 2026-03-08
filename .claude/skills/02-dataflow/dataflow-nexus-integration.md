@@ -49,7 +49,9 @@ app = NexusApp(NexusConfig(port=3000))
 builder = kailash.WorkflowBuilder()
 builder.add_node("CreateProduct", "create", {})
 # Input data is passed via workflow execution inputs, not ${} template syntax
-app.register("create_product", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("create_product", lambda **inputs: rt.execute(workflow, inputs))
 
 # Step 5: Start the platform
 app.start()  # Blocks until Ctrl+C
@@ -136,7 +138,9 @@ app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("ListProduct", "list", {})
-app.register("list_products", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("list_products", lambda **inputs: rt.execute(workflow, inputs))
 ```
 
 ## Related Patterns
@@ -181,10 +185,12 @@ from kailash.nexus import NexusApp, NexusConfig
 app = NexusApp(NexusConfig(port=3000))
 
 # Register product operations as workflows
+rt = kailash.Runtime(reg)
 for node_name in ["CreateProduct", "ListProduct", "ReadProduct"]:
     builder = kailash.WorkflowBuilder()
     builder.add_node(node_name, "op", {})
-    app.register(node_name.lower(), builder.build(reg))
+    workflow = builder.build(reg)
+    app.register(node_name.lower(), lambda **inputs, wf=workflow: rt.execute(wf, inputs))
 
 # Start platform
 app.start()

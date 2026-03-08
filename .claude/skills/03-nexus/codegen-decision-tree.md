@@ -112,7 +112,9 @@ result = await httpx.get("https://api.example.com")
 """,
     "output_vars": ["result"]
 })
-app.register("process", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("process", lambda **inputs: rt.execute(wf, inputs))
 ```
 
 **RIGHT**:

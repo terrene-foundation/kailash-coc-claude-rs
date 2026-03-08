@@ -73,7 +73,9 @@ builder.add_node("CreateUser", "create", {
 })
 
 reg = kailash.NodeRegistry()
-app.register("create_user", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("create_user", lambda **inputs: rt.execute(workflow, inputs))
 
 # Fast startup: <2 seconds!
 app.start()

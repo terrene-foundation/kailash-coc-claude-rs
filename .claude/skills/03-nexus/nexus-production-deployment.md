@@ -291,8 +291,11 @@ app.add_rate_limit(1000)  # P0-2: DoS protection (default 100)
 
 # Register workflows explicitly (manual registration)
 from workflows import user_workflow, order_workflow
-app.register("users", user_builder.build(reg))
-app.register("orders", order_builder.build(reg))
+rt = kailash.Runtime(reg)
+users_wf = user_builder.build(reg)
+orders_wf = order_builder.build(reg)
+app.register("users", lambda **inputs: rt.execute(users_wf, inputs))
+app.register("orders", lambda **inputs: rt.execute(orders_wf, inputs))
 
 if __name__ == "__main__":
     app.start()
@@ -672,8 +675,11 @@ app = NexusApp()
 
 # Register workflows explicitly
 from workflows import workflow1, workflow2
-app.register("workflow1", workflow1.build(reg))
-app.register("workflow2", workflow2.build(reg))
+rt = kailash.Runtime(reg)
+wf1 = workflow1.build(reg)
+wf2 = workflow2.build(reg)
+app.register("workflow1", lambda **inputs: rt.execute(wf1, inputs))
+app.register("workflow2", lambda **inputs: rt.execute(wf2, inputs))
 ```
 
 ### 5. Enable Security Features

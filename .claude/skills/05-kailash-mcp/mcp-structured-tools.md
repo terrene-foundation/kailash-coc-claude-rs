@@ -79,12 +79,18 @@ When building MCP servers, define tool schemas for structured input validation:
 
 ```python
 from kailash.mcp import McpApplication
+from kailash import ToolParam
 
 app = McpApplication("weather-server", "1.0")
 
-@app.tool(name="get_weather", description="Get current weather for a city")
-def get_weather(city: str, units: str = "celsius") -> str:
+@app.tool("get_weather", "Get current weather for a city", params=[
+    ToolParam("city", "string", description="City name", required=True),
+    ToolParam("units", "string", description="Temperature units"),
+])
+def get_weather(params):
     """Get weather data with validated parameters."""
+    city = params.get("city", "")
+    units = params.get("units", "celsius")
     return f'{{"city": "{city}", "temp": 22, "units": "{units}"}}'
 ```
 

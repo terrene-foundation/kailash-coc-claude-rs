@@ -518,7 +518,9 @@ app = NexusApp()  # No explicit workflow registration
 ```python
 # RIGHT - Manual registration
 app = NexusApp()
-app.register("workflow_name", builder.build(reg))  # Manual registration
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("workflow_name", lambda **inputs: rt.execute(wf, inputs))  # Manual registration
 ```
 
 ### ❌ Mistake 4: Storing Secrets in Code

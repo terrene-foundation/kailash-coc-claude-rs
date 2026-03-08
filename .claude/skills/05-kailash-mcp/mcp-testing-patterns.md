@@ -77,12 +77,13 @@ def test_mcp_server_tool_execution():
 
     app = McpApplication("test-server", "1.0")
 
-    @app.tool(name="get_data", description="Get test data")
-    def get_data(key: str) -> str:
+    @app.tool("get_data", "Get test data")
+    def get_data(params):
+        key = params["key"]
         return f'{{"key": "{key}", "value": "test_data"}}'
 
     # Test tool function directly
-    result = get_data("test_key")
+    result = get_data({"key": "test_key"})
     assert "test_data" in result
 
 @pytest.mark.integration
@@ -131,12 +132,13 @@ def test_mcp_server_production_flow():
 
     app = McpApplication("e2e-server", "1.0")
 
-    @app.tool(name="search", description="Search documents")
-    def search(query: str) -> str:
+    @app.tool("search", "Search documents")
+    def search(params):
+        query = params["query"]
         return f'{{"results": ["{query} result 1", "{query} result 2"]}}'
 
     @app.resource(uri="config://settings", name="Settings")
-    def get_settings() -> str:
+    def get_settings(uri: str) -> str:
         return '{"version": "1.0", "environment": "test"}'
 
     # Test tool

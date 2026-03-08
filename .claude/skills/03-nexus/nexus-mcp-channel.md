@@ -31,7 +31,9 @@ builder.add_node("HTTPRequestNode", "fetch", {
     "method": "GET"
 })
 
-app.register("github-lookup", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("github-lookup", lambda **inputs: rt.execute(workflow, inputs))
 app.start()
 
 # Now discoverable by AI agents on localhost:3001

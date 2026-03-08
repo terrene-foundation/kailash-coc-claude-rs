@@ -140,7 +140,9 @@ builder.add_node("EmbeddedPythonNode", "process", {
 })
 
 reg = kailash.NodeRegistry()
-app.register("my_workflow", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("my_workflow", lambda **inputs: rt.execute(workflow, inputs))
 app.start()  # Now accessible via API, CLI, and MCP!
 ```
 
@@ -212,7 +214,9 @@ class User:
 builder = kailash.WorkflowBuilder()
 builder.add_node("ListUser", "list_users", {})
 reg = kailash.NodeRegistry()
-app.register("list_users", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("list_users", lambda **inputs: rt.execute(workflow, inputs))
 
 app.start()
 ```

@@ -200,7 +200,9 @@ app.add_rate_limit(5000)
 # Auth configured via NexusAuthPlugin (see nexus-auth-plugin.md)
 
 # Register workflows manually
-app.register("workflow_name", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("workflow_name", lambda **inputs: rt.execute(wf, inputs))
 ```
 
 ## Development Configuration

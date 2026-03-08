@@ -47,21 +47,20 @@ if __name__ == "__main__":
 **McpApplication (Python compat)** uses `@app.tool()` / `@app.resource()` decorators:
 
 ```python
-from kailash.nexus import McpApplication
+from kailash.mcp import McpApplication
 
 # Create MCP application (Python compat wrapper with decorator API)
 app = McpApplication("my-mcp-server", "1.0.0")
 
-@app.tool(name="calculate_sum", description="Calculate the sum of two numbers")
-def calculate_sum(a: float, b: float) -> dict:
-    return {"result": a + b, "operation": "addition"}
+@app.tool("calculate_sum", "Calculate the sum of two numbers")
+def calculate_sum(params):
+    return {"result": params["a"] + params["b"], "operation": "addition"}
 
 @app.resource(uri="config://settings", name="Server Settings", description="Server configuration")
-def get_settings() -> dict:
-    return {"version": "1.0.0", "environment": "production"}
+def get_settings(uri: str) -> str:
+    return '{"version": "1.0.0", "environment": "production"}'
 
-if __name__ == "__main__":
-    app.run(transport="stdio")
+# Note: app.run() raises RuntimeError -- use Nexus for serving MCP tools
 ```
 
 ### 3. Advanced MCP Tools

@@ -35,8 +35,9 @@ from kailash.mcp import McpApplication
 
 app = McpApplication("weather-server", "1.0")
 
-@app.tool(name="get_weather", description="Get weather for a city")
-def get_weather(city: str) -> str:
+@app.tool("get_weather", "Get weather for a city")
+def get_weather(params):
+    city = params["city"]
     return f'{{"city": "{city}", "temp": 22}}'
 
 # STDIO transport (default) -- best for local development
@@ -61,8 +62,9 @@ import os
 
 app = McpApplication("doc-server", "1.0")
 
-@app.tool(name="search_docs", description="Search documents")
-def search_docs(query: str) -> str:
+@app.tool("search_docs", "Search documents")
+def search_docs(params):
+    query = params["query"]
     return f'{{"results": ["{query} result"]}}'
 
 server = app.server

@@ -40,10 +40,12 @@ kill -9 <PID>
 **Solution**:
 
 ```python
-# Ensure .build() is called
+# Ensure .build() is called, then wrap with Runtime
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}", "output_vars": ["result"]})
-app.register("my-workflow", builder.build(reg))  # Don't forget .build()
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("my-workflow", lambda **inputs: rt.execute(workflow, inputs))
 
 # Check registered handlers
 print(app.get_registered_handlers())
@@ -376,7 +378,9 @@ builder.add_node("EmbeddedPythonNode", "test", {
     "output_vars": ["result"]
 })
 
-app.register("test", builder.build(reg))
+workflow = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("test", lambda **inputs: rt.execute(workflow, inputs))
 app.start()
 ```
 

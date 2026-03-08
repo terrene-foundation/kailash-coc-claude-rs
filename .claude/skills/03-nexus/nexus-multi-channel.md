@@ -29,7 +29,9 @@ builder.add_node("HTTPRequestNode", "fetch", {
 })
 
 # Register once
-app.register("github-user", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("github-user", lambda **inputs: rt.execute(wf, inputs))
 
 # Now available as:
 # 1. REST API: POST /workflows/github-user/execute
@@ -250,7 +252,9 @@ Start simple, add channel-specific features as needed:
 
 ```python
 app = NexusApp()
-app.register("workflow", builder.build(reg))
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+app.register("workflow", lambda **inputs: rt.execute(wf, inputs))
 
 # NOTE: NexusApp does not have app.api.*, app.cli.*, or app.mcp.* attributes.
 # Channel-specific features are configured server-side via the Rust Nexus engine.
