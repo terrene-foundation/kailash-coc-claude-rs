@@ -65,7 +65,7 @@ import kailash
 builder.add_node("EmbeddedPythonNode", "code", {"code": "result = {'ok': True}"})
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("SwitchNode", "switch", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
-builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
+builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
 ```
 
 ### 4. Access Control & Security

@@ -155,7 +155,7 @@ builder.connect("transform", "output", "load", "data")
 ```python
 builder.add_node("Embed", "embed", {"model": "text-embedding-ada-002"})
 builder.add_node("Search", "search", {"index": "vectors"})
-builder.add_node("Generate", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
+builder.add_node("Generate", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
 ```
 
 ## CRITICAL Warnings

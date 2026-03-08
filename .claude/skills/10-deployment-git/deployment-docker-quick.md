@@ -50,8 +50,7 @@ import os
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
-    "provider": "openai",
-    "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
+    "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — provider auto-detected from model name
     "prompt": "{{input.message}}"
 })
 
@@ -64,8 +63,7 @@ app = NexusApp()
 def handle_chat(message: str):
     builder = kailash.WorkflowBuilder()
     builder.add_node("LLMNode", "chat", {
-        "provider": "openai",
-        "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — never hardcode
+        "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — provider auto-detected from model name
         "prompt": message
     })
     reg = kailash.NodeRegistry()

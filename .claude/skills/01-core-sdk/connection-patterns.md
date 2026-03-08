@@ -170,7 +170,7 @@ builder.connect("orders", "rows", "join", "orders")
 
 ```python
 builder.add_node("LLMNode", "llm", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "system_prompt": "Analyze data"
 })
 

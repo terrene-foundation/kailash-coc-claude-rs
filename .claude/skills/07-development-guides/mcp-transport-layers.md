@@ -5,6 +5,7 @@ You are an expert in MCP transport configuration including stdio, HTTP, and WebS
 ## Core Responsibilities
 
 ### 1. stdio Transport (CLI/Desktop)
+
 ```python
 import kailash
 
@@ -16,6 +17,7 @@ if __name__ == "__main__":
 ```
 
 ### 2. HTTP Transport (REST APIs)
+
 ```python
 server = kailash.MCPServer(name="api-server")
 
@@ -29,6 +31,7 @@ if __name__ == "__main__":
 ```
 
 ### 3. WebSocket Transport (Real-time)
+
 ```python
 server = kailash.MCPServer(name="realtime-server")
 
@@ -41,36 +44,41 @@ if __name__ == "__main__":
     )
 ```
 
-### 4. Client Configuration
+### 4. MCP Client Configuration
+
+MCP client connections (connecting to external MCP servers) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes like `LLMNode`. Kaizen agents configure MCP server connections as part of their agent setup:
+
 ```python
-# In LLM workflow
-builder.add_node("IterativeLLMNode", "agent", {
-    "mcp_servers": [
-        {
-            "name": "cli-server",
-            "transport": "stdio",
-            "command": "python",
-            "args": ["mcp_server.py"]
-        },
-        {
-            "name": "api-server",
-            "transport": "http",
-            "url": "http://localhost:3000"
-        },
-        {
-            "name": "realtime-server",
-            "transport": "websocket",
-            "url": "ws://localhost:8001"
-        }
-    ]
-})
+# Kaizen agent MCP client configuration
+mcp_server_configs = [
+    {
+        "name": "cli-server",
+        "transport": "stdio",
+        "command": "python",
+        "args": ["mcp_server.py"]
+    },
+    {
+        "name": "api-server",
+        "transport": "http",
+        "url": "http://localhost:3000"
+    },
+    {
+        "name": "realtime-server",
+        "transport": "websocket",
+        "url": "ws://localhost:8001"
+    }
+]
+# Pass these configs to a Kaizen agent for MCP tool discovery and execution
 ```
 
 ## When to Engage
+
 - User asks about "MCP transport", "stdio", "websocket", "HTTP MCP"
 - User needs transport configuration
 - User has connection questions
 
 ## Integration with Other Skills
+
 - Route to **mcp-development** for MCP basics
 - Route to **mcp-specialist** for advanced patterns
+- Route to **kaizen-specialist** for Kaizen agent MCP client integration

@@ -180,15 +180,15 @@ if __name__ == "__main__":
 
 Replace placeholders with actual node types based on your needs:
 
-| Need               | Node Type            | Example Config                                                                  |
-| ------------------ | -------------------- | ------------------------------------------------------------------------------- |
-| **Read CSV**       | `CSVProcessorNode`   | `{"action": "read", "source_path": "data.csv"}`                                 |
-| **Read JSON**      | `FileReaderNode`     | `{"path": "data.json"}`                                                         |
-| **API Call**       | `HTTPRequestNode`    | `{"url": "https://...", "method": "GET"}`                                       |
-| **Database Query** | `SQLQueryNode`       | `{"connection_string": "...", "query": "..."}`                                  |
-| **LLM Processing** | `LLMNode`            | `{"provider": "openai", "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")}` |
-| **Custom Logic**   | `EmbeddedPythonNode` | `{"code": "result = {...}"}`                                                    |
-| **Write CSV**      | `FileWriterNode`     | `{"path": "output.csv"}`                                                        |
+| Need               | Node Type            | Example Config                                                                      |
+| ------------------ | -------------------- | ----------------------------------------------------------------------------------- |
+| **Read CSV**       | `CSVProcessorNode`   | `{"action": "read", "source_path": "data.csv"}`                                     |
+| **Read JSON**      | `FileReaderNode`     | `{"path": "data.json"}`                                                             |
+| **API Call**       | `HTTPRequestNode`    | `{"url": "https://...", "method": "GET"}`                                           |
+| **Database Query** | `SQLQueryNode`       | `{"connection_string": "...", "query": "..."}`                                      |
+| **LLM Processing** | `LLMNode`            | `{"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")}` (provider auto-detected) |
+| **Custom Logic**   | `EmbeddedPythonNode` | `{"code": "result = {...}"}`                                                        |
+| **Write CSV**      | `FileWriterNode`     | `{"path": "output.csv"}`                                                            |
 
 ### Step 2: Define Data Flow
 

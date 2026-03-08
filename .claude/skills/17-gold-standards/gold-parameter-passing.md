@@ -40,7 +40,7 @@ builder.add_node("CSVProcessorNode", "reader", {
 
 ```python
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("DataTransformerNode", "transformer", {})
+builder.add_node("DataMapperNode", "transformer", {})
 
 # Pass data between nodes (4-parameter syntax)
 builder.connect("reader", "rows", "transformer", "input_data")

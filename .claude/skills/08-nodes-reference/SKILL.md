@@ -34,10 +34,10 @@ Complete node catalog covering:
 #### AI & Machine Learning
 
 - **[nodes-ai-reference](nodes-ai-reference.md)** - AI and LLM nodes
-  - LLMNode, AnthropicNode, OpenAINode
+  - LLMNode (auto-detects provider from model name)
   - VisionNode, AudioNode
   - EmbeddingNode, ClassificationNode
-  - OllamaNode (local LLMs)
+  - LLMNode supports local models via Ollama-compatible API
 
 ## Node Selection Guide
 
@@ -45,10 +45,10 @@ Complete node catalog covering:
 
 **AI & LLM Tasks** → Use AI nodes (`nodes-ai-reference`)
 
-- Text generation: LLMNode, OpenAINode, AnthropicNode
+- Text generation: LLMNode (supports OpenAI, Anthropic, Google, Mistral, Cohere)
 - Vision: VisionNode
 - Audio: AudioNode
-- Local LLMs: OllamaNode
+- Local LLMs: LLMNode with Ollama-compatible endpoint
 
 **API Integration** → Use API nodes (`nodes-api-reference`)
 
@@ -121,7 +121,7 @@ builder.connect("node1", "result", "node2", "input_data")
 
 ```python
 # AI/LLM Node
-builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), "prompt": "..."})
+builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), "prompt": "..."})
 
 # API Call
 builder.add_node("HTTPRequest", "api", {"url": "...", "method": "POST"})

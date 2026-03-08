@@ -22,7 +22,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=AIza...
 
 # Model names (choose one as default)
-DEFAULT_LLM_MODEL=gpt-5
+DEFAULT_LLM_MODEL=gpt-4o
 ```
 
 ## Minimal Agent (BaseAgent Subclass)
@@ -163,7 +163,7 @@ from kailash.kaizen import CostTracker
 tracker = CostTracker(budget_limit=1.00)  # $1.00 budget
 
 # Record LLM usage
-tracker.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), 100, 50)
+tracker.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), 100, 50)
 
 print(f"Cost: ${tracker.total_cost():.6f}")
 print(f"Tokens: {tracker.total_tokens()}")

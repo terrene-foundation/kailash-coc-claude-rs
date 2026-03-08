@@ -18,15 +18,13 @@ builder = kailash.WorkflowBuilder()
 
 # Valid: All required parameters
 builder.add_node("LLMNode", "llm1", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "Hello"
 })
 
 # Invalid: Missing required 'prompt'
 # builder.add_node("LLMNode", "llm2", {
-#     "provider": "openai",
-#     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
+#     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")
 # })  # Error!
 
 # Validate at build time
@@ -131,7 +129,7 @@ The builder validates connection contracts at build time:
 ```python
 # Valid: Output type matches input type
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("DataTransformerNode", "transformer", {})
+builder.add_node("DataMapperNode", "transformer", {})
 builder.connect("reader", "rows", "transformer", "input_data")
 
 # Invalid: Type mismatch

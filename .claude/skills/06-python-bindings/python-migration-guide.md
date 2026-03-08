@@ -8,16 +8,16 @@ Migrate from the original kailash Python SDK (v0.12) to the Rust-backed Python b
 
 The `kailash` package name is shared between two implementations:
 
-|                       | Original Python SDK         | kailash-enterprise                                                        |
-| --------------------- | --------------------------- | ------------------------------------------------------------------------- |
-| Implementation        | Pure Python                 | Rust core via PyO3                                                        |
-| Install               | `pip install kailash` (old) | `pip install kailash-enterprise`                                          |
-| Runtime               | `LocalRuntime`              | `kailash.Runtime`                                                         |
-| Registry              | Created internally          | `kailash.NodeRegistry()` passed explicitly                                |
-| Execute return        | `(results, run_id)` tuple   | `{"results": ..., "run_id": ..., "metadata": ...}` dict                   |
+|                       | Original Python SDK         | kailash-enterprise                                                                |
+| --------------------- | --------------------------- | --------------------------------------------------------------------------------- |
+| Implementation        | Pure Python                 | Rust core via PyO3                                                                |
+| Install               | `pip install kailash` (old) | `pip install kailash-enterprise`                                                  |
+| Runtime               | `LocalRuntime`              | `kailash.Runtime`                                                                 |
+| Registry              | Created internally          | `kailash.NodeRegistry()` passed explicitly                                        |
+| Execute return        | `(results, run_id)` tuple   | `{"results": ..., "run_id": ..., "metadata": ...}` dict                           |
 | DataFlow/Nexus/Kaizen | Python classes              | Full Python APIs via `from kailash.{dataflow,nexus,kaizen,enterprise} import ...` |
-| Custom nodes          | Class-based inheritance     | `register_callback(name, fn, inputs, outputs)`                            |
-| Deprecation warnings  | No (is the original)        | Yes, for v0.12 compat shims                                               |
+| Custom nodes          | Class-based inheritance     | `register_callback(name, fn, inputs, outputs)`                                    |
+| Deprecation warnings  | No (is the original)        | Yes, for v0.12 compat shims                                                       |
 
 The v0.12 compatibility shims (`LocalRuntime`, `build()` without registry) continue to work but emit `DeprecationWarning`. Migrate to avoid future breakage.
 
@@ -240,7 +240,7 @@ async def get_data():
 ```python
 from kaizen.api import Agent
 
-agent = Agent(model=os.environ.get("LLM_MODEL", "gpt-5"))
+agent = Agent(model=os.environ.get("LLM_MODEL", "gpt-4o"))
 result = await agent.run("What is the capital of France?")
 ```
 
@@ -252,11 +252,11 @@ from kailash.kaizen import BaseAgent, Agent, AgentConfig, LlmClient
 from kailash.kaizen.agents import SimpleQAAgent, ReActAgent, RAGAgent
 from kailash.kaizen.pipelines import SequentialPipeline, ParallelPipeline
 
-agent = Agent(AgentConfig(model=os.environ.get("LLM_MODEL", "gpt-5")))
+agent = Agent(AgentConfig(model=os.environ.get("LLM_MODEL", "gpt-4o")))
 result = await agent.run("What is the capital of France?")
 
-qa = SimpleQAAgent(model=os.environ.get("LLM_MODEL", "gpt-5"))
-react = ReActAgent(model=os.environ.get("LLM_MODEL", "gpt-5"), tools=[...])
+qa = SimpleQAAgent(model=os.environ.get("LLM_MODEL", "gpt-4o"))
+react = ReActAgent(model=os.environ.get("LLM_MODEL", "gpt-4o"), tools=[...])
 
 pipeline = SequentialPipeline([agent1, agent2])
 result = await pipeline.run("complex task")
@@ -314,15 +314,15 @@ print(result["run_id"])
 
 ## Summary: All Breaking Changes
 
-| v0.12 pattern                      | Current replacement                                   |
-| ---------------------------------- | ----------------------------------------------------- |
-| `LocalRuntime()`                   | `kailash.Runtime(kailash.NodeRegistry())`             |
-| `builder.build()`                  | `builder.build(registry)`                             |
-| `results, run_id = rt.execute(wf)` | `result = rt.execute(wf)` (dict)                     |
-| `AsyncLocalRuntime`                | `asyncio.to_thread(runtime.execute, wf, inputs)`      |
-| `get_runtime()`                    | `kailash.Runtime(kailash.NodeRegistry())`             |
-| `class MyNode(BaseNode)`           | `register_callback("MyNode", fn, ins, outs)`          |
-| `DataFlow`, `@db.model`            | `from kailash.dataflow import db, F, with_tenant`     |
-| `Nexus`                            | `from kailash.nexus import NexusApp`                  |
-| `Kaizen`                           | `from kailash.kaizen import BaseAgent, Agent`         |
-| `Enterprise`                       | `from kailash.enterprise import CombinedEvaluator`    |
+| v0.12 pattern                      | Current replacement                                |
+| ---------------------------------- | -------------------------------------------------- |
+| `LocalRuntime()`                   | `kailash.Runtime(kailash.NodeRegistry())`          |
+| `builder.build()`                  | `builder.build(registry)`                          |
+| `results, run_id = rt.execute(wf)` | `result = rt.execute(wf)` (dict)                   |
+| `AsyncLocalRuntime`                | `asyncio.to_thread(runtime.execute, wf, inputs)`   |
+| `get_runtime()`                    | `kailash.Runtime(kailash.NodeRegistry())`          |
+| `class MyNode(BaseNode)`           | `register_callback("MyNode", fn, ins, outs)`       |
+| `DataFlow`, `@db.model`            | `from kailash.dataflow import db, F, with_tenant`  |
+| `Nexus`                            | `from kailash.nexus import NexusApp`               |
+| `Kaizen`                           | `from kailash.kaizen import BaseAgent, Agent`      |
+| `Enterprise`                       | `from kailash.enterprise import CombinedEvaluator` |

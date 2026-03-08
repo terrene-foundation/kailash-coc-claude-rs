@@ -30,7 +30,7 @@ MISTRAL_API_KEY=...
 COHERE_API_KEY=...
 
 # Model names
-DEFAULT_LLM_MODEL=gpt-5
+DEFAULT_LLM_MODEL=gpt-4o
 ```
 
 ## LlmClient() -- Production
@@ -89,7 +89,7 @@ The provider is automatically detected from the model name prefix. Simply change
 
 ```bash
 # .env -- switch by changing this one line
-DEFAULT_LLM_MODEL=gpt-5            # Uses OpenAI
+DEFAULT_LLM_MODEL=gpt-4o            # Uses OpenAI
 # DEFAULT_LLM_MODEL=claude-3-opus   # Uses Anthropic
 # DEFAULT_LLM_MODEL=gemini-1.5-pro  # Uses Google
 # DEFAULT_LLM_MODEL=mistral-large   # Uses Mistral

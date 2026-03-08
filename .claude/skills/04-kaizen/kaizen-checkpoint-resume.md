@@ -8,7 +8,7 @@ Save and restore agent state using `AgentCheckpoint` and checkpoint storage back
 from kailash import AgentCheckpoint, InMemoryCheckpointStorage, FileCheckpointStorage
 
 # Create a checkpoint
-checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-5"))
+checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-4o"))
 
 # Fields:
 # - checkpoint_id: str         (UUID v4, auto-generated)
@@ -33,7 +33,7 @@ Dict-backed storage for testing and development. Data is lost when the process e
 storage = InMemoryCheckpointStorage()
 
 # Save
-checkpoint = AgentCheckpoint("assistant", os.environ.get("LLM_MODEL", "gpt-5"))
+checkpoint = AgentCheckpoint("assistant", os.environ.get("LLM_MODEL", "gpt-4o"))
 checkpoint_id = storage.save(checkpoint)
 
 # Load
@@ -56,7 +56,7 @@ JSON file-backed storage. Each checkpoint is stored as `{base_dir}/{checkpoint_i
 storage = FileCheckpointStorage("/tmp/agent-checkpoints")
 
 # Save
-checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-5"))
+checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-4o"))
 checkpoint.metadata = {"task": "market research"}
 checkpoint_id = storage.save(checkpoint)
 

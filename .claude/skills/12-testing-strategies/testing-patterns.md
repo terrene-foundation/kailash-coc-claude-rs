@@ -81,7 +81,7 @@ def test_complete_data_processing_pipeline():
     # Data pipeline
     builder.add_node("CSVProcessorNode", "ingest", {"action": "read", "source_path": "tests/fixtures/real_data.csv"})
     builder.add_node("DataValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
-    builder.add_node("DataTransformerNode", "transform", {"operations": ["clean_names"]})
+    builder.add_node("DataMapperNode", "transform", {"operations": ["clean_names"]})
     builder.add_node("UserBatchCreateNode", "store", {"batch_size": 100})
 
     # Connect pipeline

@@ -109,7 +109,7 @@ builder.add_node("TextTransformNode", "upper", {
 builder.add_node("HTTPRequestNode", "fetch", {
     "url": "https://api.example.com/data",   # str
     "method": "GET",                          # str
-    "timeout": 30,                            # int
+    "timeout_ms": 30000,                       # int (milliseconds)
 })
 ```
 

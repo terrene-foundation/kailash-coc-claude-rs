@@ -74,7 +74,7 @@ builder.add_node("MCPToolNode", "mcp_tool", {
 - File I/O (use CSVProcessorNode, etc.)
 - HTTP requests (use HTTPRequestNode)
 - Database queries (use SQLQueryNode)
-- Data transformation (use FilterNode, DataTransformer)
+- Data transformation (use FilterNode, DataMapperNode)
 
 ## Related Skills
 

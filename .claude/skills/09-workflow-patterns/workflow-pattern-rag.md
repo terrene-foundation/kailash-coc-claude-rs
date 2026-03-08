@@ -46,8 +46,7 @@ builder.add_node("TextChunkerNode", "chunk_text", {
 
 # 3. Generate embeddings
 builder.add_node("EmbeddingNode", "generate_embeddings", {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
+    "model": "text-embedding-3-small",  # provider auto-detected from model name
     "text": "{{chunk_text.chunks}}"
 })
 
@@ -84,8 +83,7 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Generate query embedding
 builder.add_node("EmbeddingNode", "query_embedding", {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
+    "model": "text-embedding-3-small",  # provider auto-detected from model name
     "text": "{{input.query}}"
 })
 
@@ -122,8 +120,7 @@ Answer:'''
 
 # 5. Generate answer with LLM
 builder.add_node("LLMNode", "generate_answer", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "{{build_prompt.result}}",
     "temperature": 0.3
 })
@@ -143,8 +140,7 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Query embedding
 builder.add_node("EmbeddingNode", "query_embed", {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
+    "model": "text-embedding-3-small",  # provider auto-detected from model name
     "text": "{{input.query}}"
 })
 
@@ -185,8 +181,7 @@ builder.add_node("RerankNode", "rerank_all", {
 
 # 4. Generate comprehensive answer
 builder.add_node("LLMNode", "generate", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": """Answer using context from docs, code, and API:
 
 Context: {{rerank_all.documents}}
@@ -232,8 +227,7 @@ builder.add_node("TransformNode", "build_context", {
 
 # 3. Embed query with context
 builder.add_node("EmbeddingNode", "embed_query", {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
+    "model": "text-embedding-3-small",  # provider auto-detected from model name
     "text": "{{input.query}} Context: {{build_context.context}}"
 })
 
@@ -246,8 +240,7 @@ builder.add_node("VectorSearchNode", "search", {
 
 # 5. Generate answer with history
 builder.add_node("LLMNode", "generate", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": """Conversation History:
 {{build_context.context}}
 

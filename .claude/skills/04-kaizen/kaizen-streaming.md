@@ -47,7 +47,7 @@ event = StreamEvent.error("oops")
 
 # --- StreamingAgent ---
 import os
-config = AgentConfig(model=os.environ.get("LLM_MODEL", "gpt-5"))
+config = AgentConfig(model=os.environ.get("LLM_MODEL", "gpt-4o"))
 client = LlmClient.mock(responses=["Hello world!"])
 agent = Agent(config, client)
 

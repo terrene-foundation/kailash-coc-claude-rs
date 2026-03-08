@@ -366,8 +366,7 @@ registry = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("LLMNode", "chat", {
-    "provider": "openai",
-    "model":    os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model":    os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "api_key":  os.environ["OPENAI_API_KEY"],        # NEVER hardcode
 })
 

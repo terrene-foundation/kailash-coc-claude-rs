@@ -287,7 +287,7 @@ auth = kailash.NexusAuthPlugin.enterprise(
 
 | Wrong                                       | Correct                                     | Why                               |
 | ------------------------------------------- | ------------------------------------------- | --------------------------------- |
-| `JwtConfig(secret=...)`                     | `JwtConfig(secret_key=...)`                     | Parameter is named `secret_key`   |
+| `JwtConfig(secret=...)`                     | `JwtConfig(secret_key=...)`                 | Parameter is named `secret_key`   |
 | `JwtConfig(exclude_paths=[...])`            | `JwtConfig(exempt_paths=[...])`             | Parameter is named `exempt_paths` |
 | `TenantConfig(admin_roles=[...])`           | `TenantConfig(admin_role="super_admin")`    | Singular string, not list         |
 | `RBACConfig(roles={...})`                   | `rbac={"admin": ["*"], ...}`                | Plain dict, no RBACConfig class   |
@@ -477,8 +477,7 @@ from dataclasses import dataclass
 
 @dataclass
 class AnalysisConfig:
-    llm_provider: str = "openai"
-    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
     temperature: float = 0.1
     max_tokens: int = 2000
 

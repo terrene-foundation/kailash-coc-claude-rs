@@ -30,8 +30,7 @@ def test_llm_integration():
     """Test with real OpenAI API"""
     builder = kailash.WorkflowBuilder()
     builder.add_node("LLMNode", "llm", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
         "prompt": "Say hello"
     })
     reg = kailash.NodeRegistry()

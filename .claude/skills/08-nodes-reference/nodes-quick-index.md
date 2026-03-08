@@ -18,11 +18,11 @@ Quick reference to all 115+ tested and validated Kailash workflow nodes.
 | Task                     | Use This Node                         | Not EmbeddedPythonNode |
 | ------------------------ | ------------------------------------- | ---------------------- | ------------------------------------- | ------------------ |
 | Read CSV/Excel           | `CSVProcessorNode`, `ExcelReaderNode` | Read CSV/Excel         | `CSVProcessorNode`, `ExcelReaderNode` | ❌ `pd.read_csv()` |
-| Call REST API            | `HTTPRequestNode`, `RESTClientNode`   | ❌ `requests.get()`    |
+| Call REST API            | `HTTPRequestNode`                     | ❌ `requests.get()`    |
 | Query Database           | `SQLQueryNode` ⭐                     | ❌ `cursor.execute()`  |
-| Use LLM/AI               | `LLMNode`, `IterativeLLMNode` ⭐      | ❌ OpenAI SDK          |
-| Filter/Transform         | `FilterNode`, `DataTransformer`       | ❌ List comprehensions |
-| Route Logic              | `SwitchNode`, `ConditionalRouterNode` | ❌ if/else blocks      |
+| Use LLM/AI               | `LLMNode` ⭐                          | ❌ OpenAI SDK          |
+| Filter/Transform         | `FilterNode`, `DataMapperNode`        | ❌ List comprehensions |
+| Route Logic              | `SwitchNode`, `ConditionalNode`       | ❌ if/else blocks      |
 | Send Alerts              | `DiscordAlertNode`, `EmailSenderNode` | ❌ SMTP/webhook code   |
 | Distributed Transactions | `DistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
 
@@ -39,8 +39,7 @@ import kailash
 
 # Database nodes (string-based):
 #   SQLQueryNode (Production recommended)
-#   WorkflowConnectionPool (Connection pooling)
-#   QueryRouterNode (Intelligent routing)
+#   DatabaseConnectionNode (Connection pooling)
 #   SQLDatabaseNode (Simple queries)
 
 builder = kailash.WorkflowBuilder()
@@ -52,18 +51,22 @@ builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path":
 ```python
 import kailash
 
-# LLM Agent nodes (string-based):
-#   LLMNode, IterativeLLMNode (Real MCP execution),
-#   MonitoredLLMNode, EmbeddingGeneratorNode
-
-# Coordination nodes (string-based):
-#   A2AAgentNode, A2ACoordinatorNode
-
-# Self-organizing nodes (string-based):
-#   AgentPoolManagerNode, SelfOrganizingAgentNode, TeamFormationNode
+# AI/LLM nodes (string-based):
+#   LLMNode (multi-provider chat completions with tool calling)
+#   EmbeddingNode (text-to-vector embedding generation)
+#   ClassificationNode (zero-shot/few-shot text classification)
+#   SentimentNode (sentiment analysis)
+#   SummarizationNode (text summarization)
+#   VisionNode (image analysis)
+#   AudioNode (audio processing)
+#   ImageGenerationNode (image generation)
+#   TextToSpeechNode (text to speech)
+#
+# Note: Multi-agent coordination (A2A) is handled by the Kaizen agent
+# framework (kailash-kaizen), not by workflow nodes.
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "agent", {"provider": "openai", "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
+builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})  # provider auto-detected from model name
 ```
 
 ## Most Used Nodes (Top 10)
@@ -72,9 +75,9 @@ builder.add_node("LLMNode", "agent", {"provider": "openai", "model": os.environ.
 import kailash
 
 # All used as strings with builder.add_node("NodeType", "id", {...}):
-# Data:      CSVProcessorNode, SQLQueryNode, WorkflowConnectionPool
-# AI:        LLMNode, IterativeLLMNode (Enhanced with MCP)
-# API:       HTTPRequestNode, RESTClientNode
+# Data:      CSVProcessorNode, SQLQueryNode, DatabaseConnectionNode
+# AI:        LLMNode (with tool calling), EmbeddingNode
+# API:       HTTPRequestNode
 # Logic:     SwitchNode, MergeNode
 # Transform: FilterNode
 ```
@@ -84,20 +87,20 @@ import kailash
 ### Data Processing
 
 - **CSV/Excel**: [`nodes-data-reference`](nodes-data-reference.md)
-- **Database**: `SQLQueryNode`, `WorkflowConnectionPool`, `QueryRouterNode`
+- **Database**: `SQLQueryNode`, `DatabaseConnectionNode`
 - **API**: [`nodes-api-reference`](nodes-api-reference.md)
 
 ### AI/ML
 
 - **LLM**: [`nodes-ai-reference`](nodes-ai-reference.md)
-- **Embeddings**: `EmbeddingGeneratorNode`
-- **Multi-Agent**: `A2AAgentNode`, `SelfOrganizingAgentNode`
+- **Embeddings**: `EmbeddingNode`
+- **Multi-Agent**: Use Kaizen agent framework (`kailash-kaizen`) for A2A coordination
 
 ### Logic & Control
 
 - **Routing**: [`nodes-logic-reference`](nodes-logic-reference.md)
-- **Conditionals**: `SwitchNode`, `ConditionalRouterNode`
-- **Loops**: `LoopNode`, `WhileNode`
+- **Conditionals**: `SwitchNode`, `ConditionalNode`
+- **Loops**: `LoopNode`
 
 ### Enterprise
 
@@ -119,7 +122,7 @@ import kailash
 - File I/O operations (use CSVProcessorNode, etc.)
 - HTTP requests (use HTTPRequestNode)
 - Database queries (use SQLQueryNode)
-- Data filtering/transformation (use FilterNode, DataTransformer)
+- Data filtering/transformation (use FilterNode, DataMapperNode)
 - Authentication (use OAuth2Node, JWTValidatorNode)
 - Standard ML operations (use specialized AI nodes)
 
@@ -155,7 +158,7 @@ Use `pattern-expert` subagent when:
 ## Quick Tips
 
 - Start with specialized nodes before considering EmbeddedPythonNode
-- Use async variants (SQLQueryNode, AsyncHTTPRequestNode) for production
+- Use production nodes (SQLQueryNode, HTTPRequestNode) for real workloads
 - Leverage enterprise nodes (monitoring, transactions, security) for production
 - Check node-specific skills for detailed usage patterns
 

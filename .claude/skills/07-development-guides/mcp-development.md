@@ -208,34 +208,49 @@ server.run(transport="http", host="0.0.0.0", port=3000)
 server.run(transport="websocket", host="0.0.0.0", port=8001)
 ```
 
-### 8. Using MCP Server in LLM Workflows
+### 8. Consuming MCP Servers from Agents
+
+MCP server consumption (connecting to MCP servers, discovering tools, and executing them iteratively) is handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes directly.
+
+For workflow-level tool calling, use `LLMNode` with explicit tool definitions:
 
 ```python
 import kailash
+import os
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("IterativeLLMNode", "agent", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+# LLMNode supports tool calling via the "tools" parameter.
+# Provider is auto-detected from the model name (no "provider" param needed).
+builder.add_node("LLMNode", "agent", {
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "messages": [{"role": "user", "content": "Search for Python tutorials"}],
-    "mcp_servers": [
+    "tools": [
         {
-            "name": "my-mcp-server",
-            "transport": "stdio",
-            "command": "python",
-            "args": ["mcp_server.py"]
+            "type": "function",
+            "function": {
+                "name": "search",
+                "description": "Search for tutorials",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"}
+                    },
+                    "required": ["query"]
+                }
+            }
         }
-    ],
-    "auto_discover_tools": True,
-    "max_iterations": 5
+    ]
 })
 
 reg = kailash.NodeRegistry()
-
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
+
+# The LLM may return tool_calls in its response for your code to handle
 ```
+
+For full MCP client integration (auto-discovery, iterative tool execution, MCP protocol), use Kaizen agents. See the **kaizen-specialist** for patterns.
 
 ### 9. Error Handling in MCP Tools
 

@@ -24,7 +24,7 @@ def run_payment_workflow():
     builder.add_node("HTTPRequestNode", "payment_api", {
         "url": "https://api.stripe.com/charge",
         "method": "POST",
-        "timeout": 30,
+        "timeout_ms": 30000,
     })
 
     wf = builder.build(reg)

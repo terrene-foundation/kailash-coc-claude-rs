@@ -21,43 +21,38 @@ Saga Pattern for database operations and query management.
 ## Core Pattern
 
 ```python
+import kailash
 
-# Create saga coordinator for distributed transactions
+# Start a saga with ordered steps and compensating actions.
+# SagaCoordinatorNode accepts: operation, saga_id, steps, step_id, step_result.
+# Valid operations: start, step_complete, step_failed, abort, get_status.
+
 builder = kailash.WorkflowBuilder()
-builder.add_node("SagaCoordinatorNode", "saga", {
-    "operation": "create_saga",
-    "saga_name": "order_processing",
-    "timeout": 600.0,
-    "context": {"user_id": "user123", "order_id": "order456"}
-})
 
-# Configure saga steps with compensations
-builder.add_node("EmbeddedPythonNode", "add_steps", {
-    "code": """
-steps_config = [
-    {
-        "name": "validate_order",
-        "node_id": "ValidationNode",
-        "parameters": {"check_inventory": True},
-        "compensation_node_id": "CancelValidationNode"
-    },
-    {
-        "name": "charge_payment",
-        "node_id": "PaymentNode",
-        "parameters": {"amount": 100.0},
-        "compensation_node_id": "RefundPaymentNode"
-    }
-]
-result = {"steps": steps_config}
-"""
-})
-
-builder.connect("saga", "saga_id", "add_steps", "saga_id")
+# Start a new saga -- provide operation="start" and steps array as inputs
+builder.add_node("SagaCoordinatorNode", "saga", {})
 
 reg = kailash.NodeRegistry()
-
 rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+
+result = rt.execute(builder.build(reg), {
+    "saga.operation": "start",
+    "saga.steps": [
+        {
+            "step_id": "validate_order",
+            "action": {"type": "validate", "check_inventory": True},
+            "compensate_action": {"type": "cancel_validation"}
+        },
+        {
+            "step_id": "charge_payment",
+            "action": {"type": "charge", "amount": 100.0},
+            "compensate_action": {"type": "refund_payment"}
+        }
+    ]
+})
+
+saga_id = result["saga"]["saga_id"]
+# status will be "executing" after start
 ```
 
 ## Common Use Cases

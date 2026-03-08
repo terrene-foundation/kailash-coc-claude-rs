@@ -173,8 +173,7 @@ class QASignature(Signature):
 
 @dataclass
 class QAConfig:
-    llm_provider: str = "openai"
-    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
 
 class QAAgent(BaseAgent):
     def __init__(self, config: QAConfig):
@@ -229,8 +228,7 @@ agent = QAAgent(config)
 # Core SDK workflow for orchestration
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "ai_process", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
 })
 ```
 

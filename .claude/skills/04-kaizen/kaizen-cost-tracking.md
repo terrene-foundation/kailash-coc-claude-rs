@@ -10,7 +10,7 @@ from kailash.kaizen import CostTracker
 ct = CostTracker()
 
 # Record LLM usage: record(model, prompt_tokens, completion_tokens)
-ct.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), 100, 50)
+ct.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), 100, 50)
 
 # Query totals (all are methods, not properties)
 print(ct.total_cost())              # 0.00125 (auto-calculated from model pricing)

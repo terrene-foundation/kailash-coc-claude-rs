@@ -26,8 +26,7 @@ builder.add_node("PDFReaderNode", "read_invoice", {
 
 # 2. OCR extraction
 builder.add_node("LLMNode", "extract_fields", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_VISION_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_VISION_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "Extract: invoice_number, date, amount, vendor from this invoice",
     "image": "{{read_invoice.content}}"
 })

@@ -200,15 +200,13 @@ builder.add_node("SetVariableNode", "init_prompt", {
 
 # 2. Generate content (LLM)
 builder.add_node("LLMNode", "generate", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "{{init_prompt.prompt}}"
 })
 
 # 3. Evaluate quality
 builder.add_node("LLMNode", "evaluate", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "Rate this description 1-10: {{generate.response}}"
 })
 
@@ -221,8 +219,7 @@ builder.add_node("ConditionalNode", "check_quality", {
 
 # 5. Refine prompt with feedback
 builder.add_node("LLMNode", "refine", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.feedback}}"
 })
 

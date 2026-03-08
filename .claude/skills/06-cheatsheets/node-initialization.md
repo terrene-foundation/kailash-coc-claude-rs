@@ -73,7 +73,7 @@ Use specialized subagents when:
 - 💡 **Attributes Before super().**init**()**: Most common error - ALWAYS set all self.attributes BEFORE calling super().**init**() or Kailash validation will fail
 - 💡 **Return NodeParameter Objects**: get_parameters() must return Dict[str, NodeParameter], not raw values like int/str/float
 - 💡 **Implement Required Methods**: All custom nodes need get_parameters() and run() methods - missing either causes "Can't instantiate abstract class" error
-- 💡 **Provider Parameter Required**: LLMNode and embedding nodes require provider="ollama" (or "openai" etc.) parameter in execute() calls
+- 💡 **Provider Auto-Detected**: LLMNode auto-detects the provider from the model name (no `provider` parameter needed). Embedding nodes may accept `provider` for explicit selection.
 - 💡 **Check Provider Response Format**: Ollama embeddings return dicts with "embedding" key, not lists - use embedding_dict["embedding"] to extract vector
 - 💡 **Use .run() Not .process()**: Call node.run() for execution, not .process() or .execute() directly
 - 💡 **Test with Real Providers**: Mock data hides provider-specific format issues - always test with actual Ollama/OpenAI/etc.

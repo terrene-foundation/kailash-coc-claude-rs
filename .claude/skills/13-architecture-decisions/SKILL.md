@@ -104,7 +104,7 @@ What's your use case?
 ```
 What task are you doing?
   ├─ Custom Python logic → EmbeddedPythonNode
-  ├─ LLM/AI tasks → LLMNode, OpenAINode, AnthropicNode
+  ├─ LLM/AI tasks → LLMNode (auto-detects provider from model name)
   ├─ Database operations → kailash.DataFlow auto-generated nodes
   ├─ HTTP API calls → HTTPRequestNode
   ├─ File reading → FileReaderNode

@@ -21,7 +21,7 @@ from kailash.kaizen import BaseAgent
 
 class CoTAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="cot-agent", model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
+        super().__init__(name="cot-agent", model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"))
 
     def execute(self, input_data):
         # Implement your own LLM call here

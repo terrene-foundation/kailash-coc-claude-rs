@@ -591,8 +591,7 @@ from kailash.kaizen import Signature, InputField, OutputField
 
 @dataclass
 class AgentConfig:
-    llm_provider: str = "openai"
-    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
+    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
     temperature: float = 0.7
     max_tokens: int = 2000
     max_turns: int = 10
@@ -647,8 +646,7 @@ app = NexusApp(NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 config = AgentConfig(
-    llm_provider=os.environ.get("LLM_PROVIDER", "openai"),
-    model=os.environ.get("LLM_MODEL", "gpt-5")
+    model=os.environ.get("LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
 )
 
 chat_agent = ChatAgent(config)

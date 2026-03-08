@@ -353,7 +353,7 @@ result = agent.execute("Hi there")
 Class-level attributes can also be overridden via kwargs:
 
 ```python
-agent = GreeterAgent(model=os.environ.get("LLM_MODEL", "gpt-5"), temperature=0.5)
+agent = GreeterAgent(model=os.environ.get("LLM_MODEL", "gpt-4o"), temperature=0.5)
 ```
 
 ### Tool Registration
@@ -495,7 +495,7 @@ from kailash.kaizen.agents import (
     MemoryAgent,           # Memory-enhanced agent
 )
 
-agent = SimpleQAAgent(model=os.environ.get("LLM_MODEL", "gpt-5"))
+agent = SimpleQAAgent(model=os.environ.get("LLM_MODEL", "gpt-4o"))
 result = agent.execute("What is the capital of France?")
 ```
 

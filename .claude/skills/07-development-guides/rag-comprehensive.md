@@ -143,8 +143,7 @@ result = {
 
     # Generate answer with LLM
     builder.add_node("LLMNode", "generator", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
         "messages": []  # Will be constructed dynamically
     })
 
@@ -332,8 +331,7 @@ def create_conversational_rag():
 
     # Rephrase query with history
     builder.add_node("LLMNode", "query_rephraser", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
         "messages": []
     })
 

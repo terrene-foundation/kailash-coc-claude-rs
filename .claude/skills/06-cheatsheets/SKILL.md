@@ -101,7 +101,7 @@ builder.add_node("PythonCode", "transform", {"code": "..."})
 builder.add_node("HTTPRequest", "api", {"url": "...", "method": "GET"})
 
 # AI/LLM
-builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), "prompt": "..."})
+builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), "prompt": "..."})
 ```
 
 ### Cyclic Pattern

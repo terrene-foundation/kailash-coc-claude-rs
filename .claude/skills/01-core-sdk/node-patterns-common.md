@@ -164,7 +164,7 @@ result = {'text': text, 'task': 'analyze'}
 
 # LLM processing
 builder.add_node("LLMNode", "llm", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "system_prompt": "You are a business analyst. Analyze the given text.",
     "temperature": 0.1,
     "max_tokens": 200

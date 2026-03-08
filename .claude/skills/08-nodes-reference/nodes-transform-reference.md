@@ -1,6 +1,6 @@
 ---
 name: nodes-transform-reference
-description: "Transformation nodes reference (DataTransformer, Filter, Map, Sort). Use when asking 'transform node', 'DataTransformer', 'data transform', 'filter data', or 'map node'."
+description: "Transformation nodes reference (DataMapperNode, Filter, Map, Sort). Use when asking 'transform node', 'DataMapperNode', 'data transform', 'filter data', or 'map node'."
 ---
 
 # Transformation Nodes Reference
@@ -19,13 +19,14 @@ Complete reference for data transformation and processing nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available transform nodes: FilterNode, DataTransformer,
+# Available transform nodes: FilterNode, DataMapperNode,
 #   AggregationNode, TextSplitterNode
 ```
 
 ## Filter Node
 
 ### FilterNode
+
 ```python
 import kailash
 
@@ -37,11 +38,12 @@ builder.add_node("FilterNode", "filter", {
 })
 ```
 
-## Data Transformer
+## Data Mapper
 
-### DataTransformer
+### DataMapperNode
+
 ```python
-builder.add_node("DataTransformer", "transform", {
+builder.add_node("DataMapperNode", "transform", {
     "transformations": [
         {"field": "price", "operation": "multiply", "value": 1.1},
         {"field": "name", "operation": "upper"}
@@ -53,6 +55,7 @@ builder.add_node("DataTransformer", "transform", {
 ## Aggregation
 
 ### AggregationNode
+
 ```python
 builder.add_node("AggregationNode", "aggregate", {
     "group_by": ["category"],
@@ -67,6 +70,7 @@ builder.add_node("AggregationNode", "aggregate", {
 ## Text Processing
 
 ### TextSplitterNode
+
 ```python
 builder.add_node("TextSplitterNode", "splitter", {
     "chunk_size": 1000,
@@ -80,4 +84,4 @@ builder.add_node("TextSplitterNode", "splitter", {
 - **Data Nodes**: [`nodes-data-reference`](nodes-data-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: transform node, DataTransformer, data transform, filter data, map node, FilterNode, AggregationNode -->
+<!-- Trigger Keywords: transform node, DataMapperNode, data transform, filter data, map node, FilterNode, AggregationNode -->

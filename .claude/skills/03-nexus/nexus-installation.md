@@ -35,8 +35,7 @@ reg = kailash.NodeRegistry()
 # Create workflow
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "{{input.message}}"
 })
 

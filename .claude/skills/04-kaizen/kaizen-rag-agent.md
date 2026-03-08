@@ -22,7 +22,7 @@ from kailash.kaizen import BaseAgent
 
 class RAGAgent(BaseAgent):
     def __init__(self, retriever):
-        super().__init__(name="rag-agent", model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
+        super().__init__(name="rag-agent", model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"))
         self.retriever = retriever
 
     def execute(self, input_data):

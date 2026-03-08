@@ -19,8 +19,7 @@ Complete reference for HTTP, REST, and GraphQL API operations.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available API nodes: HTTPRequestNode, AsyncHTTPRequestNode,
-#   RESTClientNode, AsyncRESTClientNode, GraphQLClientNode
+# Available API nodes: HTTPRequestNode, GraphQLNode, WebSocketNode
 ```
 
 ## HTTP Nodes
@@ -43,10 +42,10 @@ builder.add_node("HTTPRequestNode", "api_call", {
 })
 ```
 
-### AsyncHTTPRequestNode
+### HTTPRequestNode (POST)
 
 ```python
-builder.add_node("AsyncHTTPRequestNode", "async_api", {
+builder.add_node("HTTPRequestNode", "post_api", {
     "url": "https://api.example.com/users",
     "method": "POST",
     "json": {"name": "John", "email": "john@example.com"},
@@ -54,25 +53,12 @@ builder.add_node("AsyncHTTPRequestNode", "async_api", {
 })
 ```
 
-## REST Nodes
-
-### RESTClientNode
-
-```python
-builder.add_node("RESTClientNode", "rest_api", {
-    "base_url": "https://api.example.com",
-    "endpoint": "/users/123",
-    "method": "GET",
-    "auth": {"type": "bearer", "token": "${API_TOKEN}"}
-})
-```
-
 ## GraphQL Nodes
 
-### GraphQLClientNode
+### GraphQLNode
 
 ```python
-builder.add_node("GraphQLClientNode", "graphql", {
+builder.add_node("GraphQLNode", "graphql", {
     "url": "https://api.example.com/graphql",
     "query": """
         query GetUser($id: ID!) {
@@ -91,4 +77,4 @@ builder.add_node("GraphQLClientNode", "graphql", {
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: API node, HTTP, REST, GraphQL, API request, HTTPRequestNode, RESTClientNode, GraphQLClientNode -->
+<!-- Trigger Keywords: API node, HTTP, REST, GraphQL, API request, HTTPRequestNode, GraphQLNode -->

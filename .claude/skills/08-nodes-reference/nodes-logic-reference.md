@@ -20,7 +20,7 @@ import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
 # Available logic nodes: SwitchNode, MergeNode,
-#   ConditionalRouterNode, LoopNode, WhileNode
+#   ConditionalNode, LoopNode
 ```
 
 ## Switch Node
@@ -82,15 +82,18 @@ builder.add_node("MergeNode", "combine", {
 
 ## Conditional Router
 
-### ConditionalRouterNode
+### ConditionalNode (Multi-Condition)
+
+ConditionalNode can also be used with multiple conditions for routing:
 
 ```python
-builder.add_node("ConditionalRouterNode", "conditional", {
-    "filter": [
-        {"condition": "age > 18", "route": "adult_flow"},
-        {"condition": "age < 13", "route": "child_flow"},
-        {"condition": "True", "route": "default_flow"}  # Default
-    ]
+builder.add_node("ConditionalNode", "conditional", {
+    "condition": "age > 18"
+})
+# Use SwitchNode for multi-way routing with discrete values
+builder.add_node("SwitchNode", "multi_route", {
+    "cases": {"child": "child_flow", "teen": "teen_flow", "adult": "adult_flow"},
+    "default_branch": "default_flow"
 })
 ```
 
@@ -103,12 +106,9 @@ builder.add_node("LoopNode", "loop", {
     "iterations": 5,
     "body": "process_item"
 })
-```
 
-### WhileNode
-
-```python
-builder.add_node("WhileNode", "while_loop", {
+# LoopNode also supports condition-based looping
+builder.add_node("LoopNode", "while_loop", {
     "condition": "count < 100",
     "body": "increment_counter"
 })
@@ -119,4 +119,4 @@ builder.add_node("WhileNode", "while_loop", {
 - **SwitchNode Patterns**: [`switchnode-patterns`](../../01-core-sdk/switchnode-patterns.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: Switch node, Merge node, conditional, routing, logic nodes, SwitchNode, MergeNode, ConditionalRouterNode -->
+<!-- Trigger Keywords: Switch node, Merge node, conditional, routing, logic nodes, SwitchNode, MergeNode, ConditionalNode -->

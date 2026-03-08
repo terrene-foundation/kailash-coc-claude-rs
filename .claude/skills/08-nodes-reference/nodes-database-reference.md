@@ -21,8 +21,7 @@ import kailash
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
 # Available database nodes:
 #   SQLQueryNode (Production recommended)
-#   WorkflowConnectionPool (Connection pooling)
-#   QueryRouterNode (Intelligent routing)
+#   DatabaseConnectionNode (Connection pooling)
 #   SQLDatabaseNode (Simple queries)
 #   OptimisticLockingNode (Concurrency control)
 ```
@@ -56,7 +55,7 @@ builder.add_node("SQLQueryNode", "query", {
 
 ## Connection Pooling
 
-### WorkflowConnectionPool ⭐
+### DatabaseConnectionNode ⭐
 
 ```python
 import kailash
@@ -64,33 +63,14 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Initialize connection pool via node
-builder.add_node("WorkflowConnectionPool", "pool_init", {
+builder.add_node("DatabaseConnectionNode", "pool_init", {
     "operation": "initialize",
     "name": "main_pool",
     "database_type": "postgresql",
     "host": "localhost",
     "database": "myapp",
     "min_connections": 5,
-    "max_connections": 20,
-    "adaptive_sizing": True,
-    "enable_query_routing": True
-})
-```
-
-## Query Routing
-
-### QueryRouterNode ⭐
-
-```python
-import kailash
-
-# Intelligent query routing with caching
-builder.add_node("QueryRouterNode", "router", {
-    "name": "query_router",
-    "connection_pool": "smart_pool",
-    "enable_read_write_split": True,
-    "cache_size": 2000,
-    "pattern_learning": True
+    "max_connections": 20
 })
 ```
 
@@ -132,4 +112,4 @@ builder.add_node("OptimisticLockingNode", "lock", {
 - **Data Nodes**: [`nodes-data-reference`](nodes-data-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: database node, SQL node, AsyncSQL, connection pool, query routing, SQLQueryNode, WorkflowConnectionPool, QueryRouterNode -->
+<!-- Trigger Keywords: database node, SQL node, AsyncSQL, connection pool, SQLQueryNode, DatabaseConnectionNode -->

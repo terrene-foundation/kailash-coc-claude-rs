@@ -110,7 +110,7 @@ agent = TrackedAgent()
 result = agent.run("Hello")
 
 # Record LLM usage manually
-tracker.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), 100, 50)
+tracker.record(os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), 100, 50)
 
 # Query cost report
 print(f"Total cost: ${tracker.total_cost():.6f}")

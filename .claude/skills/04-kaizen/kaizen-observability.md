@@ -79,7 +79,7 @@ root = tm.start_span("agent-run")               # no parent
 child = tm.start_span("llm-call", parent=root)
 
 # Add attributes
-tm.add_span_attribute(child, "model", os.environ.get("LLM_MODEL", "gpt-5"))
+tm.add_span_attribute(child, "model", os.environ.get("LLM_MODEL", "gpt-4o"))
 tm.add_span_attribute(child, "tokens", "700")
 
 # End spans

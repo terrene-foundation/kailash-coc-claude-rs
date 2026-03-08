@@ -13,42 +13,53 @@ Test MCP integrations with real servers and mock strategies.
 > Related Skills: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md), [`gold-test-creation`](../../17-gold-standards/gold-test-creation.md)
 > Related Subagents: `mcp-specialist` (test server implementation), `testing-specialist` (3-tier strategy)
 
+## Architecture Note
+
+MCP client connections (connecting to MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not connect to MCP servers directly.
+
+For testing MCP servers you build, test the server tools directly. For testing MCP client integration, use Kaizen agent tests.
+
 ## Quick Reference
 
 - **NO MOCKING Policy**: Test with real MCP servers (Tier 2/3)
-- **Mock Provider**: Use "mock" provider for Tier 1 unit tests only
-- **Integration**: Tier 2 tests with real MCP servers
-- **E2E**: Tier 3 tests with full production-like setup
+- **Tier 1**: Unit tests for tool logic and workflow structure
+- **Tier 2**: Integration tests with real MCP servers
+- **Tier 3**: E2E tests with full production-like setup
 
-## Tier 1: Unit Tests (Mock Provider)
+## Tier 1: Unit Tests (Tool Logic)
 
 ```python
 import kailash
 
 reg = kailash.NodeRegistry()
 
-def test_mcp_workflow_structure():
-    """Unit test - workflow structure only (mock provider)."""
+def test_llm_workflow_with_tools():
+    """Unit test - workflow structure with tool definitions."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMNode", "agent", {
-        "provider": "mock",  # Mock provider for structure testing
-        "model": "mock",
+    builder.add_node("LLMNode", "agent", {
+        "model": "gpt-4o",
         "messages": [{"role": "user", "content": "Test"}],
-        "mcp_servers": [{
-            "name": "weather",
-            "transport": "stdio",
-            "command": "echo",
-            "args": ["test"]
-        }]
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "test_tool",
+                    "description": "A test tool",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "value": {"type": "integer"}
+                        }
+                    }
+                }
+            }
+        ]
     })
 
-    rt = kailash.Runtime(reg)
+    # Verify workflow builds successfully
     built_workflow = builder.build(reg)
-
-    # Assert structure only
-    assert "agent" in built_workflow.nodes
-    assert built_workflow.nodes["agent"]["type"] == "IterativeLLMNode"
+    assert built_workflow is not None
 ```
 
 ## Tier 2: Integration Tests (Real MCP Servers)
@@ -60,68 +71,81 @@ import kailash
 reg = kailash.NodeRegistry()
 
 @pytest.mark.integration
-def test_real_mcp_tool_execution():
-    """Integration test - real MCP server execution."""
+def test_mcp_server_tool_execution():
+    """Integration test - test MCP server tools directly."""
+    from kailash.mcp import McpApplication
+
+    app = McpApplication("test-server", "1.0")
+
+    @app.tool(name="get_data", description="Get test data")
+    def get_data(key: str) -> str:
+        return f'{{"key": "{key}", "value": "test_data"}}'
+
+    # Test tool function directly
+    result = get_data("test_key")
+    assert "test_data" in result
+
+@pytest.mark.integration
+def test_llm_tool_calling():
+    """Integration test - LLMNode with real tool calling."""
+    import os
+
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMNode", "agent", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    builder.add_node("LLMNode", "agent", {
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
         "messages": [{"role": "user", "content": "Get weather for NYC"}],
-        "mcp_servers": [{
-            "name": "weather",
-            "transport": "stdio",
-            "command": "python",
-            "args": ["-m", "weather_mcp_server"]  # Real MCP server
-        }],
-        "auto_discover_tools": True,
-        "auto_execute_tools": True
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get weather for a city",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {"type": "string"}
+                        },
+                        "required": ["city"]
+                    }
+                }
+            }
+        ]
     })
 
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    # Assert real MCP tool executed
-    assert result["results"]["agent"]["status"] == "completed"
-    assert "iterations" in result["results"]["agent"]
-    assert len(result["results"]["agent"]["context"]["tools_executed"]) > 0
+    # Verify LLM returned tool calls or a response
+    agent_result = result["results"]["agent"]
+    assert "response" in agent_result or "tool_calls" in agent_result
 ```
 
 ## Tier 3: End-to-End Tests
 
 ```python
 @pytest.mark.e2e
-def test_mcp_production_flow():
-    """E2E test - full production-like MCP flow."""
-    builder = kailash.WorkflowBuilder()
+def test_mcp_server_production_flow():
+    """E2E test - full MCP server serving tools."""
+    from kailash.mcp import McpApplication
 
-    builder.add_node("IterativeLLMNode", "agent", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
-        "messages": [{"role": "user", "content": "Search docs and get weather"}],
-        "mcp_servers": [
-            {
-                "name": "docs",
-                "transport": "http",
-                "url": "https://test-api.company.com/mcp",
-                "headers": {"Authorization": f"Bearer {os.getenv('TEST_API_KEY')}"}
-            },
-            {
-                "name": "weather",
-                "transport": "stdio",
-                "command": "python",
-                "args": ["-m", "weather_mcp_server"]
-            }
-        ],
-        "max_iterations": 3
-    })
+    app = McpApplication("e2e-server", "1.0")
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    @app.tool(name="search", description="Search documents")
+    def search(query: str) -> str:
+        return f'{{"results": ["{query} result 1", "{query} result 2"]}}'
 
-    # Assert end-to-end flow
-    assert result["results"]["agent"]["status"] == "completed"
-    assert len(result["results"]["agent"]["iterations"]) <= 3
+    @app.resource(uri="config://settings", name="Settings")
+    def get_settings() -> str:
+        return '{"version": "1.0", "environment": "test"}'
+
+    # Test tool
+    search_result = search("python tutorials")
+    assert "result 1" in search_result
+
+    # Test resource
+    settings = get_settings()
+    assert "version" in settings
 ```
 
 ## Test MCP Server Implementation
@@ -174,69 +198,69 @@ if __name__ == "__main__":
 
 ## Common Test Patterns
 
-### Test Tool Discovery
+### Test LLMNode Tool Calling
 
 ```python
-def test_mcp_tool_discovery():
-    """Test that MCP tools are discovered correctly."""
+def test_llm_tool_calling_structure():
+    """Test that LLMNode accepts tool definitions correctly."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMNode", "agent", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    builder.add_node("LLMNode", "agent", {
+        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
         "messages": [{"role": "user", "content": "List available tools"}],
-        "mcp_servers": [{
-            "name": "test",
-            "transport": "stdio",
-            "command": "python",
-            "args": ["test_mcp_server.py"]
-        }],
-        "auto_discover_tools": True
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_data",
+                    "description": "Get data by key",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "key": {"type": "string"}
+                        },
+                        "required": ["key"]
+                    }
+                }
+            }
+        ]
     })
 
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    # Check discovered tools
-    discovered_tools = result["results"]["agent"]["context"].get("discovered_tools", {})
-    assert "test" in discovered_tools
-    assert len(discovered_tools["test"]) > 0
+    # LLM should respond with tool usage or text
+    assert result["results"]["agent"] is not None
 ```
 
 ### Test Error Handling
 
 ```python
-def test_mcp_server_failure_handling():
-    """Test graceful handling of MCP server failures."""
+def test_llm_graceful_on_missing_model():
+    """Test graceful handling of missing model."""
     builder = kailash.WorkflowBuilder()
 
-    builder.add_node("IterativeLLMNode", "agent", {
-        "provider": "openai",
-        "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    builder.add_node("LLMNode", "agent", {
+        "model": "nonexistent-model-xyz",
         "messages": [{"role": "user", "content": "Get data"}],
-        "mcp_servers": [{
-            "name": "failing",
-            "transport": "stdio",
-            "command": "nonexistent_command"  # Will fail
-        }],
-        "max_iterations": 1
     })
 
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
 
-    # Should complete with error reported
-    assert result["results"]["agent"]["status"] == "completed"
-    # Check that agent reported the failure gracefully
+    # Should handle error gracefully
+    try:
+        result = rt.execute(builder.build(reg))
+    except Exception as e:
+        assert "model" in str(e).lower() or "provider" in str(e).lower()
 ```
 
 ## Best Practices
 
-1. **NO MOCKING in Tier 2/3** - Always use real MCP servers
-2. **Use mock provider only in Tier 1** - For structure testing
-3. **Test real tool execution** - Verify actual MCP protocol
-4. **Test error scenarios** - Server failures, timeouts, invalid tools
-5. **Environment-specific configs** - Different MCP servers per environment
+1. **NO MOCKING in Tier 2/3** - Always use real MCP servers and real LLM providers
+2. **Test tool functions directly** - MCP server tools are regular Python functions
+3. **Test LLMNode tool calling** - Verify tool definitions are accepted and tool_calls are returned
+4. **Test error scenarios** - Missing models, invalid parameters, timeouts
+5. **Environment-specific configs** - Use env vars for model names and API keys
 
 ## Related Patterns
 

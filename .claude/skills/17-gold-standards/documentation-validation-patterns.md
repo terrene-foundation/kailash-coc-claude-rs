@@ -84,7 +84,7 @@ pytest /tmp/test_docs_feature.py -v
 2. **Example: Async Workflow** (lines 67-89)
    - Test: /tmp/test_async_example.py::test_async_workflow
    - Result: FAILED → FIXED
-   - Issue: Used deprecated execute() instead of async_run()
+   - Issue: Used deprecated 3-parameter connect() instead of 4-parameter connect()
    - Fix: Updated to current API
 
 ### Infrastructure Requirements

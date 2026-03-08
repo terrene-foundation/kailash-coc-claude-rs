@@ -19,36 +19,38 @@ Report progress for long-running MCP operations.
 - **Use Cases**: File uploads, data processing, long queries
 - **WebSocket**: Best transport for progress streaming
 
-## Basic Progress Reporting
+## Architecture Note
+
+MCP progress reporting is implemented on MCP servers (built with `McpApplication` or `kailash.MCPServer`). MCP client connections that receive progress updates are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes.
+
+## Server-Side Progress Reporting
 
 ```python
-import kailash
-import os
+from kailash.mcp import McpApplication
 
-builder = kailash.WorkflowBuilder()
+app = McpApplication("processor-server", "1.0")
 
-builder.add_node("IterativeLLMNode", "agent", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
-    "messages": [{"role": "user", "content": "Process large dataset"}],
-    "mcp_servers": [{
-        "name": "processor",
-        "transport": "websocket",
-        "url": "wss://api.company.com/mcp",
-        "tools": [
-            {
-                "name": "process_data",
-                "progress_reporting": True,  # Enable progress
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "dataset_url": {"type": "string"}
-                    }
-                }
-            }
-        ]
-    }]
-})
+@app.tool(name="process_data", description="Process a large dataset")
+def process_data(dataset_url: str) -> str:
+    """Process data with progress reporting."""
+    import json
+    # Implementation would report progress via MCP protocol
+    # The MCP server framework handles progress notifications
+    return json.dumps({"status": "completed", "records_processed": 1000})
+```
+
+## Client-Side Progress Configuration (Kaizen Agents)
+
+Kaizen agents can receive progress updates from MCP servers via WebSocket transport:
+
+```python
+# Kaizen agent MCP client config with progress support
+mcp_client_config = {
+    "name": "processor",
+    "transport": "websocket",
+    "url": "wss://api.company.com/mcp",
+}
+# Pass this config to a Kaizen agent for progress-aware tool execution
 ```
 
 ## Related Patterns

@@ -93,8 +93,7 @@ builder.add_node("TransformNode", "extract_text", {
 
 # 4. Analyze with AI
 builder.add_node("LLMNode", "analyze_document", {
-    "provider": "openai",
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": "Summarize this document: {{extract_text.text}}"
 })
 

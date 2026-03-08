@@ -104,7 +104,7 @@ builder = kailash.WorkflowBuilder()
 builder.add_node("HTTPRequestNode", "fetch", {"url": "https://api.example.com/items", "method": "GET"})
 builder.add_node("EnrichNode", "enrich")
 builder.add_node("NoOpNode", "output")
-builder.connect("fetch", "response_body", "enrich", "data")
+builder.connect("fetch", "body", "enrich", "data")
 builder.connect("enrich", "data", "output", "data")
 
 workflow = builder.build(registry)
