@@ -62,23 +62,34 @@ async def admin_operation(action: str) -> dict:
     return {"action": action, "status": "completed"}
 ```
 
-## MCP Tool Execution via LLMNode
+## LLMNode with Tool Calling
+
+`LLMNode` supports tool calling via the `tools` parameter. Provider is auto-detected from the model name. For full MCP server connectivity (tool discovery, iterative execution), use the **Kaizen agent framework** (`kailash-kaizen`).
 
 ```python
 import kailash
+import os
 
 builder = kailash.WorkflowBuilder()
 
-# LLMNode with MCP server access
+# LLMNode with tool definitions for function calling
 builder.add_node("LLMNode", "agent", {
-    "model": os.environ["LLM_MODEL"],
+    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "prompt": "Search for Python tutorials",
-    "mcp_servers": [
+    "tools": [
         {
-            "name": "search",
-            "transport": "stdio",
-            "command": "python",
-            "args": ["-m", "search_server"]
+            "type": "function",
+            "function": {
+                "name": "search",
+                "description": "Search for tutorials",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"}
+                    },
+                    "required": ["query"]
+                }
+            }
         }
     ]
 })
@@ -86,6 +97,9 @@ builder.add_node("LLMNode", "agent", {
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
+
+# The LLM may return tool_calls in its response for your code to handle
+tool_calls = result["results"]["agent"].get("tool_calls", [])
 ```
 
 ## Structured Tool Output
@@ -138,30 +152,12 @@ async def long_process(steps: int = 10) -> dict:
 bus.subscribe(lambda e: print(f"Progress: {e}") if e.get("type") == "progress" else None)
 ```
 
-## MCP Execution Mode
+## MCP Client Integration
 
-### Real vs Mock Execution
-
-```python
-# Default: Real MCP execution
-builder.add_node("LLMNode", "agent", {
-    "mcp_servers": [config]  # Real execution by default
-})
-
-# Explicit mock for testing only
-builder.add_node("LLMNode", "agent", {
-    "mcp_servers": [config],
-    "use_real_mcp": False  # Only for testing
-})
-```
-
-- **Real MCP execution is the default** (`use_real_mcp=True`)
-- Mock behavior requires explicit `use_real_mcp=False`
-- Set `KAILASH_USE_REAL_MCP=false` for global mock behavior
+MCP client connections (connecting to external MCP servers, discovering tools, and executing them iteratively) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes like `LLMNode`. See the `kaizen-specialist` for Kaizen agent MCP client patterns.
 
 ## Production Readiness Checklist
 
-- [ ] Real MCP execution enabled (default)
 - [ ] Authentication configured via NexusAuthPlugin
 - [ ] Error handling implemented in handlers
 - [ ] Monitoring via EventBus subscriptions
