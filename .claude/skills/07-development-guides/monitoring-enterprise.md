@@ -70,15 +70,15 @@ finally:
 ### 3. Health Checks
 
 ```python
-@app.get("/health")
-def health_check():
+@app.handler("health_check", description="Health check")
+def health_check() -> dict:
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat()
     }
 
-@app.get("/ready")
-def readiness_check():
+@app.handler("readiness_check", description="Readiness check")
+def readiness_check() -> dict:
     try:
         # Check dependencies
         db_healthy = check_database()
@@ -87,9 +87,9 @@ def readiness_check():
         if db_healthy and api_healthy:
             return {"status": "ready"}
         else:
-            return {"status": "not_ready"}, 503
+            return {"status": "not_ready"}
     except Exception:
-        return {"status": "not_ready"}, 503
+        return {"status": "not_ready"}
 ```
 
 ## When to Engage

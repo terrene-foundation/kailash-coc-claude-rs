@@ -71,7 +71,7 @@ def handle_chat(message: str):
     result = rt.execute(builder.build(reg))
     return result["results"]["chat"]
 
-app.run(host="0.0.0.0", port=3000)
+app.start()  # Host/port configured via NexusConfig, not run() args
 ```
 
 ## Build and Run

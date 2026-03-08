@@ -77,7 +77,7 @@ storage.delete(checkpoint_id)
 Thread-safe interrupt mechanism for graceful agent shutdown.
 
 ```python
-from kailash import AgentInterrupt
+from kailash.kaizen import AgentInterrupt
 
 interrupt = AgentInterrupt()
 

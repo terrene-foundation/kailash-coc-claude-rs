@@ -31,11 +31,12 @@ Register async functions as multi-channel endpoints (API + CLI + MCP) with a sin
 ### Canonical Example
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
+from kailash.nexus import NexusApp
 
 reg = kailash.NodeRegistry()
-import os
 
 app = NexusApp()  # Register workflows manually
 df = kailash.DataFlow(os.environ["DATABASE_URL"])
@@ -92,6 +93,7 @@ Define Python classes with `@db.model` to auto-generate 11 CRUD workflow nodes.
 ### Canonical Example
 
 ```python
+import os
 import kailash
 from kailash.dataflow import db
 from typing import Optional
@@ -140,11 +142,13 @@ Wire DataFlow operations to Nexus endpoints with CRITICAL configuration to preve
 ### Canonical Example
 
 ```python
+import os
+import uuid
 import kailash
 from kailash.dataflow import db
+from kailash.nexus import NexusApp, NexusConfig
 
 reg = kailash.NodeRegistry()
-import uuid
 
 # CRITICAL: These settings prevent blocking and slow startup
 app = NexusApp(config=NexusConfig(port=3000))
@@ -217,8 +221,9 @@ JWT verification + RBAC permissions + tenant isolation via NexusAuthPlugin.
 ### Canonical Example
 
 ```python
-import kailash
 import os
+import kailash
+from kailash.nexus import NexusApp
 
 app = NexusApp()  # Register workflows manually
 
@@ -470,6 +475,7 @@ AI agent with structured outputs and automatic execution strategies.
 ### Canonical Example
 
 ```python
+import os
 import kailash
 from dataclasses import dataclass
 
@@ -693,6 +699,7 @@ Expose workflows as MCP tools for AI agent consumption.
 
 ```python
 import kailash
+from kailash.nexus import NexusApp, NexusConfig
 
 app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
@@ -757,6 +764,7 @@ app.start()
 
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
 # ALWAYS use these settings for Nexus + DataFlow
 app = NexusApp()

@@ -18,7 +18,7 @@ All types are thread-safe and suitable for concurrent use.
 ## SpanContext
 
 ```python
-from kailash import SpanContext
+from kailash.kaizen import SpanContext
 
 # Create a root span (new trace_id, no parent)
 root = SpanContext.root("agent-run")
@@ -38,7 +38,7 @@ assert child.parent_span_id == root.span_id
 Thread-safe metrics collection. Records latency, token counts, errors, and tool calls per agent.
 
 ```python
-from kailash import MetricsCollector
+from kailash.kaizen import MetricsCollector
 
 mc = MetricsCollector()
 
@@ -71,7 +71,7 @@ Creates and manages hierarchical spans.
 
 ```python
 import os
-from kailash import TracingManager
+from kailash.kaizen import TracingManager
 
 tm = TracingManager()
 
@@ -97,7 +97,7 @@ trace = tm.get_trace(root.trace_id)
 Structured log collection with ring buffer storage and filtering.
 
 ```python
-from kailash import LogAggregator
+from kailash.kaizen import LogAggregator
 
 la = LogAggregator(max_entries=1000)
 
@@ -122,7 +122,7 @@ Supported levels: `"debug"`, `"info"`, `"warn"`, `"error"`
 Coordinator that owns a MetricsCollector, TracingManager, and LogAggregator (capacity: 10,000).
 
 ```python
-from kailash import ObservabilityManager
+from kailash.kaizen import ObservabilityManager
 
 mgr = ObservabilityManager()
 

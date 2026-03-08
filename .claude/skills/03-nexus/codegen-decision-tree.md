@@ -398,10 +398,9 @@ import uuid
 
 import kailash
 from kailash.dataflow import db
+from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin, JwtConfig, RbacConfig
 
 reg = kailash.NodeRegistry()
-from kailash.nexus import NexusAuthPlugin
-from kailash.nexus import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration (from environment)
@@ -566,6 +565,7 @@ import os
 from dataclasses import dataclass
 
 import kailash
+from kailash.nexus import NexusApp, NexusConfig
 from kailash.kaizen import BaseAgent
 from kailash.kaizen import Signature, InputField, OutputField
 
@@ -686,10 +686,9 @@ from datetime import datetime
 
 import kailash
 from kailash.dataflow import db
+from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin, JwtConfig, RbacConfig
 
 reg = kailash.NodeRegistry()
-from kailash.nexus import NexusAuthPlugin
-from kailash.nexus import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration

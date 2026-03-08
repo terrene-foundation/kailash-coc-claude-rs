@@ -92,7 +92,7 @@ storage.delete(checkpoint_id)
 Thread-safe interrupt mechanism for graceful agent shutdown, with callbacks and chaining.
 
 ```python
-from kailash import AgentInterrupt
+from kailash.kaizen import AgentInterrupt
 
 interrupt = AgentInterrupt()
 
@@ -129,7 +129,8 @@ assert child.is_interrupted
 
 ```python
 import os
-from kailash import AgentCheckpoint, InMemoryCheckpointStorage, AgentInterrupt
+from kailash import AgentCheckpoint, InMemoryCheckpointStorage
+from kailash.kaizen import AgentInterrupt
 
 # Setup
 storage = InMemoryCheckpointStorage()

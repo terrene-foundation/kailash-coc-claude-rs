@@ -29,12 +29,12 @@ reg = kailash.NodeRegistry()
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-@app.handler("/process")
-def process_handler(request):
+@app.handler("process", description="Process data")
+def process_handler(data: str) -> dict:
     rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg), inputs=request)
+    return rt.execute(builder.build(reg), inputs={"data": data})
 
-app.run(host="0.0.0.0", port=3000)  # Production-ready
+app.start()  # Production-ready — host/port via NexusConfig
 ```
 
 **Dockerfile**:
@@ -135,23 +135,21 @@ import kailash
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for load balancers."""
+@app.handler("health_check", description="Health check for load balancers")
+async def health_check() -> dict:
     return {
         "status": "healthy",
         "service": "workflow-api",
         "version": "1.0.0"
     }
 
-@app.get("/ready")
-async def readiness_check():
-    """Readiness check - verify dependencies."""
+@app.handler("readiness_check", description="Readiness check - verify dependencies")
+async def readiness_check() -> dict:
     try:
         # Check database, external APIs, etc.
         return {"status": "ready"}
     except Exception as e:
-        return {"status": "not_ready", "error": str(e)}, 503
+        return {"status": "not_ready", "error": str(e)}
 ```
 
 ### 7. Production Logging Pattern

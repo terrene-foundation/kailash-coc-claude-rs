@@ -10,10 +10,10 @@ The streaming module wraps agents to deliver LLM responses token-by-token via a 
 ## API
 
 ```python
-from kailash import (
+from kailash import Agent, AgentConfig, LlmClient
+from kailash.kaizen import (
     StreamHandler, StreamingAgent, TokenCollector,
     ChannelStreamHandler, StreamEvent,
-    Agent, AgentConfig, LlmClient,
 )
 
 # --- StreamHandler (subclassable) ---
