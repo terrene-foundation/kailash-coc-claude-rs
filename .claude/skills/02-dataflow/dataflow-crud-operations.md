@@ -620,18 +620,20 @@ builder.add_node("CreateUser", "create", {
     "email": "alice@example.com"
 })
 
-# Read created user
-builder.add_node("ReadUser", "read", {
-    "filter": {}  # Will be provided via connection
+# Read created user -- use JSONTransformNode to shape the ID into a filter
+builder.add_node("JSONTransformNode", "shape_filter", {
+    "expression": '{"id": @.id}'
 })
-builder.connect("create", "id", "read", "filter.id")
+builder.connect("create", "id", "shape_filter", "data")
+
+builder.add_node("ReadUser", "read", {})
+builder.connect("shape_filter", "result", "read", "filter")
 
 # Update user
 builder.add_node("UpdateUser", "update", {
-    "filter": {},  # Will be provided via connection
     "fields": {"active": False}
 })
-builder.connect("read", "id", "update", "filter.id")
+builder.connect("shape_filter", "result", "update", "filter")
 
 # List all inactive users
 builder.add_node("ListUser", "list_inactive", {
