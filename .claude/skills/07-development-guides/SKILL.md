@@ -125,7 +125,7 @@ builder.add_node("HTTPRequestNode", "async_node", {
 ```python
 import kailash
 
-server = kailash.MCPServer(name="my-server")
+server = kailash.McpServer("my-server", "1.0.0")
 
 @server.tool(name="my_tool", description="Process a parameter")
 def my_tool(param: str) -> dict:

@@ -49,13 +49,14 @@ except ConnectionError:
 ### 3. Edge-Cloud Hybrid
 
 ```python
-# ConditionalNode for true/false branching (edge vs cloud)
-builder.add_node("ConditionalNode", "routing", {
-    "condition": "data_size < 1000"
+# SwitchNode for multi-branch routing (edge vs cloud)
+builder.add_node("SwitchNode", "routing", {
+    "cases": {"edge": "edge_processing", "cloud": "cloud_processing"},
+    "default_branch": "cloud_processing"
 })
-# ConditionalNode outputs: "true_output" (edge) and "false_output" (cloud)
-builder.connect("routing", "true_output", "edge_processing", "data")
-builder.connect("routing", "false_output", "cloud_processing", "data")
+# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
+builder.connect("routing", "data", "edge_processing", "data")
+builder.connect("routing", "data", "cloud_processing", "data")
 ```
 
 ## When to Engage

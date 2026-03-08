@@ -22,7 +22,7 @@ Complete auth package combining JWT, RBAC, rate limiting, tenant isolation, and 
 import os
 import kailash
 from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 ```
 
 ## Constructor Patterns
@@ -41,7 +41,7 @@ app = NexusApp()
 ```python
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "user"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
     tenant_header="X-Tenant-ID",
 )
 ```
@@ -55,7 +55,7 @@ auth = NexusAuthPlugin(
         issuer="https://your-domain.com",
         algorithm="HS256",
     ),
-    rbac=RbacConfig(roles=["super_admin", "admin", "editor", "viewer"]),
+    rbac=RbacConfig(roles={"super_admin": ["*"], "admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 ```
@@ -65,7 +65,7 @@ auth = NexusAuthPlugin(
 ### JwtConfig
 
 ```python
-from kailash import JwtConfig
+from kailash.nexus import JwtConfig
 
 # Symmetric (HS256) - secret MUST be >= 32 chars
 jwt = JwtConfig(
@@ -90,12 +90,12 @@ Tokens are extracted from the `Authorization: Bearer <token>` header.
 ### RbacConfig
 
 ```python
-from kailash import RbacConfig
+from kailash.nexus import RbacConfig
 
-rbac = RbacConfig(roles=["admin", "editor", "viewer"])
+rbac = RbacConfig(roles={"admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]})
 ```
 
-RBAC is configured via `RbacConfig(roles=[...])` which takes a list of role name strings.
+RBAC is configured via `RbacConfig(roles={...})` which takes a dict mapping role names to permission lists.
 
 ### Tenant Isolation
 
@@ -129,13 +129,13 @@ Use `@app.handler()` with the auth plugin for role-based access:
 import os
 import kailash
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 app = NexusApp()
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "user"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
 )
 
 # Handlers are automatically protected by the auth plugin

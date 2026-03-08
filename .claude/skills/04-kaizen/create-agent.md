@@ -77,7 +77,7 @@ def create_{agent_name_snake}():
     agent = {AgentName}()
     agent.llm = llm
     agent.tools = tools
-    agent.memory = SessionMemory()
+    agent.set_memory(SessionMemory())
 
     return agent
 

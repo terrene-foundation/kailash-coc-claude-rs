@@ -98,7 +98,7 @@ app = NexusApp(preset="standard")
 
 ```python
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig
+from kailash.nexus import JwtConfig
 import os
 
 app = NexusApp()

@@ -48,7 +48,7 @@ Authentication is configured via the `NexusAuthPlugin` constructor, not factory 
 ```python
 import os
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 # Basic auth (JWT only)
 auth = NexusAuthPlugin(
@@ -58,7 +58,7 @@ auth = NexusAuthPlugin(
 # With RBAC and tenant isolation
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "user"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
     tenant_header="X-Tenant-ID",
 )
 

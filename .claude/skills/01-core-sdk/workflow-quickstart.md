@@ -74,7 +74,7 @@ reader_id = builder.add_node_auto_id("CSVProcessorNode", {"action": "read", "sou
 processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)"})
 
 # Use returned IDs for connections
-builder.connect(reader_id, "result", processor_id, "input_data")
+builder.connect(reader_id, "rows", processor_id, "input_data")
 ```
 
 ### Flexible API Styles

@@ -65,14 +65,7 @@ server = app.server
 
 # Configure SSE transport with auth headers
 server.set_transport(SSE)
-server.set_sse_config({
-    "port": 8080,
-    "path": "/mcp",
-    "auth": {
-        "type": "bearer",
-        "token": os.getenv("MCP_AUTH_TOKEN"),
-    },
-})
+server.set_sse_config(host="0.0.0.0", port=8080)
 ```
 
 ## Authentication Methods for MCP Clients

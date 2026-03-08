@@ -124,7 +124,7 @@ class MemoryAgent(BaseAgent):
         return {"response": f"Got: {input_text}, Previous: {previous}"}
 
 agent = MemoryAgent()
-agent.memory = SessionMemory()
+agent.set_memory(SessionMemory())
 agent.llm = LlmClient.mock()
 
 agent.run("Hello")
@@ -136,7 +136,7 @@ agent.run("World")
 ## Multi-Agent Orchestration
 
 ```python
-from kailash import WorkerAgent, SupervisorAgent
+from kailash.kaizen import WorkerAgent, SupervisorAgent
 
 def research(input_text: str) -> str:
     return f"Research: {input_text}"
@@ -182,7 +182,7 @@ print(f"Over budget: {tracker.is_over_budget()}")
 | `CostTracker`     | `from kailash.kaizen import CostTracker`           | `record()`, `total_cost()`, `reset()`       |
 | `HookManager`     | `from kailash.kaizen import HookManager`           | `on()` decorator, `trigger()`, 9 events     |
 | `AgentCheckpoint` | `from kailash import AgentCheckpoint`              | Save/restore agent state                    |
-| `WorkerAgent`     | `from kailash import WorkerAgent`                  | `run()`, `accept_task()`, `status`          |
-| `SupervisorAgent` | `from kailash import SupervisorAgent`              | `add_worker()`, `run()`                     |
+| `WorkerAgent`     | `from kailash.kaizen import WorkerAgent`           | `run()`, `accept_task()`, `status`          |
+| `SupervisorAgent` | `from kailash.kaizen import SupervisorAgent`       | `add_worker()`, `run()`                     |
 
 <!-- Trigger Keywords: kaizen quickstart, getting started, first agent, hello world, agent basics -->

@@ -23,7 +23,7 @@ Quick reference to all 139+ tested and validated Kailash workflow nodes.
 | Use LLM/AI               | `LLMNode` ⭐                          | ❌ OpenAI SDK          |
 | Filter/Transform         | `FilterNode`, `DataMapperNode`        | ❌ List comprehensions |
 | Route Logic              | `SwitchNode`, `ConditionalNode`       | ❌ if/else blocks      |
-| Send Alerts              | `DiscordAlertNode`, `EmailSenderNode` | ❌ SMTP/webhook code   |
+| Send Alerts              | `DiscordAlertNode`, `EmailAlertNode`  | ❌ SMTP/webhook code   |
 | Distributed Transactions | `DistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
 
 ## Node Categories (139+ total)
@@ -104,7 +104,7 @@ import kailash
 
 ### Enterprise
 
-- **Security**: `OAuth2Node`, `JWTValidatorNode`, `EncryptionNode`
+- **Security**: `OAuth2Node`, `JWTAuthNode`, `EncryptionNode`
 - **Admin**: [`nodes-admin-reference`](nodes-admin-reference.md)
 - **Monitoring**: [`nodes-monitoring-reference`](nodes-monitoring-reference.md)
 - **Transactions**: [`nodes-transaction-reference`](nodes-transaction-reference.md)
@@ -123,7 +123,7 @@ import kailash
 - HTTP requests (use HTTPRequestNode)
 - Database queries (use SQLQueryNode)
 - Data filtering/transformation (use FilterNode, DataMapperNode)
-- Authentication (use OAuth2Node, JWTValidatorNode)
+- Authentication (use OAuth2Node, JWTAuthNode)
 - Standard ML operations (use specialized AI nodes)
 
 **✅ Use EmbeddedPythonNode only for:**

@@ -249,9 +249,9 @@ resources = server.list_resources()
 for r in resources:
     print(f"  {r['uri']}: {r['name']}")
 
-# Read a resource
-content = server.read_resource("file:///a")
-print(f"Content: {content}")
+# Read a resource -- returns a dict with keys: uri, mimeType, text
+resource = server.read_resource("file:///a")
+print(f"URI: {resource['uri']}, Content: {resource['text']}")
 
 # Remove a resource
 removed = server.remove_resource("file:///a")

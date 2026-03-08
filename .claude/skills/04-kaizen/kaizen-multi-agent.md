@@ -52,7 +52,7 @@ result = pipeline.run("Write about AI agents")
 Wraps any agent with capability declarations and status tracking.
 
 ```python
-from kailash import WorkerAgent
+from kailash.kaizen import WorkerAgent
 
 # WorkerAgent wraps a Python callable
 def code_fn(input_text: str) -> str:
@@ -77,7 +77,7 @@ result = worker.run("hello")
 Delegates tasks to managed WorkerAgents via configurable routing strategies.
 
 ```python
-from kailash import SupervisorAgent, WorkerAgent
+from kailash.kaizen import SupervisorAgent, WorkerAgent
 
 # Create workers
 coder = WorkerAgent("coder", code_fn, capabilities=["python", "rust"])
@@ -117,7 +117,7 @@ supervisor = SupervisorAgent("boss", routing="llm_decision")
 Dynamic agent selection with conditional routing, dependency tracking, and concurrent execution.
 
 ```python
-from kailash import MultiAgentOrchestrator
+from kailash.kaizen import MultiAgentOrchestrator
 
 orch = MultiAgentOrchestrator()
 
@@ -154,7 +154,7 @@ result = orch.orchestrate("Write about Rust")
 Unified execution with retry, timeout, and observability hooks.
 
 ```python
-from kailash import AgentExecutor, RetryPolicy
+from kailash.kaizen import AgentExecutor, RetryPolicy
 
 # Create retry policy
 policy = RetryPolicy(
@@ -195,7 +195,7 @@ result = orch.orchestrate("input")
 ## Complete Example
 
 ```python
-from kailash import WorkerAgent, SupervisorAgent, MultiAgentOrchestrator
+from kailash.kaizen import WorkerAgent, SupervisorAgent, MultiAgentOrchestrator
 
 # Define worker functions
 def research(input_text: str) -> str:

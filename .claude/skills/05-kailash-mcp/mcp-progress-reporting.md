@@ -17,11 +17,11 @@ Report progress for long-running MCP operations.
 
 - **Progress**: Real-time updates during tool execution
 - **Use Cases**: File uploads, data processing, long queries
-- **WebSocket**: Best transport for progress streaming
+- **SSE**: Best transport for progress streaming
 
 ## Architecture Note
 
-MCP progress reporting is implemented on MCP servers (built with `McpApplication` or `kailash.MCPServer`). MCP client connections that receive progress updates are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
+MCP progress reporting is implemented on MCP servers (built with `McpApplication` or `McpServer`). MCP client connections that receive progress updates are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
 
 ## Server-Side Progress Reporting
 
@@ -41,14 +41,14 @@ def process_data(dataset_url: str) -> str:
 
 ## Client-Side Progress Configuration (Kaizen Agents)
 
-Kaizen agents can receive progress updates from MCP servers via WebSocket transport:
+Kaizen agents can receive progress updates from MCP servers via SSE transport:
 
 ```python
 # Kaizen agent MCP client config with progress support
 mcp_client_config = {
     "name": "processor",
-    "transport": "websocket",
-    "url": "wss://api.company.com/mcp",
+    "transport": "sse",
+    "url": "https://api.company.com/mcp",
 }
 # Pass this config to a Kaizen agent for progress-aware tool execution
 ```

@@ -58,7 +58,7 @@ Complete templates for:
 #### MCP Server
 
 - **[template-mcp-server](template-mcp-server.md)** - MCP server template
-  - MCPServer initialization
+  - McpServer initialization
   - Tool registration
   - Resource definition
   - Transport configuration

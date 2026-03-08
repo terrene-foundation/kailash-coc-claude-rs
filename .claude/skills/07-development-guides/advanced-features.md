@@ -36,16 +36,17 @@ result = {
 """
 })
 
-# Check continuation — use ConditionalNode for true/false branching
-builder.add_node("ConditionalNode", "check", {
-    "condition": "continue == True"
+# Check continuation — use SwitchNode for routing between loop/exit branches
+builder.add_node("SwitchNode", "check", {
+    "cases": {"true": "process", "false": "exit"},
+    "default_branch": "exit"
 })
-# ConditionalNode outputs: "true_output" (loops back) and "false_output" (exits)
+# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Connections
-builder.connect("init", "process", "result", "data")
-builder.connect("process", "check", "result", "input")
-builder.connect("check", "process", "output", "data")  # Loop back
+builder.connect("init", "result", "process", "data")
+builder.connect("process", "result", "check", "condition")
+builder.connect("check", "data", "process", "data")  # Loop back
 
 reg = kailash.NodeRegistry()
 

@@ -182,44 +182,52 @@ result = {
 })
 
 builder.connect("prep", "result.text", "llm", "prompt")
-builder.connect("llm", "result", "post", "llm_result")
+builder.connect("llm", "response", "post", "llm_result")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
-### Pattern 5: Conditional Routing with ConditionalNode
+### Pattern 5: Conditional Selection with ConditionalNode
+
+ConditionalNode selects between two values based on a boolean condition. It has THREE inputs (`condition`, `if_value`, `else_value`) and ONE output (`result`). There is no expression parser -- `condition` is evaluated for truthiness at runtime.
 
 ```python
 builder = kailash.WorkflowBuilder()
 
-# Data source
+# Data source that computes a boolean condition and two candidate values
 builder.add_node("EmbeddedPythonNode", "source", {
-    "code": "result = {'score': 85, 'type': 'test'}"
+    "code": """
+score = 85
+result = {
+    'is_high': score > 80,
+    'high_msg': {'status': 'high_score', 'score': score},
+    'low_msg': {'status': 'low_score', 'score': score}
+}
+"""
 })
 
-# ConditionalNode for true/false branching
-builder.add_node("ConditionalNode", "router", {
-    "condition": "score > 80"
+# ConditionalNode: no config needed. Inputs: condition, if_value, else_value. Output: result.
+builder.add_node("ConditionalNode", "router", {})
+
+# Process the selected result
+builder.add_node("EmbeddedPythonNode", "handler", {
+    "code": "result = {'handled': selected}"
 })
 
-# High score handler
-builder.add_node("EmbeddedPythonNode", "high_handler", {
-    "code": "result = {'status': 'high_score', 'score': score}"
-})
+# Connect the boolean condition and two candidate values
+builder.connect("source", "result.is_high", "router", "condition")
+builder.connect("source", "result.high_msg", "router", "if_value")
+builder.connect("source", "result.low_msg", "router", "else_value")
 
-# Low score handler
-builder.add_node("EmbeddedPythonNode", "low_handler", {
-    "code": "result = {'status': 'low_score', 'score': score}"
-})
-
-builder.connect("source", "result", "router", "data")
-builder.connect("router", "true_output", "high_handler", "score")
-builder.connect("router", "false_output", "low_handler", "score")
+# ConditionalNode outputs "result" (the selected value), NOT "true_output"/"false_output"
+builder.connect("router", "result", "handler", "selected")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
+
+For multi-branch routing to different handlers, use **SwitchNode** instead (see `switchnode-patterns`).
 
 ### Pattern 6: Data Transformation
 

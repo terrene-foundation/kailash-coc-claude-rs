@@ -111,7 +111,7 @@ result = pipeline.run("AI safety")
 Unified execution with retry, timeout, and observability.
 
 ```python
-from kailash import AgentExecutor, RetryPolicy, WorkerAgent
+from kailash.kaizen import AgentExecutor, RetryPolicy, WorkerAgent
 
 # Create retry policy
 policy = RetryPolicy(
@@ -140,7 +140,7 @@ result = executor.execute_single(worker, "hello")
 ## RetryPolicy
 
 ```python
-from kailash import RetryPolicy
+from kailash.kaizen import RetryPolicy
 
 # Exponential backoff (default)
 policy = RetryPolicy(
@@ -180,8 +180,8 @@ result = runtime.run("input")
 
 ```python
 import os
-from kailash import (
-    OrchestrationRuntime, AgentConfig,
+from kailash import OrchestrationRuntime, AgentConfig
+from kailash.kaizen import (
     WorkerAgent, SupervisorAgent, AgentExecutor, RetryPolicy,
 )
 

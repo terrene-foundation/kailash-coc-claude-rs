@@ -73,11 +73,11 @@ builder.add_node(
 )
 ```
 
-| Parameter | Type | Description                      | Example                       |
-| --------- | ---- | -------------------------------- | ----------------------------- |
-| Node type | str  | The node class name (PascalCase) | `"LLMNode"`, `"HTTPRequest"`  |
-| Node ID   | str  | Unique identifier (snake_case)   | `"fetch_data"`, `"process_1"` |
-| Config    | dict | Node-specific configuration      | `{"url": "..."}`              |
+| Parameter | Type | Description                      | Example                          |
+| --------- | ---- | -------------------------------- | -------------------------------- |
+| Node type | str  | The node class name (PascalCase) | `"LLMNode"`, `"HTTPRequestNode"` |
+| Node ID   | str  | Unique identifier (snake_case)   | `"fetch_data"`, `"process_1"`    |
+| Config    | dict | Node-specific configuration      | `{"url": "..."}`                 |
 
 **Connection Method**:
 

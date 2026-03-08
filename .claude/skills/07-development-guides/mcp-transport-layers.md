@@ -9,7 +9,7 @@ You are an expert in MCP transport configuration including stdio, HTTP, and WebS
 ```python
 import kailash
 
-server = kailash.MCPServer(name="cli-server")
+server = kailash.McpServer("cli-server", "1.0.0")
 
 # Best for: Claude Desktop, CLI tools
 if __name__ == "__main__":
@@ -19,7 +19,7 @@ if __name__ == "__main__":
 ### 2. HTTP Transport (REST APIs)
 
 ```python
-server = kailash.MCPServer(name="api-server")
+server = kailash.McpServer("api-server", "1.0.0")
 
 # Best for: Web integrations, REST APIs
 if __name__ == "__main__":
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 ### 3. WebSocket Transport (Real-time)
 
 ```python
-server = kailash.MCPServer(name="realtime-server")
+server = kailash.McpServer("realtime-server", "1.0.0")
 
 # Best for: Real-time communication, streaming
 if __name__ == "__main__":

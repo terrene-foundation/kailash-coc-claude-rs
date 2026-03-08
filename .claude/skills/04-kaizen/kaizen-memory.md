@@ -9,23 +9,23 @@ The memory system provides key-value storage for agents during execution and acr
 
 ## Memory Types
 
-| Type               | Backing          | Use Case                          |
-| ------------------ | ---------------- | --------------------------------- |
-| `SessionMemory`    | In-memory dict   | Single-agent session storage      |
-| `SharedMemory`     | In-memory dict   | Multi-agent concurrent access     |
+| Type               | Backing            | Use Case                         |
+| ------------------ | ------------------ | -------------------------------- |
+| `SessionMemory`    | In-memory dict     | Single-agent session storage     |
+| `SharedMemory`     | In-memory dict     | Multi-agent concurrent access    |
 | `PersistentMemory` | File (JSON/SQLite) | Cross-session persistent storage |
 
 ## Method Names
 
 **IMPORTANT**: The correct method names are `store()`, `recall()`, `remove()`. NOT `set()`/`get()`/`delete()`.
 
-| Method       | Description                         |
-| ------------ | ----------------------------------- |
-| `store(key, value)` | Store a value under a key   |
+| Method              | Description                                  |
+| ------------------- | -------------------------------------------- |
+| `store(key, value)` | Store a value under a key                    |
 | `recall(key)`       | Retrieve a value (returns None if not found) |
-| `remove(key)`       | Remove a key                |
-| `keys()`            | List all keys               |
-| `clear()`           | Clear all data              |
+| `remove(key)`       | Remove a key                                 |
+| `keys()`            | List all keys                                |
+| `clear()`           | Clear all data                               |
 
 ## SessionMemory
 
@@ -145,7 +145,7 @@ class MemoryAgent(BaseAgent):
 
 
 agent = MemoryAgent()
-agent.memory = SessionMemory()
+agent.set_memory(SessionMemory())
 
 agent.run("First message")
 result = agent.run("Second message")

@@ -17,9 +17,9 @@ You are an expert in Model Context Protocol (MCP) server development with Kailas
 import kailash
 
 # Create MCP server
-server = kailash.MCPServer(
-    name="my-mcp-server",
-    version="1.0.0",
+server = kailash.McpServer(
+    "my-mcp-server",
+    "1.0.0",
     description="My custom MCP server"
 )
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 import kailash
 from pydantic import BaseModel, Field
 
-server = kailash.MCPServer(name="advanced-server")
+server = kailash.McpServer("advanced-server", "1.0.0")
 
 # Structured tool with Pydantic
 class SearchParams(BaseModel):
@@ -97,7 +97,7 @@ def perform_search(query, limit, category):
 ```python
 import kailash
 
-server = kailash.MCPServer(name="workflow-server")
+server = kailash.McpServer("workflow-server", "1.0.0")
 
 @server.tool(
     name="process_data",
@@ -300,7 +300,7 @@ import pytest
 
 def test_mcp_tool():
     """Test MCP tool execution."""
-    server = kailash.MCPServer(name="test-server")
+    server = kailash.McpServer("test-server", "1.0.0")
 
     @server.tool(name="test_tool", description="Test tool")
     def test_tool(value: int) -> dict:
@@ -312,7 +312,7 @@ def test_mcp_tool():
 
 def test_mcp_resource():
     """Test MCP resource."""
-    server = kailash.MCPServer(name="test-server")
+    server = kailash.McpServer("test-server", "1.0.0")
 
     @server.resource(uri="test://resource", name="Test")
     def test_resource() -> dict:

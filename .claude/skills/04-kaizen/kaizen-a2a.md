@@ -124,7 +124,7 @@ from kailash.kaizen import TrustLevel, TrustPosture
 Combine A2A discovery with supervised execution:
 
 ```python
-from kailash import WorkerAgent, SupervisorAgent
+from kailash.kaizen import WorkerAgent, SupervisorAgent
 from kailash.kaizen import AgentCard, AgentRegistry
 
 # Register capabilities via AgentCard

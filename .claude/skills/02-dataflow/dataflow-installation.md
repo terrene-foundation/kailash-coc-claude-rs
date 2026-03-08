@@ -38,18 +38,15 @@ df = kailash.DataFlow("postgresql://user:pass@localhost/mydb")
 # MySQL (web hosting)
 df = kailash.DataFlow("mysql://user:pass@localhost/mydb")
 
-# Initialize schema
-df.initialize_schema()
+# Create tables for registered models
+df.create_tables()
 ```
 
 ## Verification
 
 ```python
-# Test connection
-print(db.connection_string)
-
-# Verify models are loaded
-print(db.list_models())
+# Verify models are registered
+print(df.models)
 ```
 
 <!-- Trigger Keywords: install dataflow, dataflow setup, dataflow requirements, dataflow installation -->

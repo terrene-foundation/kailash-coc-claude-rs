@@ -75,13 +75,16 @@ builder.add_node("SwitchNode", "router", {
 # Outputs: "matched" (branch name) and "data" (forwarded)
 ```
 
-**Conditional Routing (ConditionalNode -- true/false)**:
+**Conditional Selection (ConditionalNode -- value selection)**:
 
 ```python
-builder.add_node("ConditionalNode", "router", {
-    "condition": "value > 100"
-})
-# Outputs: "true_output" and "false_output"
+# ConditionalNode selects between two values. Inputs: condition, if_value, else_value. Output: result.
+builder.add_node("ConditionalNode", "selector", {})
+builder.connect("source", "is_large", "selector", "condition")
+builder.connect("source", "large_val", "selector", "if_value")
+builder.connect("source", "small_val", "selector", "else_value")
+# Output: single "result" port with the selected value
+builder.connect("selector", "result", "next_step", "data")
 ```
 
 ### 4. Parameter Management

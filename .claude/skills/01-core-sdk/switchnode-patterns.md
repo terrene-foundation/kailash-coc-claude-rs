@@ -1,11 +1,11 @@
 ---
 name: switchnode-patterns
-description: "Conditional data routing with SwitchNode (multi-case) and ConditionalNode (true/false). Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
+description: "Conditional data routing with SwitchNode (multi-case) and ConditionalNode (value selection). Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
 ---
 
 # SwitchNode & ConditionalNode Routing
 
-Guide to conditional routing with SwitchNode (multi-case matching) and ConditionalNode (true/false branching).
+Guide to conditional routing with SwitchNode (multi-case matching) and ConditionalNode (boolean value selection).
 
 > **Skill Metadata**
 > Category: `core-sdk`
@@ -14,7 +14,7 @@ Guide to conditional routing with SwitchNode (multi-case matching) and Condition
 ## Quick Reference
 
 - **SwitchNode**: Multi-case routing. Config: `cases` (Object mapping values to branch names), `default_branch` (optional). Input: `condition` (value to match). Outputs: `matched` (branch name), `data` (forwarded).
-- **ConditionalNode**: True/false branching. Config: `condition` (expression). Outputs: `true_output`, `false_output`.
+- **ConditionalNode**: Value selection based on boolean condition. No config. Inputs: `condition` (boolean), `if_value`, `else_value`. Output: `result` (the selected value).
 - **Category**: core-sdk
 - **Priority**: HIGH
 
@@ -40,24 +40,29 @@ rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 ```
 
-## ConditionalNode Pattern (True/False Branching)
+## ConditionalNode Pattern (Value Selection)
 
-For simple true/false branching, use **ConditionalNode** instead of SwitchNode:
+ConditionalNode selects between two values based on a boolean condition. It takes THREE inputs (`condition`, `if_value`, `else_value`) and outputs ONE value (`result`). There is no expression parser -- `condition` is evaluated for truthiness at runtime.
 
 ```python
-builder.add_node("ConditionalNode", "check", {
-    "condition": "score > 80"
-})
+# No config needed for ConditionalNode
+builder.add_node("ConditionalNode", "check", {})
 
-# ConditionalNode outputs: "true_output" and "false_output"
-builder.connect("check", "true_output", "high_handler", "data")
-builder.connect("check", "false_output", "low_handler", "data")
+# Connect a boolean condition and two candidate values as inputs
+builder.connect("evaluator", "result.is_high", "check", "condition")
+builder.connect("evaluator", "result.high_value", "check", "if_value")
+builder.connect("evaluator", "result.low_value", "check", "else_value")
+
+# ConditionalNode outputs "result" (the selected value)
+builder.connect("check", "result", "handler", "data")
 ```
+
+**Note**: ConditionalNode does NOT route to different downstream nodes. It selects a value. For routing to different handlers, use **SwitchNode** above.
 
 ## Common Use Cases
 
 - **Multi-case routing**: Route by status, type, or category using SwitchNode `cases`
-- **Binary branching**: True/false decisions using ConditionalNode
+- **Value selection**: Choose between two values based on a boolean using ConditionalNode
 - **Default handling**: Always set `default_branch` on SwitchNode for unmatched cases
 - **Error Handling**: Route errors to dedicated handlers
 - **Production Readiness**: Health checks, monitoring, logging, metrics collection for enterprise deployments
@@ -71,6 +76,7 @@ builder.connect("check", "false_output", "low_handler", "data")
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - Complex implementation needed
 - Production deployment required
 - Deep analysis necessary
@@ -79,8 +85,9 @@ Use specialized subagents when:
 ## Quick Tips
 
 - SwitchNode `cases` maps condition values to branch names -- the `condition` input is matched against case keys
-- SwitchNode outputs are `matched` (branch name) and `data` (forwarded input) -- NOT `true_output`/`false_output`
-- For true/false branching, use ConditionalNode instead of SwitchNode
+- SwitchNode outputs are `matched` (branch name) and `data` (forwarded input)
+- ConditionalNode selects a value (output: `result`), it does NOT route to different handlers
+- For multi-branch routing, use SwitchNode. For value selection, use ConditionalNode
 - Always set `default_branch` on SwitchNode to handle unmatched conditions
 
 ## Keywords for Auto-Trigger

@@ -70,8 +70,9 @@ db = kailash.DataFlow(":memory:")
 # File-based
 db = kailash.DataFlow("sqlite:///app.db")
 
-# With WAL mode for better concurrency
-db = kailash.DataFlow("sqlite:///app.db", enable_wal=True)
+# WAL mode for better concurrency is configured at the database level
+# e.g., PRAGMA journal_mode=WAL; (not a DataFlow constructor parameter)
+db = kailash.DataFlow("sqlite:///app.db")
 
 # Pros:
 # - Zero config, no server needed

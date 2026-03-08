@@ -287,14 +287,15 @@ def test_comprehensive_workflow_coverage():
         "code": "result = {'value': input_value}"
     })
 
-    # ConditionalNode for true/false branching
-    builder.add_node("ConditionalNode", "router", {
-        "condition": "value > 50"
+    # SwitchNode for multi-branch routing
+    builder.add_node("SwitchNode", "router", {
+        "cases": {"high": "high_path", "low": "low_path"},
+        "default_branch": "low_path"
     })
-    # ConditionalNode outputs: "true_output" → high_path, "false_output" → low_path
-    builder.connect("input", "result", "router", "data")
-    builder.connect("router", "true_output", "high_path", "value")
-    builder.connect("router", "false_output", "low_path", "value")
+    # SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
+    builder.connect("input", "result", "router", "condition")
+    builder.connect("router", "data", "high_path", "value")
+    builder.connect("router", "data", "low_path", "value")
 
     builder.add_node("EmbeddedPythonNode", "high_path", {
         "code": "result = {'category': 'high', 'value': value}"

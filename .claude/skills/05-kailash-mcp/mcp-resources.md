@@ -85,14 +85,14 @@ def get_order(order_id: str) -> str:
 
 ## Resource Subscriptions
 
-For real-time resource updates, use WebSocket transport with subscription-enabled resources:
+For real-time resource updates, use SSE transport with subscription-enabled resources:
 
 ```python
 # Kaizen agent MCP client config with subscriptions
 mcp_client_config = {
     "name": "metrics",
-    "transport": "websocket",
-    "url": "wss://metrics-api.com/mcp",
+    "transport": "sse",
+    "url": "https://metrics-api.com/mcp",
     "resources": [
         {
             "uri": "metrics://system/cpu",

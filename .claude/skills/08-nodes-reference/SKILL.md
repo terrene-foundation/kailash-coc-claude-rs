@@ -64,7 +64,7 @@ Complete node catalog covering:
 
 **Database Work** → Use Database nodes (`nodes-database-reference`)
 
-- SQL queries: SQLQueryNode, AsyncSQLNode
+- SQL queries: SQLQueryNode
 - CRUD with DataFlow: Auto-generated nodes
 
 **File Operations** → Use File nodes (`nodes-file-reference`)
@@ -76,19 +76,19 @@ Complete node catalog covering:
 **Conditional Logic** → Use Logic nodes (`nodes-logic-reference`)
 
 - Simple conditions: SwitchNode
-- Complex routing: IfElseNode
-- Loops: LoopNode, CycleNode
+- Complex routing: ConditionalNode
+- Loops: LoopNode
 
 **Data Processing** → Use Data nodes (`nodes-data-reference`)
 
 - CSV: CSVProcessorNode, FileWriterNode
-- JSON: JSONParserNode
-- Validation: DataValidatorNode
+- JSON: JSONTransformNode
+- Validation: SchemaValidatorNode
 
 **Monitoring** → Use Monitoring nodes (`nodes-monitoring-reference`)
 
-- Logging: LoggerNode
-- Metrics: MetricsNode
+- Logging: LogNode
+- Metrics: MetricsCollectorNode
 - Alerts: AlertNode
 
 ## Critical Node Patterns
@@ -111,7 +111,7 @@ builder.connect("node1", "result", "node2", "input_data")
 - **SwitchNode**: Conditional routing based on values
 - **CSVProcessorNode**: Reading CSV files
 - **HTTPRequestNode**: HTTP API calls
-- **LoggerNode**: Debug and production logging
+- **LogNode**: Debug and production logging
 
 ## When to Use This Skill
 
@@ -124,7 +124,7 @@ builder.connect("node1", "result", "node2", "input_data")
 builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), "prompt": "..."})
 
 # API Call
-builder.add_node("HTTPRequest", "api", {"url": "...", "method": "POST"})
+builder.add_node("HTTPRequestNode", "api", {"url": "...", "method": "POST"})
 
 # Python Code
 builder.add_node("EmbeddedPythonNode", "transform", {"code": "..."})

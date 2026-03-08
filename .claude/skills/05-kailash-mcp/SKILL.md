@@ -41,25 +41,32 @@ def summarize_prompt(text: str) -> str:
     return f"Please summarize: {text}"
 ```
 
-### MCPServer (Core SDK Pattern)
+### McpServer (Core SDK Pattern)
 
 ```python
-import kailash
+from kailash import McpServer
 
-# Create MCP server
-server = kailash.MCPServer(name="my-server")
+# Create MCP server -- name and version are required
+server = McpServer("my-server", version="1.0.0")
 
 # Register workflow as MCP tool
-@server.tool("summarize")
-def summarize_tool(text: str) -> str:
+def summarize_handler(args: dict) -> dict:
     """Summarize the given text."""
-    # Execute workflow
-    workflow = create_summary_workflow()
-    results = rt.execute(builder.build(reg))
-    return result["results"]["summary"]["result"]
+    text = args.get("text", "")
+    return {"summary": text[:100]}
 
-# Run server (stdio transport by default)
-server.run()
+server.register_tool(
+    "summarize",
+    "Summarize the given text",
+    summarize_handler,
+    schema={"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+)
+
+# Note: McpServer does not have a run() method.
+# To serve MCP tools over a network, use Nexus:
+# from kailash.nexus import NexusApp
+# app = NexusApp(config=NexusConfig(enable_mcp=True))
+print(f"Tools registered: {server.tool_count()}")
 ```
 
 ## Reference Documentation
@@ -133,14 +140,15 @@ import kailash
 
 reg = kailash.NodeRegistry()
 
-server = kailash.MCPServer(name="workflow-server")
+server = McpServer("workflow-server", version="1.0.0")
 
-@server.tool("process_data")
-def process_tool(input: str) -> dict:
+def process_handler(args: dict) -> dict:
     builder = kailash.WorkflowBuilder()
     # Build workflow
     results = rt.execute(builder.build(reg))
-    return result["results"]["output"]["result"]
+    return results["results"]["output"]["result"]
+
+server.register_tool("process_data", "Process data", process_handler)
 ```
 
 ### With Nexus (Multi-Channel with MCP)
@@ -163,13 +171,15 @@ app.start()  # Includes MCP server
 ```python
 import kailash
 
-server = kailash.MCPServer(name="db-server")
+server = McpServer("db-server", version="1.0.0")
 df = kailash.DataFlow(...)
 
-@server.resource("users")
-def get_users():
-    # Expose database via MCP resource
-    return df.query_users()
+server.register_resource(
+    uri="data://users",
+    name="Users",
+    content="User data from database",
+    description="Expose database users via MCP resource",
+)
 ```
 
 ### With Kaizen (Agent Tools)
@@ -177,14 +187,14 @@ def get_users():
 ```python
 import kailash
 
-server = kailash.MCPServer(name="agent-server")
+server = McpServer("agent-server", version="1.0.0")
 
-@server.tool("analyze")
-def analyze_tool(text: str) -> str:
+def analyze_handler(args: dict) -> dict:
     from kailash.kaizen import BaseAgent
-    agent = BaseAgent()
-    result = agent.execute(text)
-    return result.get("output", "")
+    # Use a custom BaseAgent subclass here
+    return {"output": f"Analyzed: {args.get('text', '')}"}
+
+server.register_tool("analyze", "Analyze text", analyze_handler)
 ```
 
 ## Critical Rules

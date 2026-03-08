@@ -124,7 +124,7 @@ Use NexusAuthPlugin to secure all channels:
 ```python
 import os
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig
+from kailash.nexus import JwtConfig
 
 app = NexusApp()
 auth = NexusAuthPlugin(

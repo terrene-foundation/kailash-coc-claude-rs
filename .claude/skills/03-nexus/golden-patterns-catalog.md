@@ -225,7 +225,7 @@ auth = kailash.NexusAuthPlugin(
         secret_key=os.environ["JWT_SECRET"],       # Must be >= 32 chars for HS256
         algorithm="HS256",
     ),
-    rbac=kailash.RbacConfig(roles=["admin", "member", "viewer"]),
+    rbac=kailash.RbacConfig(roles={"admin": ["*"], "member": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 
@@ -258,13 +258,13 @@ auth = kailash.NexusAuthPlugin(jwt=kailash.JwtConfig(secret_key=os.environ["JWT_
 # With RBAC
 auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=kailash.RbacConfig(roles=["admin", "user"]),
+    rbac=kailash.RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
 )
 
 # With tenant isolation
 auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=kailash.RbacConfig(roles=["admin", "editor", "viewer"]),
+    rbac=kailash.RbacConfig(roles={"admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 

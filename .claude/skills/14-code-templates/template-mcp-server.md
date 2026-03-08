@@ -21,7 +21,7 @@ Production-ready MCP server template using Kailash SDK's built-in MCP implementa
 import kailash
 
 # Create server
-server = MCPServer("my-server")
+server = McpServer("my-server", "1.0.0")
 
 # Register tools
 @server.tool()
@@ -85,8 +85,8 @@ auth = APIKeyAuth({
 })
 
 # Create server with enterprise features
-server = MCPServer(
-    "production-server",
+server = McpServer(
+    "production-server", "1.0.0",
     auth_provider=auth,
     enable_metrics=True,
     enable_cache=True,

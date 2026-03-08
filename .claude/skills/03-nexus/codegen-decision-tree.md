@@ -203,7 +203,7 @@ async def verify_token(request: Request):
 ```python
 # DO: Use NexusAuthPlugin (correct imports)
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 import os
 
 app = NexusApp()
@@ -212,7 +212,7 @@ auth = NexusAuthPlugin(
         secret_key=os.environ["JWT_SECRET"],     # Must be >= 32 chars for HS256
         algorithm="HS256",
     ),
-    rbac=RbacConfig(roles=["admin", "member"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "member": ["content.read", "content.write"]}),
     tenant_header="X-Tenant-ID",
 )
 ```
@@ -395,7 +395,7 @@ import kailash
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration (from environment)
@@ -427,7 +427,7 @@ auth = NexusAuthPlugin(
         secret_key=JWT_SECRET,                         # >= 32 chars for HS256
         algorithm="HS256",
     ),
-    rbac=RbacConfig(roles=["admin", "member", "viewer"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "member": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 
@@ -682,7 +682,7 @@ import kailash
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration
@@ -776,7 +776,7 @@ auth = NexusAuthPlugin(
         secret_key=os.environ["JWT_SECRET"],
         algorithm="HS256",
     ),
-    rbac=RbacConfig(roles=["owner", "admin", "member", "viewer"]),
+    rbac=RbacConfig(roles={"owner": ["*"], "admin": ["*"], "member": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 rt = kailash.Runtime(reg)
@@ -891,12 +891,12 @@ async def my_handler(param: str, optional: int = 10) -> dict:
 ```python
 # Correct imports
 from kailash.nexus import NexusApp, NexusAuthPlugin, NexusConfig
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 # Correct constructor
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=...),               # Only: secret_key, expiry_secs, algorithm, issuer
-    rbac=RbacConfig(roles=["admin", "user"]),    # Optional
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),    # Optional
     tenant_header="X-Tenant-ID",                 # Optional string, NOT TenantConfig
 )
 

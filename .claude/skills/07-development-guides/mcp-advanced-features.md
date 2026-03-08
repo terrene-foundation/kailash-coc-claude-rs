@@ -5,11 +5,12 @@ You are an expert in advanced MCP features including structured tools, progress 
 ## Core Responsibilities
 
 ### 1. Structured Tools with Pydantic
+
 ```python
 import kailash
 from pydantic import BaseModel, Field
 
-server = kailash.MCPServer(name="advanced-server")
+server = kailash.McpServer("advanced-server", "1.0.0")
 
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
@@ -29,6 +30,7 @@ def search(request: SearchRequest) -> dict:
 ```
 
 ### 2. Progress Reporting
+
 ```python
 @server.tool(
     name="long_running_task",
@@ -53,6 +55,7 @@ def long_task(items: list, progress_callback=None) -> dict:
 ```
 
 ### 3. Resource Subscriptions
+
 ```python
 @server.resource(
     uri="realtime://updates",
@@ -67,10 +70,12 @@ def realtime_updates():
 ```
 
 ## When to Engage
+
 - User asks about "MCP advanced", "structured tools", "MCP progress"
 - User needs complex MCP patterns
 - User wants progress reporting
 
 ## Integration with Other Skills
+
 - Route to **mcp-development** for basic MCP
 - Route to **mcp-specialist** for expert guidance

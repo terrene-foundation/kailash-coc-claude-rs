@@ -132,12 +132,12 @@ builder.add_node("MergeNode", "merger", {})
 
 # Fan-in: multiple sources → merger
 builder.connect("source1", "rows", "merger", "input1")
-builder.connect("source2", "data", "merger", "input2")
+builder.connect("source2", "content", "merger", "input2")
 builder.connect("source3", "body", "merger", "input3")
 
 # Process merged data
 builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}"})
-builder.connect("merger", "result", "processor", "data")
+builder.connect("merger", "merged", "processor", "data")
 ```
 
 ### Type 6: Multi-Input Processing
@@ -168,10 +168,18 @@ builder.connect("orders", "rows", "join", "orders")
 
 ### Type 7: Complex Nested Extraction
 
+Use dot notation to extract nested fields from nodes that output structured data (e.g., EmbeddedPythonNode). Note: LLMNode outputs a flat `response` string, so dot notation does not apply to it.
+
 ```python
-builder.add_node("LLMNode", "llm", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
-    "system_prompt": "Analyze data"
+# EmbeddedPythonNode outputs nested data via 'result'
+builder.add_node("EmbeddedPythonNode", "analyzer", {
+    "code": """
+result = {
+    'metrics': {'accuracy': 0.95, 'f1_score': 0.91},
+    'summary': 'Analysis complete',
+    'confidence': 0.87
+}
+"""
 })
 
 builder.add_node("EmbeddedPythonNode", "metrics_reporter", {
@@ -185,10 +193,10 @@ result = report
 """
 })
 
-# Extract multiple nested fields
-builder.connect("llm", "result.metrics.accuracy", "metrics_reporter", "accuracy")
-builder.connect("llm", "result.summary", "metrics_reporter", "summary")
-builder.connect("llm", "result.confidence", "metrics_reporter", "confidence")
+# Extract multiple nested fields using dot notation
+builder.connect("analyzer", "result.metrics.accuracy", "metrics_reporter", "accuracy")
+builder.connect("analyzer", "result.summary", "metrics_reporter", "summary")
+builder.connect("analyzer", "result.confidence", "metrics_reporter", "confidence")
 ```
 
 ## Common Mistakes

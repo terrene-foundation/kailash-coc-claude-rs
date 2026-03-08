@@ -1,11 +1,11 @@
 ---
 name: mcp-transports-quick
-description: "MCP transport configuration patterns (STDIO, HTTP, WebSocket). Use when asking 'MCP transport', 'stdio mcp', 'websocket mcp', 'HTTP transport', 'mcp connection', or 'mcp server setup'."
+description: "MCP transport configuration patterns (STDIO, HTTP, SSE). Use when asking 'MCP transport', 'stdio mcp', 'HTTP transport', 'SSE transport', 'mcp connection', or 'mcp server setup'."
 ---
 
 # MCP Transports Quick Reference
 
-Configure MCP server connections using STDIO, HTTP, or WebSocket transports.
+Configure MCP server connections using STDIO, HTTP, or SSE transports.
 
 > **Skill Metadata**
 > Category: `mcp`
@@ -22,8 +22,8 @@ For building MCP servers, use the `McpApplication` class from `kailash.mcp`.
 ## Quick Reference
 
 - **STDIO**: Local process communication (fastest, recommended for development)
+- **SSE**: Server-Sent Events for real-time streaming (production)
 - **HTTP**: Remote servers, production deployments (stateless)
-- **WebSocket**: Real-time bidirectional communication (stateful connections)
 - **Transport Selection**: Choose based on deployment model and latency requirements
 
 ## Server-Side Transport Patterns (McpApplication)
@@ -69,10 +69,7 @@ server = app.server
 
 # SSE transport for production
 server.set_transport(SSE)
-server.set_sse_config({
-    "port": int(os.getenv("MCP_PORT", "8080")),
-    "path": "/mcp",
-})
+server.set_sse_config(host="0.0.0.0", port=int(os.getenv("MCP_PORT", "8080")))
 ```
 
 **When to Use HTTP/SSE:**
@@ -82,27 +79,6 @@ server.set_sse_config({
 - Cloud-hosted MCP servers
 - Load-balanced environments
 - Stateless operations
-
-### WebSocket Transport (Real-Time Communication)
-
-```python
-server = kailash.MCPServer(name="realtime-server")
-
-# Best for: Real-time communication, streaming
-if __name__ == "__main__":
-    server.run(
-        transport="websocket",
-        host="0.0.0.0",
-        port=8001
-    )
-```
-
-**When to Use WebSocket:**
-
-- Real-time streaming data
-- Long-running operations with progress updates
-- Bidirectional communication
-- Event-driven architectures
 
 ## Client-Side Transport Configuration (Kaizen Agents)
 
@@ -136,22 +112,6 @@ mcp_client_config = {
 }
 ```
 
-### WebSocket Client
-
-```python
-# Kaizen agent MCP client config -- WebSocket
-mcp_client_config = {
-    "name": "metrics",
-    "transport": "websocket",
-    "url": "wss://metrics.company.com/mcp",
-    "connection_params": {
-        "heartbeat_interval": 30,
-        "reconnect_attempts": 3,
-        "reconnect_delay": 5
-    }
-}
-```
-
 ### Multiple Transports
 
 ```python
@@ -169,11 +129,6 @@ mcp_server_configs = [
         "url": "https://api.company.com/mcp/docs",
         "headers": {"Authorization": f"Bearer {os.getenv('API_TOKEN')}"}
     },
-    {
-        "name": "metrics",
-        "transport": "websocket",
-        "url": "wss://metrics.company.com/mcp"
-    }
 ]
 ```
 
@@ -225,15 +180,15 @@ config = prod_config if os.getenv("ENV") == "production" else dev_config
 
 ## Transport Comparison
 
-| Feature            | STDIO           | HTTP        | WebSocket  |
-| ------------------ | --------------- | ----------- | ---------- |
-| **Latency**        | Lowest          | Medium      | Low-Medium |
-| **Scalability**    | Single machine  | High        | Medium     |
-| **State**          | Process-bound   | Stateless   | Stateful   |
-| **Best For**       | Local dev       | Production  | Real-time  |
-| **Complexity**     | Low             | Medium      | High       |
-| **Load Balancing** | No              | Yes         | Limited    |
-| **Reconnection**   | Process restart | Per-request | Automatic  |
+| Feature            | STDIO           | SSE            | HTTP        |
+| ------------------ | --------------- | -------------- | ----------- |
+| **Latency**        | Lowest          | Low            | Medium      |
+| **Scalability**    | Single machine  | Medium         | High        |
+| **State**          | Process-bound   | Server-push    | Stateless   |
+| **Best For**       | Local dev       | Real-time      | Production  |
+| **Complexity**     | Low             | Medium         | Medium      |
+| **Load Balancing** | No              | Limited        | Yes         |
+| **Reconnection**   | Process restart | Auto-reconnect | Per-request |
 
 ## McpApplication vs Kaizen Agent MCP Client
 
@@ -241,14 +196,14 @@ config = prod_config if os.getenv("ENV") == "production" else dev_config
 | --------- | ----------------------------------- | --------------------------- |
 | Role      | MCP server (serves tools/resources) | MCP client (consumes tools) |
 | Pattern   | `@app.tool()` / `@app.resource()`   | Config dict                 |
-| Transport | STDIO / SSE / HTTP                  | STDIO / HTTP / WebSocket    |
+| Transport | STDIO / SSE / HTTP                  | STDIO / SSE / HTTP          |
 | Best for  | Building MCP servers                | Connecting to MCP servers   |
 
 ## Best Practices
 
 1. **Use STDIO for development** - Fastest iteration, easier debugging
-2. **Use HTTP for production** - Scalable, load-balanced, stateless
-3. **Use WebSocket for streaming** - Real-time data, progress updates
+2. **Use SSE for real-time** - Server-push streaming updates
+3. **Use HTTP for production** - Scalable, load-balanced, stateless
 4. **Always set timeouts** - Prevent hanging connections
 5. **Configure retries** - Handle transient failures gracefully
 6. **Use environment variables** - Keep credentials secure
@@ -273,14 +228,14 @@ Use `mcp-specialist` subagent when:
 ## Quick Tips
 
 - Start with STDIO in development for fastest iteration
-- Switch to HTTP for production deployments
-- Use WebSocket only when real-time bidirectional communication is required
+- Switch to HTTP or SSE for production deployments
+- Use SSE when real-time server-push updates are required
 - Always configure timeouts to prevent hanging
 - Test transport failover scenarios
 
 ## Version Notes
 
 - McpApplication decorator-based server with transport configuration
-- Enhanced MCP transport support across STDIO, HTTP/SSE, and WebSocket
+- Enhanced MCP transport support across STDIO, SSE, and HTTP
 
-<!-- Trigger Keywords: MCP transport, stdio, websocket, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp websocket, transport configuration, mcp deployment, McpApplication transport, SSE transport -->
+<!-- Trigger Keywords: MCP transport, stdio, SSE, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp sse, transport configuration, mcp deployment, McpApplication transport, SSE transport -->

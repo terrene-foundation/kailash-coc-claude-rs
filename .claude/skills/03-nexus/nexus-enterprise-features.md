@@ -20,7 +20,7 @@ JWT, RBAC, tenant isolation, rate limiting, and audit logging into a single plug
 import os
 import kailash
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig
+from kailash.nexus import JwtConfig
 
 # Basic auth (JWT)
 auth = NexusAuthPlugin(
@@ -34,7 +34,7 @@ app.start()
 ### JWT Configuration
 
 ```python
-from kailash import JwtConfig
+from kailash.nexus import JwtConfig
 
 jwt_config = JwtConfig(
     secret_key=os.environ["JWT_SECRET"],      # Must be >= 32 chars for HS256
@@ -52,11 +52,11 @@ jwt_config = JwtConfig(
 import os
 import kailash
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "user"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
     tenant_header="X-Tenant-ID",
 )
 
@@ -72,11 +72,11 @@ RBAC is configured as part of the NexusAuthPlugin.
 import os
 import kailash
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 
@@ -165,11 +165,11 @@ Tenant isolation is configured via the `tenant_header` parameter on NexusAuthPlu
 ```python
 import os
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "user"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
     tenant_header="X-Tenant-ID",       # String header name, NOT a TenantConfig object
 )
 
@@ -184,11 +184,11 @@ app.start()
 ```python
 import os
 from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]}),
     tenant_header="X-Tenant-ID",
 )
 
@@ -219,7 +219,7 @@ app = NexusApp()    # Configure enterprise features via plugins
 ```python
 import os
 from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
+from kailash.nexus import JwtConfig, RbacConfig
 
 def create_production_app():
     auth = NexusAuthPlugin(
@@ -228,7 +228,7 @@ def create_production_app():
             algorithm="HS256",
             issuer="https://auth.company.com",
         ),
-        rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
+        rbac=RbacConfig(roles={"admin": ["*"], "editor": ["content.read", "content.write"], "viewer": ["content.read"]}),
         tenant_header="X-Tenant-ID",
     )
 

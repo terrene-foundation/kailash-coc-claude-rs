@@ -39,7 +39,7 @@ app.add_cors()
 app = NexusApp()
 
 # Enable rate limiting
-app.add_rate_limit(max_requests=100, window_seconds=60)
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
 
 ### Health Check
@@ -75,25 +75,28 @@ def process_data(data: dict, format: str = "json") -> dict:
 
 ## Preset-Based Middleware Configuration
 
-NexusApp uses `NexusConfig` with a `preset` parameter to configure tower middleware stacks server-side. Presets bundle common middleware combinations:
+NexusApp accepts a `preset` parameter to configure tower middleware stacks server-side. Presets bundle common middleware combinations:
 
 ```python
 from kailash.nexus import NexusApp, NexusConfig
 
 # No middleware
-app = NexusApp(config=NexusConfig(preset="none"))
+app = NexusApp(preset="none")
 
 # Lightweight: basic CORS + health check
-app = NexusApp(config=NexusConfig(preset="lightweight"))
+app = NexusApp(preset="lightweight")
 
 # Standard: CORS + rate limiting + health check
-app = NexusApp(config=NexusConfig(preset="standard"))
+app = NexusApp(preset="standard")
 
 # SaaS: Standard + auth + session management
-app = NexusApp(config=NexusConfig(preset="saas"))
+app = NexusApp(preset="saas")
 
 # Enterprise: SaaS + audit logging + tenant isolation
-app = NexusApp(config=NexusConfig(preset="enterprise"))
+app = NexusApp(preset="enterprise")
+
+# With custom config and preset
+app = NexusApp(config=NexusConfig(port=8080), preset="standard")
 ```
 
 ### Preset Middleware Summary
@@ -127,9 +130,9 @@ import os
 import kailash
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(config=NexusConfig(preset="standard"))
+app = NexusApp(preset="standard")
 app.add_cors()
-app.add_rate_limit(max_requests=1000, window_seconds=60)
+app.add_rate_limit(max_requests=1000, window_secs=60)
 app.health_check()
 
 @app.handler()

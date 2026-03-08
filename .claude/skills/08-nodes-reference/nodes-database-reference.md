@@ -23,7 +23,7 @@ import kailash
 #   SQLQueryNode (Production recommended)
 #   DatabaseConnectionNode (Connection pooling)
 #   SQLDatabaseNode (Simple queries)
-#   OptimisticLockingNode (Concurrency control)
+#   SQLTransactionNode (Transaction management)
 ```
 
 ## Production Database Node
@@ -87,23 +87,17 @@ builder.add_node("SQLDatabaseNode", "simple_query", {
 })
 ```
 
-## Concurrency Control
+## Transaction Management
 
-### OptimisticLockingNode ⭐
+### SQLTransactionNode
 
 ```python
 import kailash
 
-# Version-based concurrency control
-builder.add_node("OptimisticLockingNode", "lock", {
-    "version_field": "version",
-    "max_retries": 3,
-    "default_conflict_resolution": "retry",
-    "action": "update_with_version",
-    "table_name": "users",
-    "record_id": 123,
-    "update_data": {"name": "John Updated"},
-    "expected_version": 5
+# SQL transaction management
+builder.add_node("SQLTransactionNode", "txn", {
+    "operation": "begin",
+    "isolation_level": "serializable"
 })
 ```
 

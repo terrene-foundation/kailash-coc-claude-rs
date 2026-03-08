@@ -17,7 +17,7 @@ Common misunderstandings and mistakes when using DataFlow, with solutions.
 
 - **✅ Docker**: `auto_migrate=True` works! DataFlow handles DDL internally
 - **⚠️ In-Memory SQLite**: `:memory:` databases use lazy creation (sync DDL skipped)
-- **🚨 Sync methods in async context (DF-501)**: Use `create_tables_async()` if needed
+- **🚨 Sync methods in async context (DF-501)**: Use `create_tables()` from sync context
 - **🚨 Timestamp fields auto-stripped**: `created_at`/`updated_at` auto-removed with warning
 - **🔇 Logging configuration**: Use `LoggingConfig` for clean logs - `db = kailash.DataFlow(..., log_config=LoggingConfig.production())`
 - **soft_delete auto-filters**: Use `include_deleted=True` to see deleted records
@@ -45,7 +45,7 @@ async def update(self, id: str, data: dict) -> dict:
     now = datetime.now(UTC).isoformat()
     data["updated_at"] = now  # ⚠️ Auto-stripped with warning
 
-    builder.add_node("ModelUpdateNode", "update", {
+    builder.add_node("UpdateModel", "update", {
         "filter": {"id": id},
         "fields": data  # ✅ Works! updated_at is auto-stripped
     })
@@ -67,7 +67,7 @@ Remove timestamp fields from your code entirely:
 # ✅ BEST PRACTICE - No timestamp management needed
 async def update(self, id: str, data: dict) -> dict:
     # Don't set timestamps - DataFlow handles it
-    builder.add_node("ModelUpdateNode", "update", {
+    builder.add_node("UpdateModel", "update", {
         "filter": {"id": id},
         "fields": data  # DataFlow sets updated_at automatically
     })
@@ -82,72 +82,51 @@ async def update(self, id: str, data: dict) -> dict:
 
 ---
 
-### 🚨 #2: Sync Methods in Async Context (DF-501) ⚠️ CRITICAL
+### 🚨 #2: Table Creation and Cleanup
 
-**This error occurs when using DataFlow in pytest-asyncio or any async framework!**
+DataFlow provides sync methods for table creation and connection cleanup.
 
-```
-RuntimeError: DF-501: Sync Method in Async Context
+#### Methods Available
 
-You called create_tables() from an async context (running event loop detected).
-Use create_tables_async() instead.
-```
+| Method            | Purpose                      | When to Use           |
+| ----------------- | ---------------------------- | --------------------- |
+| `create_tables()` | Create tables for all models | After defining models |
+| `close()`         | Close connection pool        | On shutdown / cleanup |
 
-#### The Problem
-
-```python
-# ❌ WRONG - Sync method in async context
-async def startup():
-    db.create_tables()  # RuntimeError: DF-501!
-
-# ❌ WRONG - In pytest async fixture
-@pytest.fixture
-async def db_fixture():
-    db = kailash.DataFlow(":memory:")
-    db.create_tables()  # RuntimeError: DF-501!
-    yield db
-    db.close()  # Also fails!
-```
-
-#### The Fix
+#### Usage
 
 ```python
-# ✅ CORRECT - Use async methods in async context
-async def startup():
-    await db.create_tables_async()
+# ✅ CORRECT - Sync methods for lifecycle management
+db = kailash.DataFlow(":memory:")
 
-# ✅ CORRECT - pytest async fixtures
+@db.model
+class User:
+    id: str
+    name: str
+
+db.create_tables()  # Create tables
+
+# ... use db ...
+
+db.close()  # Cleanup
+```
+
+#### pytest Fixtures
+
+```python
 @pytest.fixture
-async def db_fixture():
+def db_fixture():
     db = kailash.DataFlow(":memory:")
     @db.model
     class User:
         id: str
         name: str
-    await db.create_tables_async()
+    db.create_tables()
     yield db
-    await db.close_async()
-```
-
-#### Async Methods Available
-
-| Sync Method                  | Async Method                       | When to Use                      |
-| ---------------------------- | ---------------------------------- | -------------------------------- |
-| `create_tables()`            | `create_tables_async()`            | Table creation in async contexts |
-| `close()`                    | `close_async()`                    | Connection cleanup               |
-| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Migration system                 |
-
-#### Sync Context Still Works
-
-```python
-# ✅ Sync methods work in sync context (CLI, scripts)
-if __name__ == "__main__":
-    db = kailash.DataFlow(":memory:")
-    db.create_tables()  # Works in sync context
     db.close()
 ```
 
-**Impact**: Immediate `RuntimeError` with clear message. Use async methods in async contexts.
+**Impact**: Use `auto_migrate=True` (the default) to skip manual `create_tables()` calls.
 
 ---
 
@@ -177,7 +156,7 @@ app = NexusApp()
 @app.handler()
 def create_user(name: str, email: str):
     builder = kailash.WorkflowBuilder()
-    builder.add_node("UserCreateNode", "create", {"name": name, "email": email})
+    builder.add_node("CreateUser", "create", {"name": name, "email": email})
     rt = kailash.Runtime(reg)
     return rt.execute(builder.build(reg))
 ```
@@ -227,7 +206,7 @@ Python treats empty dict `{}` as falsy, causing incorrect behavior in filter ope
 
 ```python
 # This would return ALL records instead of filtered records in older versions
-builder.add_node("UserListNode", "query", {
+builder.add_node("ListUser", "query", {
     "filter": {"status": {"$ne": "inactive"}}
 })
 # Expected: 2 users (active only)
@@ -310,14 +289,12 @@ class User:
 
 ```python
 # WRONG - Applying CreateNode pattern to UpdateNode
-builder.add_node("UserUpdateNode", "update", {
-    "db_instance": "my_db",
-    "model_name": "User",
+builder.add_node("UpdateUser", "update", {
     "id": "user_001",  # ❌ Individual fields don't work for UpdateNode
     "name": "Alice",
     "status": "active"
 })
-# Error: "column user_id does not exist" (misleading!)
+# Error: "UpdateNode requires 'filter' and 'fields' parameters"
 ```
 
 **Why**: CreateNode and UpdateNode use FUNDAMENTALLY DIFFERENT patterns:
@@ -329,18 +306,14 @@ builder.add_node("UserUpdateNode", "update", {
 
 ```python
 # CreateNode: FLAT individual fields
-builder.add_node("UserCreateNode", "create", {
-    "db_instance": "my_db",
-    "model_name": "User",
+builder.add_node("CreateUser", "create", {
     "id": "user_001",  # ✅ Individual fields
     "name": "Alice",
     "email": "alice@example.com"
 })
 
 # UpdateNode: NESTED filter + fields
-builder.add_node("UserUpdateNode", "update", {
-    "db_instance": "my_db",
-    "model_name": "User",
+builder.add_node("UpdateUser", "update", {
     "filter": {"id": "user_001"},  # ✅ Which records
     "fields": {"name": "Alice Updated"}  # ✅ What to change
     # ⚠️ Do NOT include created_at or updated_at - auto-managed!
@@ -353,7 +326,7 @@ builder.add_node("UserUpdateNode", "update", {
 
 ```python
 # WRONG - Including auto-managed fields
-builder.add_node("UserUpdateNode", "update", {
+builder.add_node("UpdateUser", "update", {
     "filter": {"id": "user_001"},
     "fields": {
         "name": "Alice",
@@ -369,7 +342,7 @@ builder.add_node("UserUpdateNode", "update", {
 
 ```python
 # CORRECT - Omit auto-managed fields
-builder.add_node("UserUpdateNode", "update", {
+builder.add_node("UpdateUser", "update", {
     "filter": {"id": "user_001"},
     "fields": {
         "name": "Alice"  # ✅ Only your fields
@@ -401,7 +374,7 @@ user.save()  # FAILS - no save() method
 
 ```python
 builder = kailash.WorkflowBuilder()
-builder.add_node("UserCreateNode", "create", {
+builder.add_node("CreateUser", "create", {
     "name": "John"  # Correct pattern
 })
 ```
@@ -410,7 +383,7 @@ builder.add_node("UserCreateNode", "create", {
 
 ```python
 # WRONG - ${} conflicts with PostgreSQL
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "customer_id": "${create_customer.id}"  # FAILS with PostgreSQL
 })
 ```
@@ -418,7 +391,7 @@ builder.add_node("OrderCreateNode", "create", {
 **Fix: Use Workflow Connections**
 
 ```python
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "total": 100.0
 })
 builder.connect("create_customer", "id", "create", "customer_id")
@@ -449,7 +422,7 @@ app = NexusApp(NexusConfig(port=3000))
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("ProductCreateNode", "create", {"name": "${input.name}"})
+builder.add_node("CreateProduct", "create", {"name": "${input.name}"})
 app.register("create_product", builder.build(reg))
 ```
 
@@ -489,22 +462,22 @@ class Patient:
     # Soft delete: DataFlow auto-filters by deleted_at IS NULL
 
 # ✅ Auto-filters by default - excludes soft-deleted records
-builder.add_node("PatientListNode", "list", {"filter": {}})
+builder.add_node("ListPatient", "list", {"filter": {}})
 # Returns ONLY non-deleted patients (deleted_at IS NULL)
 
 # ✅ To include soft-deleted records, use include_deleted=True
-builder.add_node("PatientListNode", "list_all", {
+builder.add_node("ListPatient", "list_all", {
     "filter": {},
     "include_deleted": True  # Returns ALL patients including deleted
 })
 
 # Also works with ReadNode and CountNode
-builder.add_node("PatientReadNode", "read", {
+builder.add_node("ReadPatient", "read", {
     "id": "patient-123",
     "include_deleted": True  # Return even if soft-deleted
 })
 
-builder.add_node("PatientCountNode", "count_active", {
+builder.add_node("CountPatient", "count_active", {
     "filter": {"status": "active"},
     # Automatically excludes soft-deleted (no need to add deleted_at filter)
 })
@@ -525,12 +498,12 @@ DataFlow supports TWO sorting formats:
 
 ```python
 # Format 1: order_by with prefix for direction
-builder.add_node("UserListNode", "list", {
+builder.add_node("ListUser", "list", {
     "order_by": ["-created_at", "name"]  # - prefix = DESC
 })
 
 # Format 2: sort with explicit structure
-builder.add_node("UserListNode", "list", {
+builder.add_node("ListUser", "list", {
     "sort": [
         {"field": "created_at", "order": "desc"},
         {"field": "name", "order": "asc"}
@@ -538,7 +511,7 @@ builder.add_node("UserListNode", "list", {
 })
 
 # Format 3: order_by with dict structure
-builder.add_node("UserListNode", "list", {
+builder.add_node("ListUser", "list", {
     "order_by": [{"created_at": -1}, {"name": 1}]  # -1 = DESC, 1 = ASC
 })
 ```
@@ -553,7 +526,7 @@ builder.add_node("UserListNode", "list", {
 class Session:
     id: str  # String IDs were converted to int in older versions
 
-builder.add_node("SessionReadNode", "read", {
+builder.add_node("ReadSession", "read", {
     "id": "session-uuid-string"  # Failed in older versions
 })
 ```
@@ -566,7 +539,7 @@ builder.add_node("SessionReadNode", "read", {
 class Session:
     id: str  # Fully supported
 
-builder.add_node("SessionReadNode", "read", {
+builder.add_node("ReadSession", "read", {
     "id": "session-uuid-string"  # Works perfectly
 })
 ```
@@ -597,7 +570,7 @@ class Article:
 # HISTORICAL ISSUE (now fixed)
 from datetime import datetime
 
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "due_date": datetime.now().isoformat()  # String failed validation in older versions
 })
 ```
@@ -607,7 +580,7 @@ builder.add_node("OrderCreateNode", "create", {
 ```python
 from datetime import datetime
 
-builder.add_node("OrderCreateNode", "create", {
+builder.add_node("CreateOrder", "create", {
     "due_date": datetime.now()  # Native datetime works
 })
 ```

@@ -19,19 +19,20 @@ Complete reference for monitoring and observability nodes.
 import kailash
 
 # All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available monitoring nodes: TransactionMetricsNode, TransactionMonitorNode,
+# Available monitoring nodes: MetricsCollectorNode, TransactionMonitorNode,
 #   DeadlockDetectorNode, RaceConditionDetectorNode, PerformanceAnomalyNode
 ```
 
 ## Transaction Metrics
 
-### TransactionMetricsNode
+### MetricsCollectorNode
+
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("TransactionMetricsNode", "metrics", {
+builder.add_node("MetricsCollectorNode", "metrics", {
     "operation": "collect",
     "transaction_id": "txn_123",
     "metrics": {
@@ -44,6 +45,7 @@ builder.add_node("TransactionMetricsNode", "metrics", {
 ## Real-Time Monitoring
 
 ### TransactionMonitorNode
+
 ```python
 builder.add_node("TransactionMonitorNode", "monitor", {
     "operation": "trace",
@@ -58,6 +60,7 @@ builder.add_node("TransactionMonitorNode", "monitor", {
 ## Issue Detection
 
 ### DeadlockDetectorNode
+
 ```python
 builder.add_node("DeadlockDetectorNode", "deadlock_check", {
     "operation": "detect",
@@ -66,6 +69,7 @@ builder.add_node("DeadlockDetectorNode", "deadlock_check", {
 ```
 
 ### RaceConditionDetectorNode
+
 ```python
 builder.add_node("RaceConditionDetectorNode", "race_check", {
     "operation": "analyze",
@@ -74,6 +78,7 @@ builder.add_node("RaceConditionDetectorNode", "race_check", {
 ```
 
 ### PerformanceAnomalyNode
+
 ```python
 builder.add_node("PerformanceAnomalyNode", "anomaly_check", {
     "operation": "detect",
@@ -86,4 +91,4 @@ builder.add_node("PerformanceAnomalyNode", "anomaly_check", {
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: monitoring node, metrics, alerts, deadlock detection, performance monitoring, TransactionMetricsNode -->
+<!-- Trigger Keywords: monitoring node, metrics, alerts, deadlock detection, performance monitoring, MetricsCollectorNode -->

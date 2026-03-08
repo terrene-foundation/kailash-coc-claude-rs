@@ -15,7 +15,7 @@ Define MCP tools with JSON Schema validation for reliable parameter handling.
 
 ## Architecture Note
 
-MCP tool schemas are defined on MCP servers (built with `McpApplication` or `kailash.MCPServer`). MCP client connections for tool discovery and execution are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
+MCP tool schemas are defined on MCP servers (built with `McpApplication` or `McpServer`). MCP client connections for tool discovery and execution are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
 
 For workflow-level tool calling, `LLMNode` supports the `tools` parameter with standard function-calling tool definitions. Provider is auto-detected from the model name.
 

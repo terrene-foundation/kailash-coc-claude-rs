@@ -51,23 +51,28 @@ builder.connect("status_router", "data", "next_step", "input")
 # status_router "matched" output contains the branch name string
 ```
 
-### ConditionalNode (True/False Branching)
+### ConditionalNode (Value Selection)
 
-For simple true/false branching, use **ConditionalNode** instead of SwitchNode:
+ConditionalNode selects between two values based on a boolean condition. It has THREE inputs (`condition`, `if_value`, `else_value`) and ONE output (`result`):
 
 ```python
 import kailash
 
 builder = kailash.WorkflowBuilder()
 
-builder.add_node("ConditionalNode", "router", {
-    "condition": "score >= 80"
-})
+# ConditionalNode: no config needed. Inputs: condition, if_value, else_value. Output: result.
+builder.add_node("ConditionalNode", "router", {})
 
-# ConditionalNode outputs: "true_output" and "false_output"
-builder.connect("router", "true_output", "high_processor", "data")
-builder.connect("router", "false_output", "low_processor", "data")
+# Connect the boolean condition and two candidate values
+builder.connect("source", "is_high", "router", "condition")
+builder.connect("source", "high_msg", "router", "if_value")
+builder.connect("source", "low_msg", "router", "else_value")
+
+# ConditionalNode outputs "result" (the selected value), NOT "true_output"/"false_output"
+builder.connect("router", "result", "next_step", "data")
 ```
+
+For multi-branch routing to different handlers, use **SwitchNode** instead (see above).
 
 ## Merge Node
 
