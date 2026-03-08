@@ -5,80 +5,126 @@ Save and restore agent state using `AgentCheckpoint` and checkpoint storage back
 ## API
 
 ```python
-from kailash.kaizen import AgentCheckpoint
-from kailash.kaizen import InMemoryCheckpointStorage, FileCheckpointStorage
+from kailash import AgentCheckpoint, InMemoryCheckpointStorage, FileCheckpointStorage
+
+# Create a checkpoint
+checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-5"))
+
+# Fields:
+# - checkpoint_id: str         (UUID v4, auto-generated)
+# - agent_name: str
+# - model: str
+# - conversation: list         (empty by default)
+# - memory_snapshot: dict      (empty by default)
+# - tool_state: dict           (empty by default)
+# - created_at: str            (ISO 8601, auto-generated)
+# - metadata: dict             (empty by default)
+
+# Populate fields
+checkpoint.memory_snapshot = {"context": "market research"}
+checkpoint.metadata = {"progress": 0.5, "step": "analysis"}
 ```
 
-## AgentCheckpoint
+## InMemoryCheckpointStorage
+
+Dict-backed storage for testing and development. Data is lost when the process exits.
 
 ```python
-cp = AgentCheckpoint("my_agent", os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
-```
+storage = InMemoryCheckpointStorage()
 
-| Property          | Type         | Description                                         |
-| ----------------- | ------------ | --------------------------------------------------- |
-| `checkpoint_id`   | str          | Auto-generated UUID                                 |
-| `agent_name`      | str          | Agent name                                          |
-| `model`           | str          | Model name                                          |
-| `created_at`      | str          | ISO timestamp                                       |
-| `memory_snapshot` | dict or None | Snapshot of agent memory (None on fresh checkpoint) |
-| `metadata`        | dict         | Additional metadata (empty dict by default)         |
-| `tool_state`      | dict or None | Tool state snapshot (None on fresh checkpoint)      |
+# Save
+checkpoint = AgentCheckpoint("assistant", os.environ.get("LLM_MODEL", "gpt-5"))
+checkpoint_id = storage.save(checkpoint)
 
-| Method      | Returns | Description       |
-| ----------- | ------- | ----------------- |
-| `to_json()` | str     | Serialize to JSON |
-
-## Storage Backends
-
-### InMemoryCheckpointStorage
-
-```python
-store = InMemoryCheckpointStorage()
-
-# Save checkpoint
-cp = AgentCheckpoint("my_agent", os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
-store.save(cp)
-
-# Load by checkpoint_id
-loaded = store.load(cp.checkpoint_id)
+# Load
+restored = storage.load(checkpoint_id)
+assert restored.agent_name == "assistant"
 
 # List all checkpoints for an agent
-checkpoints = store.list("my_agent")  # returns list
+all_checkpoints = storage.list("assistant")
+assert len(all_checkpoints) == 1
 
 # Delete
-store.delete(cp.checkpoint_id)
-
-# IMPORTANT: load() after delete raises RuntimeError, NOT returns None
-try:
-    store.load(cp.checkpoint_id)
-except RuntimeError:
-    print("Checkpoint not found (expected)")
+storage.delete(checkpoint_id)
 ```
 
-### FileCheckpointStorage
+## FileCheckpointStorage
+
+JSON file-backed storage. Each checkpoint is stored as `{base_dir}/{checkpoint_id}.json`.
 
 ```python
-store = FileCheckpointStorage("/path/to/checkpoints")
+storage = FileCheckpointStorage("/tmp/agent-checkpoints")
 
-# Same API as InMemoryCheckpointStorage
-store.save(cp)
-loaded = store.load(cp.checkpoint_id)
-checkpoints = store.list("my_agent")
-store.delete(cp.checkpoint_id)
+# Save
+checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-5"))
+checkpoint.metadata = {"task": "market research"}
+checkpoint_id = storage.save(checkpoint)
+
+# Load
+restored = storage.load(checkpoint_id)
+
+# List
+checkpoints = storage.list("researcher")
+
+# Delete
+storage.delete(checkpoint_id)
 ```
 
-## Storage Methods
+## AgentInterrupt
 
-| Method                  | Description                                    |
-| ----------------------- | ---------------------------------------------- |
-| `save(checkpoint)`      | Save checkpoint                                |
-| `load(checkpoint_id)`   | Load by ID; raises `RuntimeError` if not found |
-| `list(agent_name)`      | List all checkpoints for agent                 |
-| `delete(checkpoint_id)` | Delete checkpoint                              |
+Thread-safe interrupt mechanism for graceful agent shutdown.
 
-## Limitations
+```python
+from kailash import AgentInterrupt
 
-- No `StateManager` wrapper (use storage directly)
-- No compression or retention policies
-- No checkpoint hooks integration (manual save/load)
+interrupt = AgentInterrupt()
+
+# Check state
+assert not interrupt.is_interrupted()
+
+# Register a callback
+interrupt.on_interrupt(lambda: print("interrupted!"))
+
+# Fire the interrupt
+interrupt.request_interrupt()
+assert interrupt.is_interrupted()
+
+# Clear
+interrupt.clear()
+assert not interrupt.is_interrupted()
+
+# Graceful shutdown with timeout
+interrupt.request_graceful_shutdown(timeout_seconds=30)
+
+# Chain interrupts
+parent = AgentInterrupt()
+child = AgentInterrupt()
+parent.chain(child)
+parent.request_interrupt()
+assert child.is_interrupted()
+```
+
+### Key Behaviors
+
+- **Fire-once callbacks**: Callbacks run exactly once, even if `request_interrupt()` is called multiple times
+- **Chaining**: `parent.chain(child)` -- when parent fires, child fires too
+- **Graceful shutdown**: `request_graceful_shutdown(timeout)` spawns a thread that waits then fires
+
+## Integration Pattern
+
+```python
+# After each agent task completion, save a checkpoint
+async def save_agent_state(storage, agent_name, model, conversation, memory):
+    checkpoint = AgentCheckpoint(agent_name, model)
+    checkpoint.conversation = conversation
+    checkpoint.memory_snapshot = memory
+    return storage.save(checkpoint)
+
+# Resume from most recent checkpoint
+async def resume_agent(storage, agent_name):
+    checkpoints = storage.list(agent_name)
+    checkpoints.sort(key=lambda c: c.created_at, reverse=True)
+    return checkpoints[0] if checkpoints else None
+```
+
+<!-- Trigger Keywords: checkpoint, agent resume, restore agent, save agent, agent state, CheckpointStorage, AgentCheckpoint, AgentInterrupt, graceful shutdown -->

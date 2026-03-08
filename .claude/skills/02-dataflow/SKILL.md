@@ -1,6 +1,6 @@
 ---
 name: dataflow
-description: "Kailash DataFlow - zero-config database framework with automatic model-to-node generation. Use when asking about 'database operations', 'DataFlow', 'database models', 'CRUD operations', 'bulk operations', 'database queries', 'database migrations', 'multi-tenancy', 'multi-instance', 'database transactions', 'PostgreSQL', 'MySQL', 'SQLite', 'MongoDB', 'pgvector', 'vector search', 'document database', 'RAG', 'semantic search', 'existing database', 'database performance', 'database deployment', 'database testing', or 'TDD with databases'. DataFlow is NOT an ORM - it generates 11 workflow nodes per SQL model, 8 nodes for MongoDB, and 3 nodes for vector operations."
+description: "Kailash DataFlow - zero-config database framework with automatic model-to-node generation. Use when asking about 'database operations', 'DataFlow', 'database models', 'CRUD operations', 'bulk operations', 'database queries', 'database migrations', 'multi-tenancy', 'database transactions', 'PostgreSQL', 'MySQL', 'SQLite', or 'TDD with databases'. DataFlow is NOT an ORM - it generates 11 workflow nodes per model."
 ---
 
 # Kailash DataFlow - Zero-Config Database Framework
@@ -9,78 +9,101 @@ DataFlow is a zero-config database framework built on Kailash Core SDK that auto
 
 ## Overview
 
-- **Automatic Node Generation**: 11 nodes per model (@db.model decorator)
-- **Multi-Database Support**: PostgreSQL, MySQL, SQLite (SQL) + MongoDB (Document) + pgvector (Vector Search)
-- **Enterprise Features**: Multi-tenancy, multi-instance isolation, transactions
-- **Zero Configuration**: String IDs preserved, deferred schema operations
-- **Developer Experience**: Enhanced errors (DF-XXX codes), strict mode validation, debug agent, CLI tools
+- **Automatic Node Generation**: 11 nodes per model
+- **Multi-Database Support**: PostgreSQL, MySQL, SQLite via sqlx (Rust engine)
+- **Enterprise Features**: Multi-tenancy, transactions, query interceptors
+- **Zero Configuration**: Auto-dialect detection from connection URL
+- **Two Usage Modes**: Node-based (via WorkflowBuilder) or direct CRUD (via DataFlowExpress)
 
 ## Quick Start
 
-DataFlow nodes follow the **canonical 4-parameter pattern** from `/01-core-sdk`.
-
 ```python
 import kailash
+from kailash.dataflow import db, F, with_tenant
 
+# Connect to database
+df = kailash.DataFlow("sqlite::memory:")
+
+# Define model using ModelDefinition
+model = kailash.ModelDefinition("User", "users")
+model.field("id", kailash.FieldType.integer(), primary_key=True)
+model.field("name", kailash.FieldType.text(), required=True)
+model.field("email", kailash.FieldType.text(), required=True, unique=True)
+model.field("age", kailash.FieldType.integer(), nullable=True)
+model.auto_timestamps()
+
+# Register model
+df.register_model(model)
+
+# Register generated nodes
 reg = kailash.NodeRegistry()
-
-# Initialize DataFlow
-df = kailash.DataFlow("postgresql://user:pass@localhost/db")
-
-# Define model (generates 11 nodes automatically)
-@df.model
-class User:
-    id: str  # String IDs preserved
-    name: str
-    email: str
+df.register_nodes(reg)
 
 # Use generated nodes in workflows
 builder = kailash.WorkflowBuilder()
-builder.add_node("User_Create", "create_user", {
-    "data": {"name": "John", "email": "john@example.com"}
-})
+builder.add_node("CreateUser", "create_user", {})
 
-# Execute with context manager (recommended for resource cleanup)
+# Execute
 rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    user_id = result["results"]["create_user"]["result"]  # Access pattern
+result = rt.execute(builder.build(reg), {
+    "name": "Alice",
+    "email": "alice@example.com"
+})
+user = result["results"]["create_user"]
+```
+
+### Python Decorator Approach
+
+The `@db.model` decorator provides a Pythonic interface:
+
+```python
+from kailash.dataflow import db, F, with_tenant
+
+@db.model
+class User:
+    id: int
+    name: str
+    email: str
+
+# Filter builder
+users = db.query("User", F.name == "Alice")
+
+# Multi-tenancy
+with with_tenant("tenant-123"):
+    users = db.query("User")
 ```
 
 ## Generated Nodes (11 per model)
 
-Each `@db.model` class generates:
+Each model generates:
 
-1. `{Model}_Create` - Create single record
-2. `{Model}_Read` - Read by ID
-3. `{Model}_Update` - Update record
-4. `{Model}_Delete` - Delete record
-5. `{Model}_List` - List with filters
-6. `{Model}_Upsert` - Insert or update (atomic)
-7. `{Model}_Count` - Efficient COUNT(\*) queries
-8. `{Model}_BulkCreate` - Bulk insert
-9. `{Model}_BulkUpdate` - Bulk update
-10. `{Model}_BulkDelete` - Bulk delete
-11. `{Model}_BulkUpsert` - Bulk upsert
+1. `Create{Model}` - INSERT one record (flat writable fields as input)
+2. `Read{Model}` - SELECT one by primary key
+3. `Update{Model}` - UPDATE with `filter` + `fields` inputs
+4. `Delete{Model}` - DELETE (or soft-delete) by primary key
+5. `List{Model}` - SELECT with filters, ordering, pagination
+6. `Upsert{Model}` - INSERT or UPDATE on conflict
+7. `Count{Model}` - SELECT COUNT with optional filter
+8. `BulkCreate{Model}` - Batch INSERT (input: `items` array)
+9. `BulkUpdate{Model}` - Batch UPDATE (input: array of `{filter, fields}`)
+10. `BulkDelete{Model}` - Batch DELETE (input: `ids` array or `filter`)
+11. `BulkUpsert{Model}` - Batch INSERT or UPDATE
 
 ## Critical Rules
 
-- ✅ String IDs preserved (no UUID conversion)
-- ✅ Deferred schema operations (safe for Docker)
-- ✅ Multi-instance isolation (one DataFlow per database)
-- ✅ Result access: `results["node_id"]["result"]`
-- ❌ NEVER use truthiness checks on filter/data parameters (empty dict `{}` is falsy)
-- ❌ ALWAYS use key existence checks: `if "filter" in kwargs` instead of `if kwargs.get("filter")`
-- ❌ NEVER use direct SQL when DataFlow nodes exist
-- ❌ NEVER use SQLAlchemy/Django ORM alongside DataFlow
+- NEVER manually set `created_at` or `updated_at` -- they are auto-managed
+- `CreateUser` uses FLAT params (not nested objects)
+- Primary key field must use `primary_key=True` in the builder
+- `soft_delete` marks records deleted AND filters them from READ/LIST
+- DataFlow is NOT an ORM -- it generates workflow nodes
+- All queries use parameterized placeholders (never string interpolation)
 
 ## Reference Documentation
 
 ### Getting Started
 
 - **[dataflow-quickstart](dataflow-quickstart.md)** - Quick start guide
-- **[dataflow-installation](dataflow-installation.md)** - Installation and setup
-- **[dataflow-models](dataflow-models.md)** - Defining models with @db.model
-- **[dataflow-connection-config](dataflow-connection-config.md)** - Database connection
+- **[dataflow-models](dataflow-models.md)** - Defining models with ModelDefinition
 
 ### Core Operations
 
@@ -88,74 +111,49 @@ Each `@db.model` class generates:
 - **[dataflow-queries](dataflow-queries.md)** - Query patterns and filtering
 - **[dataflow-bulk-operations](dataflow-bulk-operations.md)** - Batch operations
 - **[dataflow-transactions](dataflow-transactions.md)** - Transaction management
-- **[dataflow-connection-isolation](dataflow-connection-isolation.md)** - ⚠️ CRITICAL: ACID guarantees
 
 ### Advanced Features
 
-- **[dataflow-multi-instance](dataflow-multi-instance.md)** - Multiple database instances
 - **[dataflow-multi-tenancy](dataflow-multi-tenancy.md)** - Multi-tenant architectures
-- **[dataflow-existing-database](dataflow-existing-database.md)** - Working with existing databases
-- **[dataflow-custom-nodes](dataflow-custom-nodes.md)** - Custom database nodes
-
-### Developer Experience Tools
-
-- **[dataflow-cli-commands](dataflow-cli-commands.md)** - CLI validation and analysis commands
 - **[dataflow-gotchas](dataflow-gotchas.md)** - Common pitfalls and solutions
-
-### Troubleshooting
-
-- **[dataflow-troubleshooting](dataflow-troubleshooting.md)** - Error messages, diagnostics, Rust binding differences
-- **[dataflow-gotchas](dataflow-gotchas.md)** - Common pitfalls
 
 ## Database Support Matrix
 
-| Database   | Type   | Nodes/Model | Driver          |
-| ---------- | ------ | ----------- | --------------- |
-| PostgreSQL | SQL    | 11          | sqlx            |
-| MySQL      | SQL    | 11          | sqlx            |
-| SQLite     | SQL    | 11          | sqlx            |
-| pgvector   | Vector | 3           | sqlx + pgvector |
+| Database   | Nodes/Model | URL Format                       |
+| ---------- | ----------- | -------------------------------- |
+| SQLite     | 11          | `sqlite::memory:`, `sqlite:f.db` |
+| PostgreSQL | 11          | `postgres://user:pass@host/db`   |
+| MySQL      | 11          | `mysql://user:pass@host/db`      |
 
-**Not an ORM**: DataFlow generates workflow nodes, not ORM models. Uses string-based result access and integrates with Kailash's workflow execution model.
+Dialect is auto-detected via the connection URL.
 
 ## Integration Patterns
 
 ### With Nexus (Multi-Channel)
 
 ```python
-from kailash.nexus import NexusApp, NexusConfig
+from kailash.nexus import NexusApp
 import kailash
 
-df = kailash.DataFlow("...")
-@df.model
-class User:
-    id: str
-    name: str
+df = kailash.DataFlow("postgresql://user:pass@localhost/db")
+model = kailash.ModelDefinition("User", "users")
+model.field("id", kailash.FieldType.integer(), primary_key=True)
+model.field("name", kailash.FieldType.text(), required=True)
+df.register_model(model)
 
-# Register DataFlow operations as Nexus handlers
-app = NexusApp(config=NexusConfig(port=8000))
+app = NexusApp()
 
-@app.handler(name="create_user", description="Create a user")
+@app.handler("create_user")
 async def create_user(name: str) -> dict:
     reg = kailash.NodeRegistry()
+    df.register_nodes(reg)
     builder = kailash.WorkflowBuilder()
-    builder.add_node("User_Create", "create", {"data": {"name": name}})
+    builder.add_node("CreateUser", "create", {})
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["create"]["result"]
+    result = rt.execute(builder.build(reg), {"name": name})
+    return result["results"]["create"]
 
-app.start()  # Multi-channel platform (API + CLI + MCP)
-```
-
-### With Core SDK (Custom Workflows)
-
-```python
-import kailash
-
-df = kailash.DataFlow("...")
-# Use db-generated nodes in custom workflows
-builder = kailash.WorkflowBuilder()
-builder.add_node("User_Create", "user1", {...})
+app.start()
 ```
 
 ## When to Use This Skill
@@ -166,12 +164,11 @@ Use DataFlow when you need to:
 - Generate CRUD APIs automatically (with Nexus)
 - Implement multi-tenant systems
 - Work with existing databases
-- Build database-first applications
 - Handle bulk data operations
 
 ## Related Skills
 
-- **[01-core-sdk](../01-core-sdk/SKILL.md)** - Core workflow patterns (canonical node pattern)
+- **[01-core-sdk](../01-core-sdk/SKILL.md)** - Core workflow patterns
 - **[03-nexus](../03-nexus/SKILL.md)** - Multi-channel deployment
 - **[04-kaizen](../04-kaizen/SKILL.md)** - AI agent integration
 - **[17-gold-standards](../17-gold-standards/SKILL.md)** - Best practices
@@ -181,5 +178,5 @@ Use DataFlow when you need to:
 For DataFlow-specific questions, invoke:
 
 - `dataflow-specialist` - DataFlow implementation and patterns
-- `testing-specialist` - DataFlow testing strategies (NO MOCKING policy)
+- `testing-specialist` - DataFlow testing strategies
 - `framework-advisor` - Choose between Core SDK and DataFlow

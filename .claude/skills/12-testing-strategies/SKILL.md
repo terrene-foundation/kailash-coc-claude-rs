@@ -22,11 +22,11 @@ Kailash testing philosophy:
 ### Core Strategy
 
 - **[test-3tier-strategy](test-3tier-strategy.md)** - Complete 3-tier testing guide
-  - Tier 1: Unit Tests (mocking allowed)
+  - Tier 1: Unit Tests (test doubles allowed)
   - Tier 2: Integration Tests (NO MOCKING)
   - Tier 3: End-to-End Tests (NO MOCKING)
   - Test organization
-  - Fixture patterns
+  - Helper function patterns
   - CI/CD integration
 
 ## 3-Tier Testing Strategy
@@ -34,56 +34,70 @@ Kailash testing philosophy:
 ### Tier 1: Unit Tests
 
 **Scope**: Individual functions and classes
-**Mocking**: ✅ Allowed
+**Mocking**: Allowed (test doubles, fakes)
 **Speed**: Fast (< 1s per test)
 
 ```python
-def test_workflow_builder():
-    """Test workflow builder logic (no execution)."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node1", {})
+import kailash
 
+def test_workflow_builder():
     reg = kailash.NodeRegistry()
-    built = builder.build(reg)
-    assert built.node_count() == 1
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("LogNode", "node1", {})
+    wf = builder.build(reg)
+    assert wf is not None
 ```
 
 ### Tier 2: Integration Tests
 
 **Scope**: Component integration (workflows, database, APIs)
-**Mocking**: ❌ NO MOCKING
+**Mocking**: NO MOCKING
 **Speed**: Medium (1-10s per test)
 
 ```python
-def test_dataflow_crud(db: kailash.DataFlow):
-    """Test kailash.DataFlow CRUD with real database."""
-    # Uses real PostgreSQL/SQLite
-    reg = kailash.NodeRegistry()
-    workflow = db.create_workflow("User_Create", {...})
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+import kailash
+import os
+import pytest
 
-    # Verify in actual database
-    assert result["results"]["create"]["result"] is not None
+@pytest.mark.integration
+def test_dataflow_crud():
+    db_url = os.environ["DATABASE_URL"]
+
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLQueryNode", "create", {
+        "connection_string": db_url,
+        "query": "INSERT INTO users (name) VALUES ($1) RETURNING id",
+        "parameters": ["Test"],
+    })
+
+    wf = builder.build(reg)
+    rt = kailash.Runtime(reg)
+    result = rt.execute(wf)
+
+    assert "create" in result["results"]
 ```
 
 ### Tier 3: End-to-End Tests
 
 **Scope**: Complete user workflows
-**Mocking**: ❌ NO MOCKING
+**Mocking**: NO MOCKING
 **Speed**: Slow (10s+ per test)
 
 ```python
-def test_user_registration_flow(nexus: Nexus):
-    """Test complete user flow via Nexus API."""
-    # Real HTTP request to actual API
-    response = requests.post("http://localhost:8000/api/register", json={
+import requests
+import pytest
+
+@pytest.mark.e2e
+def test_user_registration_flow():
+    response = requests.post("http://localhost:3000/api/register", json={
         "email": "test@example.com",
-        "name": "Test User"
+        "name": "Test User",
     })
 
     assert response.status_code == 200
-    assert response.json()["user_id"] is not None
+    body = response.json()
+    assert "user_id" in body
 ```
 
 ## NO MOCKING Policy
@@ -113,47 +127,39 @@ def test_user_registration_flow(nexus: Nexus):
 - Test databases (Docker containers)
 - Test API endpoints
 - Test LLM accounts (with caching)
-- Test file systems (temp directories)
+- Test file systems (temp directories via `tempfile` module)
 
 ## Test Organization
 
 ### Directory Structure
 
 ```
-tests/
-  tier1_unit/
-    test_workflow_builder.py
-    test_node_logic.py
-  tier2_integration/
-    test_dataflow_crud.py
-    test_workflow_execution.py
-    test_api_integration.py
-  tier3_e2e/
-    test_user_flows.py
-    test_production_scenarios.py
-  conftest.py  # Shared fixtures
+project/
+  src/
+    app/
+      main.py
+  tests/
+    unit/               # Tier 1
+      test_workflows.py
+      test_models.py
+    integration/        # Tier 2
+      test_dataflow.py
+      test_nexus.py
+    e2e/                # Tier 3
+      test_user_flows.py
+  conftest.py           # Shared fixtures
+  pytest.ini            # Test configuration
 ```
 
-### Fixture Patterns
+### pytest Configuration
 
-```python
-# conftest.py
-import pytest
-import kailash
-
-@pytest.fixture
-def db():
-    """Real database for testing (Docker)."""
-    df = kailash.DataFlow("postgresql://test:test@localhost:5433/test_db")
-    db.create_tables()
-    yield db
-    db.drop_tables()
-
-@pytest.fixture
-def runtime():
-    """Real runtime instance."""
-    reg = kailash.NodeRegistry()
-    return kailash.Runtime(reg)
+```ini
+# pytest.ini
+[pytest]
+markers =
+    integration: Integration tests (require real database)
+    e2e: End-to-end tests (require running services)
+testpaths = tests
 ```
 
 ## Testing Different Components
@@ -161,132 +167,126 @@ def runtime():
 ### Testing Workflows
 
 ```python
-def test_workflow_execution(runtime):
-    """Tier 2: Integration test with real execution."""
+import kailash
+
+def test_workflow_execution():
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "calc", {
-        "code": "result = 2 + 2"
+    builder.add_node("JSONTransformNode", "calc", {
+        "expression": "@.value",
     })
 
+    wf = builder.build(reg)
     rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    assert result["results"]["calc"]["result"] == 4
+
+    result = rt.execute(wf, {"data": {"value": 42}})
+    assert "calc" in result["results"]
 ```
 
 ### Testing DataFlow
 
 ```python
-def test_dataflow_operations(db: kailash.DataFlow):
-    """Tier 2: Test with real database."""
-    @df.model
-    class User:
-        id: str
-        name: str
+import kailash
+import os
+import pytest
+
+@pytest.mark.integration
+def test_dataflow_operations():
+    db_url = os.environ["DATABASE_URL"]
+    df = kailash.DataFlow(db_url)
 
     # Real database operations
-    reg = kailash.NodeRegistry()
-    workflow = db.create_workflow("User_Create", {
-        "data": {"id": "1", "name": "Test"}
-    })
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-
-    # Verify in actual database
-    user = db.query("SELECT * FROM users WHERE id = '1'")
-    assert user["name"] == "Test"
+    model = kailash.ModelDefinition("test_users")
+    model.add_field("name", kailash.FieldType.string(), required=True)
+    df.register_model(model)
 ```
 
 ### Testing Nexus
 
 ```python
-def test_nexus_api(nexus_server):
-    """Tier 3: E2E test with real HTTP."""
-    import requests
+import requests
+import pytest
 
+@pytest.mark.e2e
+def test_nexus_api():
     response = requests.post(
-        "http://localhost:8000/api/workflow/test_workflow",
-        json={"input": "data"}
+        "http://localhost:3000/api/workflow/test_workflow",
+        json={"input": "data"},
     )
 
     assert response.status_code == 200
-    assert "result" in response.json()
+    body = response.json()
+    assert "result" in body
 ```
 
 ### Testing Kaizen Agents
 
 ```python
+from kailash.kaizen import BaseAgent
+import os
+import pytest
+
+@pytest.mark.integration
 def test_agent_execution():
-    """Tier 2: Test with real LLM (cached)."""
-    agent = MyAgent()
-
     # Real LLM call (use caching to reduce costs)
-    result = agent(input="Test query")
+    class TestAgent(BaseAgent):
+        def run(self, input_text):
+            return {"response": f"Processed: {input_text}"}
 
-    assert result.output is not None
-    assert isinstance(result.output, str)
+    agent = TestAgent(name="test")
+    result = agent.run("Test query")
+    assert result["response"]
 ```
 
 ## Critical Rules
 
-- ✅ Tier 1: Mock external dependencies
-- ✅ Tier 2-3: Use real infrastructure
-- ✅ Use Docker for test databases
-- ✅ Clean up resources after tests
-- ✅ Cache LLM responses for cost
-- ✅ Run Tier 1 in CI, Tier 2-3 optionally
-- ❌ NEVER mock database in Tier 2-3
-- ❌ NEVER mock HTTP calls in Tier 2-3
-- ❌ NEVER skip resource cleanup
-- ❌ NEVER commit test credentials
+- Tier 1: Test doubles for external dependencies allowed
+- Tier 2-3: Use real infrastructure
+- Use Docker for test databases
+- Clean up resources after tests
+- Cache LLM responses for cost
+- Run Tier 1 in CI, Tier 2-3 optionally
+- NEVER use mock frameworks in Tier 2-3
+- NEVER mock database in Tier 2-3
+- NEVER mock HTTP calls in Tier 2-3
+- NEVER skip resource cleanup
+- NEVER commit test credentials (use `.env`)
 
 ## Running Tests
 
 ### Local Development
 
 ```bash
-# Run all tests
-pytest
+# Run all unit tests
+pytest tests/unit/
 
 # Run by tier
-pytest tests/tier1_unit/
-pytest tests/tier2_integration/
-pytest tests/tier3_e2e/
+pytest tests/unit/                          # Tier 1: Unit
+pytest tests/integration/ -m integration    # Tier 2: Integration
+pytest tests/e2e/ -m e2e                    # Tier 3: E2E
 
 # Run with coverage
-pytest --cov=app --cov-report=html
+pytest --cov=src --cov-report=html tests/
 ```
 
 ### CI/CD
 
 ```bash
 # Fast CI (Tier 1 only)
-pytest tests/tier1_unit/
+pytest tests/unit/
+flake8 src/
 
 # Full CI (all tiers)
-docker-compose up -d  # Start test infrastructure
-pytest
-docker-compose down
+docker compose -f tests/docker-compose.test.yml up -d
+pytest tests/ -m "not e2e or integration"
+docker compose -f tests/docker-compose.test.yml down
 ```
-
-## When to Use This Skill
-
-Use this skill when you need to:
-
-- Understand Kailash testing philosophy
-- Set up test infrastructure
-- Write integration tests
-- Test workflows with real execution
-- Test DataFlow with real databases
-- Test Nexus APIs end-to-end
-- Organize test suites
-- Configure CI/CD testing
 
 ## Best Practices
 
 ### Test Quality
 
-- Write descriptive test names
+- Write descriptive test names (snake_case)
 - Use AAA pattern (Arrange, Act, Assert)
 - Test both success and failure cases
 - Clean up resources properly
@@ -296,8 +296,8 @@ Use this skill when you need to:
 
 - Use test database containers
 - Cache expensive operations
-- Run tests in parallel (when safe)
-- Skip slow tests in development (mark with @pytest.mark.slow)
+- Run tests in parallel (`pytest-xdist`)
+- Mark slow tests with `@pytest.mark.slow`
 
 ### Maintenance
 
@@ -308,10 +308,9 @@ Use this skill when you need to:
 
 ## Related Skills
 
-- **[07-development-guides](../../07-development-guides/SKILL.md)** - Testing patterns
-- **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Testing best practices
-- **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow testing
-- **[03-nexus](../../03-nexus/SKILL.md)** - API testing
+- **[02-dataflow](../02-dataflow/SKILL.md)** - DataFlow testing
+- **[03-nexus](../03-nexus/SKILL.md)** - API testing
+- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Testing best practices
 
 ## Support
 

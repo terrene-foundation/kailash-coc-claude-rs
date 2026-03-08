@@ -1,214 +1,144 @@
 ---
-skill: kaizen-observability
-description: "ObservabilityManager and MetricsCollector for monitoring agent performance. Use when asking about 'observability', 'agent metrics', 'agent monitoring', 'performance tracking', 'MetricsCollector', or 'ObservabilityManager'."
-priority: MEDIUM
-tags: [kaizen, observability, metrics, monitoring, performance, tracing]
+name: kaizen-observability
+description: "Observability stack for Kaizen agents. Use when asking about ObservabilityManager, MetricsCollector, TracingManager, LogAggregator, SpanContext, agent metrics, distributed tracing, or log aggregation."
 ---
 
-# Kaizen Observability
+# Kaizen Observability: Metrics, Tracing, and Logging
 
-Monitor and measure agent performance with ObservabilityManager and MetricsCollector.
+The observability module provides three subsystems coordinated by a central manager:
 
-## Quick Reference
+1. **`MetricsCollector`** -- Latency, token counts, errors, and tool calls per agent
+2. **`TracingManager`** -- Hierarchical spans with parent-child relationships
+3. **`LogAggregator`** -- Structured log entries with ring buffer storage
+4. **`SpanContext`** -- Trace/span ID propagation for distributed tracing
+5. **`ObservabilityManager`** -- Coordinator that owns all three subsystems
 
-- **ObservabilityManager**: Central hub for agent observability (metrics, traces, logs)
-- **MetricsCollector**: Collect and query performance metrics from agent executions
+All types are thread-safe and suitable for concurrent use.
 
-## Import
-
-```python
-from kailash.kaizen import ObservabilityManager, MetricsCollector
-```
-
-## ObservabilityManager
-
-The `ObservabilityManager` provides centralized observability for agent systems:
+## SpanContext
 
 ```python
-from kailash.kaizen import ObservabilityManager
+from kailash import SpanContext
 
-obs = ObservabilityManager()
+# Create a root span (new trace_id, no parent)
+root = SpanContext.root("agent-run")
+print(root.trace_id)           # str (UUID)
+print(root.span_id)            # str (UUID)
+print(root.parent_span_id)     # None for root
+print(root.name)               # "agent-run"
 
-# Record agent execution metrics
-obs.record_execution(
-    agent_name="my-agent",
-    duration_ms=1250,
-    success=True,
-    metadata={"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), "tokens_used": 500},
-)
-
-# Record errors
-obs.record_error(
-    agent_name="my-agent",
-    error_type="TimeoutError",
-    error_message="LLM request timed out after 30s",
-)
-
-# Get agent statistics
-stats = obs.get_stats("my-agent")
-# stats: {"total_executions": 10, "success_rate": 0.9, "avg_duration_ms": 1100, ...}
+# Create a child span (inherits trace_id)
+child = root.child("llm-call")
+assert child.trace_id == root.trace_id
+assert child.parent_span_id == root.span_id
 ```
 
 ## MetricsCollector
 
-The `MetricsCollector` provides detailed metric collection and querying:
+Thread-safe metrics collection. Records latency, token counts, errors, and tool calls per agent.
 
 ```python
-from kailash.kaizen import MetricsCollector
+from kailash import MetricsCollector
 
-metrics = MetricsCollector()
+mc = MetricsCollector()
 
-# Record a metric
-metrics.record("agent.latency", 1.25, tags={"agent": "researcher", "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")})
-metrics.record("agent.tokens", 500, tags={"agent": "researcher", "direction": "input"})
-metrics.record("agent.tokens", 150, tags={"agent": "researcher", "direction": "output"})
-metrics.record("agent.cost", 0.05, tags={"agent": "researcher"})
+# Record metrics
+mc.record_latency("agent-1", 250)           # duration_ms
+mc.record_tokens("agent-1", 500, 200)       # input_tokens, output_tokens
+mc.record_error("agent-1", "timeout")
+mc.record_tool_call("agent-1", "search", 100)  # tool_name, duration_ms
 
-# Query metrics
-latency_data = metrics.query("agent.latency", tags={"agent": "researcher"})
-# Returns collected metric data points
+# Get snapshot
+snapshot = mc.get_metrics()
+# {"agent-1": {"total_calls": 1, "avg_latency_ms": 250.0, ...}}
 
-# Get aggregated summary
-summary = metrics.summary("agent.latency")
-# summary: {"count": 10, "mean": 1.15, "p50": 1.1, "p95": 2.3, "p99": 3.1}
+# Reset
+mc.reset()
 ```
 
-## Integration with Agents
+### AgentMetrics Fields
 
-### BaseAgent with Observability
+- `total_calls` -- Number of latency records
+- `total_latency_ms` -- Sum of all latency durations in ms
+- `avg_latency_ms` -- Average latency
+- `total_input_tokens` / `total_output_tokens`
+- `error_count`
+- `tool_calls`
+
+## TracingManager
+
+Creates and manages hierarchical spans.
 
 ```python
-import os
-import time
-from kailash.kaizen import BaseAgent, ObservabilityManager
+from kailash import TracingManager
 
-obs = ObservabilityManager()
+tm = TracingManager()
 
-class ObservableAgent(BaseAgent):
-    name = "observable-agent"
+# Start spans
+root = tm.start_span("agent-run")               # no parent
+child = tm.start_span("llm-call", parent=root)
 
-    def __init__(self):
-        super().__init__(name=self.name, model=os.environ.get("LLM_MODEL"))
+# Add attributes
+tm.add_span_attribute(child, "model", os.environ.get("LLM_MODEL", "gpt-5"))
+tm.add_span_attribute(child, "tokens", "700")
 
-    def execute(self, input_text: str) -> dict:
-        start = time.time()
-        try:
-            result = {"response": f"Processed: {input_text}"}
-            duration_ms = (time.time() - start) * 1000
-            obs.record_execution(
-                agent_name=self.name,
-                duration_ms=duration_ms,
-                success=True,
-            )
-            return result
-        except Exception as e:
-            duration_ms = (time.time() - start) * 1000
-            obs.record_execution(
-                agent_name=self.name,
-                duration_ms=duration_ms,
-                success=False,
-            )
-            obs.record_error(
-                agent_name=self.name,
-                error_type=type(e).__name__,
-                error_message=str(e),
-            )
-            raise
+# End spans
+tm.end_span(child)
+tm.end_span(root)
+
+# Retrieve trace
+trace = tm.get_trace(root.trace_id)
+# {"trace_id": "...", "spans": [{"span_id": "...", ...}]}
 ```
 
-### Multi-Agent Monitoring
+## LogAggregator
+
+Structured log collection with ring buffer storage and filtering.
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent, ObservabilityManager, MetricsCollector
+from kailash import LogAggregator
 
-obs = ObservabilityManager()
-metrics = MetricsCollector()
+la = LogAggregator(max_entries=1000)
 
-# Monitor supervisor and workers
-supervisor = SupervisorAgent(
-    name="monitored-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[
-        WorkerAgent(name="worker-1", model=os.environ.get("LLM_MODEL"), description="Task 1"),
-        WorkerAgent(name="worker-2", model=os.environ.get("LLM_MODEL"), description="Task 2"),
-    ],
-)
+# Log entries
+la.log("info", "agent-1", "Processing started")
+la.log("error", "agent-1", "Failed", metadata={"code": "500"})
+la.log("debug", "agent-1", "Details", span_context=root)
 
-# Record metrics for each agent in the system
-for agent_name in ["monitored-supervisor", "worker-1", "worker-2"]:
-    stats = obs.get_stats(agent_name)
-    if stats:
-        metrics.record("system.agent.success_rate", stats.get("success_rate", 0), tags={"agent": agent_name})
+# Query logs with filters
+logs = la.get_logs()                      # all logs
+logs = la.get_logs(level="error")         # filter by level
+logs = la.get_logs(agent_name="agent-1")  # filter by agent
+# Each log: {"timestamp", "level", "agent_name", "message", "metadata", "span_context"}
 ```
 
-## Integration with CostTracker
+### LogLevel
 
-Combine observability with cost tracking:
+Supported levels: `"debug"`, `"info"`, `"warn"`, `"error"`
+
+## ObservabilityManager
+
+Coordinator that owns a MetricsCollector, TracingManager, and LogAggregator (capacity: 10,000).
 
 ```python
-from kailash.kaizen import ObservabilityManager, MetricsCollector, CostTracker
+from kailash import ObservabilityManager
 
-obs = ObservabilityManager()
-metrics = MetricsCollector()
-cost = CostTracker()
+mgr = ObservabilityManager()
 
-# Record costs alongside performance
-cost.record(0.05, os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), 500, 150)  # cost, model, input_tokens, output_tokens
+# Access subsystems
+mgr.metrics.record_latency("agent-1", 250)
+ctx = mgr.tracing.start_span("operation")
+mgr.logging.log("info", "agent-1", "Started")
+mgr.tracing.end_span(ctx)
 
-# Record to metrics collector
-model_name = os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")
-metrics.record("agent.cost_usd", 0.05, tags={"model": model_name})
-metrics.record("agent.input_tokens", 500, tags={"model": model_name})
-metrics.record("agent.output_tokens", 150, tags={"model": model_name})
+# Export
+json_str = mgr.export_metrics_json()              # str
+json_str = mgr.export_trace_json(ctx.trace_id)     # str, raises ValueError if not found
 
-# Get cost summary
-total = cost.total()
-metrics.record("system.total_cost_usd", total)
+# Subsystem properties
+mc = mgr.metrics     # MetricsCollector
+tm = mgr.tracing     # TracingManager
+la = mgr.logging     # LogAggregator
 ```
 
-## Integration with Nexus
-
-```python
-import os
-from kailash.kaizen import ObservabilityManager, MetricsCollector
-from kailash.nexus import NexusApp
-
-obs = ObservabilityManager()
-metrics = MetricsCollector()
-app = NexusApp()
-
-@app.handler(name="agent_stats", description="Get agent performance statistics")
-async def agent_stats(agent_name: str) -> dict:
-    stats = obs.get_stats(agent_name)
-    return stats or {"error": f"No stats for agent: {agent_name}"}
-
-@app.handler(name="system_metrics", description="Get system-wide metrics")
-async def system_metrics() -> dict:
-    latency = metrics.summary("agent.latency")
-    cost = metrics.summary("agent.cost_usd")
-    return {
-        "latency": latency,
-        "cost": cost,
-    }
-
-app.start()
-```
-
-## Best Practices
-
-1. **Record all agent executions** -- Track both successes and failures
-2. **Include metadata** -- Add model name, token counts, and other context
-3. **Use tags for filtering** -- Tag metrics by agent, model, and environment
-4. **Monitor costs** -- Combine with CostTracker for financial observability
-5. **Set alerts on thresholds** -- Watch for error rate spikes and latency increases
-6. **Use environment variables** -- Never hardcode model names in observability code
-
-## Related Skills
-
-- [kaizen-cost-tracking](kaizen-cost-tracking.md) - LLM cost tracking and budgets
-- [kaizen-multi-agent](kaizen-multi-agent.md) - Multi-agent coordination
-- [kaizen-hooks-lifecycle](kaizen-hooks-lifecycle.md) - Lifecycle hooks for instrumentation
-- [kaizen-agent-patterns](kaizen-agent-patterns.md) - Agent building blocks
-
-<!-- Trigger Keywords: observability, agent metrics, agent monitoring, performance tracking, MetricsCollector, ObservabilityManager, agent performance, agent tracing -->
+<!-- Trigger Keywords: observability, ObservabilityManager, MetricsCollector, TracingManager, LogAggregator, SpanContext, agent metrics, distributed tracing, log aggregation -->

@@ -1,236 +1,236 @@
 ---
 skill: kaizen-multi-agent
-description: "SupervisorAgent and WorkerAgent for multi-agent coordination. Use when asking about 'multi-agent', 'supervisor agent', 'worker agent', 'agent coordination', 'agent delegation', 'agent orchestration', or 'supervisor pattern'."
+description: "Multi-agent orchestration for Kaizen including OrchestrationRuntime, strategies (Sequential, Parallel, Hierarchical, Pipeline), WorkerAgent, SupervisorAgent, MultiAgentOrchestrator, and AgentExecutor. Use when asking about 'multi-agent', 'supervisor agent', 'worker agent', 'agent coordination', 'agent delegation', 'agent orchestration', 'orchestration runtime', or 'supervisor pattern'."
 priority: MEDIUM
 tags: [kaizen, multi-agent, supervisor, worker, coordination, orchestration]
 ---
 
-# Kaizen Multi-Agent Coordination
+# Kaizen Orchestration: Multi-Agent Coordination
 
-Coordinate multiple agents using the supervisor-worker pattern.
+The orchestration module provides three coordination patterns:
 
-## Quick Reference
+1. **OrchestrationRuntime** -- Strategy-based runtime (Sequential/Parallel/Hierarchical/Pipeline)
+2. **SupervisorAgent + WorkerAgent** -- Capability-based task delegation
+3. **MultiAgentOrchestrator** -- Conditional routing with dependency tracking
 
-- **SupervisorAgent**: Delegates tasks to worker agents and aggregates results
-- **WorkerAgent**: Executes specific tasks assigned by a supervisor
-- **Pattern**: Supervisor receives request, routes to appropriate worker(s), aggregates responses
+Plus **AgentExecutor** for unified execution with retry, timeout, and observability.
 
-## Import
+## OrchestrationRuntime
+
+Strategy-based runtime. Agents are stored in insertion order.
 
 ```python
-from kailash.kaizen import SupervisorAgent, WorkerAgent
+from kailash.kaizen import BaseAgent
+
+# Define agents
+class ResearchAgent(BaseAgent):
+    def run(self, input_text):
+        return {"response": f"Research on: {input_text}"}
+
+class WriterAgent(BaseAgent):
+    def run(self, input_text):
+        return {"response": f"Article about: {input_text}"}
+
+researcher = ResearchAgent(name="researcher")
+writer = WriterAgent(name="writer")
 ```
 
-## Basic Usage
+### Sequential Strategy
+
+Agents run in insertion order. Each receives the previous agent's response as input.
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent
+from kailash.kaizen.pipelines import SequentialPipeline
 
-# Define worker agents for specific tasks
-research_worker = WorkerAgent(
-    name="researcher",
-    model=os.environ.get("LLM_MODEL"),
-    description="Researches topics and gathers information",
-)
+pipeline = SequentialPipeline([researcher, writer])
+result = pipeline.run("Write about AI agents")
+# researcher("Write about AI agents") -> writer(researcher_output)
+```
 
-writer_worker = WorkerAgent(
-    name="writer",
-    model=os.environ.get("LLM_MODEL"),
-    description="Writes content based on research",
-)
+### WorkerAgent
 
-# Create a supervisor that coordinates workers
-supervisor = SupervisorAgent(
-    name="content-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[research_worker, writer_worker],
-)
+Wraps any agent with capability declarations and status tracking.
+
+```python
+from kailash import WorkerAgent
+
+# WorkerAgent wraps a Python callable
+def code_fn(input_text: str) -> str:
+    return f"coded: {input_text}"
+
+worker = WorkerAgent("coder", code_fn, capabilities=["python", "rust", "code"])
+
+# Capability matching
+assert worker.accept_task("write python code")    # True (contains "python")
+assert not worker.accept_task("design a logo")     # False
+
+# Status tracking
+assert worker.status == "idle"
+
+# Execute
+result = worker.run("hello")
+# Returns dict with "response", "total_tokens", etc.
 ```
 
 ## SupervisorAgent
 
-The supervisor agent manages task delegation and result aggregation:
+Delegates tasks to managed WorkerAgents via configurable routing strategies.
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent
+from kailash import SupervisorAgent, WorkerAgent
 
 # Create workers
-analyst = WorkerAgent(
-    name="analyst",
-    model=os.environ.get("LLM_MODEL"),
-    description="Analyzes data and provides insights",
-)
+coder = WorkerAgent("coder", code_fn, capabilities=["python", "rust"])
+writer = WorkerAgent("writer", write_fn, capabilities=["docs", "articles"])
 
-reviewer = WorkerAgent(
-    name="reviewer",
-    model=os.environ.get("LLM_MODEL"),
-    description="Reviews analysis for accuracy",
-)
+# Create supervisor
+supervisor = SupervisorAgent("boss", routing="capability", max_delegation_depth=3)
+# routing: "round_robin" | "capability" | "llm_decision"
+supervisor.add_worker(coder)
+supervisor.add_worker(writer)
 
-# Create supervisor with workers
-supervisor = SupervisorAgent(
-    name="analysis-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[analyst, reviewer],
-)
+# Introspection
+print(f"Workers: {supervisor.worker_count()}")
+print(f"Names: {supervisor.worker_names()}")
+print(f"Statuses: {supervisor.worker_statuses()}")
 
-# Supervisor handles task routing and aggregation
+# Delegate task -- routes to appropriate worker
+result = supervisor.run("Write Python code")
+# Routes to "coder" because task matches "python" capability
 ```
 
-## WorkerAgent
-
-Worker agents execute specific tasks:
+### Routing Strategies
 
 ```python
-import os
-from kailash.kaizen import WorkerAgent, ToolRegistry, ToolDef, ToolParam
+# Round Robin -- cycles through workers sequentially
+supervisor = SupervisorAgent("boss", routing="round_robin")
 
-# Worker with tools
-def search_database(args):
-    query = args.get("query", "")
-    return {"results": f"Database results for: {query}"}
+# Capability -- matches task keywords to worker capabilities (default)
+supervisor = SupervisorAgent("boss", routing="capability")
 
-tools = ToolRegistry()
-tools.register(ToolDef(
-    name="search_db",
-    description="Search the database",
-    handler=search_database,
-    params=[ToolParam(name="query", required=True)],
-))
-
-data_worker = WorkerAgent(
-    name="data-worker",
-    model=os.environ.get("LLM_MODEL"),
-    description="Retrieves data from databases",
-)
-# data_worker.tool_registry = tools  # Attach tools if needed
+# LLM Decision -- uses LLM to pick the best worker
+supervisor = SupervisorAgent("boss", routing="llm_decision")
 ```
 
-## Multi-Agent Patterns
+## MultiAgentOrchestrator
 
-### Research and Summarize
+Dynamic agent selection with conditional routing, dependency tracking, and concurrent execution.
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent
+from kailash import MultiAgentOrchestrator
 
-researcher = WorkerAgent(
-    name="researcher",
-    model=os.environ.get("LLM_MODEL"),
-    description="Researches a topic using available tools",
-)
+orch = MultiAgentOrchestrator()
 
-summarizer = WorkerAgent(
-    name="summarizer",
-    model=os.environ.get("LLM_MODEL"),
-    description="Summarizes research findings into concise reports",
-)
+# Register agents (callables)
+orch.add_agent("researcher", research_fn)
+orch.add_agent("writer", write_fn)
+orch.add_agent("coder", code_fn)
 
-fact_checker = WorkerAgent(
-    name="fact-checker",
-    model=os.environ.get("LLM_MODEL"),
-    description="Verifies facts and citations in reports",
-)
+# Add routing rules (condition -> agent)
+orch.add_route("always", "researcher")
+orch.add_route("contains:code", "coder")
+orch.add_custom_route(lambda input_text: len(input_text) > 50, "long_handler")
 
-supervisor = SupervisorAgent(
-    name="report-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[researcher, summarizer, fact_checker],
-)
+# Declare dependencies (topological sort, cycle detection)
+orch.add_dependency("writer", "researcher")  # writer waits for researcher
+
+# Configuration
+orch.set_concurrency_limit(5)
+
+# Run orchestration
+result = orch.orchestrate("Write about Rust")
+# result is a dict: {"final_output": "...", "agent_results": {...}, "total_tokens": N}
 ```
 
-### Code Review Pipeline
+### Execution Model
+
+1. **Route selection**: Evaluate each route's condition against input. Matching agents form the execution set.
+2. **Dependency resolution**: Topological sort (Kahn's algorithm). Circular dependencies rejected.
+3. **Concurrent execution**: Independent agents run concurrently (up to concurrency limit). Dependent agents receive their dependency's output.
+4. **Result aggregation**: Single agent returns its output; multiple agents concatenated with headers.
+
+## AgentExecutor
+
+Unified execution with retry, timeout, and observability hooks.
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent
+from kailash import AgentExecutor, RetryPolicy
 
-code_analyzer = WorkerAgent(
-    name="code-analyzer",
-    model=os.environ.get("LLM_MODEL"),
-    description="Analyzes code for bugs and anti-patterns",
+# Create retry policy
+policy = RetryPolicy(
+    max_retries=3,
+    backoff="exponential",       # "fixed" | "exponential"
+    base_delay_ms=100,
+    max_delay_ms=5000,
 )
 
-security_reviewer = WorkerAgent(
-    name="security-reviewer",
-    model=os.environ.get("LLM_MODEL"),
-    description="Reviews code for security vulnerabilities",
+# Create executor
+executor = AgentExecutor(
+    retry_policy=policy,
+    agent_timeout_ms=30000,      # 30 second per-agent timeout
+    global_timeout_ms=120000,    # 2 minute global timeout
 )
 
-style_checker = WorkerAgent(
-    name="style-checker",
-    model=os.environ.get("LLM_MODEL"),
-    description="Checks code style and formatting consistency",
-)
+# Single agent execution
+result = executor.execute_single(worker, "hello")
 
-review_supervisor = SupervisorAgent(
-    name="code-review-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[code_analyzer, security_reviewer, style_checker],
-)
+# Multi-agent execution
+# result = executor.execute_multi(runtime, "hello")
 ```
 
-## Comparison with Pipelines
+## OrchestrationResult
 
-| Feature     | SupervisorAgent/WorkerAgent  | Pipelines                   |
-| ----------- | ---------------------------- | --------------------------- |
-| Routing     | Dynamic (supervisor decides) | Static (predefined order)   |
-| Flexibility | High (adaptive delegation)   | Fixed (sequential/parallel) |
-| Complexity  | Higher                       | Lower                       |
-| Best for    | Complex multi-step tasks     | Simple agent chaining       |
-
-### When to Use Each
-
-- **SupervisorAgent**: When task routing depends on input content or intermediate results
-- **SequentialPipeline**: When agents always run in the same order
-- **ParallelPipeline**: When agents can process independently
-- **EnsemblePipeline**: When you need consensus from multiple agents
-
-## Integration with Nexus
+All orchestration methods return a dict with:
 
 ```python
-import os
-from kailash.kaizen import SupervisorAgent, WorkerAgent
-from kailash.nexus import NexusApp
+result = orch.orchestrate("input")
 
-supervisor = SupervisorAgent(
-    name="support-supervisor",
-    model=os.environ.get("LLM_MODEL"),
-    workers=[
-        WorkerAgent(name="classifier", model=os.environ.get("LLM_MODEL"), description="Classifies support tickets"),
-        WorkerAgent(name="responder", model=os.environ.get("LLM_MODEL"), description="Generates support responses"),
-    ],
-)
-
-app = NexusApp()
-
-@app.handler(name="support_ticket", description="Process a support ticket")
-async def support_ticket(message: str) -> dict:
-    # Supervisor routes to appropriate worker
-    return {"status": "processed", "message": message}
-
-app.start()
+# result["final_output"]     -- Last agent's response or aggregation (str)
+# result["agent_results"]    -- Per-agent results in execution order (dict)
+# result["total_tokens"]     -- Sum of all agents' tokens (int)
+# result["total_iterations"] -- Number of agent invocations (int)
+# result["duration_ms"]      -- Wall-clock duration (int)
 ```
 
-## Best Practices
+## Complete Example
 
-1. **Give workers clear descriptions** -- The supervisor uses descriptions to route tasks
-2. **Keep workers focused** -- Each worker should have a single responsibility
-3. **Use environment variables for models** -- Never hardcode model names
-4. **Add tools to workers** -- Equip workers with ToolRegistry for domain-specific actions
-5. **Monitor costs** -- Use CostTracker with multi-agent setups to track total LLM spend
+```python
+from kailash import WorkerAgent, SupervisorAgent, MultiAgentOrchestrator
 
-## Known Limitations
+# Define worker functions
+def research(input_text: str) -> str:
+    return f"Research findings on: {input_text}"
 
-> **Known Issue (Blocker B3)**: `OrchestrationRuntime.run()` is a stub -- returns static config instead of executing agents. Multi-agent orchestration through OrchestrationRuntime is non-functional. Use SupervisorAgent/WorkerAgent or custom Python orchestration instead.
+def write(input_text: str) -> str:
+    return f"Article based on: {input_text}"
 
-## Related Skills
+def review(input_text: str) -> str:
+    return f"Review of: {input_text}"
 
-- [kaizen-pipelines](kaizen-pipelines.md) - Pipeline-based agent composition
-- [kaizen-agent-patterns](kaizen-agent-patterns.md) - Agent building blocks
-- [kaizen-structured-output](kaizen-structured-output.md) - Typed agent responses
-- [kaizen-observability](kaizen-observability.md) - Monitor multi-agent systems
+# Create workers with capabilities
+researcher = WorkerAgent("researcher", research, capabilities=["research", "analysis"])
+writer = WorkerAgent("writer", write, capabilities=["writing", "articles"])
+reviewer = WorkerAgent("reviewer", review, capabilities=["review", "qa"])
 
-<!-- Trigger Keywords: multi-agent, supervisor agent, worker agent, agent coordination, agent delegation, agent orchestration, supervisor pattern, SupervisorAgent, WorkerAgent -->
+# Option 1: Supervisor pattern
+supervisor = SupervisorAgent("editor", routing="capability")
+supervisor.add_worker(researcher)
+supervisor.add_worker(writer)
+supervisor.add_worker(reviewer)
+result = supervisor.run("Research and write about AI safety")
+
+# Option 2: Orchestrator with dependencies
+orch = MultiAgentOrchestrator()
+orch.add_agent("researcher", research)
+orch.add_agent("writer", write)
+orch.add_agent("reviewer", review)
+orch.add_route("always", "researcher")
+orch.add_route("always", "writer")
+orch.add_route("always", "reviewer")
+orch.add_dependency("writer", "researcher")
+orch.add_dependency("reviewer", "writer")
+result = orch.orchestrate("Write about AI safety")
+print(result["final_output"])
+```
+
+<!-- Trigger Keywords: orchestration, multi-agent, Sequential, Parallel, Hierarchical, Pipeline, WorkerAgent, SupervisorAgent, MultiAgentOrchestrator, AgentExecutor, RetryPolicy, strategy, coordination, routing, delegation -->

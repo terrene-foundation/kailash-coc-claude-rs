@@ -5,29 +5,33 @@ description: "React + Kailash SDK integration. Use when asking 'react integratio
 
 # React + Kailash Integration
 
-> **Skill Metadata**
-> Category: `frontend`
-> Priority: `MEDIUM`
-
 ## Quick Setup
 
 ### 1. Backend API (Python)
 
 ```python
+from kailash.nexus import NexusApp
 import kailash
+import os
 
-# Create workflow
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
-    "prompt": "{{input.message}}"
+    "prompt": "{{input.message}}",
 })
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
 
-# Deploy as API
-app = kailash.nexus.NexusApp(kailash.NexusConfig(port=8000))
-app.start()
+app = NexusApp(preset="standard")
+
+@app.handler("execute")
+async def execute(message: str) -> dict:
+    result = rt.execute(wf, {"message": message})
+    return result["results"]["chat"]
+
+app.start()  # Serves on port 3000
 ```
 
 ### 2. React Frontend
@@ -35,7 +39,7 @@ app.start()
 ```typescript
 // src/api/workflow.ts
 export async function executeWorkflow(message: string) {
-  const response = await fetch('http://localhost:8000/execute', {
+  const response = await fetch('http://localhost:3000/execute', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({inputs: {message}})
@@ -74,26 +78,21 @@ export function Chat() {
 ## Streaming Responses
 
 ```typescript
-// Backend (Python)
-from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(NexusConfig(port=8000))
-app.start()
-
 // Frontend (React)
 async function streamWorkflow(message: string) {
-  const response = await fetch('http://localhost:8000/stream', {
-    method: 'POST',
-    body: JSON.stringify({inputs: {message}})
+  const response = await fetch("http://localhost:3000/stream", {
+    method: "POST",
+    body: JSON.stringify({ inputs: { message } }),
   });
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
   while (true) {
-    const {done, value} = await reader.read();
+    const { done, value } = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value);
-    console.log(chunk);  // Update UI incrementally
+    console.log(chunk); // Update UI incrementally
   }
 }
 ```

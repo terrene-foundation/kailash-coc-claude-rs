@@ -1,158 +1,157 @@
 ---
-skill: nexus-quickstart
-description: Zero-config Nexus() setup and basic workflow registration. Start here for all Nexus applications.
-priority: CRITICAL
-tags: [nexus, quickstart, zero-config, setup]
+name: nexus-quickstart
+description: "Nexus in 5 minutes: deploy workflows as API + CLI + MCP simultaneously. Use when asking 'nexus quickstart', 'nexus getting started', 'first nexus server', or 'multi-channel deployment'."
 ---
 
-# Nexus Quickstart
+# Nexus Quickstart Skill
 
-Zero-configuration platform deployment. Get running in 30 seconds.
+Nexus in 5 minutes: deploy workflows as API + CLI + MCP simultaneously.
 
-## Instant Start
+## Usage
+
+`/nexus-quickstart` -- Fastest path to a running Nexus API server with authentication
+
+## What Nexus Does
+
+Nexus is a multi-channel deployment platform. Register a handler once; it becomes available as:
+
+- HTTP API endpoint (`POST /api/{handler_name}`)
+- CLI command (`nexus {handler_name} --arg value`)
+- MCP tool (via `/mcp/sse` for AI agent integration)
+
+## Minimal Server
+
+```python
+from kailash.nexus import NexusApp
+
+app = NexusApp()
+
+@app.handler("greet")
+async def greet(name: str = "World") -> dict:
+    return {"message": f"Hello, {name}!"}
+
+app.start()
+# API:  POST http://localhost:3000/greet     {"name": "Alice"}
+# CLI:  kailash greet --name Alice
+# MCP:  GET  http://localhost:3000/mcp/sse
+```
+
+## Handler Pattern
+
+Handlers are async functions decorated with `@app.handler()`. Parameters are auto-extracted from the function signature.
+
+```python
+from kailash.nexus import NexusApp
+
+app = NexusApp()
+
+@app.handler("process")
+async def process(text: str, max_len: int = 256, enabled: bool = True) -> dict:
+    if not enabled:
+        return {"result": "processing disabled"}
+
+    truncated = len(text) > max_len
+    result = text[:max_len]
+    return {"result": result, "truncated": truncated}
+```
+
+## Handler with Workflow
 
 ```python
 import kailash
 from kailash.nexus import NexusApp
-
-# Zero configuration required
-app = NexusApp()
-app.start()
-```
-
-That's it! You now have:
-
-- API Server on `http://localhost:8000`
-- Health Check at `http://localhost:8000/health`
-- MCP Server on port 3001
-
-## Add Your First Workflow
-
-```python
-import kailash
 
 reg = kailash.NodeRegistry()
-from kailash.nexus import NexusApp
+builder = kailash.WorkflowBuilder()
+builder.add_node("TextTransformNode", "upper", {"operation": "uppercase"})
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
 
-# Create platform
 app = NexusApp()
 
-# Create workflow
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {
-    "url": "https://httpbin.org/json",
-    "method": "GET"
-})
+@app.handler("transform")
+async def transform(text: str) -> dict:
+    result = rt.execute(wf, {"text": text})
+    output = result["results"]["upper"]["result"]
+    return {"result": output}
 
-# Register once, available everywhere
-app.register("fetch-data", builder.build(reg))  # Must call .build()
-
-# Start platform
 app.start()
 ```
 
-## Test All Three Channels
+## Preset Middleware
 
-**API (HTTP)**:
+```python
+from kailash.nexus import NexusApp, preset_to_middleware
 
-```bash
-curl -X POST http://localhost:8000/workflows/fetch-data/execute
+# Apply middleware presets
+app = NexusApp(preset="standard")
+
+# Available presets:
+# "none"        - No middleware (development only)
+# "lightweight" - Permissive CORS + request logging
+# "standard"    - Strict CORS + rate limiting + logging + body limit
+# "saas"        - Standard + security response headers
+# "enterprise"  - SaaS + stricter rate limits, body limits, headers
 ```
 
-**CLI**:
+## Adding Auth
 
-```bash
-nexus run fetch-data
+```python
+from kailash.nexus import NexusApp, NexusAuthPlugin
+import os
+
+app = NexusApp()
+
+# Add JWT authentication
+auth = NexusAuthPlugin(jwt_secret=os.environ["JWT_SECRET"])
+app.use(auth)
+
+@app.handler("protected")
+async def protected(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
+
+app.start()
 ```
 
-**MCP** (for AI agents):
+## Custom Port and Config
+
+```python
+from kailash.nexus import NexusApp
+
+# Default: 0.0.0.0:3000
+app = NexusApp()
+app.start()
+
+# Custom port
+app = NexusApp(port=8080)
+app.start()
+
+# Custom host and port
+app = NexusApp(host="127.0.0.1", port=9000)
+app.start()
+```
+
+## MCP Integration
+
+When MCP is enabled (the default), all registered handlers are automatically exposed as MCP tools via SSE.
+
+For Claude Desktop, add to `claude_desktop_config.json`:
 
 ```json
 {
-  "method": "tools/call",
-  "params": { "name": "fetch-data", "arguments": {} }
+  "mcpServers": {
+    "my-service": {
+      "url": "http://localhost:3000/mcp/sse"
+    }
+  }
 }
 ```
 
-## Critical Patterns
-
-### Always Call .build()
-
-```python
-# CORRECT
-app.register("workflow-name", builder.build(reg))
-
-# WRONG - Will fail
-app.register("workflow-name", workflow)
-```
-
-### Correct Parameter Order
-
-```python
-# CORRECT - name first, workflow second
-app.register("name", builder.build(reg))
-
-# WRONG - reversed
-app.register(builder.build(reg), "name")
-```
-
-## Common Issues
-
-### Port Conflicts
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-
-# Use custom port if default is taken
-app = NexusApp(NexusConfig(port=8001))
-```
-
-### Import Errors
+## Verify
 
 ```bash
-pip install kailash-enterprise  # Nexus included
+pip install kailash-enterprise
+pytest tests/test_nexus.py -v
 ```
 
-### Workflow Not Found
-
-```python
-# Ensure .build() is called
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}"})
-app.register("test", builder.build(reg))  # Don't forget .build()
-```
-
-## Handler Pattern (Recommended)
-
-For simple workflows, use `@app.handler()` instead of WorkflowBuilder:
-
-```python
-import kailash
-from kailash.nexus import NexusApp
-
-app = NexusApp()
-
-@app.handler("greet", description="Greeting handler")
-async def greet(name: str, greeting: str = "Hello") -> dict:
-    return {"message": f"{greeting}, {name}!"}
-
-app.start()
-```
-
-See [nexus-handler-support](nexus-handler-support.md) for full details.
-
-## Next Steps
-
-- **Use handlers** (recommended): See [nexus-handler-support](nexus-handler-support.md)
-- Add parameters: See [nexus-workflow-registration](nexus-workflow-registration.md)
-- Use multiple channels: See [nexus-multi-channel](nexus-multi-channel.md)
-- Integrate DataFlow: See [nexus-dataflow-integration](nexus-dataflow-integration.md)
-- Add authentication: See [nexus-auth-plugin](nexus-auth-plugin.md)
-
-## Key Takeaways
-
-- Zero configuration: Just `NexusApp()` and go
-- Always call `.build()` before registration (or use `@app.handler()`)
-- Single registration creates API + CLI + MCP
-- Default ports: 8000 (API), 3001 (MCP)
-- `cors_allow_credentials=False` by default (security)
+<!-- Trigger Keywords: nexus quickstart, getting started, first nexus server, multi-channel, NexusApp, handler registration, preset middleware, Nexus start -->

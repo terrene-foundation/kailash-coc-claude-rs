@@ -3,205 +3,204 @@ name: runtime-execution
 description: "Execute workflows with kailash.Runtime, with parameter overrides and configuration options. Use when asking 'execute workflow', 'runtime.execute', 'kailash.Runtime', 'run workflow', 'execution options', 'runtime parameters', 'content-aware detection', or 'workflow execution'."
 ---
 
-# Runtime Execution Options
+# Runtime Execution
 
-Runtime Execution Options guide with patterns, examples, and best practices.
+Configuration and execution patterns for the Kailash Runtime.
 
-> **Skill Metadata**
-> Category: `core-sdk`
-> Priority: `HIGH`
+## Usage
 
-## Quick Reference
+`/runtime-execution` -- Reference for Runtime creation, execute(), and reading results
 
-- **Primary Use**: Runtime Execution Options
-- **Category**: core-sdk
-- **Priority**: HIGH
-- **Trigger Keywords**: execute workflow, runtime.execute, kailash.Runtime, run workflow
-
-## Core Patterns
-
-### Unified Runtime
-
-`kailash.Runtime` is backed by the Rust engine. It handles both sync and async execution internally.
+## The Runtime
 
 ```python
 import kailash
 
-# Build workflow
+# Create registry and build a workflow
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"file_path": "data.csv"})
+builder.add_node("LogNode", "logger", {"message": "Hello"})
 wf = builder.build(reg)
 
-# Execute — single unified Runtime
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
-
-# result is a dict with keys: "results", "run_id", "metadata"
-print(result["results"]["reader"])
-print(result["run_id"])
-```
-
-### Runtime Configuration Options
-
-`kailash.Runtime` handles both sync and async execution. Configuration options:
-
-```python
-# Common configuration options
-rt = kailash.Runtime(reg)
-
-# Get validation metrics
-metrics = rt.get_validation_metrics()
-rt.reset_validation_metrics()
-```
-
-## Parameter Passing at Runtime
-
-```python
-# Override node parameters at runtime
-rt = kailash.Runtime(reg)
-result = rt.execute(
-    builder.build(reg),
-    parameters={
-        "reader": {"file_path": "custom.csv"},     # Override node config
-        "filter": {"threshold": 100}               # Add runtime parameter
-    }
-)
-```
-
-## Runtime Architecture
-
-`kailash.Runtime` inherits from BaseRuntime and uses shared mixins for consistent behavior:
-
-**BaseRuntime Foundation**:
-
-- Provides 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
-- Manages execution metadata (run IDs, workflow caching)
-- Common initialization and validation modes (strict, warn, off)
-
-**Shared Mixins**:
-
-- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
-- **ValidationMixin**: Workflow structure validation (5 methods)
-  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
-  - \_validate_connection_contracts(): Validates connection parameter contracts
-  - \_validate_conditional_execution_prerequisites(): Validates conditional execution setup
-  - \_validate_switch_results(): Validates switch node results
-  - \_validate_conditional_execution_results(): Validates conditional execution results
-- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
-  - Pattern detection and cycle detection
-  - Node skipping and hierarchical execution
-  - Conditional workflow orchestration
-
-**kailash.Runtime-Specific Features**:
-
-- \_generate_enhanced_validation_error(): Enhanced error messages with context
-- \_build_connection_context(): Builds connection context for errors
-- get_validation_metrics(): Public API for retrieving validation metrics
-- reset_validation_metrics(): Public API for resetting validation metrics
-
-**ParameterHandlingMixin Not Used**:
-kailash.Runtime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
-
-All existing usage patterns remain unchanged.
-
-## Runtime Internals
-
-`kailash.Runtime` automatically selects the optimal execution strategy:
-
-- **Level-Based Parallelism**: Groups nodes by dependency level, executes independent nodes concurrently
-- **Concurrency Control**: Semaphore-based limits (default: 10 concurrent nodes)
-- **Thread Pool**: Executes sync nodes without blocking (configurable pool size)
-
-## Advanced: Runtime Usage
-
-The Rust-backed `kailash.Runtime` is the single runtime. Custom runtimes are not supported in the Rust-backed package. Use `kailash.Runtime(reg)` for all execution:
-
-```python
-import kailash
-
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-
-# Execute any workflow
-result = rt.execute(builder.build(reg))
-```
-
-The runtime internally handles cycle execution, validation, conditional execution, and parameter injection.
-
-## Related Patterns
-
-- **For fundamentals**: See [`workflow-quickstart`](#)
-- **For parameter passing**: See [`gold-parameter-passing`](#)
-- **For runtime selection**: See [`decide-runtime`](#)
-
-## Documentation References
-
-### Primary Sources
-
-- [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
-
-### Advanced References
-
-- `src/kailash/runtime/base.py` - BaseRuntime implementation (699 lines)
-- `src/kailash/runtime/mixins/validation.py` - ValidationMixin (519 lines, 5 methods)
-- `src/kailash/runtime/mixins/parameters.py` - ParameterHandlingMixin (650 lines, 9 methods)
-- `src/kailash/runtime/mixins/conditional_execution.py` - ConditionalExecutionMixin (1,107 lines, 12 methods)
-- `src/kailash/runtime/mixins/cycle_execution.py` - CycleExecutionMixin (178 lines, 1 method)
-
-## Performance Configuration
-
-Phase 0 optimizations reduce per-node execution overhead. Key configuration:
-
-```python
-import kailash
-
-reg = kailash.NodeRegistry()
+# Create runtime (reuse across executions)
 rt = kailash.Runtime(reg)
 
 # Execute workflow
-result = rt.execute(builder.build(reg))
+result = rt.execute(wf)
+# result is a dict: {"results": {...}, "run_id": "...", "metadata": {...}}
 ```
 
-**What's optimized (automatic, no config needed)**:
+## ExecutionResult
 
-- Topological sort cached per workflow (742x-6504x speedup on cache hit)
-- Cycle edge classification cached with dirty-flag invalidation (60x-265x speedup)
-- Module-level imports (no per-node import overhead)
-- Shared MetricsCollector per workflow (skips thread spawn when psutil disabled)
-- Node ID frozenset pre-computed once per execution
-- Security allowed_types cached at module level (eliminates 13+ per-call lazy imports)
-- Topo cache returns immutable tuple (prevents cache corruption)
-- Deferred monitoring storage (zero I/O during execution, batch write after)
-- Batch CARE persistence (single file per run, avoids 1M+ entry directory bloat)
-- SQLite CARE storage (ACID-compliant, queryable audit trail with EATP event persistence)
+The `rt.execute()` method returns a dict with these keys:
 
-**Framework overhead**: ~41-52us/node with monitoring disabled (30-34% of total execution time
-for EmbeddedPythonNode with minimal code). See `docs/guides/00-performance-optimizations.md` for
-detailed benchmark results.
+```python
+result = rt.execute(wf, inputs)
 
-**Monitoring overhead**: ~35us/node in-loop + ~1.5-2.8ms SQLite flush after execution.
-Monitoring ON adds ~34% overhead in-loop (down from 3200x before P0D-007). Post-execution
-SQLite flush adds ~1.5ms for 5-node workflows, scaling sub-linearly at ~56us/task for 50 tasks.
+# result["run_id"]    -- Unique identifier for this execution run (str)
+# result["results"]   -- Per-node output maps: {node_id: {output_key: value}} (dict)
+# result["metadata"]  -- Execution metadata: timing, node counts, etc. (dict)
+```
 
-**CARE audit persistence (P0E)**: Tracking data + EATP audit events written atomically to
-`~/.kailash/tracking/tracking.db` using WAL mode + `executemany()` batch inserts.
-`DeferredStorageBackend.flush_to_sqlite()` is called by `_flush_deferred_storage_sqlite()`
-in kailash.Runtime, which collects `RuntimeAuditGenerator` events before flushing.
+## Accessing Results
 
-- networkx removed from hot-path execution (local.py, async_local.py)
-- BFS ancestor traversal replaces nx.ancestors for switch evaluation
+```python
+result = rt.execute(wf, {"text": "hello"})
 
-**Regression tests**: `tests/unit/runtime/test_phase0{a,b,c,d,e}_optimizations.py` (113+ tests)
+# Check the unique run ID
+print(f"Run: {result['run_id']}")
 
-See `docs/guides/00-performance-optimizations.md` for full details.
+# Access output from a specific node by ID
+node_output = result["results"].get("my_transform_node")
+if node_output:
+    value = node_output.get("result")
+    print(f"Result: {value}")
 
-## Quick Tips
+# Pattern: get or raise
+output = result["results"].get("final_node")
+if output is None:
+    raise KeyError("node 'final_node' not in results")
 
-- Always use `rt.execute(builder.build(reg))` -- never `builder.execute()`
-- `kailash.Runtime` handles both sync and async execution
-- Parameter resolution supports ${param} templates with type preservation
+# Pattern: get string value with default
+text = (
+    result["results"]
+    .get("text_node", {})
+    .get("text", "default")
+)
 
-## Keywords for Auto-Trigger
+# Iterate all node results
+for node_id, outputs in result["results"].items():
+    print(f"Node '{node_id}': {len(outputs)} outputs")
+    for key, val in outputs.items():
+        print(f"  {key}: {val}")
+```
 
-<!-- Trigger Keywords: execute workflow, runtime.execute, kailash.Runtime, run workflow -->
+## Execution Model (Level-Based Parallelism)
+
+```
+Workflow DAG:
+  A -> B -> D
+  A -> C -> D
+
+Level 0: [A]        -- runs first (no dependencies)
+Level 1: [B, C]     -- runs in parallel (both depend only on A)
+Level 2: [D]        -- runs last (depends on B and C)
+```
+
+The Runtime pre-computes execution levels at `builder.build(reg)` time and runs nodes at the same level concurrently.
+
+## Passing Inputs to Workflows
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("TextTransformNode", "upper", {"operation": "uppercase"})
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+
+# Pass inputs as a dict
+result = rt.execute(wf, {
+    "text": "hello world",
+    "count": 10,
+    "enabled": True,
+    "config": {"timeout": 30},
+})
+```
+
+## Common Patterns
+
+### Re-using Runtime for Multiple Executions
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
+
+builder = kailash.WorkflowBuilder()
+builder.add_node("LogNode", "logger", {})
+wf = builder.build(reg)
+
+# Execute multiple times with different inputs
+for i in range(10):
+    result = rt.execute(wf, {"id": i})
+    print(f"Run {result['run_id']}")
+```
+
+### Concurrent Executions (asyncio)
+
+```python
+import kailash
+import asyncio
+
+async def run_batch():
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("LogNode", "logger", {})
+    wf = builder.build(reg)
+
+    # Run multiple workflows concurrently
+    tasks = []
+    for i in range(10):
+        # Each execute call can be wrapped in asyncio
+        tasks.append(asyncio.to_thread(rt.execute, wf, {"id": i}))
+
+    results = await asyncio.gather(*tasks)
+    for result in results:
+        print(f"Run ID: {result['run_id']}")
+```
+
+### Error Handling
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("HTTPRequestNode", "api", {
+    "url": "https://api.example.com/data",
+    "method": "GET",
+})
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+
+try:
+    result = rt.execute(wf)
+    output = result["results"]["api"]
+    print(f"Response: {output}")
+except RuntimeError as e:
+    print(f"Workflow execution failed: {e}")
+```
+
+## Testing with Runtime
+
+```python
+import kailash
+
+def test_workflow_produces_correct_output():
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("TextTransformNode", "upper", {
+        "operation": "uppercase",
+    })
+
+    wf = builder.build(reg)
+    rt = kailash.Runtime(reg)
+
+    result = rt.execute(wf, {"text": "hello"})
+    output = result["results"]["upper"]
+    assert output.get("result") == "HELLO"
+```
+
+## Verify
+
+```bash
+pip install kailash-enterprise
+python -c "import kailash; print(kailash.NodeRegistry().list_types()[:5])"
+```
+
+<!-- Trigger Keywords: execute workflow, runtime, kailash.Runtime, run workflow, execution, workflow execution -->

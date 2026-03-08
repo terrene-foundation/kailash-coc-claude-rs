@@ -5,27 +5,33 @@ description: "Flutter + Kailash integration. Use when asking 'flutter integratio
 
 # Flutter + Kailash Integration
 
-> **Skill Metadata**
-> Category: `frontend`
-> Priority: `LOW`
-
 ## Quick Setup
 
 ### 1. Backend API (Python)
 
 ```python
+from kailash.nexus import NexusApp
 import kailash
+import os
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "chat", {
     "provider": "openai",
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"),
-    "prompt": "{{input.message}}"
+    "prompt": "{{input.message}}",
 })
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
 
-app = kailash.nexus.NexusApp(kailash.NexusConfig(port=8000))
-app.start()
+app = NexusApp(preset="standard")
+
+@app.handler("execute")
+async def execute(message: str) -> dict:
+    result = rt.execute(wf, {"message": message})
+    return result["results"]["chat"]
+
+app.start()  # Serves on port 3000
 ```
 
 ### 2. Flutter Frontend
@@ -36,7 +42,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class WorkflowService {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://localhost:3000';
 
   Future<Map<String, dynamic>> executeWorkflow(String message) async {
     final response = await http.post(

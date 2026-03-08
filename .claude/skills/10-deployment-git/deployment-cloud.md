@@ -120,7 +120,7 @@ USER appuser
 
 # Health check (uses python since slim images don't include curl)
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
 
 CMD ["python", "-m", "app.main"]
 ```

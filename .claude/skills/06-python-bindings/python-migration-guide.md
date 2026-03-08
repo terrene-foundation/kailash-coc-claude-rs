@@ -8,16 +8,16 @@ Migrate from the original kailash Python SDK (v0.12) to the Rust-backed Python b
 
 The `kailash` package name is shared between two implementations:
 
-|                       | Original Python SDK         | Rust-backed Python Bindings                                                       |
-| --------------------- | --------------------------- | --------------------------------------------------------------------------------- |
-| Implementation        | Pure Python                 | Rust core via PyO3                                                                |
-| Install               | `pip install kailash` (old) | `pip install kailash-enterprise`                                                  |
-| Runtime               | `LocalRuntime`              | `kailash.Runtime`                                                                 |
-| Registry              | Created internally          | `kailash.NodeRegistry()` passed explicitly                                        |
-| Execute return        | `(results, run_id)` tuple   | `{"results": ..., "run_id": ..., "metadata": ...}` dict                           |
+|                       | Original Python SDK         | kailash-enterprise                                                        |
+| --------------------- | --------------------------- | ------------------------------------------------------------------------- |
+| Implementation        | Pure Python                 | Rust core via PyO3                                                        |
+| Install               | `pip install kailash` (old) | `pip install kailash-enterprise`                                          |
+| Runtime               | `LocalRuntime`              | `kailash.Runtime`                                                         |
+| Registry              | Created internally          | `kailash.NodeRegistry()` passed explicitly                                |
+| Execute return        | `(results, run_id)` tuple   | `{"results": ..., "run_id": ..., "metadata": ...}` dict                   |
 | DataFlow/Nexus/Kaizen | Python classes              | Full Python APIs via `from kailash.{dataflow,nexus,kaizen,enterprise} import ...` |
-| Custom nodes          | Class-based inheritance     | `register_callback(name, fn, inputs, outputs)`                                    |
-| Deprecation warnings  | No (is the original)        | Yes, for v0.12 compat shims                                                       |
+| Custom nodes          | Class-based inheritance     | `register_callback(name, fn, inputs, outputs)`                            |
+| Deprecation warnings  | No (is the original)        | Yes, for v0.12 compat shims                                               |
 
 The v0.12 compatibility shims (`LocalRuntime`, `build()` without registry) continue to work but emit `DeprecationWarning`. Migrate to avoid future breakage.
 
@@ -31,10 +31,9 @@ The v0.12 compatibility shims (`LocalRuntime`, `build()` without registry) conti
 from kailash.runtime import LocalRuntime
 
 runtime = LocalRuntime()
-runtime = LocalRuntime(debug=True, max_concurrent_nodes=4)
 ```
 
-**Current (Rust-backed)**:
+**Current**:
 
 ```python
 import kailash
@@ -47,7 +46,7 @@ config = kailash.RuntimeConfig(debug=True, max_concurrent_nodes=4)
 runtime = kailash.Runtime(registry, config)
 ```
 
-Key change: registry is now explicit. The same registry is passed to both `build()` and `Runtime()`.
+Key change: registry is now explicit.
 
 ---
 
@@ -63,18 +62,16 @@ builder.add_node("NoOpNode", "n1")
 wf = builder.build()        # no registry arg
 ```
 
-**Current (Rust-backed)**:
+**Current**:
 
 ```python
 import kailash
 
-registry = kailash.NodeRegistry()    # create once, reuse
+registry = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("NoOpNode", "n1")
 wf = builder.build(registry)         # registry required
 ```
-
-The `add_node` and `connect` method signatures are identical. Only `build()` changes.
 
 ---
 
@@ -84,109 +81,35 @@ The `add_node` and `connect` method signatures are identical. Only `build()` cha
 
 ```python
 results, run_id = runtime.execute(wf, {"key": "value"})
-# results is dict: node_id -> output_dict
 print(results["n1"]["data"])
-print(run_id)
 ```
 
-**Current (Rust-backed)**:
+**Current**:
 
 ```python
 result = runtime.execute(wf, {"key": "value"})
-# result is dict with "results", "run_id", "metadata" keys
 results = result["results"]
 run_id  = result["run_id"]
 print(results["n1"]["data"])
-print(run_id)
 ```
 
-The node output data is identical. Only the envelope changes from a tuple to a dict. The `metadata` key provides additional execution information not available in v0.12.
+The node output data is identical. Only the envelope changes from a tuple to a dict.
 
 ---
 
-## Pattern 4: Async Execution
-
-**v0.12 (original)**:
-
-```python
-from kailash.runtime import AsyncLocalRuntime
-
-async def run():
-    runtime = AsyncLocalRuntime()
-    results, run_id = await runtime.execute_workflow_async(wf, inputs)
-    return results, run_id
-```
-
-**Current (Rust-backed, recommended)**:
-
-```python
-import asyncio
-import kailash
-
-async def run():
-    registry = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("NoOpNode", "n1")
-    wf = builder.build(registry)
-
-    runtime = kailash.Runtime(registry)
-    # run synchronous execute in a thread pool to avoid blocking the event loop
-    result = await asyncio.to_thread(runtime.execute, wf, {"key": "value"})
-    return result["results"], result["run_id"]
-```
-
-**Current (using compat class -- still emits DeprecationWarning)**:
-
-```python
-from kailash.runtime import AsyncLocalRuntime
-
-async def run():
-    runtime = AsyncLocalRuntime()   # DeprecationWarning
-    results, run_id = await runtime.execute_workflow_async(wf, inputs)
-    return results, run_id
-```
-
----
-
-## Pattern 5: get_runtime()
-
-**v0.12 (original)**:
-
-```python
-from kailash.runtime import get_runtime
-
-runtime = get_runtime()   # LocalRuntime or AsyncLocalRuntime depending on context
-results, run_id = runtime.execute(wf)
-```
-
-**Current (Rust-backed)**:
-
-```python
-import kailash
-
-# Always use Runtime directly -- no need for context-detection helper
-registry = kailash.NodeRegistry()
-runtime = kailash.Runtime(registry)
-result = runtime.execute(wf)
-results = result["results"]
-run_id  = result["run_id"]
-```
-
----
-
-## Pattern 6: Custom Nodes
+## Pattern 4: Custom Nodes
 
 **v0.12 (original -- class-based)**:
 
 ```python
-from kailash.nodes.base import BaseNode   # does NOT exist in current API
+from kailash.nodes.base import BaseNode
 
 class UppercaseNode(BaseNode):
     def run(self, inputs):
         return {"result": inputs["text"].upper()}
 ```
 
-**Current (Rust-backed -- callback-based)**:
+**Current (callback-based)**:
 
 ```python
 import kailash
@@ -196,92 +119,61 @@ def uppercase(inputs: dict) -> dict:
 
 registry = kailash.NodeRegistry()
 registry.register_callback(
-    "UppercaseNode",   # type name string
-    uppercase,         # callable: (dict) -> dict
-    ["text"],          # input names
-    ["result"],        # output names
+    "UppercaseNode",
+    uppercase,
+    ["text"],
+    ["result"],
 )
-# Must register BEFORE Runtime(registry)
 runtime = kailash.Runtime(registry)
 ```
 
-There is no class-based node inheritance in the Python binding. All custom Python nodes use `register_callback`.
-
 ---
 
-## Pattern 7: NodeRegistry Import Path
-
-**v0.12 (original)**:
-
-```python
-from kailash.nodes.base import NodeRegistry   # still works (re-export)
-```
-
-**Current (preferred)**:
-
-```python
-from kailash import NodeRegistry   # direct import
-# or
-import kailash
-registry = kailash.NodeRegistry()
-```
-
----
-
-## Pattern 8: Database / DataFlow
+## Pattern 5: Database / DataFlow
 
 **v0.12 (original)**:
 
 ```python
 from kailash import DataFlow
 
-db = DataFlow("postgresql://...")
+db = DataFlow(database_url="postgresql://...")
 
 @db.model
 class User:
     id: int
     name: str
     email: str
-
-# Generated nodes: CreateUser, ReadUser, ListUser, etc.
-builder.add_node("CreateUser", "create_user")
 ```
 
-**Current (full DataFlow API available)**:
-
-DataFlow is fully available in the Python binding with both Rust-backed types and Python compat helpers:
+**Current (full DataFlow API)**:
 
 ```python
-from kailash.dataflow import DataFlow, ModelDefinition, FieldType, FieldDef
 from kailash.dataflow import db, F, with_tenant
+import kailash
 
-# Option A: Rust-backed DataFlow API
-df = DataFlow("postgresql://user:pass@localhost/mydb")
-model = ModelDefinition("User", "users")
-model.field("name", FieldType.text())   # field(name, field_type, ...)
-model.field("email", FieldType.text())  # FieldDef has no public constructor
+# Option A: Builder API
+df = kailash.DataFlow("postgresql://user:pass@localhost/mydb")
+model = kailash.ModelDefinition("User", "users")
+model.field("id", kailash.FieldType.integer(), primary_key=True)
+model.field("name", kailash.FieldType.text(), required=True)
+df.register_model(model)
 
-# Option B: Python compat decorator (mirrors v0.12 @db.model)
+# Option B: Python compat decorator
 @db.model
 class User:
     id: int
     name: str
     email: str
 
-# Filter builder
-f = F("name") == "Alice"  # F() uses call syntax, not attribute access
+users = db.query("User", F.name == "Alice")
 
-# Multi-tenancy (requires base QueryInterceptor + tenant_id)
-from kailash.dataflow import TenantContext, QueryInterceptor
-base_ctx = TenantContext("default")
-base = QueryInterceptor(base_ctx)
-with with_tenant(base, "tenant-123") as scoped:
-    result = scoped.intercept_query("SELECT * FROM users")
+with with_tenant("tenant-123"):
+    users = db.query("User")
 ```
 
 ---
 
-## Pattern 9: Nexus / API Server
+## Pattern 6: Nexus / API Server
 
 **v0.12 (original)**:
 
@@ -297,12 +189,10 @@ async def greet(name: str):
 app.start()
 ```
 
-**Current (full Nexus API available)**:
-
-Nexus is fully available in the Python binding:
+**Current (full Nexus API)**:
 
 ```python
-from kailash.nexus import NexusApp, NexusAuthPlugin, SessionStore
+from kailash.nexus import NexusApp, NexusAuthPlugin
 
 app = NexusApp()
 
@@ -311,35 +201,23 @@ async def greet(name: str, greeting: str = "Hello") -> dict:
     return {"message": f"{greeting}, {name}!"}
 
 app.start()
-# API:  http://localhost:8000/greet
-# CLI:  kailash greet --name World
 ```
 
 ---
 
-## Pattern 10: Enterprise (RBAC, ABAC, Audit)
+## Pattern 7: Enterprise (RBAC, ABAC, Audit)
 
-**v0.12 (original)**:
+**v0.12**: Enterprise features were not available.
 
-```python
-# Enterprise features were not available in v0.12
-```
-
-**Current (full Enterprise API)**:
+**Current**:
 
 ```python
 from kailash.enterprise import (
-    RbacEvaluator, Role, Permission, User,
-    AbacEvaluator, AuditLogger, CombinedEvaluator,
+    CombinedEvaluator,
     requires_permission, audit_action, tenant_scoped,
+    set_current_user, set_current_tenant,
 )
 
-# RBAC
-evaluator = RbacEvaluator()
-role = Role("admin").with_permission(Permission("users", "read")).with_permission(Permission("users", "write"))
-evaluator.add_role(role)
-
-# Decorators
 @requires_permission("users", "read")
 async def list_users():
     ...
@@ -355,34 +233,31 @@ async def get_data():
 
 ---
 
-## Pattern 11: Kaizen Agents
+## Pattern 8: Kaizen Agents
 
 **v0.12 (original)**:
 
 ```python
 from kaizen.api import Agent
 
-agent = Agent(model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
+agent = Agent(model=os.environ.get("LLM_MODEL", "gpt-5"))
 result = await agent.run("What is the capital of France?")
 ```
 
 **Current (full Kaizen API)**:
 
 ```python
-from kailash.kaizen import BaseAgent, Agent, AgentConfig, LlmClient, CostTracker
-from kailash.kaizen import HookManager, Signature
+import os
+from kailash.kaizen import BaseAgent, Agent, AgentConfig, LlmClient
 from kailash.kaizen.agents import SimpleQAAgent, ReActAgent, RAGAgent
 from kailash.kaizen.pipelines import SequentialPipeline, ParallelPipeline
 
-# Simple agent
-agent = Agent(AgentConfig(model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5")))
+agent = Agent(AgentConfig(model=os.environ.get("LLM_MODEL", "gpt-5")))
 result = await agent.run("What is the capital of France?")
 
-# Agent subclasses
-qa = SimpleQAAgent(model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"))
-react = ReActAgent(model=os.environ.get("DEFAULT_LLM_MODEL", "gpt-5"), tools=[...])
+qa = SimpleQAAgent(model=os.environ.get("LLM_MODEL", "gpt-5"))
+react = ReActAgent(model=os.environ.get("LLM_MODEL", "gpt-5"), tools=[...])
 
-# Pipelines
 pipeline = SequentialPipeline([agent1, agent2])
 result = await pipeline.run("complex task")
 ```
@@ -410,10 +285,9 @@ results, run_id = runtime.execute(wf, {
     "b": 7,
 })
 print(results["calc"]["result"])   # 42
-print(run_id)
 ```
 
-**After (kailash-enterprise)**:
+**After (current)**:
 
 ```python
 import kailash
@@ -438,38 +312,17 @@ print(result["run_id"])
 
 ---
 
-## Suppress Deprecation Warnings During Migration
-
-If you need to run mixed old/new code while migrating incrementally:
-
-```python
-import warnings
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", DeprecationWarning)
-    # ... old v0.12 code here ...
-```
-
-Or at the process level (suppresses all DeprecationWarnings -- use with care):
-
-```python
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="kailash")
-```
-
----
-
 ## Summary: All Breaking Changes
 
-| v0.12 pattern                      | Current replacement                               | Notes                 |
-| ---------------------------------- | ------------------------------------------------- | --------------------- |
-| `LocalRuntime()`                   | `Runtime(NodeRegistry())`                         | Registry now explicit |
-| `builder.build()`                  | `builder.build(registry)`                         | Registry required     |
-| `results, run_id = rt.execute(wf)` | `result = rt.execute(wf)`                         | Dict, not tuple       |
-| `AsyncLocalRuntime`                | `asyncio.to_thread(runtime.execute, wf, inputs)`  | Sync wrapper          |
-| `get_runtime()`                    | `Runtime(NodeRegistry())`                         | Always sync           |
-| `class MyNode(BaseNode)`           | `register_callback("MyNode", fn, ins, outs)`      | No inheritance        |
-| `DataFlow`, `@db.model`            | `from kailash.dataflow import db, F, with_tenant` | Full API available    |
-| `Nexus`                            | `from kailash.nexus import NexusApp`              | Full API available    |
-| `Kaizen`                           | `from kailash.kaizen import BaseAgent, Agent`     | Full API available    |
-| `Enterprise`                       | `from kailash.enterprise import RbacEvaluator`    | New                   |
+| v0.12 pattern                      | Current replacement                                   |
+| ---------------------------------- | ----------------------------------------------------- |
+| `LocalRuntime()`                   | `kailash.Runtime(kailash.NodeRegistry())`             |
+| `builder.build()`                  | `builder.build(registry)`                             |
+| `results, run_id = rt.execute(wf)` | `result = rt.execute(wf)` (dict)                     |
+| `AsyncLocalRuntime`                | `asyncio.to_thread(runtime.execute, wf, inputs)`      |
+| `get_runtime()`                    | `kailash.Runtime(kailash.NodeRegistry())`             |
+| `class MyNode(BaseNode)`           | `register_callback("MyNode", fn, ins, outs)`          |
+| `DataFlow`, `@db.model`            | `from kailash.dataflow import db, F, with_tenant`     |
+| `Nexus`                            | `from kailash.nexus import NexusApp`                  |
+| `Kaizen`                           | `from kailash.kaizen import BaseAgent, Agent`         |
+| `Enterprise`                       | `from kailash.enterprise import CombinedEvaluator`    |
