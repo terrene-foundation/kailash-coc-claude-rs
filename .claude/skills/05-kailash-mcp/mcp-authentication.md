@@ -36,12 +36,13 @@ from kailash.mcp import McpApplication
 
 app = McpApplication("secure-server", "1.0")
 
-@app.tool(name="search", description="Search documents")
-def search(query: str) -> str:
+@app.tool("search", "Search documents")
+def search(params):
+    query = params["query"]
     return f"Results for {query}"
 
 @app.resource(uri="config://settings", name="Settings")
-def get_settings() -> str:
+def get_settings(uri: str) -> str:
     return '{"theme": "dark"}'
 
 # Authentication is configured at the transport level
@@ -57,8 +58,9 @@ import os
 
 app = McpApplication("auth-server", "1.0")
 
-@app.tool(name="protected_action", description="A protected action")
-def protected_action(data: str) -> str:
+@app.tool("protected_action", "A protected action")
+def protected_action(params):
+    data = params["data"]
     return f"Processed: {data}"
 
 server = app.server

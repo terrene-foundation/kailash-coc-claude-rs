@@ -30,10 +30,11 @@ from kailash.mcp import McpApplication
 
 app = McpApplication("processor-server", "1.0")
 
-@app.tool(name="process_data", description="Process a large dataset")
-def process_data(dataset_url: str) -> str:
+@app.tool("process_data", "Process a large dataset")
+def process_data(params):
     """Process data with progress reporting."""
     import json
+    dataset_url = params["dataset_url"]
     # Implementation would report progress via MCP protocol
     # The MCP server framework handles progress notifications
     return json.dumps({"status": "completed", "records_processed": 1000})
