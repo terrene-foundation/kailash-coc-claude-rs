@@ -31,7 +31,7 @@ import kailash
 #   TextToSpeechNode  - Text to speech
 #
 # Multi-agent coordination (A2A) is handled by the Kaizen agent framework
-# (kailash-kaizen), not by workflow nodes.
+# (`kailash.kaizen`), not by workflow nodes.
 ```
 
 ## Core LLM Node
@@ -272,7 +272,7 @@ builder.add_node("TextToSpeechNode", "tts", {
 
 ## Multi-Agent Coordination
 
-Multi-agent coordination (A2A protocol) is handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes. See the `kaizen-specialist` for agent patterns including:
+Multi-agent coordination (A2A protocol) is handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes. See the `kaizen-specialist` for agent patterns including:
 
 - `BaseAgent` with the TAOD loop (think, act, observe, decide)
 - `OrchestrationRuntime` for multi-agent coordination

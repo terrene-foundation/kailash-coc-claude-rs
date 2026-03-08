@@ -1,6 +1,6 @@
 ---
 name: decide-node-for-task
-description: "Select appropriate nodes from 110+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
+description: "Select appropriate nodes from 139+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
 ---
 
 # Decision: Node Selection
@@ -51,6 +51,7 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - Complex implementation needed
 - Production deployment required
 - Deep analysis necessary

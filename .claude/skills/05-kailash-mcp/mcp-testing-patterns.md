@@ -15,7 +15,7 @@ Test MCP integrations with real servers and mock strategies.
 
 ## Architecture Note
 
-MCP client connections (connecting to MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not connect to MCP servers directly.
+MCP client connections (connecting to MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not connect to MCP servers directly.
 
 For testing MCP servers you build, test the server tools directly. For testing MCP client integration, use Kaizen agent tests.
 

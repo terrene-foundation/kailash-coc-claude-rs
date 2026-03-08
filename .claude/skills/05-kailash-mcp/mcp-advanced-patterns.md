@@ -51,10 +51,9 @@ from kailash import JwtConfig
 app = NexusApp()
 
 # Secure MCP endpoint with JWT auth
-auth = NexusAuthPlugin.basic_auth(
+auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
 )
-app.add_plugin(auth)
 
 # Register MCP tools -- auth applies to all channels including MCP
 @app.handler(name="admin_operation", description="Admin-only operation")
@@ -64,7 +63,7 @@ async def admin_operation(action: str) -> dict:
 
 ## LLMNode with Tool Calling
 
-`LLMNode` supports tool calling via the `tools` parameter. Provider is auto-detected from the model name. For full MCP server connectivity (tool discovery, iterative execution), use the **Kaizen agent framework** (`kailash-kaizen`).
+`LLMNode` supports tool calling via the `tools` parameter. Provider is auto-detected from the model name. For full MCP server connectivity (tool discovery, iterative execution), use the **Kaizen agent framework** (`kailash.kaizen`).
 
 ```python
 import kailash
@@ -154,7 +153,7 @@ bus.subscribe(lambda e: print(f"Progress: {e}") if e.get("type") == "progress" e
 
 ## MCP Client Integration
 
-MCP client connections (connecting to external MCP servers, discovering tools, and executing them iteratively) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes like `LLMNode`. See the `kaizen-specialist` for Kaizen agent MCP client patterns.
+MCP client connections (connecting to external MCP servers, discovering tools, and executing them iteratively) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes like `LLMNode`. See the `kaizen-specialist` for Kaizen agent MCP client patterns.
 
 ## Production Readiness Checklist
 

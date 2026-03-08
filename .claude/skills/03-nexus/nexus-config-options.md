@@ -28,7 +28,7 @@ app = NexusApp(NexusConfig(
 # Additional features configured via methods:
 app.add_rate_limit(100)                             # DoS protection (requests per minute)
 app.add_cors(["https://app.example.com"])           # CORS origins
-# app.add_plugin(auth_plugin)                       # Auth via NexusAuthPlugin
+# Auth: NexusAuthPlugin(jwt=JwtConfig(secret_key=...))  # See nexus-auth-plugin.md
 ```
 
 ## Progressive Configuration
@@ -43,51 +43,36 @@ app.add_cors(["https://example.com"])
 
 ### Authentication Configuration
 
-Authentication is configured via the `NexusAuthPlugin`, not attribute access.
+Authentication is configured via the `NexusAuthPlugin` constructor, not factory methods.
 
 ```python
 import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
-# Basic auth (JWT + audit)
-auth = NexusAuthPlugin.basic_auth(
+# Basic auth (JWT only)
+auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
 )
 
-# SaaS auth (JWT + RBAC + tenant isolation)
-from kailash import RbacConfig
-auth = NexusAuthPlugin.saas_app(
+# With RBAC and tenant isolation
+auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(["admin", "user"]),
+    rbac=RbacConfig(roles=["admin", "user"]),
     tenant_header="X-Tenant-ID",
 )
 
-from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_plugin(auth)
 ```
 
 ### Rate Limiting Configuration
 
 ```python
-from kailash import AuthRateLimitConfig
+from kailash.nexus import NexusApp
 
-# Simple: via constructor
+# Rate limiting via NexusApp method
 app = NexusApp()
-app.add_rate_limit(1000)  # Requests per minute
-
-# Advanced: via NexusAuthPlugin
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, RbacConfig
-
-auth = NexusAuthPlugin(
-    jwt=JwtConfig("secret-at-least-32-bytes-long!!"),
-    rbac=RbacConfig(["admin"]),
-)
-app = NexusApp()
-app.add_plugin(auth)
+app.add_rate_limit(max_requests=1000, window_secs=60)
 ```
 
 ### Monitoring Configuration
@@ -108,7 +93,7 @@ app = NexusApp()          # Configure SaaS features via plugins
 app = NexusApp()    # Configure enterprise features via plugins
 ```
 
-### Middleware and Plugin API
+### Middleware and Router API
 
 ```python
 # Add custom middleware
@@ -116,10 +101,9 @@ app.add_middleware(SomeMiddleware, param="value")
 
 # Include custom routers
 app.include_router(my_router)
-
-# Add plugins (NexusPlugin protocol)
-app.add_plugin(auth_plugin)
 ```
+
+**Note:** NexusApp has NO `add_plugin()` method. Auth is configured via `NexusAuthPlugin` constructor.
 
 ## Environment Variables
 

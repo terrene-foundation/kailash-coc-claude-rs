@@ -19,66 +19,48 @@ JWT, RBAC, tenant isolation, rate limiting, and audit logging into a single plug
 ```python
 import os
 import kailash
-from kailash.nexus import NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusAuthPlugin
 from kailash import JwtConfig
 
-# Basic auth (JWT + audit)
-auth = NexusAuthPlugin.basic_auth(
+# Basic auth (JWT)
+auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])  # secret_key is the parameter name
 )
 
-from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_plugin(auth)
 app.start()
 ```
 
-### JWT Configuration (Symmetric -- HS256)
+### JWT Configuration
 
 ```python
 from kailash import JwtConfig
 
 jwt_config = JwtConfig(
     secret_key=os.environ["JWT_SECRET"],      # Must be >= 32 chars for HS256
-    algorithm="HS256",
-    exempt_paths=["/health", "/docs"],    # CRITICAL: `exempt_paths`, NOT `exclude_paths`
-    verify_exp=True,
-    leeway=0,
+    algorithm="HS256",                        # Default
+    expiry_secs=3600,                         # Default 3600
+    issuer=None,                              # Optional
 )
 ```
 
-### JWT Configuration (Asymmetric -- RS256 / SSO)
-
-```python
-from kailash import JwtConfig
-
-# JWKS for SSO providers (Auth0, Okta, etc.)
-jwt_config = JwtConfig(
-    algorithm="RS256",
-    jwks_url="https://your-tenant.auth0.com/.well-known/jwks.json",
-    jwks_cache_ttl=3600,
-    issuer="https://your-issuer.com",
-    audience="your-api",
-)
-```
+**JwtConfig only accepts:** `secret_key`, `expiry_secs`, `algorithm`, `issuer`. No other parameters exist.
 
 ### SaaS Application (JWT + RBAC + Tenant Isolation)
 
 ```python
 import os
 import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
-auth = NexusAuthPlugin.saas_app(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "user": ["read:*"]},
-    tenant_isolation=TenantConfig(admin_role="admin"),  # singular `admin_role`
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(roles=["admin", "user"]),
+    tenant_header="X-Tenant-ID",
 )
 
-from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_plugin(auth)
 app.start()
 ```
 
@@ -89,18 +71,16 @@ RBAC is configured as part of the NexusAuthPlugin.
 ```python
 import os
 import kailash
-from kailash.nexus import NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusAuthPlugin
 from kailash import JwtConfig, RbacConfig
 
 auth = NexusAuthPlugin(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(["admin", "editor", "viewer"]),
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
     tenant_header="X-Tenant-ID",
 )
 
-from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_plugin(auth)
 
 # Use handlers for role-protected operations
 @app.handler("admin_dashboard", description="Admin only")
@@ -127,39 +107,16 @@ app = NexusApp()
 app.add_rate_limit(1000)
 ```
 
-### Fine-Grained Rate Limiting via NexusAuthPlugin
+### Rate Limiting via NexusApp
 
 ```python
-import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig
-from kailash import AuthRateLimitConfig
-
-auth = NexusAuthPlugin.enterprise(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "user": ["read:*"]},
-    rate_limit=RateLimitConfig(
-        requests_per_minute=100,
-        burst_size=20,
-        backend="memory",                    # or "redis"
-        redis_url="redis://localhost:6379",  # Required if backend="redis"
-        route_limits={
-            "/api/chat/*": {"requests_per_minute": 30},
-            "/api/auth/login": {"requests_per_minute": 10, "burst_size": 5},
-            "/health": None,                 # Disable rate limit for health
-        },
-        include_headers=True,                # X-RateLimit-* headers
-        fail_open=True,                      # Allow when backend fails
-    ),
-)
-# CRITICAL: RateLimitConfig has NO `exclude_paths` parameter
-
 from kailash.nexus import NexusApp
+
 app = NexusApp()
-app.add_plugin(auth)
-app.start()
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
+
+**Note:** There is no `RateLimitConfig` class. Rate limiting is configured directly on the NexusApp instance.
 
 ## Monitoring and Observability
 
@@ -182,82 +139,62 @@ print(f"Status: {health['status']}")
 
 ## Audit Logging
 
+Audit logging is handled at the application level via structured logging, not via NexusAuthPlugin configuration:
+
 ```python
 import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig
-from kailash.nexus import NexusAuthPlugin
-
-auth = NexusAuthPlugin.enterprise(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "user": ["read:*"]},
-    audit=AuditConfig(
-        backend="logging",                   # or "dataflow"
-        log_level="INFO",
-        log_request_body=False,              # PII risk
-        log_response_body=False,
-        exclude_paths=["/health", "/metrics"],
-        redact_headers=["Authorization", "Cookie"],
-        redact_fields=["password", "token", "api_key"],
-    ),
-)
-
+import logging
 from kailash.nexus import NexusApp
+
 app = NexusApp()
-app.add_plugin(auth)
-app.start()
+
+# Use structured logging for audit trails
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("nexus.audit")
+
+@app.handler("sensitive_action", description="Audited action")
+async def sensitive_action(data: str) -> dict:
+    logger.info("Action performed", extra={"action": "sensitive_action"})
+    return {"status": "ok"}
 ```
 
 ## Tenant Isolation
 
+Tenant isolation is configured via the `tenant_header` parameter on NexusAuthPlugin:
+
 ```python
 import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig
-from kailash.nexus import NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
-auth = NexusAuthPlugin.saas_app(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "user": ["read:*"]},
-    tenant_isolation=TenantConfig(
-        tenant_id_header="X-Tenant-ID",
-        jwt_claim="tenant_id",               # Claim name in JWT
-        allow_admin_override=True,
-        admin_role="super_admin",            # CRITICAL: singular string, NOT `admin_roles`
-        exclude_paths=["/health", "/docs"],
-    ),
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(roles=["admin", "user"]),
+    tenant_header="X-Tenant-ID",       # String header name, NOT a TenantConfig object
 )
 
-from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_plugin(auth)
 app.start()
 ```
+
+**Note:** There is no `TenantConfig` class. Use the `tenant_header` string parameter directly.
 
 ## Security Hardening
 
 ```python
 import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
-from kailash import AuthRateLimitConfig
-from kailash.nexus import NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
-auth = NexusAuthPlugin.enterprise(
-    jwt=JwtConfig(os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
-    rate_limit=RateLimitConfig(requests_per_minute=5000),
-    tenant_isolation=TenantConfig(admin_role="admin"),
-    audit=AuditConfig(backend="logging"),
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
+    tenant_header="X-Tenant-ID",
 )
 
 app = NexusApp()
-app.add_rate_limit(5000)
+app.add_rate_limit(max_requests=5000, window_secs=60)
 app.add_cors(["https://app.example.com"])
-app.add_plugin(auth)
 app.start()
 ```
 
@@ -281,39 +218,28 @@ app = NexusApp()    # Configure enterprise features via plugins
 
 ```python
 import os
-import kailash
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
-from kailash import AuthRateLimitConfig
-from kailash.nexus import NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 
 def create_production_app():
-    # Auth via NexusAuthPlugin
-    auth = NexusAuthPlugin.enterprise(
+    auth = NexusAuthPlugin(
         jwt=JwtConfig(
-            algorithm="RS256",
-            jwks_url="https://auth.company.com/.well-known/jwks.json",
-            jwks_cache_ttl=3600,
+            secret_key=os.environ["JWT_SECRET"],
+            algorithm="HS256",
+            issuer="https://auth.company.com",
         ),
-        rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
-        rate_limit=RateLimitConfig(
-            requests_per_minute=5000,
-            backend="redis",
-            redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379"),
-        ),
-        tenant_isolation=TenantConfig(admin_role="admin"),
-        audit=AuditConfig(backend="logging"),
+        rbac=RbacConfig(roles=["admin", "editor", "viewer"]),
+        tenant_header="X-Tenant-ID",
     )
 
-    app = NexusApp(NexusConfig(
+    app = NexusApp(config=NexusConfig(
         port=int(os.getenv("PORT", "3000")),
         host="0.0.0.0",
     ))
 
     # Security: Rate limiting and CORS
-    app.add_rate_limit(5000)
+    app.add_rate_limit(max_requests=5000, window_secs=60)
     app.add_cors(["https://app.example.com"])
-    app.add_plugin(auth)
 
     return app
 
@@ -335,22 +261,25 @@ app.start()
 
 ## Common Auth Gotchas
 
-| Issue                                   | Cause                                | Fix                            |
-| --------------------------------------- | ------------------------------------ | ------------------------------ |
-| `TypeError: 'secret' unexpected`        | Wrong param name                     | Use `secret_key`, not `secret` |
-| `TypeError: 'exclude_paths' unexpected` | JwtConfig uses different name        | Use `exempt_paths`             |
-| `TypeError: 'admin_roles' unexpected`   | TenantConfig uses singular           | Use `admin_role` (string)      |
-| Dependency injection fails              | `from __future__ import annotations` | Remove PEP 563 import          |
-| RBAC without JWT                        | RBAC requires JWT                    | Add `jwt=JwtConfig(...)`       |
+| Issue                                    | Cause                                 | Fix                                           |
+| ---------------------------------------- | ------------------------------------- | --------------------------------------------- |
+| `TypeError: 'secret' unexpected`         | Wrong param name                      | Use `secret_key`, not `secret`                |
+| `TypeError: 'exempt_paths' unexpected`   | JwtConfig has no exempt_paths         | Remove it (not a valid param)                 |
+| `TypeError: 'jwt_secret_key' unexpected` | Wrong NexusAuthPlugin param           | Use `jwt=JwtConfig(secret_key=...)`           |
+| `NameError: TenantConfig`                | TenantConfig does not exist           | Use `tenant_header="X-Tenant-ID"` string      |
+| `NameError: RateLimitConfig`             | RateLimitConfig does not exist        | Use `app.add_rate_limit(max_requests=N, ...)` |
+| `AttributeError: basic_auth`             | No factory methods on NexusAuthPlugin | Use direct constructor `NexusAuthPlugin(...)` |
+| `AttributeError: add_plugin`             | NexusApp has no add_plugin method     | NexusAuthPlugin is configured separately      |
+| Dependency injection fails               | `from __future__ import annotations`  | Remove PEP 563 import                         |
 
 ## Key Takeaways
 
-- Authentication configured via `NexusAuthPlugin` (not attribute access)
-- Factory methods: `basic_auth()`, `saas_app()`, `enterprise()`
-- Middleware ordering handled automatically by the plugin
-- RBAC uses wildcard patterns for permission matching
-- Rate limiting available at constructor level or via plugin
-- Audit logging integrated into the auth plugin
+- Authentication configured via `NexusAuthPlugin` constructor (no factory methods)
+- NexusAuthPlugin accepts: `jwt=JwtConfig(...)`, `rbac=RbacConfig(...)`, `rate_limit=None`, `tenant_header=None`
+- JwtConfig only accepts: `secret_key`, `expiry_secs`, `algorithm`, `issuer`
+- NexusApp has NO `add_plugin()` or `use()` method
+- Rate limiting via `app.add_rate_limit(max_requests=N, window_secs=N)`
+- There are NO `TenantConfig` or `RateLimitConfig` classes
 
 ## Related Skills
 

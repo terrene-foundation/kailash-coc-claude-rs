@@ -224,21 +224,10 @@ auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(
         secret_key=os.environ["JWT_SECRET"],       # Must be >= 32 chars for HS256
         algorithm="HS256",
-        exempt_paths=["/health", "/docs"],      # CRITICAL: 'exempt_paths', NOT 'exclude_paths'
     ),
-    rbac={                                      # Plain dict, NOT RBACConfig
-        "admin": ["*"],
-        "member": ["contacts:read", "contacts:create"],
-        "viewer": ["contacts:read"],
-    },
-    tenant_isolation=kailash.TenantConfig(      # TenantConfig object, NOT True/False
-        jwt_claim="tenant_id",
-        admin_role="super_admin",               # CRITICAL: singular 'admin_role', NOT 'admin_roles'
-    ),
-    audit=kailash.AuditConfig(backend="logging"),
+    rbac=kailash.RbacConfig(roles=["admin", "member", "viewer"]),
+    tenant_header="X-Tenant-ID",
 )
-
-app.add_plugin(auth)
 
 # Use role/permission checks in handlers
 @app.handler("admin_dashboard")
@@ -260,40 +249,42 @@ async def profile(user=kailash.get_current_user()) -> dict:
 app.start()
 ```
 
-### Factory Methods
+### Constructor Patterns
 
 ```python
-# Basic auth (JWT + audit)
-auth = kailash.NexusAuthPlugin.basic_auth(jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]))
+# Basic auth (JWT only)
+auth = kailash.NexusAuthPlugin(jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 
-# SaaS (JWT + RBAC + tenant + audit)
-auth = kailash.NexusAuthPlugin.saas_app(
+# With RBAC
+auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "user": ["read:*"]},
-    tenant_isolation=kailash.TenantConfig(),
+    rbac=kailash.RbacConfig(roles=["admin", "user"]),
 )
 
-# Enterprise (all features)
-auth = kailash.NexusAuthPlugin.enterprise(
+# With tenant isolation
+auth = kailash.NexusAuthPlugin(
     jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
-    rate_limit=kailash.RateLimitConfig(requests_per_minute=100, burst_size=20),
-    tenant_isolation=kailash.TenantConfig(),
-    audit=kailash.AuditConfig(backend="logging"),
+    rbac=kailash.RbacConfig(roles=["admin", "editor", "viewer"]),
+    tenant_header="X-Tenant-ID",
 )
+
+# Rate limiting is configured on NexusApp, not NexusAuthPlugin:
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
 
 ### Common Mistakes
 
-| Wrong                                       | Correct                                     | Why                               |
-| ------------------------------------------- | ------------------------------------------- | --------------------------------- |
-| `JwtConfig(secret=...)`                     | `JwtConfig(secret_key=...)`                 | Parameter is named `secret_key`   |
-| `JwtConfig(exclude_paths=[...])`            | `JwtConfig(exempt_paths=[...])`             | Parameter is named `exempt_paths` |
-| `TenantConfig(admin_roles=[...])`           | `TenantConfig(admin_role="super_admin")`    | Singular string, not list         |
-| `RBACConfig(roles={...})`                   | `rbac={"admin": ["*"], ...}`                | Plain dict, no RBACConfig class   |
-| `tenant_isolation=True`                     | `tenant_isolation=TenantConfig(...)`        | Must pass config object           |
-| `from nexus.auth.plugin import ...`         | `from kailash.nexus import NexusAuthPlugin` | All types from `kailash.*`        |
-| `from __future__ import annotations` + deps | Remove PEP 563 import                       | Breaks runtime type resolution    |
+| Wrong                                       | Correct                                     | Why                             |
+| ------------------------------------------- | ------------------------------------------- | ------------------------------- |
+| `JwtConfig(secret=...)`                     | `JwtConfig(secret_key=...)`                 | Parameter is named `secret_key` |
+| `JwtConfig(exempt_paths=[...])`             | (remove -- not a valid param)               | JwtConfig has no `exempt_paths` |
+| `TenantConfig(...)`                         | `tenant_header="X-Tenant-ID"`               | No TenantConfig class exists    |
+| `RateLimitConfig(...)`                      | `app.add_rate_limit(max_requests=N, ...)`   | No RateLimitConfig class exists |
+| `NexusAuthPlugin.basic_auth(...)`           | `NexusAuthPlugin(...)`                      | No factory methods exist        |
+| `app.add_plugin(auth)`                      | (remove -- no add_plugin method)            | NexusApp has no add_plugin      |
+| `NexusApp(port=N)`                          | `NexusApp(config=NexusConfig(port=N))`      | Port set via NexusConfig        |
+| `from nexus.auth.plugin import ...`         | `from kailash.nexus import NexusAuthPlugin` | All types from `kailash.*`      |
+| `from __future__ import annotations` + deps | Remove PEP 563 import                       | Breaks runtime type resolution  |
 
 ### Middleware Execution Order (automatic)
 
@@ -780,21 +771,25 @@ async def my_handler(required_param: str, optional_param: int = 10) -> dict:
     return {"result": "..."}
 
 # Auth types (all from import kailash)
-# kailash.NexusAuthPlugin, kailash.JwtConfig, kailash.TenantConfig
-# kailash.RateLimitConfig, kailash.AuditConfig
+# kailash.NexusAuthPlugin, kailash.JwtConfig, kailash.RbacConfig
 # kailash.RequireRole, kailash.RequirePermission, kailash.get_current_user
+# Rate limiting: app.add_rate_limit(max_requests=N, window_secs=N)
+# Tenant isolation: NexusAuthPlugin(tenant_header="X-Tenant-ID")
 ```
 
 ### Auth Parameter Gotchas
 
-| Wrong                        | Correct                                     | Component    |
-| ---------------------------- | ------------------------------------------- | ------------ |
-| `secret`                     | `secret_key`                                | JwtConfig    |
-| `exclude_paths`              | `exempt_paths`                              | JwtConfig    |
-| `admin_roles`                | `admin_role` (singular string)              | TenantConfig |
-| `RBACConfig(roles={...})`    | `rbac={"admin": ["*"], ...}` dict           | Plugin init  |
-| `tenant_isolation=True`      | `tenant_isolation=TenantConfig()`           | Plugin init  |
-| `from nexus.auth.plugin ...` | `from kailash.nexus import NexusAuthPlugin` | Import path  |
+| Wrong                          | Correct                                     | Component       |
+| ------------------------------ | ------------------------------------------- | --------------- |
+| `secret`                       | `secret_key`                                | JwtConfig       |
+| `exempt_paths`                 | (does not exist)                            | JwtConfig       |
+| `verify_exp`, `leeway`         | (do not exist)                              | JwtConfig       |
+| `TenantConfig(...)`            | `tenant_header="X-Tenant-ID"`               | NexusAuthPlugin |
+| `RateLimitConfig(...)`         | `app.add_rate_limit(max_requests=N, ...)`   | NexusApp        |
+| `NexusAuthPlugin.basic_auth()` | `NexusAuthPlugin(...)`                      | NexusAuthPlugin |
+| `app.add_plugin(auth)`         | (no add_plugin method)                      | NexusApp        |
+| `NexusApp(port=N)`             | `NexusApp(config=NexusConfig(port=N))`      | NexusApp        |
+| `from nexus.auth.plugin ...`   | `from kailash.nexus import NexusAuthPlugin` | Import path     |
 
 ## Validation Tests
 

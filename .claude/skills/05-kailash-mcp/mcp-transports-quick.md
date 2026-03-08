@@ -15,7 +15,7 @@ Configure MCP server connections using STDIO, HTTP, or WebSocket transports.
 
 ## Architecture Note
 
-MCP client connections (connecting to external MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not have an `mcp_servers` parameter.
+MCP client connections (connecting to external MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not have an `mcp_servers` parameter.
 
 For building MCP servers, use the `McpApplication` class from `kailash.mcp`.
 

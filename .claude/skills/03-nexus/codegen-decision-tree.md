@@ -202,28 +202,19 @@ async def verify_token(request: Request):
 
 ```python
 # DO: Use NexusAuthPlugin (correct imports)
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
+from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig, RbacConfig
 import os
 
-from kailash.nexus import NexusApp
 app = NexusApp()
 auth = NexusAuthPlugin(
     jwt=JwtConfig(
         secret_key=os.environ["JWT_SECRET"],     # Must be >= 32 chars for HS256
         algorithm="HS256",
-        exempt_paths=["/health"],             # CORRECT: 'exempt_paths'
     ),
-    rbac={                                    # Plain dict, NOT RBACConfig
-        "admin": ["*"],
-        "member": ["contacts:read", "contacts:create"],
-    },
-    tenant_isolation=TenantConfig(            # TenantConfig object, NOT True
-        jwt_claim="tenant_id",
-        admin_role="admin",                   # CORRECT: singular string
-    ),
+    rbac=RbacConfig(roles=["admin", "member"]),
+    tenant_header="X-Tenant-ID",
 )
-app.add_plugin(auth)
 ```
 
 **Why**: Auth is complex (refresh tokens, RBAC, tenant isolation). NexusAuthPlugin handles edge cases.
@@ -404,7 +395,7 @@ import kailash
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
+from kailash import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration (from environment)
@@ -413,14 +404,12 @@ from kailash import JwtConfig, TenantConfig
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///app.db")
 JWT_SECRET = os.environ["JWT_SECRET"]  # REQUIRED
 API_PORT = int(os.environ.get("API_PORT", "3000"))
-MCP_PORT = int(os.environ.get("MCP_PORT", "3001"))
 
 # ============================================================================
 # Initialize Frameworks
 # ============================================================================
 
 app = NexusApp(NexusConfig(port=API_PORT))
-# Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
     DATABASE_URL,
@@ -437,21 +426,10 @@ auth = NexusAuthPlugin(
     jwt=JwtConfig(
         secret_key=JWT_SECRET,                         # >= 32 chars for HS256
         algorithm="HS256",
-        exempt_paths=["/health", "/docs"],          # CORRECT: `exempt_paths`
     ),
-    rbac={                                          # Plain dict, NOT RBACConfig
-        "admin": ["*"],
-        "member": ["users:read", "contacts:read", "contacts:create", "contacts:update"],
-        "viewer": ["users:read", "contacts:read"],
-    },
-    tenant_isolation=TenantConfig(                  # TenantConfig object, NOT True
-        jwt_claim="tenant_id",
-        allow_admin_override=True,
-        admin_role="admin",                         # CORRECT: singular string
-    ),
+    rbac=RbacConfig(roles=["admin", "member", "viewer"]),
+    tenant_header="X-Tenant-ID",
 )
-
-app.add_plugin(auth)
 
 # ============================================================================
 # Models
@@ -704,7 +682,7 @@ import kailash
 
 reg = kailash.NodeRegistry()
 from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig
+from kailash import JwtConfig, RbacConfig
 
 # ============================================================================
 # Configuration
@@ -797,22 +775,10 @@ auth = NexusAuthPlugin(
     jwt=JwtConfig(
         secret_key=os.environ["JWT_SECRET"],
         algorithm="HS256",
-        exempt_paths=["/health", "/docs"],
     ),
-    rbac={
-        "owner": ["*"],
-        "admin": ["users:*", "projects:*", "analytics:read"],
-        "member": ["projects:read", "projects:create", "projects:update"],
-        "viewer": ["projects:read", "analytics:read"],
-    },
-    tenant_isolation=TenantConfig(
-        jwt_claim="tenant_id",
-        allow_admin_override=True,
-        admin_role="owner",
-    ),
+    rbac=RbacConfig(roles=["owner", "admin", "member", "viewer"]),
+    tenant_header="X-Tenant-ID",
 )
-
-app.add_plugin(auth)
 rt = kailash.Runtime(reg)
 
 # ============================================================================
@@ -924,14 +890,19 @@ async def my_handler(param: str, optional: int = 10) -> dict:
 
 ```python
 # Correct imports
-from kailash.nexus import NexusAuthPlugin
-from kailash import JwtConfig, TenantConfig, AuthRateLimitConfig
+from kailash.nexus import NexusApp, NexusAuthPlugin, NexusConfig
+from kailash import JwtConfig, RbacConfig
 
-# Correct parameter names
-JwtConfig(secret_key=..., exempt_paths=[...])        # NOT secret, NOT exclude_paths
-TenantConfig(admin_role="admin")                 # NOT admin_roles (singular string)
-rbac={"admin": ["*"]}                            # Plain dict, NOT RBACConfig(roles={...})
-tenant_isolation=TenantConfig(jwt_claim="...")    # TenantConfig object, NOT True
+# Correct constructor
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret_key=...),               # Only: secret_key, expiry_secs, algorithm, issuer
+    rbac=RbacConfig(roles=["admin", "user"]),    # Optional
+    tenant_header="X-Tenant-ID",                 # Optional string, NOT TenantConfig
+)
+
+# NexusApp constructor
+app = NexusApp(config=NexusConfig(port=3000))    # NOT NexusApp(port=3000)
+app.add_rate_limit(max_requests=100, window_secs=60)  # NOT RateLimitConfig
 ```
 
 ## Validation Tests

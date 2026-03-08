@@ -15,7 +15,7 @@ Secure MCP server connections with API keys, JWT tokens, and OAuth 2.1.
 
 ## Architecture Note
 
-MCP client connections (connecting to external MCP servers, discovering tools, executing them) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes like `LLMNode`. The `LLMNode` supports tool calling via the `tools` parameter but does not have an `mcp_servers` parameter.
+MCP client connections (connecting to external MCP servers, discovering tools, executing them) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes like `LLMNode`. The `LLMNode` supports tool calling via the `tools` parameter but does not have an `mcp_servers` parameter.
 
 For building MCP servers, use the `McpApplication` class from `kailash.mcp`.
 

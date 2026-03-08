@@ -98,13 +98,13 @@ app = NexusApp(preset="standard")
 
 ```python
 from kailash.nexus import NexusApp, NexusAuthPlugin
+from kailash import JwtConfig
 import os
 
 app = NexusApp()
 
 # Add JWT authentication
-auth = NexusAuthPlugin(jwt_secret_key=os.environ["JWT_SECRET"])
-app.use(auth)
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
 
 @app.handler("protected")
 async def protected(name: str) -> dict:
@@ -116,18 +116,18 @@ app.start()
 ## Custom Port and Config
 
 ```python
-from kailash.nexus import NexusApp
+from kailash.nexus import NexusApp, NexusConfig
 
 # Default: 0.0.0.0:3000
 app = NexusApp()
 app.start()
 
 # Custom port
-app = NexusApp(port=8080)
+app = NexusApp(config=NexusConfig(port=8080))
 app.start()
 
 # Custom host and port
-app = NexusApp(host="127.0.0.1", port=9000)
+app = NexusApp(config=NexusConfig(host="127.0.0.1", port=9000))
 app.start()
 ```
 

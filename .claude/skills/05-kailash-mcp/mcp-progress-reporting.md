@@ -21,7 +21,7 @@ Report progress for long-running MCP operations.
 
 ## Architecture Note
 
-MCP progress reporting is implemented on MCP servers (built with `McpApplication` or `kailash.MCPServer`). MCP client connections that receive progress updates are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes.
+MCP progress reporting is implemented on MCP servers (built with `McpApplication` or `kailash.MCPServer`). MCP client connections that receive progress updates are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
 
 ## Server-Side Progress Reporting
 

@@ -15,7 +15,7 @@ Manage MCP resources with templates, subscriptions, and URI-based access.
 
 ## Architecture Note
 
-MCP resources are defined on MCP servers (built with `McpApplication`). MCP client connections that consume resources are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes.
+MCP resources are defined on MCP servers (built with `McpApplication`). MCP client connections that consume resources are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
 
 ## Quick Reference
 

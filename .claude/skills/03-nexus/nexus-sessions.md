@@ -12,6 +12,7 @@ Workflow execution state management across API, CLI, and MCP channels.
 ## Core Concept
 
 Nexus workflows are stateless by default. Each `rt.execute()` call is independent. For stateful workflows, use:
+
 - **Workflow inputs/outputs**: Pass state between executions via `inputs`
 - **EventBus**: Track lifecycle events with `app.event_bus()`
 - **DataFlow**: Persist state in a database
@@ -126,10 +127,9 @@ from kailash.nexus import NexusApp, NexusAuthPlugin
 from kailash import JwtConfig
 
 app = NexusApp()
-auth = NexusAuthPlugin.basic_auth(
+auth = NexusAuthPlugin(
     jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
 )
-app.add_plugin(auth)
 # All channels (API, CLI, MCP) now require valid JWT
 ```
 

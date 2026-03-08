@@ -9,7 +9,7 @@ You are an expert in MCP tool execution patterns. Guide users through implementi
 MCP tool execution in the Kailash SDK is handled at two levels:
 
 - **Workflow level**: `LLMNode` supports tool calling via the `tools` input parameter. The LLM can request tool calls, and results are returned in `tool_calls` output. However, `LLMNode` does NOT directly connect to MCP servers.
-- **Agent level**: The Kaizen agent framework (`kailash-kaizen`) provides full MCP client integration. Kaizen agents can connect to MCP servers, discover tools, and execute them iteratively.
+- **Agent level**: The Kaizen agent framework (`kailash.kaizen`) provides full MCP client integration. Kaizen agents can connect to MCP servers, discover tools, and execute them iteratively.
 
 ### 2. LLMNode with Tool Definitions
 

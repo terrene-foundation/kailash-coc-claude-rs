@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 ### 4. MCP Client Configuration
 
-MCP client connections (connecting to external MCP servers) are handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes like `LLMNode`. Kaizen agents configure MCP server connections as part of their agent setup:
+MCP client connections (connecting to external MCP servers) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes like `LLMNode`. Kaizen agents configure MCP server connections as part of their agent setup:
 
 ```python
 # Kaizen agent MCP client configuration

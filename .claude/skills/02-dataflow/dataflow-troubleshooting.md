@@ -219,7 +219,7 @@ if "step1" in existing:
 | DF-XXX error codes                 | Yes                | RuntimeError messages |
 | `DataFlow(url, test_mode=True)`    | Yes                | No `test_mode` param  |
 | Schema cache metrics               | Yes                | No                    |
-| ExpressDataFlow                    | Yes                | No                    |
+| DataFlowExpress                    | Yes                | No                    |
 
 ## Related
 

@@ -66,7 +66,7 @@ print(f"Auth Enabled: {app._enable_auth}")  # True in production
 # Test auth behavior in development
 # Auth is configured via NexusAuthPlugin, not constructor param
 app = NexusApp()
-# app.add_plugin(auth)  # See nexus-auth-plugin.md
+# Auth configured via NexusAuthPlugin constructor (see nexus-auth-plugin.md)
 ```
 
 **Disable in Production (NOT RECOMMENDED)**:
@@ -528,8 +528,8 @@ app = NexusApp()  # No auth plugin added
 # RIGHT - Use environment variable
 export NEXUS_ENV=production
 app = NexusApp()
-auth = NexusAuthPlugin.basic_auth(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
-app.add_plugin(auth)  # Auth enabled
+auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
+# Auth configured
 ```
 
 ### ❌ Mistake 2: No Rate Limiting

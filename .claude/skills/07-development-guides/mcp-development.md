@@ -210,7 +210,7 @@ server.run(transport="websocket", host="0.0.0.0", port=8001)
 
 ### 8. Consuming MCP Servers from Agents
 
-MCP server consumption (connecting to MCP servers, discovering tools, and executing them iteratively) is handled by the **Kaizen agent framework** (`kailash-kaizen`), not by workflow nodes directly.
+MCP server consumption (connecting to MCP servers, discovering tools, and executing them iteratively) is handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes directly.
 
 For workflow-level tool calling, use `LLMNode` with explicit tool definitions:
 

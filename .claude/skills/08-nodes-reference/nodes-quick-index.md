@@ -1,11 +1,11 @@
 ---
 name: nodes-quick-index
-description: "Quick reference to all 110+ Kailash nodes. Use when asking 'node list', 'all nodes', 'node reference', 'what nodes', 'available nodes', or 'node catalog'."
+description: "Quick reference to all 139+ Kailash nodes. Use when asking 'node list', 'all nodes', 'node reference', 'what nodes', 'available nodes', or 'node catalog'."
 ---
 
 # Nodes Quick Index
 
-Quick reference to all 115+ tested and validated Kailash workflow nodes.
+Quick reference to all 139+ tested and validated Kailash workflow nodes.
 
 > **Skill Metadata**
 > Category: `nodes`
@@ -26,7 +26,7 @@ Quick reference to all 115+ tested and validated Kailash workflow nodes.
 | Send Alerts              | `DiscordAlertNode`, `EmailSenderNode` | ❌ SMTP/webhook code   |
 | Distributed Transactions | `DistributedTransactionManagerNode`   | ❌ Manual 2PC/Saga     |
 
-## Node Categories (115+ total)
+## Node Categories (139+ total)
 
 ### 📁 Data I/O (20+ nodes)
 
@@ -63,7 +63,7 @@ import kailash
 #   TextToSpeechNode (text to speech)
 #
 # Note: Multi-agent coordination (A2A) is handled by the Kaizen agent
-# framework (kailash-kaizen), not by workflow nodes.
+# framework (`kailash.kaizen`), not by workflow nodes.
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})  # provider auto-detected from model name
@@ -94,7 +94,7 @@ import kailash
 
 - **LLM**: [`nodes-ai-reference`](nodes-ai-reference.md)
 - **Embeddings**: `EmbeddingNode`
-- **Multi-Agent**: Use Kaizen agent framework (`kailash-kaizen`) for A2A coordination
+- **Multi-Agent**: Use Kaizen agent framework (`kailash.kaizen`) for A2A coordination
 
 ### Logic & Control
 
