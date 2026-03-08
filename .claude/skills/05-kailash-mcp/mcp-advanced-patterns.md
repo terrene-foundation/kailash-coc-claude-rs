@@ -136,7 +136,7 @@ import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 @app.handler(name="long_process", description="Long-running process")
 async def long_process(steps: int = 10) -> dict:

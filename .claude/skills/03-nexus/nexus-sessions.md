@@ -14,7 +14,7 @@ Workflow execution state management across API, CLI, and MCP channels.
 Nexus workflows are stateless by default. Each `rt.execute()` call is independent. For stateful workflows, use:
 
 - **Workflow inputs/outputs**: Pass state between executions via `inputs`
-- **EventBus**: Track lifecycle events with `app.event_bus()`
+- **EventBus**: Track lifecycle events with `app._nexus.event_bus()`
 - **DataFlow**: Persist state in a database
 
 ## Workflow Execution Across Channels
@@ -63,14 +63,14 @@ import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Subscribe to all events
 bus.subscribe(lambda event: print(f"Event: {event}"))
 
 # Subscribe to specific event types
-app.on("workflow_started", lambda event: print(f"Started: {event}"))
-app.on("workflow_completed", lambda event: print(f"Completed: {event}"))
+app._nexus.on("workflow_started", lambda event: print(f"Started: {event}"))
+app._nexus.on("workflow_completed", lambda event: print(f"Completed: {event}"))
 
 # Publish custom events
 bus.publish("user_action", {"user_id": "123", "action": "login"})

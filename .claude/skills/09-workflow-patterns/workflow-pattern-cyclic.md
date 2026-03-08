@@ -13,6 +13,9 @@ Patterns for implementing loops, iterations, and cyclic workflows.
 > Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`pattern-expert`](../../01-core-sdk/pattern-expert.md)
 > Related Subagents: `pattern-expert` (cyclic workflows)
 
+> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
+> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
+
 ## Quick Reference
 
 Cyclic workflows enable:

@@ -80,6 +80,7 @@ result = rt.execute(builder.build(reg), inputs={
 ## Pattern 2: RAG Query Pipeline
 
 ```python
+import os
 import kailash
 
 builder = kailash.WorkflowBuilder()
@@ -133,6 +134,7 @@ builder.connect("build_prompt", "outputs", "generate_answer", "prompt")
 ## Pattern 3: Multi-Document RAG
 
 ```python
+import os
 import kailash
 
 builder = kailash.WorkflowBuilder()

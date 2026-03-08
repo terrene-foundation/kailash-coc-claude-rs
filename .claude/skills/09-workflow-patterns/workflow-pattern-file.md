@@ -13,6 +13,9 @@ Patterns for automated file processing, transformation, and batch operations.
 > Related Skills: [`nodes-data-reference`](../nodes/nodes-data-reference.md), [`workflow-pattern-etl`](workflow-pattern-etl.md)
 > Related Subagents: `pattern-expert` (file workflows)
 
+> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
+> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
+
 ## Quick Reference
 
 File processing patterns:

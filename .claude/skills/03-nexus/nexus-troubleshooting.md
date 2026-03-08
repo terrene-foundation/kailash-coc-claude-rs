@@ -134,7 +134,7 @@ builder.add_node("SomeNode", "step1", {"previous_run_id": "run-123"})
 result = rt.execute(builder.build(reg), inputs={"state": "from_previous"})
 
 # Option 2: Track lifecycle events via EventBus
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 bus.subscribe(lambda e: print(f"Event: {e}"))
 ```
 
@@ -312,8 +312,8 @@ grep "my-workflow" nexus.log
 
 ### "Auto-discovery blocking"
 
-- Using DataFlow with auto_discovery=True
-- Set auto_discovery=False
+- NexusApp has no `auto_discovery` parameter
+- Register workflows manually with `app.register()`
 
 ## Performance Issues
 
@@ -337,7 +337,7 @@ async def timed_workflow(data: str) -> dict:
 
 ```python
 # Use EventBus to monitor resource usage
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 bus.subscribe(lambda e: log_memory_usage(e) if e.get("type") == "workflow_completed" else None)
 
 # Ensure workflows clean up resources

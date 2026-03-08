@@ -194,7 +194,7 @@ app.start()
 
 ### Common Mistakes
 
-- **Missing `auto_discovery=False`**: Causes infinite blocking on startup with DataFlow.
+- **Not registering workflows manually**: NexusApp has no `auto_discovery` param — always register workflows explicitly with `app.register()`.
 - **Using stale DataFlow parameters**: `enable_model_persistence` and `skip_migration` have been removed. Use `auto_migrate=True` (default).
 
 ---

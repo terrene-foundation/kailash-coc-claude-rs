@@ -7,6 +7,9 @@ description: "API integration workflow patterns (REST, GraphQL, webhooks). Use w
 
 Patterns for integrating and orchestrating APIs in workflows.
 
+> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
+> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
+
 ## Quick Reference
 
 API patterns enable:

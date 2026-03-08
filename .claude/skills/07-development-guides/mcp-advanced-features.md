@@ -6,6 +6,9 @@ You are an expert in advanced MCP features including structured tools, progress 
 
 ### 1. Structured Tools with Pydantic
 
+The `McpServer.register_tool()` handler receives a **dict** (not a Pydantic model).
+Parse inside the handler:
+
 ```python
 import kailash
 from pydantic import BaseModel, Field
@@ -17,7 +20,9 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
     filters: dict = Field(default_factory=dict)
 
-def search(request: SearchRequest) -> dict:
+def search(args: dict) -> dict:
+    # Parse dict into Pydantic model inside the handler
+    request = SearchRequest(**args)
     return {
         "results": perform_search(request.query, request.limit, request.filters),
         "query": request.query,
@@ -27,39 +32,56 @@ def search(request: SearchRequest) -> dict:
 server.register_tool("structured_search", "Search with structured parameters", search)
 ```
 
-### 2. Progress Reporting
+### 2. Progress Reporting via NexusApp EventBus
+
+For long-running operations, use the NexusApp EventBus to report progress:
 
 ```python
-def long_task(items: list, progress_callback=None) -> dict:
-    total = len(items)
+import kailash
+from kailash.nexus import NexusApp
 
-    for i, item in enumerate(items):
-        process_item(item)
+app = NexusApp()
+bus = app._nexus.event_bus()
 
-        # Report progress
-        if progress_callback:
-            progress_callback({
-                "current": i + 1,
-                "total": total,
-                "percentage": ((i + 1) / total) * 100,
-                "message": f"Processing item {i + 1} of {total}"
-            })
-
-    return {"processed": total, "status": "complete"}
-
-server.register_tool("long_running_task", "Task with progress updates", long_task)
+@app.handler(name="long_process", description="Long-running process")
+async def long_process(steps: int = 10) -> dict:
+    for i in range(steps):
+        process_item(i)
+        bus.publish("progress", {
+            "step": i + 1,
+            "total": steps,
+            "percentage": (i + 1) * 100 // steps
+        })
+    return {"processed": steps, "status": "complete"}
 ```
 
-### 3. Resource Subscriptions
+### 3. Dynamic Resources
+
+Use `register_dynamic_resource()` (NOT `register_resource()`) for handler-based resources.
+`register_resource()` takes static content; `register_dynamic_resource()` takes a handler.
 
 ```python
-def realtime_updates():
-    """Streaming resource with subscriptions."""
-    while True:
-        yield {"timestamp": datetime.now().isoformat(), "data": get_latest_data()}
-        time.sleep(1)
+server = kailash.McpServer("resource-server", "1.0.0")
 
-server.register_resource("realtime://updates", "Realtime Updates", "Streaming resource with subscriptions", realtime_updates)
+# Static resource -- content is a string, no handler
+server.register_resource(
+    "config://settings",
+    "Settings",
+    '{"version": "1.0.0"}',  # static content string
+    description="Server settings"
+)
+
+# Dynamic resource -- handler receives uri string, returns string
+def get_users(uri: str) -> str:
+    users = fetch_users_from_db()
+    return json.dumps({"users": users, "count": len(users)})
+
+server.register_dynamic_resource(
+    "database://users",
+    "User Database",
+    get_users,
+    description="Access user data"
+)
 ```
 
 ## When to Engage

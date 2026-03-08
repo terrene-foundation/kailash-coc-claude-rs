@@ -94,7 +94,7 @@ class Nexus:
 **Approach**: Nexus workflows are stateless by default. For stateful workflows:
 
 - **Workflow inputs/outputs**: Pass state between executions via `inputs`
-- **EventBus**: Track lifecycle events with `app.event_bus()`
+- **EventBus**: Track lifecycle events with `app._nexus.event_bus()`
 - **DataFlow**: Persist state in a database
 
 ```python
@@ -102,11 +102,11 @@ import kailash
 from kailash.nexus import NexusApp
 
 app = NexusApp()
-bus = app.event_bus()
+bus = app._nexus.event_bus()
 
 # Track workflow lifecycle events
-app.on("workflow_started", lambda e: print(f"Started: {e}"))
-app.on("workflow_completed", lambda e: print(f"Completed: {e}"))
+app._nexus.on("workflow_started", lambda e: print(f"Started: {e}"))
+app._nexus.on("workflow_completed", lambda e: print(f"Completed: {e}"))
 
 # Publish custom events for cross-component communication
 bus.publish("user_action", {"user_id": "123", "action": "login"})

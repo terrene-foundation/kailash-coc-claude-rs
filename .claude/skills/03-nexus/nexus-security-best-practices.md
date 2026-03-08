@@ -247,10 +247,10 @@ Invalid inputs are rejected with a 400 status code automatically.
 
 **Before deploying to production**:
 
-- [ ] Set `NEXUS_ENV=production` environment variable
-- [ ] Configure authentication (`enable_auth=True` or auto-enabled)
+- [ ] Set environment-appropriate configuration
+- [ ] Configure authentication via `NexusAuthPlugin(jwt=JwtConfig(...))`
 - [ ] Set appropriate rate limits (default 100 req/min)
-- [ ] Disable auto-discovery (`auto_discovery=False`)
+- [ ] Register workflows manually (NexusApp has no `auto_discovery` param)
 - [ ] Use Redis for session management
 - [ ] Enable HTTPS/TLS
 - [ ] Configure secure secrets management

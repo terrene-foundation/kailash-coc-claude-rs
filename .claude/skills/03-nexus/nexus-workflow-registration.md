@@ -623,13 +623,13 @@ app.register(name, lambda **inputs: rt.execute(workflow, inputs))  # Correct
 **Current Limitations:**
 
 - ❌ No metadata parameter on `register()` (use workaround with `_workflow_metadata`)
-- ❌ Auto-discovery can block with DataFlow (use `auto_discovery=False`)
+- ❌ No auto-discovery — register all workflows manually with `app.register()`
 - ✅ Versioning and lifecycle management require custom implementation
 
 **Always Remember:**
 
 1. Call `.build()` and wrap the result in a callable (`lambda **inputs: rt.execute(workflow, inputs)`) before registration
-2. Use `auto_discovery=False` when integrating with DataFlow
+2. Register all workflows manually (NexusApp has no `auto_discovery` param)
 3. Single registration → multi-channel exposure
 4. No need to manage channels manually
 

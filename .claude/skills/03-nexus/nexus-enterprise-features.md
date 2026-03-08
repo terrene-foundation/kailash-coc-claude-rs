@@ -257,7 +257,7 @@ app.start()
 5. **Use Redis** for distributed sessions and rate limiting
 6. **Enable Audit Logging** for compliance
 7. **Regular Security Audits**
-8. **Use `auto_discovery=False`** with DataFlow integration
+8. **Register workflows manually** with DataFlow (NexusApp has no `auto_discovery` param)
 
 ## Common Auth Gotchas
 

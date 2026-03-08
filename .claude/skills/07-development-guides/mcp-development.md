@@ -6,42 +6,50 @@ You are an expert in Model Context Protocol (MCP) server development with Kailas
 
 ### 1. MCP Server Development
 
-- Creating MCP servers with kailash.core.mcp_server
+- Creating MCP servers with `kailash.McpServer` (Rust-backed) or `McpApplication` (Python compat)
 - Implementing tools, resources, and prompts
-- Transport configuration (stdio, HTTP, WebSocket)
+- Serving via NexusApp (McpServer has no `run()` method)
 - Integration with LLM workflows
 
 ### 2. Basic MCP Server
 
-**McpServer (Rust-backed)** uses `register_tool()` / `register_resource()`:
+**McpServer (Rust-backed)** uses `register_tool()` / `register_dynamic_resource()`:
 
 ```python
 import kailash
+import json
 
 # Create MCP server (Rust-backed)
-server = kailash.McpServer(
-    "my-mcp-server",
-    "1.0.0",
-    description="My custom MCP server"
-)
+server = kailash.McpServer("my-mcp-server", "1.0.0")
 
-# Register tool (positional: name, description, handler)
-def calculate_sum(a: float, b: float) -> dict:
+# Register tool -- handler receives a dict, returns a dict
+def calculate_sum(args: dict) -> dict:
     """Add two numbers together."""
-    return {"result": a + b, "operation": "addition"}
+    return {"result": args["a"] + args["b"], "operation": "addition"}
 
 server.register_tool("calculate_sum", "Calculate the sum of two numbers", calculate_sum)
 
-# Register resource (positional: uri, name, description, handler)
-def get_settings() -> dict:
-    """Return server settings."""
-    return {"version": "1.0.0", "environment": "production"}
+# Register static resource -- content is a string (no handler)
+server.register_resource(
+    "config://settings",
+    "Server Settings",
+    '{"version": "1.0.0", "environment": "production"}',
+    description="Server configuration"
+)
 
-server.register_resource("config://settings", "Server Settings", "Server configuration", get_settings)
+# Register dynamic resource -- handler receives uri string, returns string
+def get_settings(uri: str) -> str:
+    return '{"version": "1.0.0", "environment": "production"}'
 
-# Run server
-if __name__ == "__main__":
-    server.run(transport="stdio")
+server.register_dynamic_resource(
+    "config://dynamic-settings",
+    "Dynamic Settings",
+    get_settings,
+    description="Dynamic server configuration"
+)
+
+# NOTE: McpServer has no run() method.
+# Use NexusApp to serve MCP tools via HTTP.
 ```
 
 **McpApplication (Python compat)** uses `@app.tool()` / `@app.resource()` decorators:
@@ -71,14 +79,16 @@ from pydantic import BaseModel, Field
 
 server = kailash.McpServer("advanced-server", "1.0.0")
 
-# Structured tool with Pydantic
+# Structured tool with Pydantic validation
 class SearchParams(BaseModel):
     query: str = Field(..., description="Search query")
     limit: int = Field(default=10, description="Number of results")
     category: str = Field(default="all", description="Category filter")
 
-def search_database(params: SearchParams) -> dict:
+# Handler receives a dict -- parse Pydantic model inside
+def search_database(args: dict) -> dict:
     """Search database with structured parameters."""
+    params = SearchParams(**args)
     results = perform_search(
         query=params.query,
         limit=params.limit,
@@ -90,7 +100,6 @@ def search_database(params: SearchParams) -> dict:
         "query": params.query
     }
 
-# Register with McpServer (name, description, handler)
 server.register_tool("search_database", "Search database with filters", search_database)
 
 def perform_search(query, limit, category):
@@ -105,31 +114,22 @@ import kailash
 
 server = kailash.McpServer("workflow-server", "1.0.0")
 
-def process_data(input_data: dict) -> dict:
+# Tool handler receives a dict
+def process_data(args: dict) -> dict:
     """Execute workflow to process data."""
-    # Create workflow
     builder = kailash.WorkflowBuilder()
-
     builder.add_node("EmbeddedPythonNode", "processor", {
-        "code": """
-# Process the input data
-result = {
-    'processed': True,
-    'data': input_data,
-    'timestamp': str(datetime.now())
-}
-""",
+        "code": "result = {'processed': True, 'input': input_data}",
         "output_vars": ["result"]
     })
 
-    # Execute workflow
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg), inputs={
-        "processor": {"input_data": input_data}
+        "processor": {"input_data": args.get("data", {})}
     })
 
-    return results["processor"]["outputs"]
+    return result["results"]["processor"]
 
 server.register_tool("process_data", "Process data through workflow", process_data)
 ```
@@ -137,63 +137,77 @@ server.register_tool("process_data", "Process data through workflow", process_da
 ### 5. Resource Management
 
 ```python
-def get_users() -> dict:
+import json
+
+# Static resources -- register_resource takes content string
+server.register_resource(
+    "database://schema",
+    "Database Schema",
+    '{"tables": ["users", "products"]}',
+    description="Database schema information"
+)
+
+# Dynamic resources -- register_dynamic_resource takes handler
+def get_users(uri: str) -> str:
     """Retrieve users from database."""
     users = fetch_users_from_db()
-    return {"users": users, "count": len(users)}
+    return json.dumps({"users": users, "count": len(users)})
 
-server.register_resource("database://users", "User Database", "Access user data", get_users)
+server.register_dynamic_resource(
+    "database://users",
+    "User Database",
+    get_users,
+    description="Access user data"
+)
 
-def get_logs(date: str) -> dict:
-    """Retrieve logs for specific date."""
+def get_logs(uri: str) -> str:
+    """Retrieve logs -- uri contains the date."""
+    date = uri.split("/")[-1] if "/" in uri else "today"
     logs = read_log_file(date)
-    return {"date": date, "logs": logs, "lines": len(logs)}
+    return json.dumps({"date": date, "logs": logs, "lines": len(logs)})
 
-server.register_resource("file://logs/{date}", "Log Files", "Access log files by date", get_logs)
+server.register_dynamic_resource(
+    "file://logs",
+    "Log Files",
+    get_logs,
+    description="Access log files"
+)
 ```
 
 ### 6. MCP Prompts
 
 ```python
-def data_analysis_prompt(dataset: str, question: str) -> dict:
+# Prompt handler receives a dict, returns a list of message dicts
+def data_analysis_prompt(args: dict) -> list:
     """Generate analysis prompt."""
-    return {
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a data analysis expert."
-            },
-            {
-                "role": "user",
-                "content": f"Analyze the {dataset} dataset and answer: {question}"
-            }
-        ]
-    }
+    dataset = args.get("dataset", "unknown")
+    question = args.get("question", "Summarize the data")
+    return [
+        {"role": "system", "content": "You are a data analysis expert."},
+        {"role": "user", "content": f"Analyze the {dataset} dataset and answer: {question}"}
+    ]
 
-server.register_prompt("data_analysis", "Prompt for data analysis tasks", data_analysis_prompt)
+server.register_prompt(
+    "data_analysis",
+    data_analysis_prompt,
+    description="Prompt for data analysis tasks"
+)
 ```
 
-### 7. Transport Configuration
+### 7. Serving MCP Tools
 
-**stdio (Standard Input/Output)**:
-
-```python
-# Best for: Claude Desktop, CLI tools
-server.run(transport="stdio")
-```
-
-**HTTP**:
+`McpServer` has no `run()` method. Use **NexusApp** to serve MCP tools via HTTP:
 
 ```python
-# Best for: Web integrations, REST APIs
-server.run(transport="http", host="0.0.0.0", port=3000)
-```
+from kailash.nexus import NexusApp, NexusConfig
 
-**WebSocket**:
+app = NexusApp(NexusConfig(port=3000))
 
-```python
-# Best for: Real-time communication
-server.run(transport="websocket", host="0.0.0.0", port=8001)
+@app.handler(name="calculate_sum", description="Calculate sum of two numbers")
+async def calculate_sum(a: float, b: float) -> dict:
+    return {"result": a + b}
+
+app.start()  # Blocks, serves API + CLI + MCP on port 3000
 ```
 
 ### 8. Consuming MCP Servers from Agents
@@ -243,37 +257,22 @@ For full MCP client integration (auto-discovery, iterative tool execution, MCP p
 ### 9. Error Handling in MCP Tools
 
 ```python
-def safe_operation(data: dict) -> dict:
+# Handler receives a dict
+def safe_operation(args: dict) -> dict:
     """Execute operation with error handling."""
     try:
-        # Validate input
+        data = args.get("data")
         if not data:
-            return {
-                "success": False,
-                "error": "No data provided"
-            }
+            return {"success": False, "error": "No data provided"}
 
-        # Process
         result = process(data)
-
-        return {
-            "success": True,
-            "result": result
-        }
+        return {"success": True, "result": result}
 
     except ValueError as e:
-        return {
-            "success": False,
-            "error": "validation_error",
-            "message": str(e)
-        }
+        return {"success": False, "error": "validation_error", "message": str(e)}
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": "internal_error",
-            "message": str(e)
-        }
+        return {"success": False, "error": "internal_error", "message": str(e)}
 
 server.register_tool("safe_operation", "Operation with error handling", safe_operation)
 ```
@@ -288,26 +287,37 @@ def test_mcp_tool():
     """Test MCP tool execution."""
     server = kailash.McpServer("test-server", "1.0.0")
 
-    def test_tool(value: int) -> dict:
-        return {"result": value * 2}
+    # Handler receives a dict
+    def test_tool(args: dict) -> dict:
+        return {"result": args["value"] * 2}
 
     server.register_tool("test_tool", "Test tool", test_tool)
 
-    # Test tool execution directly
-    result = test_tool(5)
+    # Test tool function directly with dict input
+    result = test_tool({"value": 5})
     assert result["result"] == 10
 
 def test_mcp_resource():
-    """Test MCP resource."""
+    """Test MCP static resource."""
     server = kailash.McpServer("test-server", "1.0.0")
 
-    def test_resource() -> dict:
-        return {"data": "test"}
+    server.register_resource("test://data", "Test", '{"data": "test"}', description="Test resource")
 
-    server.register_resource("test://resource", "Test", "Test resource", test_resource)
+    # Read resource via server
+    content = server.read_resource("test://data")
+    assert "test" in content["text"]
 
-    result = test_resource()
-    assert result["data"] == "test"
+def test_mcp_dynamic_resource():
+    """Test MCP dynamic resource."""
+    server = kailash.McpServer("test-server", "1.0.0")
+
+    def get_data(uri: str) -> str:
+        return '{"data": "dynamic_test"}'
+
+    server.register_dynamic_resource("test://dynamic", "Dynamic Test", get_data)
+
+    result = get_data("test://dynamic")
+    assert "dynamic_test" in result
 ```
 
 ## When to Engage
