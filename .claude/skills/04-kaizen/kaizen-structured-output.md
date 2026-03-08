@@ -107,7 +107,9 @@ Re-prompt the LLM when parse/validation fails:
 ```python
 from kailash.kaizen import StructuredOutput, LlmClient
 
-client = LlmClient(provider="openai")
+# LlmClient auto-detects provider from env (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+# Use LlmClient.mock() for deterministic testing
+client = LlmClient()
 
 so = StructuredOutput(
     {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]},
@@ -118,7 +120,7 @@ so = StructuredOutput(
 result = so.parse_with_retry(
     "The answer is forty-two",  # Raw LLM text (no JSON)
     llm_client=client,
-    model=os.environ["LLM_MODEL"]
+    model=os.environ.get("LLM_MODEL", "mock-model")
 )
 # LLM is re-prompted with schema and error details until valid JSON is produced
 ```

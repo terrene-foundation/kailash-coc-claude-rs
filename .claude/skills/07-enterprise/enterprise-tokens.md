@@ -60,10 +60,11 @@ jwt = tm.create_jwt({
 # Validate returns token info
 info = tm.validate(jwt["value"])
 # info: {
-#     "subject": "user-123",
-#     "scopes": ["read", "write", "admin"],
-#     "token_type": "jwt",
-#     ...
+#     "status": "valid",
+#     "claims": {
+#         "subject": "user-123",
+#         "scopes": ["read", "write", "admin"],
+#     }
 # }
 ```
 
@@ -81,8 +82,8 @@ opaque = tm.create_opaque({"subject": "user-456", "scopes": ["read"]})
 
 # Validate
 info = tm.validate(opaque["value"])
-assert info["subject"] == "user-456"
-assert info["token_type"] == "opaque"
+assert info["status"] == "valid"
+assert info["claims"]["subject"] == "user-456"
 ```
 
 ### API Key Tokens
@@ -99,8 +100,8 @@ api_key = tm.create_api_key({"subject": "service-account-1", "scopes": ["read", 
 
 # Validate
 info = tm.validate(api_key["value"])
-assert info["subject"] == "service-account-1"
-assert info["token_type"] == "api_key"
+assert info["status"] == "valid"
+assert info["claims"]["subject"] == "service-account-1"
 ```
 
 ## Token Validation
@@ -115,9 +116,9 @@ token = tm.create_jwt({"subject": "user-123", "scopes": ["read"]})
 info = tm.validate(token["value"])
 
 # Validation result fields
-info["subject"]     # "user-123" -- who the token belongs to
-info["scopes"]      # ["read"] -- what the token allows
-info["token_type"]  # "jwt", "opaque", or "api_key"
+info["status"]               # "valid", "expired", "revoked", or "invalid"
+info["claims"]["subject"]    # "user-123" -- who the token belongs to
+info["claims"]["scopes"]     # ["read"] -- what the token allows
 ```
 
 ## Token Refresh
@@ -135,7 +136,7 @@ new_token = tm.refresh(token["value"])
 
 # Validate the new token
 info = tm.validate(new_token["value"])
-assert info["subject"] == "user-123"
+assert info["claims"]["subject"] == "user-123"
 ```
 
 ## Token Revocation
@@ -187,7 +188,7 @@ token = tm.create_jwt({"subject": "user-123", "scopes": ["read"]})
 
 # Valid immediately
 info = tm.validate(token["value"])
-assert info["subject"] == "user-123"
+assert info["claims"]["subject"] == "user-123"
 
 # After expiration
 time.sleep(2)
@@ -207,16 +208,14 @@ def create_token_manager():
 
 def authenticate_request(tm, token):
     """Authenticate a request using token validation."""
-    try:
-        info = tm.validate(token)
+    info = tm.validate(token)
+    if info["status"] == "valid":
         return {
             "authenticated": True,
-            "user_id": info["subject"],
-            "scopes": info["scopes"],
-            "token_type": info["token_type"],
+            "user_id": info["claims"]["subject"],
+            "scopes": info["claims"]["scopes"],
         }
-    except Exception:
-        return {"authenticated": False}
+    return {"authenticated": False, "reason": info["status"]}
 
 def issue_token(tm, user_id, scopes, token_type="jwt"):
     """Issue a new token for a user."""
@@ -234,7 +233,7 @@ def issue_token(tm, user_id, scopes, token_type="jwt"):
 # Usage
 tm = create_token_manager()
 token = issue_token(tm, "alice", ["read", "write"])
-auth = authenticate_request(tm, token)
+auth = authenticate_request(tm, token["value"])
 ```
 
 ## Integration with Nexus
@@ -260,7 +259,9 @@ async def login(username: str, password: str) -> dict:
 @app.handler(name="protected", description="Protected endpoint")
 async def protected(token: str) -> dict:
     info = tm.validate(token)
-    return {"user": info["subject"], "scopes": info["scopes"]}
+    if info["status"] != "valid":
+        return {"error": f"Token {info['status']}"}
+    return {"user": info["claims"]["subject"], "scopes": info["claims"]["scopes"]}
 ```
 
 ## Best Practices
