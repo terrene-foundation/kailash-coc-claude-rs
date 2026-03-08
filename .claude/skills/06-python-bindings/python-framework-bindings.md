@@ -530,11 +530,12 @@ from kailash.nexus import McpServer, HandlerParam
 # Both args required
 server = McpServer("my-server", "1.0.0")
 
-# Register tools (name, description, params)
+# Register tools (name, description, handler_callable, schema_dict=None)
 server.register_tool(
     "search",
     "Search for items",
-    [HandlerParam("query", "string", required=True)],
+    lambda args: {"results": [], "query": args.get("query", "")},
+    {"type": "object", "properties": {"query": {"type": "string"}}},
 )
 
 print(server.name)         # "my-server"

@@ -29,7 +29,7 @@ tool = ToolDef(
 )
 
 registry.register(tool)
-print(f"Registered tools: {registry.list()}")
+print(f"Registered tools: {registry.list_tools()}")
 ```
 
 ## ToolRegistry API
@@ -44,18 +44,18 @@ tool = ToolDef("echo", "Echo input", lambda args: args)
 registry.register(tool)
 
 # Check if a tool exists
-assert registry.has("echo")
+assert registry.get("echo") is not None
 
 # Get a tool by name
 found = registry.get("echo")
 print(f"Tool: {found.name} - {found.description}")
 
 # List all tools
-names = registry.list()
+names = registry.list_tools()
 print(f"All tools: {names}")
 
 # Count tools
-print(f"Tool count: {len(registry)}")
+print(f"Tool count: {registry.count()}")
 ```
 
 ## ToolDef and ToolParam
@@ -88,8 +88,7 @@ tool = ToolDef(
 # Inspect tool properties
 print(f"Name: {tool.name}")
 print(f"Description: {tool.description}")
-for param in tool.parameters:
-    print(f"  Param: {param.name} ({param.param_type}, required={param.required})")
+print(f"  Parameter count: {tool.param_count}")
 ```
 
 ## JSON Schema Type Mapping
@@ -147,7 +146,7 @@ registry.register(ToolDef(
 ))
 
 # List available tools for an agent
-for name in registry.list():
+for name in registry.list_tools():
     tool = registry.get(name)
     print(f"  {tool.name}: {tool.description}")
 ```
