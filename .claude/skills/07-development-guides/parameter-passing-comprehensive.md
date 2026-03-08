@@ -77,7 +77,8 @@ config = {
     }
 }
 result = {'config': config}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Provide via runtime
@@ -111,7 +112,8 @@ if timeout < 1 or timeout > 300:
     raise ValueError("Timeout must be between 1-300 seconds")
 
 result = {"result": "validated"}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 reg = kailash.NodeRegistry()

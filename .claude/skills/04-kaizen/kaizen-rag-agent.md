@@ -7,11 +7,12 @@ Retrieval-Augmented Generation implementation.
 ```python
 from kailash.kaizen import Signature, InputField, OutputField
 
+# Signature is SUBCLASSED, not instantiated
 class RAGSignature(Signature):
-    query = InputField("User query")
-    documents = InputField("Retrieved documents as JSON")
-    answer = OutputField("Answer based on documents")
-    sources = OutputField("Source citations as JSON")
+    query = InputField(description="User query")
+    documents = InputField(description="Retrieved documents as JSON", default=None)
+    answer = OutputField(description="Answer based on documents")
+    sources = OutputField(description="Source citations as JSON")
 ```
 
 ## Agent

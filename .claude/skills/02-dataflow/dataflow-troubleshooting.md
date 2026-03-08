@@ -139,8 +139,8 @@ builder = kailash.WorkflowBuilder()
 builder.add_node("SwitchNode", "router", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
 builder.add_node("MergeNode", "combiner", {})
 
-# Then connect
-builder.connect("router", "result", "combiner", "input")
+# Then connect -- SwitchNode outputs "matched" and "data"
+builder.connect("router", "data", "combiner", "data")
 ```
 
 ## Issue 6: Cycle Detected
@@ -177,7 +177,7 @@ builder.add_node("SwitchNode", "router", {
 })
 # Connect the condition input (the value to match against case keys)
 builder.connect("source", "status", "router", "condition")
-# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
+# SwitchNode outputs: "matched" (the branch name) and "data" (forwarded input)
 ```
 
 ## Issue 8: Duplicate Node IDs (Silent Overwrite)

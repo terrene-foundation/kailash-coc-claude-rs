@@ -103,7 +103,8 @@ builder.add_node("EmbeddedPythonNode", "custom_node", {
     "code": """
 data = input_data.get("data")
 result = {"output": process(data)}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -127,9 +128,10 @@ import kailash
 
 server = kailash.McpServer("my-server", "1.0.0")
 
-@server.tool(name="my_tool", description="Process a parameter")
 def my_tool(param: str) -> dict:
     return {"result": f"Processed: {param}"}
+
+server.register_tool("my_tool", "Process a parameter", my_tool)
 
 server.run(transport="stdio")
 ```

@@ -46,7 +46,8 @@ elif is_complex_query(query):
 else:
     # Use primary database
     result = primary_db.query(query)
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -62,7 +63,8 @@ replicas = ['replica1', 'replica2', 'replica3']
 selected_replica = replicas[replica_index % len(replicas)]
 
 result = {'replica': selected_replica, 'connection_string': get_replica_url(selected_replica)}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

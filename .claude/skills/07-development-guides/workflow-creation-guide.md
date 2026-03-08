@@ -21,15 +21,17 @@ builder = kailash.WorkflowBuilder()
 
 # Step 2: Add nodes
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'status': 'processed', 'data': input_data}"
+    "code": "result = {'status': 'processed', 'data': input_data}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("EmbeddedPythonNode", "validator", {
-    "code": "result = {'valid': data.get('status') == 'processed'}"
+    "code": "result = {'valid': data.get('status') == 'processed'}",
+    "output_vars": ["result"]
 })
 
 # Step 3: Connect nodes (4-parameter syntax: source, source_output, target, target_input)
-builder.connect("processor", "result", "validator", "data")
+builder.connect("processor", "outputs", "validator", "data")
 
 # Step 4: Execute - ALWAYS call .build()
 reg = kailash.NodeRegistry()
@@ -60,8 +62,8 @@ builder.connect("source", "output_key", "target", "input_key")
 **Multiple Outputs**:
 
 ```python
-builder.connect("processor", "result", "validator", "data")
-builder.connect("processor", "result", "logger", "log_data")
+builder.connect("processor", "outputs", "validator", "data")
+builder.connect("processor", "outputs", "logger", "log_data")
 ```
 
 **Conditional Routing (SwitchNode -- multi-case)**:
@@ -167,7 +169,8 @@ import kailash
 def test_workflow():
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "test_node", {
-        "code": "result = {'test': 'passed'}"
+        "code": "result = {'test': 'passed'}",
+        "output_vars": ["result"]
     })
 
     # Use strict validation mode for testing (default)
@@ -175,7 +178,7 @@ def test_workflow():
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["test_node"]["result"]["test"] == "passed"
+    assert result["results"]["test_node"]["outputs"]["test"] == "passed"
 
     # Get validation metrics if needed
     metrics = rt.get_validation_metrics()

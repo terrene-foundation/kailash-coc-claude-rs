@@ -14,7 +14,8 @@ builder = kailash.WorkflowBuilder()
 
 # 2. Add nodes
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'status': 'processed', 'data': input_data}"
+    "code": "result = {'status': 'processed', 'data': input_data}",
+    "output_vars": ["result"]
 })
 
 # 3. Add connections (4-parameter syntax)
@@ -44,10 +45,12 @@ builder.add_node("CSVProcessorNode", "reader", {
 # Process
 builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-result = {'count': len(df), 'summary': df.describe().to_dict()}
-"""
+# pandas is NOT available in EmbeddedPythonNode — use plain Python
+count = len(data)
+values = [row.get('value', 0) for row in data if isinstance(row, dict)]
+result = {'count': count, 'total': sum(values)}
+""",
+    "output_vars": ["result"]
 })
 
 # Write output
@@ -57,7 +60,7 @@ builder.add_node("FileWriterNode", "writer", {
 
 # Connect (4-parameter syntax: source, source_output, target, target_input)
 builder.connect("reader", "rows", "process", "data")
-builder.connect("process", "result", "writer", "content")
+builder.connect("process", "outputs", "writer", "content")
 ```
 
 ## When to Engage

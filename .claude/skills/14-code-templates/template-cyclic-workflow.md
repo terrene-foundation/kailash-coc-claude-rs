@@ -29,13 +29,13 @@ builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "setup", {
     "code": """
 result = {'items': [1, 2, 3, 4, 5], 'processed': []}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # 2. LoopNode handles iteration
 builder.add_node("LoopNode", "loop", {
-    "max_iterations": 5,
-    "condition": "len(items) > 0"
+    "max_iterations": 5
 })
 
 # 3. Processing node inside loop body
@@ -44,11 +44,12 @@ builder.add_node("EmbeddedPythonNode", "process", {
 item = items.pop(0)
 processed.append(item * 2)
 result = {'items': items, 'processed': processed}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Connect pipeline
-builder.connect("setup", "result", "loop", "input")
+builder.connect("setup", "outputs", "loop", "items")
 builder.connect("loop", "results", "process", "data")
 
 wf = builder.build(reg)
@@ -108,7 +109,8 @@ builder = kailash.WorkflowBuilder()
 
 # Step 1: Extract
 builder.add_node("EmbeddedPythonNode", "extract", {
-    "code": "result = {'data': [1, 2, 3, 4, 5]}"
+    "code": "result = {'data': [1, 2, 3, 4, 5]}",
+    "output_vars": ["result"]
 })
 
 # Step 2: Transform
@@ -116,23 +118,22 @@ builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
 data = input_data.get('data', [])
 result = {'transformed': [x * 2 for x in data], 'count': len(data)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
-# Step 3: Validate
-builder.add_node("ConditionalNode", "validate", {
-    "condition": "count > 0",
-    "condition_type": "expression"
-})
+# Step 3: Validate (ConditionalNode takes NO config params; inputs via connections only)
+builder.add_node("ConditionalNode", "validate", {})
 
 # Step 4: Load
 builder.add_node("EmbeddedPythonNode", "load", {
-    "code": "result = {'status': 'loaded', 'items': len(transformed)}"
+    "code": "result = {'status': 'loaded', 'items': len(transformed)}",
+    "output_vars": ["result"]
 })
 
 # Connect pipeline
-builder.connect("extract", "result", "transform", "input_data")
-builder.connect("transform", "result", "validate", "input")
+builder.connect("extract", "outputs", "transform", "input_data")
+builder.connect("transform", "outputs", "validate", "condition")
 builder.connect("validate", "result", "load", "data")
 
 wf = builder.build(reg)
@@ -145,7 +146,7 @@ print(f"Status: {result['results']['load']}")
 
 ### Iteration Approaches (Rust Binding)
 
-1. **LoopNode** -- Built-in node for bounded iteration with `max_iterations` and `condition`
+1. **LoopNode** -- LoopNode iterates over an array with optional max_iterations limit
 2. **Callback nodes** -- Register Python functions that handle iteration internally
 3. **Linear pipelines** -- Replace cycles with sequential steps + ConditionalNode
 4. **RetryNode** -- For retry-on-failure patterns (built-in backoff)

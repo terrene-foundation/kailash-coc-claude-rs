@@ -33,10 +33,10 @@ builder.add_node("CreateUser", "create_user", {
 })
 
 builder.add_node("CreateOrder", "create_order", {
-    "user_id": "${create_user.id}",  # Will work
     "total": 100.0
 })
 
+# Use connect() to pass data between nodes (NOT ${} template syntax)
 builder.connect("create_user", "id", "create_order", "user_id")
 
 rt = kailash.Runtime(reg)
@@ -124,12 +124,10 @@ builder.add_node("CreateUser", "create_user", {
 })
 
 builder.add_node("CreateOrder", "create_order", {
-    "user_id": "${create_user.id}",
     "total": 100.0
 })
 
 builder.add_node("CreatePayment", "create_payment", {
-    "order_id": "${create_order.id}",
     "amount": 100.0
 })
 
@@ -315,22 +313,21 @@ builder.add_node("CreateCustomer", "create_customer", {
 
 # Create order
 builder.add_node("CreateOrder", "create_order", {
-    "customer_id": "${create_customer.id}",
     "total": 250.00
 })
 
 # Create order items
 builder.add_node("BulkCreateOrderItem", "create_items", {
     "data": [
-        {"order_id": "${create_order.id}", "product_id": 1, "quantity": 2},
-        {"order_id": "${create_order.id}", "product_id": 2, "quantity": 1}
+        {"product_id": 1, "quantity": 2},
+        {"product_id": 2, "quantity": 1}
     ]
 })
 
 # Update inventory
 builder.add_node("BulkUpdateInventory", "update_inventory", {
     "filter": {"product_id": {"$in": [1, 2]}},
-    "fields": {"quantity": "${quantity - reserved}"}
+    "fields": {"reserved": True}
 })
 
 # Commit all or rollback

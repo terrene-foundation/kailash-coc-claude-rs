@@ -14,7 +14,7 @@ description: "SQL database support in DataFlow - PostgreSQL, MySQL, and SQLite w
 
 **All three SQL databases support identical operations:**
 
-- ✅ Same 11 nodes per model (Create, Read, Update, Delete, List, Upsert, Count, BulkCreate, BulkUpdate, BulkDelete, BulkUpsert)
+- ✅ Same 11 nodes per model (Create, Read, Update, Delete, List, Count, Upsert, BulkCreate, BulkUpdate, BulkDelete, BulkUpsert)
 - ✅ Identical workflows work across all databases
 - ✅ Same query syntax and filtering
 - ✅ Full async operations with connection pooling
@@ -136,16 +136,17 @@ class User:
 ## Multi-Database Workflows
 
 ```python
-# Use different databases for different purposes
-dev_db = kailash.DataFlow(":memory:")  # SQLite for testing
-web_db = kailash.DataFlow("mysql://...")  # MySQL for web app
-prod_db = kailash.DataFlow("postgresql://...")  # PostgreSQL for analytics
+from kailash.dataflow import db
 
-# Same models work across all
-@dev_db.model
-@web_db.model
-@prod_db.model
+# Use different databases for different purposes
+df_dev = kailash.DataFlow(":memory:")  # SQLite for testing
+df_web = kailash.DataFlow("mysql://...")  # MySQL for web app
+df_prod = kailash.DataFlow("postgresql://...")  # PostgreSQL for analytics
+
+# Models use @db.model (module-level singleton decorator)
+@db.model
 class Order:
+    id: str
     customer_id: int
     total: float
 ```

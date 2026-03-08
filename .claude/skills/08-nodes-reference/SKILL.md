@@ -75,8 +75,8 @@ Complete node catalog covering:
 
 **Conditional Logic** → Use Logic nodes (`nodes-logic-reference`)
 
-- Simple conditions: SwitchNode
-- Complex routing: ConditionalNode
+- Simple binary if/else: ConditionalNode
+- Multi-case routing: SwitchNode
 - Loops: LoopNode
 
 **Data Processing** → Use Data nodes (`nodes-data-reference`)
@@ -100,9 +100,10 @@ All nodes follow the **canonical 4-parameter pattern** from `/01-core-sdk`.
 ```python
 # See /01-core-sdk for pattern details
 builder.add_node("EmbeddedPythonNode", "node1", {
-    "code": "result = input_data * 2"
+    "code": "result = input_data * 2",
+    "output_vars": ["result"]
 })
-builder.connect("node1", "result", "node2", "input_data")
+builder.connect("node1", "outputs", "node2", "input_data")
 ```
 
 ### Common Nodes
@@ -127,7 +128,7 @@ builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL"
 builder.add_node("HTTPRequestNode", "api", {"url": "...", "method": "POST"})
 
 # Python Code
-builder.add_node("EmbeddedPythonNode", "transform", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "transform", {"code": "...", "output_vars": ["result"]})
 ```
 
 ### Database Node

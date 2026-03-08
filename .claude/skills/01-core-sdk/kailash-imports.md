@@ -62,7 +62,7 @@ import kailash
 
 ```python
 # Nodes are referenced by string name -- no imports needed
-builder.add_node("EmbeddedPythonNode", "code", {"code": "result = {'ok': True}"})
+builder.add_node("EmbeddedPythonNode", "code", {"code": "result = {'ok': True}", "output_vars": ["result"]})
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 builder.add_node("SwitchNode", "switch", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
 builder.add_node("LLMNode", "agent", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
@@ -142,7 +142,8 @@ builder.add_node("CSVProcessorNode", "reader", {
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'count': len(data)}"
+    "code": "result = {'count': len(data)}",
+    "output_vars": ["result"]
 })
 
 builder.connect("reader", "rows", "processor", "data")
@@ -166,7 +167,8 @@ builder.add_node("HTTPRequestNode", "api_call", {
 })
 
 builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "result = {'status': 'processed'}"
+    "code": "result = {'status': 'processed'}",
+    "output_vars": ["result"]
 })
 
 builder.connect("api_call", "body", "process", "data")
@@ -190,7 +192,8 @@ builder.add_node("CSVProcessorNode", "reader", {
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'count': len(data) if data else 0}"
+    "code": "result = {'count': len(data) if data else 0}",
+    "output_vars": ["result"]
 })
 
 builder.connect("reader", "rows", "processor", "data")

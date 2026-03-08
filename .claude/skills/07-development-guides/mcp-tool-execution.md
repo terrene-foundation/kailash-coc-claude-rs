@@ -79,7 +79,8 @@ for tool_call in tool_calls:
     })
 
 result = {'processed_tools': processed}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

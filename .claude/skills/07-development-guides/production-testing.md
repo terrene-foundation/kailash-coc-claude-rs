@@ -20,7 +20,8 @@ def test_python_code_node_execution():
     """Test individual node execution via workflow."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "test_node", {
-        "code": "result = {'status': 'success', 'value': input_value * 2}"
+        "code": "result = {'status': 'success', 'value': input_value * 2}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -29,14 +30,15 @@ def test_python_code_node_execution():
         "test_node": {"input_value": 10}
     })
 
-    assert result["results"]["test_node"]["result"]["status"] == "success"
-    assert result["results"]["test_node"]["result"]["value"] == 20
+    assert result["results"]["test_node"]["outputs"]["status"] == "success"
+    assert result["results"]["test_node"]["outputs"]["value"] == 20
 
 def test_python_code_node_error_handling():
     """Test node error handling."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "test_node", {
-        "code": "result = 1 / 0"  # Division by zero
+        "code": "result = 1 / 0"  # Division by zero,
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -96,10 +98,11 @@ result = {
     'count': len(data),
     'values': [row['value'] for row in data]
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
-    builder.connect("reader", "data", "processor", "data")  # SQLQueryNode outputs "data"
+    builder.connect("reader", "rows", "processor", "data")  # SQLQueryNode outputs "rows"
 
     reg = kailash.NodeRegistry()
 
@@ -108,8 +111,8 @@ result = {
         "reader": {"connection_string": "sqlite:///:memory:"}
     })
 
-    assert result["results"]["processor"]["result"]["count"] > 0
-    assert "test" in result["results"]["processor"]["result"]["values"]
+    assert result["results"]["processor"]["outputs"]["count"] > 0
+    assert "test" in result["results"]["processor"]["outputs"]["values"]
 
 def test_api_workflow_integration():
     """Test workflow with real API - NO MOCKS."""
@@ -128,7 +131,8 @@ result = {
     'has_title': 'title' in response,
     'title': response.get('title')
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
     builder.connect("api_call", "body", "validator", "response")
@@ -138,8 +142,8 @@ result = {
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["validator"]["result"]["valid"]
-    assert result["results"]["validator"]["result"]["has_title"]
+    assert result["results"]["validator"]["outputs"]["valid"]
+    assert result["results"]["validator"]["outputs"]["has_title"]
 ```
 
 ### 4. Tier 3: End-to-End Tests
@@ -161,15 +165,15 @@ def test_complete_etl_pipeline():
     # Transform
     builder.add_node("EmbeddedPythonNode", "transform", {
         "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-
-# Clean and transform
-df['value'] = df['value'].fillna(0)
-df['category'] = df['category'].str.upper()
-
-result = {'transformed_data': df.to_dict('records')}
-"""
+# pandas is NOT available in EmbeddedPythonNode — use plain Python
+result = {'transformed_data': [
+    {**row,
+     'value': row.get('value') or 0,
+     'category': (row.get('category') or '').upper()}
+    for row in data
+]}
+""",
+        "output_vars": ["result"]
     })
 
     # Load
@@ -179,7 +183,7 @@ result = {'transformed_data': df.to_dict('records')}
 
     # Connections
     builder.connect("extract", "rows", "transform", "data")
-    builder.connect("transform", "result", "load", "content")
+    builder.connect("transform", "outputs", "load", "content")
 
     # Execute
     reg = kailash.NodeRegistry()
@@ -190,11 +194,14 @@ result = {'transformed_data': df.to_dict('records')}
     import os
     assert os.path.exists("tests/output/test_output.csv")
 
-    # Verify data integrity
-    output_df = pd.read_csv("tests/output/test_output.csv")
-    assert len(output_df) > 0
-    assert 'category' in output_df.columns
-    assert all(output_df['category'].str.isupper())
+    # Verify data integrity (use csv module, pandas is not available in EmbeddedPythonNode)
+    import csv
+    with open("tests/output/test_output.csv") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+    assert len(rows) > 0
+    assert 'category' in rows[0]
+    assert all(row['category'].isupper() for row in rows)
 ```
 
 ### 5. Test Organization (NO MOCKING Policy)
@@ -245,7 +252,8 @@ async def test_async_workflow():
 import asyncio
 await asyncio.sleep(0.1)
 result = {'processed': True}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -253,7 +261,7 @@ result = {'processed': True}
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg), inputs={})
 
-    assert result["results"]["async_processor"]["result"]["processed"]
+    assert result["results"]["async_processor"]["outputs"]["processed"]
 
 @pytest.mark.asyncio
 async def test_async_api_calls():
@@ -284,7 +292,8 @@ def test_comprehensive_workflow_coverage():
     builder = kailash.WorkflowBuilder()
 
     builder.add_node("EmbeddedPythonNode", "input", {
-        "code": "result = {'value': input_value}"
+        "code": "result = {'value': input_value}",
+        "output_vars": ["result"]
     })
 
     # SwitchNode for multi-branch routing
@@ -293,16 +302,18 @@ def test_comprehensive_workflow_coverage():
         "default_branch": "low_path"
     })
     # SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
-    builder.connect("input", "result", "router", "condition")
+    builder.connect("input", "outputs", "router", "condition")
     builder.connect("router", "data", "high_path", "value")
     builder.connect("router", "data", "low_path", "value")
 
     builder.add_node("EmbeddedPythonNode", "high_path", {
-        "code": "result = {'category': 'high', 'value': value}"
+        "code": "result = {'category': 'high', 'value': value}",
+        "output_vars": ["result"]
     })
 
     builder.add_node("EmbeddedPythonNode", "low_path", {
-        "code": "result = {'category': 'low', 'value': value}"
+        "code": "result = {'category': 'low', 'value': value}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -313,19 +324,19 @@ def test_comprehensive_workflow_coverage():
     results_high, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 75}
     })
-    assert results_high["high_path"]["result"]["category"] == "high"
+    assert results_high["high_path"]["outputs"]["category"] == "high"
 
     # Test low path
     results_low, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 25}
     })
-    assert results_low["low_path"]["result"]["category"] == "low"
+    assert results_low["low_path"]["outputs"]["category"] == "low"
 
     # Test boundary
     results_boundary, _ = rt.execute(builder.build(reg), inputs={
         "input": {"input_value": 50}
     })
-    assert results_boundary["low_path"]["result"]["category"] == "low"
+    assert results_boundary["low_path"]["outputs"]["category"] == "low"
 ```
 
 ### 8. Production Test Best Practices
@@ -354,7 +365,8 @@ try:
     result = {'value': 1 / divisor}
 except ZeroDivisionError:
     result = {'value': 0, 'error': 'division_by_zero'}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -364,7 +376,7 @@ except ZeroDivisionError:
         "risky_op": {"divisor": 0}
     })
 
-    assert result["results"]["risky_op"]["result"]["error"] == "division_by_zero"
+    assert result["results"]["risky_op"]["outputs"]["error"] == "division_by_zero"
 
 # 3. Test performance
 import time

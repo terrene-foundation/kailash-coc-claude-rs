@@ -165,7 +165,7 @@ class User:
     name: str
     email: str
 
-users = db.query("User", F.name == "Alice")
+users = db.query("User", F("name") == "Alice")
 
 with with_tenant("tenant-123"):
     users = db.query("User")

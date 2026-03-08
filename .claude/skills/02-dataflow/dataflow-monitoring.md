@@ -42,11 +42,8 @@ builder.add_node("ListUser", "get_users", {
     "track_performance": True  # Enable timing
 })
 
-# Log performance
-builder.add_node("ConditionalNode", "check_slow", {
-    "condition": "{{get_users.execution_time_ms}} > 1000",
-    "true_branch": "log_slow_query"
-})
+# ConditionalNode: NO config params. Inputs: condition, if_value, else_value. Output: result.
+builder.add_node("ConditionalNode", "check_slow", {})
 
 builder.add_node("SQLQueryNode", "log_slow_query", {
     "query": "INSERT INTO slow_queries (operation, duration_ms) VALUES (?, ?)",

@@ -32,15 +32,17 @@ def main():
 
     # 2. Add nodes (replace with your nodes)
     builder.add_node("EmbeddedPythonNode", "step1", {
-        "code": "result = {'data': 'value'}"
+        "code": "result = {'data': 'value'}",
+        "output_vars": ["result"]
     })
 
     builder.add_node("EmbeddedPythonNode", "step2", {
-        "code": "result = {'processed': input_data}"
+        "code": "result = {'processed': input_data}",
+        "output_vars": ["result"]
     })
 
     # 3. Connect nodes (define data flow)
-    builder.connect("step1", "result", "step2", "input_data")
+    builder.connect("step1", "outputs", "step2", "input_data")
 
     # 4. Build workflow (pass registry for validation)
     wf = builder.build(reg)
@@ -77,7 +79,8 @@ def create_workflow(reg):
     builder = kailash.WorkflowBuilder()
 
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'status': 'completed'}"
+        "code": "result = {'status': 'completed'}",
+        "output_vars": ["result"]
     })
 
     return builder.build(reg)
@@ -117,7 +120,8 @@ def execute_workflow(data):
     builder = kailash.WorkflowBuilder()
 
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'processed': True}"
+        "code": "result = {'processed': True}",
+        "output_vars": ["result"]
     })
 
     rt = kailash.Runtime(reg)
@@ -144,12 +148,13 @@ def create_etl_workflow(input_file: str, output_file: str, reg):
     # Transform
     builder.add_node("EmbeddedPythonNode", "transform", {
         "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-# Add your transformation logic here
-df['processed'] = df['value'] * 2
-result = df.to_dict('records')
-"""
+# Transform each row (pandas is NOT available in EmbeddedPythonNode)
+result = [
+    {**row, 'processed': row.get('value', 0) * 2}
+    for row in data
+]
+""",
+        "output_vars": ["result"]
     })
 
     # Load
@@ -159,7 +164,7 @@ result = df.to_dict('records')
 
     # Connect pipeline
     builder.connect("extract", "rows", "transform", "data")
-    builder.connect("transform", "result", "load", "content")
+    builder.connect("transform", "outputs", "load", "content")
 
     return builder.build(reg)
 

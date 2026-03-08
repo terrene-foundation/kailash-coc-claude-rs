@@ -147,8 +147,8 @@ builder.add_node("CountCartItem", "item_count", {
     "filter": {"cart_id": "cart-123"}
 })
 
-# Use ConditionalNode to select between two values based on count.
-# Inputs: "condition" (bool), "if_value", "else_value". Output: "result".
+# ConditionalNode selects between two values based on a boolean condition.
+# NO config params. Inputs: "condition", "if_value", "else_value". Output: "result".
 builder.add_node("ConditionalNode", "check_empty", {})
 
 builder.connect("item_count", "count", "check_empty", "condition")  # truthy if count > 0

@@ -47,7 +47,7 @@ Workflow branching, looping, and coordination.
 | ------------------ | ----------------------------------------------- |
 | `SwitchNode`       | Route to one of N branches based on a condition |
 | `MergeNode`        | Merge outputs from multiple branches            |
-| `LoopNode`         | Repeat a subgraph N times or until condition    |
+| `LoopNode`         | Iterate over items in an array                  |
 | `ConditionalNode`  | If/else branching                               |
 | `ParallelNode`     | Fan-out to parallel branches                    |
 | `RetryNode`        | Retry a node on failure with backoff            |
@@ -117,8 +117,8 @@ AI model integrations via raw HTTP to provider APIs.
 | `LLMNode`             | Text generation (OpenAI, Anthropic, Google, Mistral, Cohere) |
 | `EmbeddingNode`       | Generate text embeddings                                     |
 | `ClassificationNode`  | Classify text into categories                                |
-| `SentimentAnalysisNode` | Sentiment analysis                                         |
-| `TextSummarizationNode` | Text summarization                                         |
+| `SentimentNode` | Sentiment analysis                                         |
+| `SummarizationNode` | Text summarization                                         |
 | `VisionNode`          | Image understanding (multimodal LLMs)                        |
 | `AudioNode`           | Audio transcription and analysis                             |
 | `ImageGenerationNode` | Generate images (DALL-E, etc.)                               |

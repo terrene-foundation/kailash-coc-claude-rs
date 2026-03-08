@@ -97,33 +97,37 @@ DataFlow provides sync methods for table creation and connection cleanup.
 
 ```python
 # ✅ CORRECT - Sync methods for lifecycle management
-db = kailash.DataFlow(":memory:")
+from kailash.dataflow import db
+
+df = kailash.DataFlow(":memory:")
 
 @db.model
 class User:
     id: str
     name: str
 
-db.create_tables()  # Create tables
+df.create_tables()  # Create tables
 
-# ... use db ...
+# ... use df ...
 
-db.close()  # Cleanup
+df.close()  # Cleanup
 ```
 
 #### pytest Fixtures
 
 ```python
+from kailash.dataflow import db
+
 @pytest.fixture
 def db_fixture():
-    db = kailash.DataFlow(":memory:")
+    df = kailash.DataFlow(":memory:")
     @db.model
     class User:
         id: str
         name: str
-    db.create_tables()
-    yield db
-    db.close()
+    df.create_tables()
+    yield df
+    df.close()
 ```
 
 **Impact**: Use `auto_migrate=True` (the default) to skip manual `create_tables()` calls.
@@ -140,6 +144,7 @@ DataFlow handles table creation internally using synchronous DDL, completely byp
 
 ```python
 import kailash
+from kailash.dataflow import db
 from kailash.nexus import NexusApp
 
 # Zero-config: auto_migrate=True (default) now works!
@@ -358,6 +363,8 @@ builder.add_node("UpdateUser", "update", {
 ```python
 # WRONG - Models are not instantiable
 import kailash
+from kailash.dataflow import db
+
 df = kailash.DataFlow(os.environ["DATABASE_URL"])
 
 @db.model
@@ -422,7 +429,8 @@ app = NexusApp(NexusConfig(port=3000))
 
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
-builder.add_node("CreateProduct", "create", {"name": "${input.name}"})
+builder.add_node("CreateProduct", "create", {})
+# Use connect() to pass input data to nodes (NOT ${} template syntax)
 app.register("create_product", builder.build(reg))
 ```
 
@@ -589,27 +597,27 @@ builder.add_node("CreateOrder", "create", {
 
 ```python
 # HISTORICAL ISSUE (now fixed)
-db_dev = kailash.DataFlow("sqlite:///dev.db")
-db_prod = kailash.DataFlow("postgresql://...")
+df_dev = kailash.DataFlow("sqlite:///dev.db")
+df_prod = kailash.DataFlow("postgresql://...")
 
-@db_dev.model
+@db.model
 class DevModel:
     name: str
 
-# Model leaked to db_prod instance in older versions!
+# Model leaked to df_prod instance in older versions!
 ```
 
 **Fix: Fixed (Proper Context Isolation)**
 
 ```python
 # Fixed - proper isolation now enforced
-db_dev = kailash.DataFlow("sqlite:///dev.db")
-db_prod = kailash.DataFlow("postgresql://...")
+df_dev = kailash.DataFlow("sqlite:///dev.db")
+df_prod = kailash.DataFlow("postgresql://...")
 
-@db_dev.model
+@db.model
 class DevModel:
     name: str
-# Only in db_dev, not in db_prod
+# Properly isolated per DataFlow instance
 ```
 
 ## Documentation References
@@ -639,7 +647,7 @@ Use `dataflow-specialist` when:
 - DataFlow is workflow-native, NOT an ORM
 - Use connections, NOT `${}` template syntax
 - Enable critical config for Nexus integration
-- Access results via `results["node"]["result"]`
+- Access results via node-specific keys (ListNode: `"records"`, CountNode: `"count"`, etc.)
 - Historical fixes: string IDs, TEXT type, datetime, multi-instance isolation
 
 ## Keywords for Auto-Trigger

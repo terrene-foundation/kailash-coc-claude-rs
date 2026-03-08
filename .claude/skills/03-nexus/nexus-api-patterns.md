@@ -40,41 +40,37 @@ import kailash
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-# Custom endpoint with path parameters
-@app.endpoint("/api/conversations/{conversation_id}", methods=["GET"], rate_limit=50)
-async def get_conversation(conversation_id: str):
+# Use @app.handler() for registering endpoints (NOT @app.endpoint())
+@app.handler("get_conversation", description="Get conversation by ID")
+async def get_conversation(conversation_id: str) -> dict:
     """Get conversation by ID."""
-    result = await app._execute_workflow("chat_workflow", {"id": conversation_id})
-    return {"conversation_id": conversation_id, "data": result}
+    builder = kailash.WorkflowBuilder()
+    reg = kailash.NodeRegistry()
+    builder.add_node("ReadConversation", "read", {"id": conversation_id})
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return {"conversation_id": conversation_id, "data": result["results"]["read"]}
 
-# Query parameters
-@app.endpoint("/api/search")
-async def search(q: str, limit: int = 10, offset: int = 0):
+# Search with pagination
+@app.handler("search", description="Search with pagination")
+async def search(q: str, limit: int = 10, offset: int = 0) -> dict:
     """Search with pagination."""
-    result = await app._execute_workflow("search_workflow", {
-        "query": q,
-        "limit": limit,
-        "offset": offset
-    })
-    return result
+    return {"query": q, "limit": limit, "offset": offset}
 
-# Or use handlers for cleaner CRUD
 @app.handler("get_message", description="Get a message by ID")
 async def get_message(msg_id: str) -> dict:
-    return await app._execute_workflow("get_message", {"id": msg_id})
+    return {"id": msg_id}
 
 @app.handler("delete_message", description="Delete a message")
 async def delete_message(msg_id: str) -> dict:
-    return await app._execute_workflow("delete_message", {"id": msg_id})
+    return {"deleted": True, "id": msg_id}
 ```
 
 ### Key Features:
-- ✅ **Path Parameters**: Automatically validated
-- ✅ **Query Parameters**: Type coercion, defaults, `pattern` validation
-- ✅ **Rate Limiting**: Per-endpoint with automatic cleanup (default 100 req/min)
-- ✅ **Security**: Input size (10MB max), dangerous key blocking, key length (256 chars)
-- ✅ **HTTP Methods**: GET, POST, PUT, DELETE, PATCH
-- ✅ **Workflow Integration**: Use `_execute_workflow()` helper
+- **Handler Registration**: `@app.handler()` for multi-channel endpoints (API + CLI + MCP)
+- **Rate Limiting**: Global via `app.add_rate_limit()` (default 100 req/min)
+- **Security**: Input size (10MB max), dangerous key blocking, key length (256 chars)
+- **Automatic Parameter Derivation**: From function signature type annotations
 
 ## Basic Workflow Execution
 
@@ -152,14 +148,15 @@ curl -X POST http://localhost:3000/workflows/my-workflow/execute \
 
 ```python
 import kailash
+from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 
-# Fine-tune API behavior
-app.api.response_compression = True
-app.api.request_timeout = 30
-app.api.max_concurrent_requests = 100
-app.api.max_request_size = 10 * 1024 * 1024  # 10MB
+# NOTE: NexusApp does not have app.api.* attributes.
+# API behavior (compression, timeouts, concurrency) is configured
+# server-side via Rust Nexus engine and tower middleware.
+# Rate limiting is configured via:
+app.add_rate_limit(1000)
 ```
 
 ## Advanced Request Patterns
@@ -401,14 +398,11 @@ X-RateLimit-Reset: 1705315200
 ## CORS Configuration
 
 ```python
-# Configure CORS
-app = NexusApp()
+# Configure CORS via NexusApp method (NOT app.api.*)
+from kailash.nexus import NexusApp
 
-app.api.cors_enabled = True
-app.api.cors_origins = ["https://example.com", "https://app.example.com"]
-app.api.cors_methods = ["GET", "POST"]
-app.api.cors_headers = ["Content-Type", "Authorization"]
-app.api.cors_credentials = True
+app = NexusApp()
+app.add_cors(["https://example.com", "https://app.example.com"])
 ```
 
 ## API Versioning

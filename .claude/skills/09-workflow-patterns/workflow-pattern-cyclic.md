@@ -31,7 +31,8 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Initialize counter
 builder.add_node("EmbeddedPythonNode", "init_counter", {
-    "code": "result = {'counter': 0}"
+    "code": "result = {'counter': 0}",
+    "output_vars": ["result"]
 })
 
 # 2. Process iteration
@@ -40,12 +41,8 @@ builder.add_node("HTTPRequestNode", "check_status", {
     "method": "GET"
 })
 
-# 3. Evaluate condition
-builder.add_node("ConditionalNode", "check_complete", {
-    "condition": "{{check_status.status}} == 'completed'",
-    "true_branch": "complete",
-    "false_branch": "increment"
-})
+# 3. Evaluate condition — ConditionalNode takes no config; condition/if_value/else_value via connections
+builder.add_node("ConditionalNode", "check_complete", {})
 
 # 4. Increment counter
 builder.add_node("EmbeddedPythonNode", "increment", {
@@ -53,25 +50,21 @@ builder.add_node("EmbeddedPythonNode", "increment", {
     "output_vars": ["result"]
 })
 
-# 5. Check max iterations
-builder.add_node("ConditionalNode", "check_max", {
-    "condition": "{{increment.result}} < 10",
-    "true_branch": "wait",
-    "false_branch": "timeout"
-})
+# 5. Check max iterations — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_max", {})
 
-# 6. Wait before retry
+# 6. Wait before retry — WaitNode uses duration_ms, output is "data"
 builder.add_node("WaitNode", "wait", {
-    "duration_seconds": 5
+    "duration_ms": 5000
 })
 
 # 7. Loop back (connect to check_status)
-builder.connect("init_counter", "counter", "check_status", "input")
-builder.connect("check_status", "status", "check_complete", "condition")
-builder.connect("check_complete", "result", "increment", "input")
-builder.connect("increment", "result", "check_max", "condition")
-builder.connect("check_max", "result", "wait", "trigger")
-builder.connect("wait", "done", "check_status", "input")  # Loop!
+builder.connect("init_counter", "outputs", "check_status", "url")
+builder.connect("check_status", "body", "check_complete", "condition")
+builder.connect("check_complete", "result", "increment", "inputs")
+builder.connect("increment", "outputs", "check_max", "condition")
+builder.connect("check_max", "result", "wait", "data")
+builder.connect("wait", "data", "check_status", "url")  # Loop!
 
 reg = kailash.NodeRegistry()
 
@@ -88,8 +81,7 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Load all items
 builder.add_node("SQLQueryNode", "load_items", {
-    "query": "SELECT id, data FROM items WHERE processed = FALSE",
-    "batch_size": 100
+    "query": "SELECT id, data FROM items WHERE processed = FALSE LIMIT 100"
 })
 
 # 2. Split into batches
@@ -99,7 +91,8 @@ items = results
 batch_size = 10
 batches = [items[i:i+batch_size] for i in range(0, len(items), batch_size)]
 result = {'batches': batches, 'count': len(batches)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # 3. Process each batch
@@ -107,7 +100,8 @@ builder.add_node("EmbeddedPythonNode", "process_batch", {
     "code": """
 ids = [item['id'] for batch in batches for item in batch]
 result = {'ids': ids, 'processed': len(ids)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # 4. Update database
@@ -115,18 +109,14 @@ builder.add_node("SQLQueryNode", "mark_processed", {
     "query": "UPDATE items SET processed = TRUE WHERE id IN ({{process_batch.ids}})"
 })
 
-# 5. Check for more items
-builder.add_node("ConditionalNode", "check_more", {
-    "condition": "{{load_items.has_more}} == true",
-    "true_branch": "load_items",  # Loop back!
-    "false_branch": "complete"
-})
+# 5. Check for more items — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_more", {})
 
-builder.connect("load_items", "results", "split_batches", "input")
-builder.connect("split_batches", "batches", "process_batch", "input")
-builder.connect("process_batch", "ids", "mark_processed", "ids")
-builder.connect("mark_processed", "result", "check_more", "condition")
-builder.connect("check_more", "result", "load_items", "trigger")
+builder.connect("load_items", "rows", "split_batches", "inputs")
+builder.connect("split_batches", "outputs", "process_batch", "inputs")
+builder.connect("process_batch", "outputs", "mark_processed", "body")
+builder.connect("mark_processed", "row_count", "check_more", "condition")
+builder.connect("check_more", "result", "load_items", "body")
 ```
 
 ## Pattern 3: Exponential Backoff Retry
@@ -138,7 +128,8 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Initialize retry state
 builder.add_node("EmbeddedPythonNode", "init_retry", {
-    "code": "result = {'retry_count': 0, 'backoff_seconds': 1}"
+    "code": "result = {'retry_count': 0, 'backoff_seconds': 1}",
+    "output_vars": ["result"]
 })
 
 # 2. Execute operation
@@ -148,19 +139,11 @@ builder.add_node("HTTPRequestNode", "api_call", {
     "timeout_ms": 30000
 })
 
-# 3. Check success
-builder.add_node("ConditionalNode", "check_success", {
-    "condition": "{{api_call.status_code}} == 200",
-    "true_branch": "success",
-    "false_branch": "check_retry"
-})
+# 3. Check success — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_success", {})
 
-# 4. Check retry count
-builder.add_node("ConditionalNode", "check_retry", {
-    "condition": "{{init_retry.retry_count}} < 5",
-    "true_branch": "calculate_backoff",
-    "false_branch": "failed"
-})
+# 4. Check retry count — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_retry", {})
 
 # 5. Calculate exponential backoff
 builder.add_node("EmbeddedPythonNode", "calculate_backoff", {
@@ -168,9 +151,9 @@ builder.add_node("EmbeddedPythonNode", "calculate_backoff", {
     "output_vars": ["result"]
 })
 
-# 6. Wait with backoff
+# 6. Wait with backoff — WaitNode uses duration_ms, output is "data"
 builder.add_node("WaitNode", "backoff_wait", {
-    "duration_seconds": "{{calculate_backoff.result}}"
+    "duration_ms": 1000
 })
 
 # 7. Increment retry counter
@@ -180,13 +163,13 @@ builder.add_node("EmbeddedPythonNode", "increment_retry", {
 })
 
 # 8. Loop back to retry
-builder.connect("init_retry", "retry_count", "api_call", "retry")
+builder.connect("init_retry", "outputs", "api_call", "url")
 builder.connect("api_call", "status_code", "check_success", "condition")
 builder.connect("check_success", "result", "check_retry", "condition")
-builder.connect("check_retry", "result", "calculate_backoff", "input")
-builder.connect("calculate_backoff", "result", "backoff_wait", "duration_seconds")
-builder.connect("backoff_wait", "done", "increment_retry", "input")
-builder.connect("increment_retry", "result", "api_call", "retry")  # Loop!
+builder.connect("check_retry", "result", "calculate_backoff", "inputs")
+builder.connect("calculate_backoff", "outputs", "backoff_wait", "data")
+builder.connect("backoff_wait", "data", "increment_retry", "inputs")
+builder.connect("increment_retry", "outputs", "api_call", "url")  # Loop!
 ```
 
 ## Pattern 4: Iterative Refinement
@@ -198,40 +181,35 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Initial prompt
 builder.add_node("EmbeddedPythonNode", "init_prompt", {
-    "code": "result = {'prompt': 'Write a product description for: ' + input_data.get('product_name', ''), 'iteration': 0}"
+    "code": "result = {'prompt': 'Write a product description for: ' + input_data.get('product_name', ''), 'iteration': 0}",
+    "output_vars": ["result"]
 })
 
 # 2. Generate content (LLM)
 builder.add_node("LLMNode", "generate", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "{{init_prompt.prompt}}"
 })
 
 # 3. Evaluate quality
 builder.add_node("LLMNode", "evaluate", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "Rate this description 1-10: {{generate.response}}"
 })
 
-# 4. Check quality threshold
-builder.add_node("ConditionalNode", "check_quality", {
-    "condition": "{{evaluate.score}} >= 8",
-    "true_branch": "approved",
-    "false_branch": "refine"
-})
+# Data flows via connect(), NOT template strings:
+builder.connect("init_prompt", "outputs", "generate", "prompt")
+builder.connect("generate", "response", "evaluate", "prompt")
+
+# 4. Check quality threshold — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_quality", {})
 
 # 5. Refine prompt with feedback
 builder.add_node("LLMNode", "refine", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.feedback}}"
+    "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.response}}"
 })
 
-# 6. Check max iterations
-builder.add_node("ConditionalNode", "check_max", {
-    "condition": "{{init_prompt.iteration}} < 3",
-    "true_branch": "increment",
-    "false_branch": "use_best"
-})
+# 6. Check max iterations — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_max", {})
 
 # 7. Increment iteration
 builder.add_node("EmbeddedPythonNode", "increment", {
@@ -240,13 +218,13 @@ builder.add_node("EmbeddedPythonNode", "increment", {
 })
 
 # Loop back for refinement
-builder.connect("init_prompt", "prompt", "generate", "prompt")
+builder.connect("init_prompt", "outputs", "generate", "prompt")
 builder.connect("generate", "response", "evaluate", "prompt")
-builder.connect("evaluate", "score", "check_quality", "condition")
-builder.connect("check_quality", "result", "refine", "input")
+builder.connect("evaluate", "response", "check_quality", "condition")
+builder.connect("check_quality", "result", "refine", "prompt")
 builder.connect("refine", "response", "check_max", "condition")
-builder.connect("check_max", "result", "increment", "input")
-builder.connect("increment", "result", "generate", "iteration")  # Loop!
+builder.connect("check_max", "result", "increment", "inputs")
+builder.connect("increment", "outputs", "generate", "prompt")  # Loop!
 ```
 
 ## Best Practices

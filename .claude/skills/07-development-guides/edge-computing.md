@@ -20,7 +20,8 @@ result = {
     'device_id': device_id,
     'timestamp': datetime.now().isoformat()
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Execute locally on edge device
@@ -42,7 +43,8 @@ except ConnectionError:
     # Store locally if offline
     local_storage.save(data)
     result = {'synced': False, 'location': 'local', 'queued': True}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

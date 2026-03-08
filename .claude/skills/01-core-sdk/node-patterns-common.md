@@ -14,7 +14,7 @@ Copy-paste ready templates for the most frequently used Kailash SDK nodes with w
 ## Quick Reference
 
 - **EmbeddedPythonNode**: Custom Python logic, most flexible
-- **CSVProcessorNode**: Read CSV files with pandas
+- **CSVProcessorNode**: Read/write CSV files
 - **JSONTransformNode**: Transform JSON data with expressions
 - **HTTPRequestNode**: API calls (GET/POST)
 - **LLMNode**: AI/LLM integration
@@ -35,7 +35,8 @@ builder.add_node("EmbeddedPythonNode", "processor", {
 # Process data
 processed = [item for item in data if item['score'] > 0.8]
 result = {'filtered': processed, 'count': len(processed)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 rt = kailash.Runtime(reg)
@@ -68,11 +69,12 @@ builder.add_node("CSVProcessorNode", "reader", {
 # Process data
 builder.add_node("EmbeddedPythonNode", "process", {
     "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-df['total'] = df['quantity'] * df['price']
-result = df.to_dict('records')
-"""
+result = [
+    {**row, 'total': row.get('quantity', 0) * row.get('price', 0)}
+    for row in (data if isinstance(data, list) else [])
+]
+""",
+    "output_vars": ["result"]
 })
 
 # Write results
@@ -81,7 +83,7 @@ builder.add_node("FileWriterNode", "writer", {
 })
 
 builder.connect("reader", "rows", "process", "data")
-builder.connect("process", "result", "writer", "content")
+builder.connect("process", "outputs", "writer", "content")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -100,7 +102,8 @@ result = [
     {'name': 'Bob', 'score': 0.3},
     {'name': 'Charlie', 'score': 0.85}
 ]
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Filter high scores
@@ -108,14 +111,15 @@ builder.add_node("EmbeddedPythonNode", "filter", {
     "code": """
 filtered = [item for item in data if item.get('score', 0) > 0.8]
 result = {'items': filtered, 'count': len(filtered)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
-builder.connect("source", "result", "filter", "data")
+builder.connect("source", "outputs", "filter", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
-print(f"Filtered {result["results"]['filter']['result']['count']} items")
+print(f"Filtered {result['results']['filter']['outputs']['result']['count']} items")
 ```
 
 ### Pattern 3: HTTP API Requests
@@ -140,7 +144,8 @@ result = {
     'items': data.get('items', []),
     'count': len(data.get('items', []))
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 builder.connect("api_get", "body", "process", "body")
@@ -159,7 +164,8 @@ builder.add_node("EmbeddedPythonNode", "prep", {
     "code": """
 text = "Quarterly revenue increased by 15%."
 result = {'text': text, 'task': 'analyze'}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # LLM processing
@@ -178,10 +184,11 @@ result = {
     'analysis': llm_response,
     'confidence': 0.9
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
-builder.connect("prep", "result.text", "llm", "prompt")
+builder.connect("prep", "outputs", "llm", "prompt")
 builder.connect("llm", "response", "post", "llm_result")
 
 rt = kailash.Runtime(reg)
@@ -204,7 +211,8 @@ result = {
     'high_msg': {'status': 'high_score', 'score': score},
     'low_msg': {'status': 'low_score', 'score': score}
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # ConditionalNode: no config needed. Inputs: condition, if_value, else_value. Output: result.
@@ -212,13 +220,14 @@ builder.add_node("ConditionalNode", "router", {})
 
 # Process the selected result
 builder.add_node("EmbeddedPythonNode", "handler", {
-    "code": "result = {'handled': selected}"
+    "code": "result = {'handled': selected}",
+    "output_vars": ["result"]
 })
 
 # Connect the boolean condition and two candidate values
-builder.connect("source", "result.is_high", "router", "condition")
-builder.connect("source", "result.high_msg", "router", "if_value")
-builder.connect("source", "result.low_msg", "router", "else_value")
+builder.connect("source", "outputs", "router", "condition")
+builder.connect("source", "outputs", "router", "if_value")
+builder.connect("source", "outputs", "router", "else_value")
 
 # ConditionalNode outputs "result" (the selected value), NOT "true_output"/"false_output"
 builder.connect("router", "result", "handler", "selected")
@@ -242,15 +251,17 @@ builder.add_node("CSVProcessorNode", "reader", {
 # Transform
 builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-# Add calculated columns
-df['full_name'] = df['first_name'] + ' ' + df['last_name']
-df['age'] = 2024 - df['birth_year']
-# Filter and sort
-df = df[df['age'] >= 18].sort_values('age', ascending=False)
-result = df.to_dict('records')
-"""
+transformed = []
+for row in (data if isinstance(data, list) else []):
+    full_name = row.get('first_name', '') + ' ' + row.get('last_name', '')
+    age = 2024 - row.get('birth_year', 2024)
+    if age >= 18:
+        transformed.append({**row, 'full_name': full_name, 'age': age})
+# Sort by age descending
+transformed.sort(key=lambda r: r.get('age', 0), reverse=True)
+result = transformed
+""",
+    "output_vars": ["result"]
 })
 
 # Output — use FileWriterNode for writing files
@@ -259,7 +270,7 @@ builder.add_node("FileWriterNode", "output", {
 })
 
 builder.connect("reader", "rows", "transform", "data")
-builder.connect("transform", "result", "output", "content")
+builder.connect("transform", "outputs", "output", "content")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -270,15 +281,15 @@ result = rt.execute(builder.build(reg))
 ### ❌ Mistake 1: Wrong Result Access for EmbeddedPythonNode
 
 ```python
-# Wrong - Missing 'result' nesting
+# Wrong - Missing 'outputs' nesting
 value = result["results"]['processor']['count']  # KeyError
 ```
 
 ### ✅ Fix: Use Correct Nesting
 
 ```python
-# Correct - EmbeddedPythonNode wraps output in 'result'
-value = result["results"]['processor']['result']['count']  # ✓
+# Correct - EmbeddedPythonNode wraps output in 'outputs', then by output_vars name
+value = result["results"]['processor']['outputs']['result']['count']  # ✓
 ```
 
 ### ❌ Mistake 2: Not Handling First Iteration in Cycles
@@ -286,7 +297,8 @@ value = result["results"]['processor']['result']['count']  # ✓
 ```python
 # Wrong - Assuming parameters exist
 builder.add_node("EmbeddedPythonNode", "proc", {
-    "code": "value = input_value + 1; result = {'value': value}"
+    "code": "value = input_value + 1; result = {'value': value}",
+    "output_vars": ["result"]
 })
 ```
 
@@ -301,7 +313,8 @@ try:
 except NameError:
     value = 0  # First iteration default
 result = {'value': value + 1}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -344,9 +357,9 @@ Use `pattern-expert` subagent when:
 ## Quick Tips
 
 - 💡 **EmbeddedPythonNode is your friend**: Use it for quick transformations and logic
-- 💡 **Always wrap in 'result'**: EmbeddedPythonNode expects `result = {...}`
+- 💡 **Always include `output_vars`**: EmbeddedPythonNode config MUST include `"output_vars": ["var1", ...]` listing variable names to extract
 - 💡 **Check port names**: Each node has specific input/output ports
-- 💡 **Use pandas for data**: Import pandas in EmbeddedPythonNode for data manipulation
+- 💡 **Use standard library**: EmbeddedPythonNode supports `json`, `math`, `collections`, `itertools`, `re` -- NOT `pandas` or `numpy`
 - 💡 **Test incrementally**: Build workflows node by node, test each connection
 
 ## Version Notes

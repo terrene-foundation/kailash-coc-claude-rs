@@ -23,8 +23,8 @@ import kailash
 #   LLMNode           - Multi-provider chat completions with tool calling
 #   EmbeddingNode     - Text-to-vector embedding generation
 #   ClassificationNode - Zero-shot/few-shot text classification
-#   SentimentAnalysisNode - Sentiment analysis
-#   TextSummarizationNode - Text summarization
+#   SentimentNode - Sentiment analysis
+#   SummarizationNode - Text summarization
 #   VisionNode        - Image analysis
 #   AudioNode         - Audio processing
 #   ImageGenerationNode - Image generation
@@ -189,12 +189,12 @@ builder.add_node("ClassificationNode", "classifier", {
 
 ## Sentiment Node
 
-### SentimentAnalysisNode
+### SentimentNode
 
 Sentiment analysis for text.
 
 ```python
-builder.add_node("SentimentAnalysisNode", "sentiment", {
+builder.add_node("SentimentNode", "sentiment", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "text": "The product quality exceeded my expectations."
 })
@@ -202,12 +202,12 @@ builder.add_node("SentimentAnalysisNode", "sentiment", {
 
 ## Summarization Node
 
-### TextSummarizationNode
+### SummarizationNode
 
 Text summarization.
 
 ```python
-builder.add_node("TextSummarizationNode", "summarizer", {
+builder.add_node("SummarizationNode", "summarizer", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
     "text": "Long article text here...",
     "max_length": 200
@@ -284,4 +284,4 @@ Multi-agent coordination (A2A protocol) is handled by the **Kaizen agent framewo
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 - **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
 
-<!-- Trigger Keywords: LLM node, AI nodes, OpenAI, Anthropic, embeddings, LLMNode, EmbeddingNode, ClassificationNode, SentimentAnalysisNode, VisionNode, AudioNode, ImageGenerationNode, TextToSpeechNode, TextSummarizationNode, tool calling -->
+<!-- Trigger Keywords: LLM node, AI nodes, OpenAI, Anthropic, embeddings, LLMNode, EmbeddingNode, ClassificationNode, SentimentNode, VisionNode, AudioNode, ImageGenerationNode, TextToSpeechNode, SummarizationNode, tool calling -->

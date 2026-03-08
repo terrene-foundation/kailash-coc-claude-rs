@@ -48,8 +48,7 @@ load_dotenv()
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-# Verify auth is enabled
-print(f"Auth Enabled: {app._enable_auth}")  # True in production
+# Auth is configured via NexusAuthPlugin, not private attributes
 ```
 
 **What Happens**:
@@ -116,7 +115,7 @@ if env == "production":
 else:
     from config.development import DevelopmentConfig as Config
 
-app = NexusApp(NexusConfig(port=Config.API_PORT))
+app = NexusApp(config=NexusConfig(port=Config.API_PORT))
 # Auth configured via NexusAuthPlugin if Config.ENABLE_AUTH
 # Rate limiting configured via app.add_rate_limit(Config.RATE_LIMIT)
 ```
@@ -129,9 +128,6 @@ app = NexusApp(NexusConfig(port=Config.API_PORT))
 # DoS protection via add_rate_limit()
 app = NexusApp()
 app.add_rate_limit(100)  # 100 req/min
-
-# Verify rate limiting
-print(f"Rate Limit: {app._rate_limit} req/min")  # 100
 ```
 
 ### Production Rate Limits
@@ -154,46 +150,32 @@ app.add_rate_limit(100)   # 100 req/min (stricter)
 
 ### Per-Endpoint Rate Limiting
 
+NexusApp does not have a `@app.endpoint()` decorator. Use `@app.handler()` instead
+for registering handlers, and configure rate limiting globally via `app.add_rate_limit()`:
+
 ```python
 import kailash
+from kailash.nexus import NexusApp
 
 app = NexusApp()
-app.add_rate_limit(100)  # Global default
+app.add_rate_limit(100)  # Global rate limit (requests per minute)
 
-# Custom limits for specific endpoints
-@app.endpoint("/api/search", rate_limit=50)
-async def search(q: str):
-    """Search with lower rate limit (expensive operation)."""
-    return await app._execute_workflow("search", {"query": q})
+@app.handler("search", description="Search with rate limiting")
+async def search(q: str) -> dict:
+    """Search operation."""
+    return {"query": q, "results": []}
 
-@app.endpoint("/api/health", rate_limit=1000)
-async def health():
-    """Health check with higher limit."""
-    return {"status": "healthy"}
-
-@app.endpoint("/api/login", rate_limit=10)
-async def login(username: str, password: str):
-    """Login with very low limit (prevent brute force)."""
-    return await app._execute_workflow("authenticate", {
-        "username": username,
-        "password": password
-    })
+@app.handler("login", description="User login")
+async def login(username: str, password: str) -> dict:
+    """Login handler."""
+    return {"username": username}
 ```
 
 ### Rate Limiting Monitoring
 
-```python
-# Monitor rate limit hits (example implementation)
-@app.middleware("rate_limit_logger")
-async def log_rate_limits(request, call_next):
-    response = await call_next(request)
-    if response.status_code == 429:  # Too Many Requests
-        logger.warning(
-            f"Rate limit exceeded: {request.client.host} "
-            f"-> {request.url.path}"
-        )
-    return response
-```
+NexusApp does not have a `@app.middleware()` decorator. Rate limiting is handled
+server-side by the Rust tower middleware. Monitor 429 responses via your reverse
+proxy logs or external monitoring tools.
 
 ### When to Disable Rate Limiting
 
@@ -250,30 +232,14 @@ large_input = "x" * (10 * 1024 * 1024 + 1)  # > 10MB: blocked
 
 ### Custom Input Size Limits
 
-```python
-# Default: 10MB
-app = NexusApp()
-
-# Increase for file uploads
-app._max_input_size = 50 * 1024 * 1024  # 50MB
-
-# Decrease for strict APIs
-app._max_input_size = 1 * 1024 * 1024   # 1MB
-```
+Input size limits (default 10MB) are configured server-side by the Rust Nexus engine.
+NexusApp does not expose `_max_input_size` as a settable attribute.
 
 ### Validation Error Handling
 
-```python
-from kailash.nexus import validate_workflow_inputs
-from kailash.nexus import ValidationError
-
-# Validation happens automatically, but you can also use it explicitly
-try:
-    validate_workflow_inputs(user_inputs, max_size=10*1024*1024)
-except ValidationError as e:
-    logger.error(f"Invalid input: {e}")
-    # Return 400 Bad Request
-```
+Input validation happens automatically across all channels. There is no
+`validate_workflow_inputs` function or `ValidationError` class in `kailash.nexus`.
+Invalid inputs are rejected with a 400 status code automatically.
 
 ## Production Deployment Security
 
@@ -311,7 +277,7 @@ def get_secret(key: str) -> str:
 # Production configuration
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
@@ -324,16 +290,9 @@ app.add_rate_limit(1000)           # P0-2: DoS protection
 # TLS/HTTPS: Use reverse proxy (nginx, traefik) for production
 # Sessions, monitoring, logging: Configure via environment or plugins
 
-# Verify security configuration
-def verify_security():
-    """Verify all security measures are active."""
-    assert app._enable_auth, "Authentication MUST be enabled"
-    assert app._rate_limit is not None, "Rate limiting MUST be enabled"
-    assert not app._auto_discovery, "Auto-discovery MUST be disabled"
-    assert app._session_backend == "redis", "Redis MUST be used for sessions"
-    print("✅ Security configuration verified")
-
-verify_security()
+# NOTE: NexusApp does not expose _enable_auth, _rate_limit, _auto_discovery,
+# or _session_backend as private attributes. Verify security by checking your
+# NexusAuthPlugin configuration and rate limit setup at the application level.
 ```
 
 ### Docker Security

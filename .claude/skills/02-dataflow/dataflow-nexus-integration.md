@@ -47,10 +47,8 @@ app = NexusApp(NexusConfig(port=3000))
 # Step 4: Register DataFlow workflows with Nexus
 # DataFlow auto-generates 11 nodes per model - register them as workflows
 builder = kailash.WorkflowBuilder()
-builder.add_node("CreateProduct", "create", {
-    "name": "${input.name}",
-    "price": "${input.price}"
-})
+builder.add_node("CreateProduct", "create", {})
+# Input data is passed via workflow execution inputs, not ${} template syntax
 app.register("create_product", builder.build(reg))
 
 # Step 5: Start the platform
@@ -96,8 +94,10 @@ config = kailash.DataFlowConfig(
 db = kailash.DataFlow("postgresql://...", config=config, auto_migrate=True)
 ```
 
-**DataFlow constructor parameters**: `database_url`, `config` (DataFlowConfig), `auto_migrate`, `test_mode`
-**DataFlowConfig parameters**: `database_url`, `max_connections`, `min_connections`, `connect_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `auto_migrate`, `test_mode`
+**DataFlow constructor parameters**: `database_url`, `config` (DataFlowConfig), `auto_migrate`
+**DataFlowConfig parameters**: `database_url`, `max_connections`, `min_connections`, `connect_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `auto_migrate`
+
+> **Note**: `test_mode` is a pure Python SDK feature, not available in the Rust binding. Use `:memory:` SQLite for testing instead.
 
 ## Common Mistakes
 
@@ -135,7 +135,7 @@ from kailash.nexus import NexusApp
 app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
-builder.add_node("ListProduct", "list", {"filter": "${input.filter}"})
+builder.add_node("ListProduct", "list", {})
 app.register("list_products", builder.build(reg))
 ```
 
@@ -183,7 +183,7 @@ app = NexusApp(NexusConfig(port=3000))
 # Register product operations as workflows
 for node_name in ["CreateProduct", "ListProduct", "ReadProduct"]:
     builder = kailash.WorkflowBuilder()
-    builder.add_node(node_name, "op", {"input": "${input}"})
+    builder.add_node(node_name, "op", {})
     app.register(node_name.lower(), builder.build(reg))
 
 # Start platform

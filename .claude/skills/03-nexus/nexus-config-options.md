@@ -16,7 +16,7 @@ import kailash
 from kailash.nexus import NexusApp, NexusConfig
 
 # NexusConfig accepts these parameters:
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=3000,                        # API port (default 3000)
     host="0.0.0.0",                   # Bind address
     cli_name="nexus",                 # CLI command name
@@ -93,17 +93,21 @@ app = NexusApp()          # Configure SaaS features via plugins
 app = NexusApp()    # Configure enterprise features via plugins
 ```
 
-### Middleware and Router API
+### Middleware and Plugin Note
+
+NexusApp wraps a Rust-backed `Nexus` instance (accessible via `app._nexus`). The underlying
+`Nexus` class **does** have `add_plugin()` and `add_middleware()` methods for tower middleware:
 
 ```python
-# Add custom middleware
-app.add_middleware(SomeMiddleware, param="value")
+# Add a plugin to the Nexus engine
+app._nexus.add_plugin(plugin)
 
-# Include custom routers
-app.include_router(my_router)
+# Add middleware configuration to the Nexus engine
+app._nexus.add_middleware(config)
 ```
 
-**Note:** NexusApp has NO `add_plugin()` method. Auth is configured via `NexusAuthPlugin` constructor.
+NexusApp itself does not expose `include_router()`.
+Auth is configured via `NexusAuthPlugin` constructor.
 
 ## Environment Variables
 
@@ -177,7 +181,7 @@ import yaml
 with open("nexus.yaml") as f:
     config = yaml.safe_load(f)
 
-app = NexusApp(NexusConfig(port=config["server"]["api_port"]))
+app = NexusApp(config=NexusConfig(port=config["server"]["api_port"]))
 ```
 
 ## Production Configuration
@@ -186,7 +190,7 @@ app = NexusApp(NexusConfig(port=config["server"]["api_port"]))
 import os
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
@@ -204,7 +208,7 @@ app.register("workflow_name", builder.build(reg))
 ```python
 from kailash.nexus import NexusApp, NexusConfig
 
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # No rate limiting or auth in development
 ```
 

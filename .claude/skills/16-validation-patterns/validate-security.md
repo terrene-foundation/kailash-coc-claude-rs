@@ -39,7 +39,7 @@ builder.add_node("SQLQueryNode", "query", {
 
 ```python
 # ✅ CORRECT: Validate inputs
-builder.add_node("DataValidationNode", "validate", {
+builder.add_node("SchemaValidatorNode", "validate", {
     "input": "{{input.data}}",
     "schema": {"email": "email", "age": "integer"}
 })

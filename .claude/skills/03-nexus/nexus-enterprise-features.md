@@ -269,7 +269,7 @@ app.start()
 | `NameError: TenantConfig`                | TenantConfig does not exist           | Use `tenant_header="X-Tenant-ID"` string      |
 | `NameError: RateLimitConfig`             | RateLimitConfig does not exist        | Use `app.add_rate_limit(max_requests=N, ...)` |
 | `AttributeError: basic_auth`             | No factory methods on NexusAuthPlugin | Use direct constructor `NexusAuthPlugin(...)` |
-| `AttributeError: add_plugin`             | NexusApp has no add_plugin method     | NexusAuthPlugin is configured separately      |
+| `AttributeError: add_plugin`             | NexusApp wraps Nexus                  | Use `app._nexus.add_plugin(plugin)`           |
 | Dependency injection fails               | `from __future__ import annotations`  | Remove PEP 563 import                         |
 
 ## Key Takeaways
@@ -277,7 +277,7 @@ app.start()
 - Authentication configured via `NexusAuthPlugin` constructor (no factory methods)
 - NexusAuthPlugin accepts: `jwt=JwtConfig(...)`, `rbac=RbacConfig(...)`, `rate_limit=None`, `tenant_header=None`
 - JwtConfig only accepts: `secret_key`, `expiry_secs`, `algorithm`, `issuer`
-- NexusApp has NO `add_plugin()` or `use()` method
+- Plugin access via `app._nexus.add_plugin(plugin)` (Nexus has `add_plugin()` and `add_middleware()`)
 - Rate limiting via `app.add_rate_limit(max_requests=N, window_secs=N)`
 - There are NO `TenantConfig` or `RateLimitConfig` classes
 

@@ -93,10 +93,11 @@ class User:
     name: str
     email: str
 
-users = db.query("User", F.name == "Alice")
+# Filter builder
+users = F("name") == "Alice"  # Creates FilterCondition
 
-with with_tenant("tenant-123"):
-    users = db.query("User")
+with with_tenant(df, "tenant-123") as scoped_interceptor:
+    pass  # All queries inside are tenant-scoped
 ```
 
 ## FilterCondition

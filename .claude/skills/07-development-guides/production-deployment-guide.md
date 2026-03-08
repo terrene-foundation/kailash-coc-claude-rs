@@ -20,7 +20,8 @@ import kailash
 # Create workflow
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'status': 'processed', 'data': input_data}"
+    "code": "result = {'status': 'processed', 'data': input_data}",
+    "output_vars": ["result"]
 })
 
 # Deploy with Nexus (production HTTP server)
@@ -168,7 +169,8 @@ try:
 except Exception as e:
     logger.error(f"Processing failed: {e}", exc_info=True)
     raise
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

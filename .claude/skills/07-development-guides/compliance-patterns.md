@@ -25,7 +25,8 @@ audit_entry = {
 log_audit_entry(audit_entry)
 
 result = {'audit_logged': True}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -59,7 +60,8 @@ result = {
     'consent': consent,
     'retention': retention_policy
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -79,7 +81,8 @@ anonymized = {
 }
 
 result = {'anonymized_data': anonymized}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

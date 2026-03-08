@@ -53,7 +53,7 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)", "output_vars": ["result"]})
 builder.connect("reader", "rows", "process", "data")
 
 reg = kailash.NodeRegistry()
@@ -135,7 +135,8 @@ app = NexusApp()  # Zero configuration!
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "result = {'message': 'Hello!'}"
+    "code": "result = {'message': 'Hello!'}",
+    "output_vars": ["result"]
 })
 
 reg = kailash.NodeRegistry()

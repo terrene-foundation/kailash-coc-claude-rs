@@ -14,11 +14,12 @@ ReAct combines:
 ```python
 from kailash.kaizen import Signature, InputField, OutputField
 
+# Signature is SUBCLASSED, not instantiated
 class ReActSignature(Signature):
-    task = InputField("Task to accomplish")
-    thought = OutputField("Reasoning about next action")
-    action = OutputField("Action to take")
-    observation = OutputField("Action result")
+    task = InputField(description="Task to accomplish")
+    thought = OutputField(description="Reasoning about next action")
+    action = OutputField(description="Action to take")
+    observation = OutputField(description="Action result")
 ```
 
 ## References

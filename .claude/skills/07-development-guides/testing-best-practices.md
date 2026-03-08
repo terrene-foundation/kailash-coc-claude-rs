@@ -18,7 +18,8 @@ def test_workflow_creation():
     """Test workflow builder."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'value': input_value * 2}"
+        "code": "result = {'value': input_value * 2}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -28,7 +29,7 @@ def test_workflow_creation():
         "process": {"input_value": 10}
     })
 
-    assert result["results"]["process"]["result"]["value"] == 20
+    assert result["results"]["process"]["outputs"]["value"] == 20
 ```
 
 ### Tier 2: Integration Tests (NO MOCKING)
@@ -45,7 +46,7 @@ def test_database_workflow():
     conn_string = get_postgres_connection_string()
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
@@ -98,7 +99,8 @@ def test_sync_execution():
     """Test synchronous runtime execution."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'status': 'completed'}"
+        "code": "result = {'status': 'completed'}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -106,7 +108,7 @@ def test_sync_execution():
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["node"]["result"]["status"] == "completed"
+    assert result["results"]["node"]["outputs"]["status"] == "completed"
     assert result["run_id"] is not None
 ```
 
@@ -121,7 +123,8 @@ async def test_async_execution():
     """Test asynchronous runtime execution."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'status': 'completed'}"
+        "code": "result = {'status': 'completed'}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -129,7 +132,7 @@ async def test_async_execution():
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg), inputs={})
 
-    assert result["results"]["node"]["result"]["status"] == "completed"
+    assert result["results"]["node"]["outputs"]["status"] == "completed"
 ```
 
 ### Parametrized Runtime Testing
@@ -141,14 +144,15 @@ def test_workflow_execution():
     """Test pattern works with kailash.Runtime."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'value': 42}"
+        "code": "result = {'value': 42}",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["node"]["result"]["value"] == 42
+    assert result["results"]["node"]["outputs"]["value"] == 42
 ```
 
 ## Testing with Real Infrastructure

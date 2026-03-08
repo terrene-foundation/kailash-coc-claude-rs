@@ -27,13 +27,11 @@ builder.add_node("PDFReaderNode", "read_invoice", {
 # 2. OCR extraction
 builder.add_node("LLMNode", "extract_fields", {
     "model": os.environ.get("DEFAULT_VISION_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "Extract: invoice_number, date, amount, vendor from this invoice",
-    "image": "{{read_invoice.content}}"
+    "prompt": "Extract: invoice_number, date, amount, vendor from this invoice"
 })
 
-# 3. Validate extracted data
-builder.add_node("DataValidationNode", "validate", {
-    "input": "{{extract_fields.data}}",
+# 3. Validate extracted data — use SchemaValidatorNode
+builder.add_node("SchemaValidatorNode", "validate", {
     "schema": {
         "invoice_number": "string",
         "date": "date",
@@ -45,12 +43,12 @@ builder.add_node("DataValidationNode", "validate", {
 # 4. Store in database
 builder.add_node("SQLQueryNode", "store", {
     "query": "INSERT INTO invoices (number, date, amount, vendor) VALUES (?, ?, ?, ?)",
-    "parameters": "{{validate.valid_data}}"
+    "params": "{{validate.valid}}"
 })
 
-builder.connect("read_invoice", "content", "extract_fields", "image")
-builder.connect("extract_fields", "data", "validate", "input")
-builder.connect("validate", "valid_data", "store", "parameters")
+builder.connect("read_invoice", "text", "extract_fields", "prompt")
+builder.connect("extract_fields", "response", "validate", "data")
+builder.connect("validate", "valid", "store", "body")
 
 reg = kailash.NodeRegistry()
 

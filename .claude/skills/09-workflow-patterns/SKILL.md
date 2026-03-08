@@ -80,6 +80,19 @@ Complete workflow patterns for:
   - Form processing
   - Multi-document analysis
 
+## Important: Data Flow Syntax
+
+Many pattern files use `{{node_id.output_port}}` shorthand in node config to show which data flows where. **This is pseudocode** — Kailash does NOT support template interpolation in node config. In real code, use `builder.connect()`:
+
+```python
+# Pseudocode shorthand in patterns:
+#   "params": "{{validate.rows}}"
+# Actual code:
+builder.connect("validate", "rows", "target_node", "params")
+```
+
+Similarly, `{{input.xxx}}` references workflow-level inputs passed via `runtime.execute(workflow, {"xxx": value})`.
+
 ## Pattern Usage
 
 ### How to Use Patterns
@@ -143,19 +156,19 @@ builder.add_node("NodeType", "id", {...})
 ### ETL Workflow
 
 ```python
-builder.add_node("Extract", "extract", {"source": "..."})
-builder.add_node("Transform", "transform", {"logic": "..."})
-builder.add_node("Load", "load", {"destination": "..."})
-builder.connect("extract", "data", "transform", "input")
-builder.connect("transform", "output", "load", "data")
+builder.add_node("CSVProcessorNode", "extract", {"action": "read", "source_path": "data.csv"})
+builder.add_node("JSONTransformNode", "transform", {"expression": "@"})
+builder.add_node("SQLQueryNode", "load", {"query": "INSERT INTO target VALUES (?, ?)"})
+builder.connect("extract", "rows", "transform", "data")
+builder.connect("transform", "result", "load", "body")
 ```
 
 ### RAG Workflow
 
 ```python
-builder.add_node("Embed", "embed", {"model": "text-embedding-ada-002"})
-builder.add_node("Search", "search", {"index": "vectors"})
-builder.add_node("Generate", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
+builder.add_node("EmbeddingNode", "embed", {"model": "text-embedding-3-small"})
+builder.add_node("VectorSearchNode", "search", {"collection": "documents", "top_k": 5})
+builder.add_node("LLMNode", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
 ```
 
 ## CRITICAL Warnings

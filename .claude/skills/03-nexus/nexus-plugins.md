@@ -11,11 +11,12 @@ Configure NexusApp middleware via built-in methods and preset-based tower middle
 
 ## Architecture Note
 
-NexusApp does **not** have a plugin system. There is no `NexusPlugin` base class, no `app.add_plugin()` method, and no plugin lifecycle. Instead, NexusApp provides:
+NexusApp wraps a Rust-backed `Nexus` instance. `PluginManager` (from `kailash.nexus`) exists as a Rust-backed plugin manager, and the underlying `Nexus` class has an `add_plugin()` method. NexusApp provides:
 
 1. **Built-in middleware methods** for common needs (CORS, rate limiting, health checks)
 2. **Preset-based configuration** that selects tower middleware stacks server-side
 3. **The `@app.handler()` decorator** for registering workflow handlers
+4. **Plugin access** via `app._nexus.add_plugin(plugin)` for the Rust Nexus engine
 
 ## Built-in Middleware Methods
 
@@ -149,16 +150,21 @@ def analyze(text: str) -> dict:
     return result
 ```
 
-## What NexusApp Does NOT Support
+## Plugin System Status
 
-| Feature                      | Status                                  |
-| ---------------------------- | --------------------------------------- |
-| `app.add_plugin()`           | Does not exist                          |
-| `NexusPlugin` base class     | Does not exist                          |
-| Plugin lifecycle hooks       | Does not exist                          |
-| `on_workflow_started` events | Does not exist                          |
-| Custom plugin classes        | Use `@app.handler()` or presets instead |
-| `PluginManager`              | Does not exist                          |
+| Feature                      | Status                                              |
+| ---------------------------- | --------------------------------------------------- |
+| `PluginManager`              | EXISTS in `kailash.nexus.PluginManager`              |
+| `Nexus.add_plugin()`         | EXISTS on the Rust-backed `Nexus` class              |
+| `app._nexus.add_plugin()`    | Access via NexusApp's internal Nexus instance        |
+| `NexusPlugin` base class     | Does not exist (plugins are Rust-side constructs)    |
+| Plugin lifecycle hooks       | Does not exist                                       |
+| `on_workflow_started` events | Does not exist                                       |
+| Custom plugin classes        | Use `@app.handler()` or presets instead              |
+
+**Note**: `PluginManager` is a Rust-backed class available from `kailash.nexus`. The underlying
+`Nexus` class (accessible via `app._nexus`) has `add_plugin()` and `add_middleware()` methods
+for managing server-side tower middleware and plugins.
 
 ## Related Skills
 

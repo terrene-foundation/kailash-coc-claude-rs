@@ -40,7 +40,8 @@ class Test[BusinessScenario]E2E:
 
         # Step 1: Data ingestion
         builder.add_node("EmbeddedPythonNode", "ingest", {
-            "code": "result = {'data': [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]}"
+            "code": "result = {'data': [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]}",
+            "output_vars": ["result"]
         })
 
         # Step 2: Validation
@@ -49,7 +50,8 @@ class Test[BusinessScenario]E2E:
 items = input_data
 valid_items = [item for item in items if 'id' in item and 'name' in item]
 result = {'validated': valid_items, 'count': len(valid_items)}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         # Step 3: Database storage
@@ -65,8 +67,8 @@ result = {'validated': valid_items, 'count': len(valid_items)}
         })
 
         # Connect complete pipeline
-        builder.connect("ingest", "result.data", "validate", "input_data")
-        builder.connect("validate", "result.validated", "store", "batch_data")
+        builder.connect("ingest", "outputs", "validate", "input_data")
+        builder.connect("validate", "outputs", "store", "batch_data")
         builder.connect("store", "result", "verify", "trigger")
 
         # Execute complete workflow
@@ -75,8 +77,8 @@ result = {'validated': valid_items, 'count': len(valid_items)}
         result = rt.execute(builder.build(reg))
 
         # Verify end-to-end results
-        assert result["results"]["ingest"]["result"]["data"] is not None
-        assert result["results"]["validate"]["result"]["count"] == 2
+        assert result["results"]["ingest"]["outputs"]["data"] is not None
+        assert result["results"]["validate"]["outputs"]["count"] == 2
         assert result["results"]["verify"]["data"][0]["count"] >= 2
 ```
 

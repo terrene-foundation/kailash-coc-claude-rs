@@ -38,7 +38,8 @@ class Test[ComponentName]:
         builder = kailash.WorkflowBuilder()
 
         builder.add_node("EmbeddedPythonNode", "test_node", {
-            "code": "result = {'value': 42, 'status': 'success'}"
+            "code": "result = {'value': 42, 'status': 'success'}",
+            "output_vars": ["result"]
         })
 
         # Execute
@@ -48,8 +49,8 @@ class Test[ComponentName]:
 
         # Assertions
         assert "test_node" in results
-        assert result["results"]["test_node"]["result"]["value"] == 42
-        assert result["results"]["test_node"]["result"]["status"] == "success"
+        assert result["results"]["test_node"]["outputs"]["value"] == 42
+        assert result["results"]["test_node"]["outputs"]["status"] == "success"
 
     def test_error_handling(self):
         """Test error handling in [component]."""
@@ -61,7 +62,8 @@ if not input_data:
     result = {'error': 'No data provided', 'status': 'error'}
 else:
     result = {'status': 'success'}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         reg = kailash.NodeRegistry()
@@ -69,8 +71,8 @@ else:
 
         # Test error case (no input)
         result = rt.execute(builder.build(reg))
-        assert result["results"]["test_error"]["result"]["status"] == "error"
-        assert "error" in results["test_error"]["result"]
+        assert result["results"]["test_error"]["outputs"]["status"] == "error"
+        assert "error" in results["test_error"]["outputs"]
 
     def test_edge_cases(self):
         """Test edge cases and boundary conditions."""
@@ -83,7 +85,8 @@ if not data:
     result = {'count': 0, 'empty': True}
 else:
     result = {'count': len(data), 'empty': False}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         reg = kailash.NodeRegistry()
@@ -94,8 +97,8 @@ else:
             "edge_test": {"data": []}
         })
 
-        assert result["results"]["edge_test"]["result"]["count"] == 0
-        assert result["results"]["edge_test"]["result"]["empty"] is True
+        assert result["results"]["edge_test"]["outputs"]["count"] == 0
+        assert result["results"]["edge_test"]["outputs"]["empty"] is True
 ```
 
 ## Custom Node (register_callback) Unit Test Template
@@ -172,14 +175,15 @@ class TestWithMocking:
             "code": """
 # This would call external_api_client.request in real code
 result = {'processed': True, 'value': 100}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         reg = kailash.NodeRegistry()
         rt = kailash.Runtime(reg)
         result = rt.execute(builder.build(reg))
 
-        assert result["results"]["api_handler"]["result"]["processed"] is True
+        assert result["results"]["api_handler"]["outputs"]["processed"] is True
 ```
 
 ## Quick Tips

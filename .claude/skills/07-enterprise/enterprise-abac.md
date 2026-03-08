@@ -168,17 +168,11 @@ business_hours = business_hours.with_environment_condition("hour", "lte", 17)
 abac = AbacEvaluator(policies=[business_hours], strategy="first_applicable")
 
 # Combined: both RBAC and ABAC must allow
-combined = CombinedEvaluator(rbac=rbac, abac=abac)
+combined = CombinedEvaluator(rbac, abac, strategy="deny_override")
 
 user = User("alice").with_role("editor")
-result = combined.evaluate(
-    user=user,
-    resource="documents",
-    action="write",
-    resource_attrs={"type": "report"},
-    environment={"hour": 14},
-)
-# result.allowed, result.reason
+result = combined.evaluate(user, "documents", "write", environment={"hour": 14})
+# result["allowed"], result["reason"]
 ```
 
 ## Business Hours Policy
@@ -254,4 +248,4 @@ def test_non_owner_denied():
 | ---------------- | -------------------------------------------------------------------------------- |
 | `AbacPolicy`     | `__init__(id, effect)`, `.with_subject_condition(attr, op, val)`, `.with_action()`|
 | `AbacEvaluator`  | `__init__(policies, strategy)`, `.evaluate(subject, resource, action, env)`       |
-| `CombinedEvaluator`| `__init__(rbac, abac)`, `.evaluate(user, resource, action, resource_attrs, env)` |
+| `CombinedEvaluator`| `__init__(rbac_evaluator, abac_evaluator, strategy="deny_override")`, `.evaluate(user, resource_type, action, environment=None)` |

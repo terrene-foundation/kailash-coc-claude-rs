@@ -66,11 +66,11 @@ class User:
     email: str
 
 # Filter builder
-users = db.query("User", F.name == "Alice")
+users = F("name") == "Alice"  # Creates FilterCondition
 
 # Multi-tenancy
-with with_tenant("tenant-123"):
-    users = db.query("User")
+with with_tenant(df, "tenant-123") as scoped_interceptor:
+    pass  # All queries inside are tenant-scoped
 ```
 
 ## Generated Nodes (11 per model)
@@ -87,7 +87,7 @@ Each model generates:
 8. `BulkCreate{Model}` - Batch INSERT (input: `items` array)
 9. `BulkUpdate{Model}` - Batch UPDATE (input: array of `{filter, fields}`)
 10. `BulkDelete{Model}` - Batch DELETE (input: `ids` array or `filter`)
-11. `BulkUpsert{Model}` - Batch INSERT or UPDATE
+11. `BulkUpsert{Model}` - Batch INSERT or UPDATE on conflict
 
 ## Critical Rules
 

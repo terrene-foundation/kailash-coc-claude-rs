@@ -110,13 +110,10 @@ class MyAgent(BaseAgent):
         return {"response": f"Processed: {input_text}"}
 
 
-# Production: auto-detect from env
+# BaseAgent does NOT have an `llm` attribute.
+# Use LlmClient separately for LLM calls, or use the Rust-backed
+# Agent + AgentConfig pattern (shown below) which accepts llm_client.
 agent = MyAgent()
-agent.llm = LlmClient()
-
-# Testing: mock client
-agent = MyAgent()
-agent.llm = LlmClient.mock(responses=["Test response"])
 result = agent.run("Hello")
 ```
 

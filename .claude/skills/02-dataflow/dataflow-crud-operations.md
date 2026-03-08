@@ -27,10 +27,10 @@ Use the 11 automatically generated workflow nodes for Create, Read, Update, Dele
 
 ### Pattern Comparison
 
-| Node Type          | Pattern                    | Example                                                          |
-| ------------------ | -------------------------- | ---------------------------------------------------------------- |
-| **CreateNode**     | **FLAT** individual fields | `{"name": "Alice", "email": "alice@example.com"}`                |
-| **UpdateNode**     | **NESTED** filter + fields | `{"filter": {"id": 1}, "fields": {"name": "Alice Updated"}}`     |
+| Node Type             | Pattern                    | Example                                                          |
+| --------------------- | -------------------------- | ---------------------------------------------------------------- |
+| **CreateNode**        | **FLAT** individual fields | `{"name": "Alice", "email": "alice@example.com"}`                |
+| **UpdateNode**        | **NESTED** filter + fields | `{"filter": {"id": 1}, "fields": {"name": "Alice Updated"}}`     |
 | **BulkUpdate{Model}** | **NESTED** filter + fields | `{"filter": {"active": True}, "fields": {"status": "verified"}}` |
 
 ### CreateNode: FLAT Individual Fields
@@ -110,6 +110,7 @@ fields = {
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 
@@ -182,12 +183,12 @@ result = rt.execute(builder.build(reg))
 
 ### Bulk Operation Nodes (4)
 
-| Node                | Purpose                 | Performance | Parameters              |
-| ------------------- | ----------------------- | ----------- | ----------------------- |
-| `BulkCreate{Model}` | Insert multiple records | 1000+/sec   | `data`, `batch_size`    |
-| `BulkUpdate{Model}` | Update multiple records | 5000+/sec   | `filter`, `updates`     |
-| `BulkDelete{Model}` | Delete multiple records | 10000+/sec  | `filter`, `soft_delete` |
-| `BulkUpsert{Model}` | Insert or update        | 3000+/sec   | `data`, `unique_fields` |
+| Node                | Purpose                      | Performance | Parameters                    |
+| ------------------- | ---------------------------- | ----------- | ----------------------------- |
+| `BulkCreate{Model}` | Insert multiple records      | 1000+/sec   | `data`, `batch_size`          |
+| `BulkUpdate{Model}` | Update multiple records      | 5000+/sec   | `filter`, `fields`            |
+| `BulkDelete{Model}` | Delete multiple records      | 10000+/sec  | `filter`, `soft_delete`       |
+| `BulkUpsert{Model}` | Insert or update on conflict | 3000+/sec   | `data`, `conflict_resolution` |
 
 ## Key Parameters / Options
 
@@ -419,7 +420,8 @@ builder.add_node("EmbeddedPythonNode", "generate_timestamp", {
     "code": """
 from datetime import datetime
 result = {"registration_date": datetime.now().isoformat()}
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # CreateNode automatically converts to datetime
@@ -433,7 +435,7 @@ rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
 # Database stores as proper datetime type
-created_user = result["results"]["create"]["result"]
+created_user = result["results"]["create"]["record"]
 print(f"User registered at: {created_user['registration_date']}")
 ```
 
@@ -445,7 +447,8 @@ builder.add_node("EmbeddedPythonNode", "generate_last_login", {
     "code": """
 from datetime import datetime
 result = {"last_login": datetime.now().isoformat()}
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # UpdateNode automatically converts
@@ -475,7 +478,8 @@ for i in range(100):
     })
 
 result = {"users": json.dumps(users)}
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # BulkCreate{Model} automatically converts all datetime strings
@@ -527,7 +531,8 @@ builder.add_node("EmbeddedPythonNode", "fetch_api_data", {
 import requests
 response = requests.get("https://api.example.com/users")
 result = response.json()  # Contains ISO datetime strings
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # Automatically converted to datetime
@@ -551,7 +556,8 @@ with open('users.csv') as f:
         users.append({
             "name": row["name"],
             "email": row["email"],
-            "registered": datetime.fromisoformat(row["registered_date"]).isoformat()
+            "registered": datetime.fromisoformat(row["registered_date"]).isoformat(),
+            "output_vars": ["result"]
         })
 
 result = {"users": users}
@@ -634,11 +640,11 @@ builder.add_node("ListUser", "list_inactive", {
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
-# Access results
-created_user = result["results"]["create"]["result"]
+# Access results -- each node type has specific output keys
+created_user = result["results"]["create"]["record"]
 print(f"Created user: {created_user['name']}")
 
-inactive_users = result["results"]["list_inactive"]["result"]
+inactive_users = result["results"]["list_inactive"]["records"]
 print(f"Found {len(inactive_users)} inactive users")
 ```
 
@@ -709,19 +715,19 @@ builder.add_node("ListCustomer", "all_customers", {
 
 ## Troubleshooting
 
-| Issue                                     | Cause                            | Solution                                  |
-| ----------------------------------------- | -------------------------------- | ----------------------------------------- |
-| `Node 'CreateUser' not found`             | Model not defined with @db.model | Add @db.model decorator to class          |
-| `KeyError: 'id'` in results               | Wrong result access pattern      | Use `results["node"]["result"]["id"]`     |
-| `ValidationError: Missing required field` | Field without default            | Provide value or add default to model     |
-| `IntegrityError: duplicate key`           | Unique constraint violation      | Check for existing record before creating |
-| `NotFoundError: Record not found`         | Invalid ID or deleted record     | Verify ID exists and isn't soft-deleted   |
+| Issue                                     | Cause                            | Solution                                                                         |
+| ----------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------- |
+| `Node 'CreateUser' not found`             | Model not defined with @db.model | Add @db.model decorator to class                                                 |
+| `KeyError: 'id'` in results               | Wrong result access pattern      | CreateNode: `results["node"]["id"]`; ReadNode: `results["node"]["record"]["id"]` |
+| `ValidationError: Missing required field` | Field without default            | Provide value or add default to model                                            |
+| `IntegrityError: duplicate key`           | Unique constraint violation      | Check for existing record before creating                                        |
+| `NotFoundError: Record not found`         | Invalid ID or deleted record     | Verify ID exists and isn't soft-deleted                                          |
 
 ## Quick Tips
 
 - String IDs fully supported - no conversion needed
 - Use connections for dynamic parameters, NOT template syntax
-- Access results via `results["node"]["result"]` pattern
+- Access results via node-specific keys: CreateNode `record`/`id`, ListNode `records`/`count`/`total`, etc.
 - Soft deletes preserve data with `deleted_at` timestamp
 - ListNode excludes soft-deleted by default
 - Use `count_only=True` for pagination counts

@@ -83,10 +83,10 @@ builder.add_node("BulkCreateProduct", "import_products", {
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
-# Check results
-imported = result["results"]["import_products"]["data"]
-print(f"Imported {imported['records_processed']} products")
-print(f"Success: {imported['success_count']}, Failed: {imported['failure_count']}")
+# Check results -- BulkCreate returns "records" and "count"
+bulk_result = result["results"]["import_products"]
+print(f"Imported {bulk_result['count']} products")
+print(f"Records: {len(bulk_result['records'])}")
 ```
 
 ## Common Use Cases
@@ -99,12 +99,12 @@ print(f"Success: {imported['success_count']}, Failed: {imported['failure_count']
 
 ## Bulk Node Reference
 
-| Node | Throughput | Use Case | Key Parameters |
-|------|-----------|----------|----------------|
-| **BulkCreate{Model}** | 10k+/sec | Data import | `data`, `batch_size`, `conflict_resolution` |
-| **BulkUpdate{Model}** | 50k+/sec | Mass updates | `filter`, `updates`, `batch_size` |
-| **BulkDelete{Model}** | 100k+/sec | Cleanup | `filter`, `soft_delete`, `batch_size` |
-| **BulkUpsert{Model}** | 3k+/sec | Sync operations | `data`, `conflict_resolution`, `batch_size` |
+| Node                  | Throughput | Use Case        | Key Parameters                              |
+| --------------------- | ---------- | --------------- | ------------------------------------------- |
+| **BulkCreate{Model}** | 10k+/sec   | Data import     | `data`, `batch_size`, `conflict_resolution` |
+| **BulkUpdate{Model}** | 50k+/sec   | Mass updates    | `filter`, `updates`, `batch_size`           |
+| **BulkDelete{Model}** | 100k+/sec  | Cleanup         | `filter`, `soft_delete`, `batch_size`       |
+| **BulkUpsert{Model}** | 3k+/sec    | Sync operations | `data`, `conflict_resolution`, `batch_size` |
 
 ## Key Parameters / Options
 
@@ -232,6 +232,7 @@ builder.add_node("BulkDeleteProduct", "delete_specific", {
 ```
 
 **Edge Cases Handled:**
+
 - ✅ Empty lists: `{"id": {"$in": []}}` → Matches nothing (0 records)
 - ✅ Single value: `{"id": {"$in": ["prod_1"]}}` → Works correctly
 - ✅ Duplicates: `{"id": {"$in": ["prod_1", "prod_1"]}}` → Deduped automatically
@@ -253,6 +254,7 @@ builder.add_node("BulkUpsertProduct", "sync", {
 ```
 
 **Key Points:**
+
 - **Conflict Column**: Always `id` (DataFlow standard, auto-inferred)
 - **conflict_resolution**:
   - `"update"` (default): Update existing records on conflict
@@ -261,6 +263,7 @@ builder.add_node("BulkUpsertProduct", "sync", {
 - **Data Structure**: Each record in `data` must include an `id` field
 
 **Example: Update Conflicts**
+
 ```python
 # Update existing products, insert new ones
 products = [
@@ -276,6 +279,7 @@ builder.add_node("BulkUpsertProduct", "upsert_products", {
 ```
 
 **Example: Skip Conflicts (Insert Only New)**
+
 ```python
 # Insert only new products, skip existing ones
 builder.add_node("BulkUpsertProduct", "insert_new_products", {
@@ -382,7 +386,8 @@ for i in range(1000):
     })
 
 result = {"users": users}
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # BulkCreate{Model} automatically converts all ISO strings to datetime
@@ -395,8 +400,9 @@ rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
 # All datetime fields stored as proper datetime types
-imported = result["results"]["bulk_import"]["data"]
-print(f"Imported {imported['success_count']} users with converted timestamps")
+# BulkCreate returns "records" and "count"
+bulk_result = result["results"]["bulk_import"]
+print(f"Imported {bulk_result['count']} users with converted timestamps")
 ```
 
 ### Example: BulkUpdate{Model} with Datetime
@@ -411,7 +417,8 @@ updates = []
 for user_id in range(1, 101):
     updates.append({
         "id": user_id,
-        "last_login": datetime.now().isoformat()
+        "last_login": datetime.now().isoformat(),
+        "output_vars": ["updates"]
     })
 
 result = {"updates": updates}
@@ -444,7 +451,8 @@ for product in products:
     product["last_synced"] = datetime.now().isoformat()
 
 result = {"products": products}
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 # BulkUpsert{Model} converts all datetime strings
@@ -471,7 +479,8 @@ with open('products.csv') as f:
             "name": row["name"],
             "price": float(row["price"]),
             "created_at": datetime.fromisoformat(row["created_date"]).isoformat(),
-            "updated_at": datetime.fromisoformat(row["updated_date"]).isoformat()
+            "updated_at": datetime.fromisoformat(row["updated_date"]).isoformat(),
+            "output_vars": ["products"]
         })
 
 result = {"products": products}
@@ -515,6 +524,7 @@ builder.add_node("BulkCreateProduct", "import", {
 ### Applies To All Bulk Nodes
 
 Datetime auto-conversion works on:
+
 - ✅ `BulkCreateProduct` - Bulk inserts
 - ✅ `BulkUpdateProduct` - Bulk updates
 - ✅ `BulkUpsertProduct` - Bulk upserts
@@ -523,6 +533,7 @@ Datetime auto-conversion works on:
 ### Common Use Cases
 
 **API Data Synchronization:**
+
 ```python
 # External API returns ISO timestamps
 builder.add_node("EmbeddedPythonNode", "sync_api", {
@@ -536,7 +547,8 @@ for item in inventory_data:
     item["id"] = item.get("id") or item.get("sku")
 
 result = {"inventory": inventory_data}  # Contains ISO datetime strings
-    """
+    """,
+    "output_vars": ["result"]
 })
 
 builder.add_node("BulkUpsertInventory", "sync", {
@@ -547,6 +559,7 @@ builder.add_node("BulkUpsertInventory", "sync", {
 ```
 
 **Historical Data Import:**
+
 ```python
 # Import historical records with date ranges
 builder.add_node("EmbeddedPythonNode", "generate_historical", {
@@ -558,7 +571,8 @@ start_date = datetime(2020, 1, 1)
 for i in range(1000):
     records.append({
         "date": (start_date + timedelta(days=i)).isoformat(),
-        "value": i * 10.0
+        "value": i * 10.0,
+        "output_vars": ["start_date"]
     })
 
 result = {"records": records}
@@ -573,6 +587,7 @@ builder.add_node("BulkCreateRecord", "import_historical", {
 ```
 
 **Real-Time Event Processing:**
+
 ```python
 # Process events with timestamps
 builder.add_node("EmbeddedPythonNode", "process_events", {
@@ -584,7 +599,8 @@ for event in incoming_events:
     events.append({
         "user_id": event["user_id"],
         "action": event["action"],
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "output_vars": ["result"]
     })
 
 result = {"events": events}
@@ -606,6 +622,7 @@ builder.add_node("BulkCreateEvent", "log_events", {
 ## When to Escalate to Subagent
 
 Use `dataflow-specialist` subagent when:
+
 - Optimizing bulk operations for millions of records
 - Troubleshooting performance bottlenecks
 - Implementing custom batch strategies
@@ -667,8 +684,8 @@ builder.add_node("BulkUpdateProduct", "discount_electronics", {
 })
 
 result = rt.execute(builder.build(reg))
-updated = result["results"]["discount_electronics"]["data"]
-print(f"Updated {updated['success_count']} products")
+# BulkUpdate returns "updated_count"
+print(f"Updated {result['results']['discount_electronics']['updated_count']} products")
 ```
 
 ### Example 3: Data Synchronization
@@ -689,19 +706,20 @@ builder.add_node("BulkUpsertProduct", "sync_products", {
 })
 
 result = rt.execute(builder.build(reg))
-sync_result = result["results"]["sync_products"]["data"]
-print(f"Processed: {sync_result['records_processed']}")
-print(f"Inserted: {sync_result['inserted']}, Updated: {sync_result['updated']}")
+# BulkUpsert returns "records", "created_count", "updated_count"
+sync_result = result["results"]["sync_products"]
+print(f"Created: {sync_result['created_count']}, Updated: {sync_result['updated_count']}")
+print(f"Records: {len(sync_result['records'])}")
 ```
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `MemoryError` | Dataset too large | Reduce batch_size or use streaming |
-| Slow performance | Small batch_size | Increase to 1000-5000 |
-| Duplicate key errors | conflict_resolution="error" | Use "skip" or "update" |
-| Transaction timeout | Batch too large | Reduce batch_size |
+| Issue                | Cause                       | Solution                           |
+| -------------------- | --------------------------- | ---------------------------------- |
+| `MemoryError`        | Dataset too large           | Reduce batch_size or use streaming |
+| Slow performance     | Small batch_size            | Increase to 1000-5000              |
+| Duplicate key errors | conflict_resolution="error" | Use "skip" or "update"             |
+| Transaction timeout  | Batch too large             | Reduce batch_size                  |
 
 ## Quick Tips
 

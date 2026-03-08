@@ -40,7 +40,6 @@ import kailash
 # Database nodes (string-based):
 #   SQLQueryNode (Production recommended)
 #   DatabaseConnectionNode (Connection pooling)
-#   SQLDatabaseNode (Simple queries)
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
@@ -55,8 +54,8 @@ import kailash
 #   LLMNode (multi-provider chat completions with tool calling)
 #   EmbeddingNode (text-to-vector embedding generation)
 #   ClassificationNode (zero-shot/few-shot text classification)
-#   SentimentAnalysisNode (sentiment analysis)
-#   TextSummarizationNode (text summarization)
+#   SentimentNode (sentiment analysis)
+#   SummarizationNode (text summarization)
 #   VisionNode (image analysis)
 #   AudioNode (audio processing)
 #   ImageGenerationNode (image generation)

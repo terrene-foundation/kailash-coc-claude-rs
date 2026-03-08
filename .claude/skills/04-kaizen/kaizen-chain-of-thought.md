@@ -7,10 +7,11 @@ CoT pattern with step-by-step reasoning.
 ```python
 from kailash.kaizen import Signature, InputField, OutputField
 
-class ChainOfThoughtSignature(Signature):
-    question = InputField("Question to reason about")
-    thoughts = OutputField("Step-by-step reasoning as JSON list")
-    final_answer = OutputField("Final answer")
+# Signature is SUBCLASSED, not instantiated
+class ChainOfThought(Signature):
+    question = InputField(description="Question to reason about")
+    thoughts = OutputField(description="Step-by-step reasoning")
+    final_answer = OutputField(description="Final answer")
 ```
 
 ## Agent

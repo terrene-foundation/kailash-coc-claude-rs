@@ -32,8 +32,6 @@ from kailash.enterprise import (
 ```python
 # Specific resource/action permission
 p = Permission("users", "read")
-p.resource   # "users"
-p.action     # "read"
 p.matches("users", "read")   # True
 p.matches("users", "write")  # False
 
@@ -175,8 +173,9 @@ For attribute-based access control layered on top of RBAC, see `/enterprise-abac
 ```python
 from kailash.enterprise import CombinedEvaluator
 
-combined = CombinedEvaluator(rbac=evaluator, abac=abac_evaluator)
-result = combined.evaluate(user, "documents", "write", resource_attrs, env_attrs)
+combined = CombinedEvaluator(evaluator, abac_evaluator, strategy="deny_override")
+result = combined.evaluate(user, "documents", "write", environment=env_attrs)
+# result keys: "allowed" (bool), "reason" (str), "rbac_result" (bool), "abac_result" (dict)
 ```
 
 ## Testing RBAC

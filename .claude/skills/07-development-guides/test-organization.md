@@ -101,7 +101,7 @@ def postgres_db():
 def test_database_workflow(postgres_db):
     """Test with real PostgreSQL database."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": postgres_db,
         "query": "SELECT 1 as id, 'Alice' as name",
         "operation": "select"
@@ -124,7 +124,7 @@ import kailash
 def test_database_workflow(postgres_db):
     """Test database workflow with real PostgreSQL."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": postgres_db,
         "query": "SELECT COUNT(*) as count FROM test_table",
         "operation": "select"

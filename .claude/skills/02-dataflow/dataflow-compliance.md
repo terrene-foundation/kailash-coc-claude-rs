@@ -27,9 +27,8 @@ builder = kailash.WorkflowBuilder()
 
 # 1. Mark as deleted (soft delete)
 builder.add_node("UpdateUser", "mark_deleted", {
-    "id": "{{input.user_id}}",
-    "gdpr_deleted": True,
-    "email": "[REDACTED]"
+    "filter": {"id": "{{input.user_id}}"},
+    "fields": {"gdpr_deleted": True, "email": "[REDACTED]"}
 })
 
 # 2. Anonymize related data

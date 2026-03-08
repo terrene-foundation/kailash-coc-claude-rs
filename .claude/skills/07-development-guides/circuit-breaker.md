@@ -86,7 +86,8 @@ except Exception as e:
         'status': 'error',
         'error': str(e)
     }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

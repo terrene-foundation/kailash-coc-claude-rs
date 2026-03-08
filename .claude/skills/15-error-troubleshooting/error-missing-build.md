@@ -124,7 +124,7 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
 builder.connect("reader", "rows", "processor", "data")
 
 # ❌ All these are WRONG:
@@ -142,7 +142,7 @@ results = workflow.run()  # No .run() method
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
 builder.connect("reader", "rows", "processor", "data")
 
 # ✅ CORRECT execution pattern

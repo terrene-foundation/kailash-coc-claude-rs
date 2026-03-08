@@ -75,8 +75,8 @@ START: What are you building?
     |   --> NexusAuthPlugin handles JWT, RBAC, tenant isolation
     |
     +-- Custom middleware?
-        --> app.add_middleware() + Starlette-compatible middleware
-        --> See: 01-nexus-native-middleware spec
+        --> Use presets or app._nexus.add_middleware() (tower middleware)
+        --> Nexus (Rust-backed) has add_middleware() and add_plugin()
 ```
 
 ---
@@ -109,7 +109,8 @@ import httpx    # BLOCKED!
 from myapp.db import get_user  # BLOCKED!
 
 result = await httpx.get("https://api.example.com")
-"""
+""",
+    "output_vars": ["result"]
 })
 app.register("process", builder.build(reg))
 ```
@@ -155,19 +156,13 @@ async def get_users():
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-# Option 1: Use handler (recommended)
-@app.handler("get_users")
+# Use handler (recommended)
+@app.handler("get_users", description="List users")
 async def get_users() -> dict:
     return {"users": []}
 
-# Option 2: Include existing router
-from myapp.routes import extra_router
-app.include_router(extra_router, prefix="/extra")
-
-# Option 3: Custom endpoint (API-only)
-@app.endpoint("/health", methods=["GET"])
-async def health():
-    return {"status": "ok"}
+# NOTE: app.include_router() and @app.endpoint() do NOT exist.
+# Use @app.handler() for all endpoint registration.
 ```
 
 **Why**: Using `_gateway.app` bypasses Nexus middleware, auth, and breaks in future versions.
@@ -358,10 +353,14 @@ app._gateway.app.add_middleware(SomeMiddleware)  # Private!
 **RIGHT**:
 
 ```python
-# DO: Use public middleware API
+# DO: Use Nexus public APIs (presets, rate limiting, CORS)
 from kailash.nexus import NexusApp
 app = NexusApp()
-app.add_middleware(SomeMiddleware, config={"key": "value"})
+app.add_rate_limit(max_requests=100, window_secs=60)
+app.add_cors(["https://example.com"])
+# For custom tower middleware, use the Rust Nexus engine:
+# app._nexus.add_middleware(config)
+# app._nexus.add_plugin(plugin)
 ```
 
 **Why**: `_gateway` is implementation detail. Public APIs are stable across versions.
@@ -409,7 +408,7 @@ API_PORT = int(os.environ.get("API_PORT", "3000"))
 # Initialize Frameworks
 # ============================================================================
 
-app = NexusApp(NexusConfig(port=API_PORT))
+app = NexusApp(config=NexusConfig(port=API_PORT))
 
 df = kailash.DataFlow(
     DATABASE_URL,
@@ -523,8 +522,8 @@ async def delete_contact(
 # Public Endpoints (No Auth)
 # ============================================================================
 
-@app.endpoint("/health", methods=["GET"])
-async def health_check():
+@app.handler("health_check", description="Health check endpoint")
+async def health_check() -> dict:
     return {"status": "healthy", "version": "1.0.0"}
 
 # ============================================================================
@@ -620,7 +619,7 @@ class AnalysisAgent(BaseAgent):
 # Initialize
 # ============================================================================
 
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 config = AgentConfig(
@@ -767,7 +766,7 @@ class AuditLog:
 # Nexus + Auth
 # ============================================================================
 
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=int(os.environ.get("API_PORT", "3000")),
 ))
 
@@ -831,8 +830,8 @@ async def get_audit_log(
 ) -> dict:
     return {"audit_logs": [], "total": 0}
 
-@app.endpoint("/health", methods=["GET"])
-async def health_check():
+@app.handler("health_check", description="Health check endpoint")
+async def health_check() -> dict:
     return {"status": "healthy", "version": "1.0.0"}
 
 # ============================================================================
@@ -901,7 +900,7 @@ auth = NexusAuthPlugin(
 )
 
 # NexusApp constructor
-app = NexusApp(config=NexusConfig(port=3000))    # NOT NexusApp(port=3000)
+app = NexusApp(config=NexusConfig(port=3000))     # NOT NexusApp(port=3000)
 app.add_rate_limit(max_requests=100, window_secs=60)  # NOT RateLimitConfig
 ```
 

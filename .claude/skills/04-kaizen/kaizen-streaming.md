@@ -110,7 +110,7 @@ events = handler.events  # list of StreamEvent
 assert len(events) == 4  # Start, Token, Token, End
 assert events[0].is_start
 assert events[1].is_token
-handler.push_raw_error("connection lost")
+handler.on_error("connection lost")
 ```
 
 ## StreamEvent

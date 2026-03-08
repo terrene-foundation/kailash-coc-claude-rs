@@ -26,7 +26,7 @@ workflow_everything = kailash.WorkflowBuilder()  # Registration + email + billin
 # ✅ GOOD: Reusable sub-workflows
 def create_validation_workflow():
     builder = kailash.WorkflowBuilder()
-    builder.add_node("DataValidationNode", "validate", {...})
+    builder.add_node("SchemaValidatorNode", "validate", {...})
     reg = kailash.NodeRegistry()
     return builder.build(reg)
 
@@ -38,9 +38,9 @@ validation_wf = create_validation_workflow()
 ```python
 # ✅ GOOD: Use RetryNode for error handling
 builder.add_node("RetryNode", "api_retry", {
-    "max_retries": 3, "retry_delay_ms": 1000
+    "max_retries": 3, "initial_delay_ms": 1000
 })
-builder.connect("api_retry", "output", "log_error", "input")
+builder.connect("api_retry", "result", "log_error", "input")
 ```
 
 ### 4. Clear Naming

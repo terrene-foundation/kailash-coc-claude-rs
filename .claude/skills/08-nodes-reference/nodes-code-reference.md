@@ -39,14 +39,18 @@ def custom_logic(input_data):
     result = input_data * 2
     return {"result": result}
 """,
-    "input_data": 10
+    "output_vars": ["result"]
 })
 
 # Option 2: inline code string (use sparingly)
 builder.add_node("EmbeddedPythonNode", "code", {
     "code": "result = input_data * 2",
-    "input_data": 10
+    "output_vars": ["result"]
 })
+
+# Provide input_data via workflow inputs or connections, not config:
+# builder.connect("source", "value", "code", "input_data")
+# -- or -- rt.execute(wf, {"input_data": 10})
 ```
 
 ## JavaScript Node
@@ -55,9 +59,9 @@ builder.add_node("EmbeddedPythonNode", "code", {
 
 ```python
 builder.add_node("EmbeddedJSNode", "js_code", {
-    "code": "const result = input_data * 2; result;",
-    "input_data": 10
+    "code": "const result = input_data * 2; result;"
 })
+# Provide input_data via connections or workflow inputs
 ```
 
 ## Subprocess Node

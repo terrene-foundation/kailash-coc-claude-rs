@@ -140,14 +140,16 @@ def create_workflow():
 
     # Add nodes (4-param: NodeType, ID, config, connections)
     builder.add_node("EmbeddedPythonNode", "node1", {
-        "code": "result = input_data * 2"
+        "code": "result = input_data * 2",
+        "output_vars": ["result"]
     })
     builder.add_node("EmbeddedPythonNode", "node2", {
-        "code": "result = input_data + 10"
+        "code": "result = input_data + 10",
+        "output_vars": ["result"]
     })
 
     # Add connections (4-param: src_id, src_param, tgt_id, tgt_param)
-    builder.connect("node1", "result", "node2", "input_data")
+    builder.connect("node1", "outputs", "node2", "input_data")
 
     return builder.build(reg)
 
@@ -155,7 +157,7 @@ def create_workflow():
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)
 result = rt.execute(create_workflow())
-print(result["results"]["node2"]["result"])
+print(result["results"]["node2"]["outputs"])
 ```
 
 ### Custom Node Template
@@ -214,7 +216,8 @@ def test_workflow_execution(runtime):
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "calc", {
-        "code": "result = 2 + 2"
+        "code": "result = 2 + 2",
+        "output_vars": ["result"]
     })
 
     # Act
@@ -222,7 +225,7 @@ def test_workflow_execution(runtime):
     result = rt.execute(builder.build(reg))
 
     # Assert
-    assert result["results"]["calc"]["result"] == 4
+    assert result["results"]["calc"]["outputs"] == 4
     assert result["run_id"] is not None
 ```
 

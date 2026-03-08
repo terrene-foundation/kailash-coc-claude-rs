@@ -25,7 +25,8 @@ def test_regression_issue_123():
     """
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "node1", {
-        "code": "result = {'value': 42}"
+        "code": "result = {'value': 42}",
+        "output_vars": ["result"]
     })
 
     builder.add_node("EmbeddedPythonNode", "node2", {
@@ -33,7 +34,8 @@ def test_regression_issue_123():
 # CORRECT: Access previous node's result
 value = node1_result['value']
 result = {'doubled': value * 2}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     reg = kailash.NodeRegistry()
@@ -42,7 +44,7 @@ result = {'doubled': value * 2}
     result = rt.execute(builder.build(reg))
 
     # Verify correct result access
-    assert result["results"]["node2"]["result"]["doubled"] == 84
+    assert result["results"]["node2"]["outputs"]["doubled"] == 84
 ```
 
 ### 3. Regression Test Organization

@@ -19,7 +19,8 @@ request_id = str(uuid.uuid4())
 db.save_request(request_id, request_data)
 
 result = {'request_id': request_id, 'persisted': True}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Process with retry
@@ -40,7 +41,8 @@ while attempt < max_retries:
             raise
 
 result = {'response': response, 'attempts': attempt}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -60,7 +62,8 @@ for request in failed_requests:
         continue
 
 result = {'recovered': len(failed_requests)}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

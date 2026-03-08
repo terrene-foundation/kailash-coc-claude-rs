@@ -144,7 +144,7 @@ reg = kailash.NodeRegistry()
 import uuid
 
 # CRITICAL: These settings prevent blocking and slow startup
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
@@ -229,22 +229,24 @@ auth = kailash.NexusAuthPlugin(
     tenant_header="X-Tenant-ID",
 )
 
-# Use role/permission checks in handlers
-@app.handler("admin_dashboard")
-async def admin_dashboard(user=kailash.RequireRole("admin")) -> dict:
-    return {"user_id": user.user_id, "roles": user.roles}
+# NOTE: kailash.RequireRole(), kailash.RequirePermission(), and
+# kailash.get_current_user() do NOT exist. Auth is enforced automatically
+# by NexusAuthPlugin middleware, not via handler parameter injection.
 
-@app.handler("create_contact")
-async def create_contact(
-    email: str,
-    name: str,
-    user=kailash.RequirePermission("contacts:create"),
-) -> dict:
-    return {"created_by": user.user_id, "email": email, "name": name}
+@app.handler("admin_dashboard", description="Admin dashboard")
+async def admin_dashboard() -> dict:
+    # Auth enforced by NexusAuthPlugin middleware (JWT + RBAC)
+    return {"status": "ok"}
 
-@app.handler("profile")
-async def profile(user=kailash.get_current_user()) -> dict:
-    return {"user_id": user.user_id, "roles": user.roles}
+@app.handler("create_contact", description="Create a contact")
+async def create_contact(email: str, name: str) -> dict:
+    # Auth enforced by NexusAuthPlugin middleware
+    return {"email": email, "name": name}
+
+@app.handler("profile", description="User profile")
+async def profile() -> dict:
+    # Auth enforced by NexusAuthPlugin middleware
+    return {"status": "ok"}
 
 app.start()
 ```
@@ -281,7 +283,7 @@ app.add_rate_limit(max_requests=100, window_secs=60)
 | `TenantConfig(...)`                         | `tenant_header="X-Tenant-ID"`               | No TenantConfig class exists    |
 | `RateLimitConfig(...)`                      | `app.add_rate_limit(max_requests=N, ...)`   | No RateLimitConfig class exists |
 | `NexusAuthPlugin.basic_auth(...)`           | `NexusAuthPlugin(...)`                      | No factory methods exist        |
-| `app.add_plugin(auth)`                      | (remove -- no add_plugin method)            | NexusApp has no add_plugin      |
+| `app.add_plugin(auth)`                      | `app._nexus.add_plugin(auth)`               | Use Nexus's add_plugin method   |
 | `NexusApp(port=N)`                          | `NexusApp(config=NexusConfig(port=N))`      | Port set via NexusConfig        |
 | `from nexus.auth.plugin import ...`         | `from kailash.nexus import NexusAuthPlugin` | All types from `kailash.*`      |
 | `from __future__ import annotations` + deps | Remove PEP 563 import                       | Breaks runtime type resolution  |
@@ -545,7 +547,8 @@ result = {
     "valid": order["quantity"] > 0 and order["price"] > 0,
     "order": order
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Step 2: Check inventory
@@ -686,7 +689,7 @@ Expose workflows as MCP tools for AI agent consumption.
 ```python
 import kailash
 
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 # Every registered handler automatically becomes an MCP tool
@@ -770,9 +773,10 @@ result = rt.execute(builder.build(reg))
 async def my_handler(required_param: str, optional_param: int = 10) -> dict:
     return {"result": "..."}
 
-# Auth types (all from import kailash)
-# kailash.NexusAuthPlugin, kailash.JwtConfig, kailash.RbacConfig
-# kailash.RequireRole, kailash.RequirePermission, kailash.get_current_user
+# Auth types (from kailash.nexus)
+# NexusAuthPlugin, JwtConfig, RbacConfig
+# NOTE: RequireRole, RequirePermission, get_current_user do NOT exist
+# Auth is enforced automatically by NexusAuthPlugin middleware
 # Rate limiting: app.add_rate_limit(max_requests=N, window_secs=N)
 # Tenant isolation: NexusAuthPlugin(tenant_header="X-Tenant-ID")
 ```
@@ -787,7 +791,7 @@ async def my_handler(required_param: str, optional_param: int = 10) -> dict:
 | `TenantConfig(...)`            | `tenant_header="X-Tenant-ID"`               | NexusAuthPlugin |
 | `RateLimitConfig(...)`         | `app.add_rate_limit(max_requests=N, ...)`   | NexusApp        |
 | `NexusAuthPlugin.basic_auth()` | `NexusAuthPlugin(...)`                      | NexusAuthPlugin |
-| `app.add_plugin(auth)`         | (no add_plugin method)                      | NexusApp        |
+| `app.add_plugin(auth)`         | `app._nexus.add_plugin(auth)`               | NexusApp        |
 | `NexusApp(port=N)`             | `NexusApp(config=NexusConfig(port=N))`      | NexusApp        |
 | `from nexus.auth.plugin ...`   | `from kailash.nexus import NexusAuthPlugin` | Import path     |
 

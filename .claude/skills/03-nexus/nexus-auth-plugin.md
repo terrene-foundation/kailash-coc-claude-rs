@@ -179,7 +179,7 @@ Response <- Audit <- RateLimit <- JWT <- Tenant <- RBAC <- Handler
 | `.basic_auth()`        | Direct constructor `NexusAuthPlugin(...)` | NexusAuthPlugin |
 | `.saas_app()`          | Direct constructor `NexusAuthPlugin(...)` | NexusAuthPlugin |
 | `.enterprise()`        | Direct constructor `NexusAuthPlugin(...)` | NexusAuthPlugin |
-| `app.add_plugin(auth)` | (no add_plugin method exists)             | NexusApp        |
+| `app.add_plugin(auth)` | Use `app._nexus.add_plugin(auth)`         | NexusApp        |
 
 ### PEP 563 and Annotations
 

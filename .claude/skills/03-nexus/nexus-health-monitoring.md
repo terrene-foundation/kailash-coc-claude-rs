@@ -59,14 +59,14 @@ curl http://localhost:3000/health/detailed
 
 ## Enable Monitoring
 
-```python
-app = NexusApp()
-# Monitoring configured separately
+Monitoring is configured server-side via the Rust Nexus engine and tower middleware.
+Use presets or reverse-proxy-level monitoring (e.g., Prometheus + nginx) for production.
 
-# Configure monitoring backend
-app.monitoring.backend = "prometheus"
-app.monitoring.interval = 30
-app.monitoring.metrics = ["requests", "latency", "errors"]
+```python
+from kailash.nexus import NexusApp
+
+app = NexusApp()
+# Monitoring is configured via presets or external tools, not app.monitoring.*
 ```
 
 ## Prometheus Metrics
@@ -88,112 +88,79 @@ nexus_request_duration_seconds_bucket{le="0.5"} 100
 
 ## Custom Health Checks
 
+NexusApp does not have a `@app.health_check_handler()` decorator. Health checks are
+built into the platform and available at the `/health` endpoint. For custom health
+logic, use a regular handler:
+
 ```python
-# Add custom health check
-@app.health_check_handler("database")
-def check_database_health():
+@app.handler("custom_health", description="Custom health check")
+async def custom_health() -> dict:
+    checks = {}
     try:
         # Check database connection
         db.execute("SELECT 1")
-        return {"status": "healthy"}
+        checks["database"] = {"status": "healthy"}
     except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+        checks["database"] = {"status": "unhealthy", "error": str(e)}
 
-@app.health_check_handler("cache")
-def check_cache_health():
     try:
         cache.ping()
-        return {"status": "healthy"}
+        checks["cache"] = {"status": "healthy"}
     except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+        checks["cache"] = {"status": "unhealthy", "error": str(e)}
+
+    overall = "healthy" if all(
+        c["status"] == "healthy" for c in checks.values()
+    ) else "unhealthy"
+
+    return {"status": overall, "components": checks}
 ```
 
 ## Workflow Health Monitoring
+
+NexusApp does not have `app.workflows` or `app.execute_workflow()`. Use
+`app.get_registered_handlers()` to list handlers and test them individually:
 
 ```python
 class WorkflowHealthMonitor:
     def __init__(self, nexus_app):
         self.app = nexus_app
 
-    def check_workflow_health(self, workflow_name):
-        """Check if workflow is healthy"""
-        try:
-            # Test execution with minimal inputs
-            result = self.app.execute_workflow(
-                workflow_name,
-                inputs={},
-                timeout=5
-            )
-            return result['success']
-        except:
-            return False
-
-    def get_all_workflow_health(self):
-        """Get health status of all workflows"""
-        health_status = {}
-        for workflow_name in self.app.workflows:
-            health_status[workflow_name] = self.check_workflow_health(workflow_name)
-        return health_status
+    def get_registered_workflows(self):
+        """List registered handlers."""
+        return self.app.get_registered_handlers()
 
 # Usage
 monitor = WorkflowHealthMonitor(app)
-status = monitor.get_all_workflow_health()
-print(f"Workflow health: {status}")
+handlers = monitor.get_registered_workflows()
+print(f"Registered handlers: {handlers}")
 ```
 
 ## Alerting
 
-```python
-# Configure alerting
-app.monitoring.enable_alerts = True
-app.monitoring.alert_thresholds = {
-    "error_rate": 0.05,  # 5% error rate
-    "latency_p95": 1.0,  # 1 second p95 latency
-    "availability": 0.99  # 99% availability
-}
-
-# Alert handlers
-@app.on_alert("high_error_rate")
-def handle_high_errors(alert):
-    print(f"ALERT: High error rate: {alert.value}")
-    # Send notification (email, Slack, PagerDuty, etc.)
-
-@app.on_alert("high_latency")
-def handle_high_latency(alert):
-    print(f"ALERT: High latency: {alert.value}s")
-```
+NexusApp does not have `app.monitoring.*` attributes or `@app.on_alert()` decorators.
+For alerting, use external monitoring tools (Prometheus Alertmanager, PagerDuty, etc.)
+that scrape the `/health` and `/metrics` endpoints, or implement alerting logic
+in a custom handler.
 
 ## Logging
 
 ```python
 import logging
 
-# Configure logging
-app = NexusApp()
-# Logging configured separately
-
-# Access logger
-logger = app.logger
+# NexusApp does not have an app.logger attribute.
+# Use Python's standard logging module:
+logger = logging.getLogger("nexus")
 logger.info("Custom log message")
 logger.error("Error occurred", extra={"workflow": "my-workflow"})
 ```
 
 ## Performance Metrics
 
-```python
-# Get performance metrics
-metrics = app.get_metrics()
-
-print(f"Total requests: {metrics['requests_total']}")
-print(f"Avg latency: {metrics['latency_avg']}s")
-print(f"Error rate: {metrics['error_rate']}%")
-print(f"Success rate: {metrics['success_rate']}%")
-
-# Per-workflow metrics
-workflow_metrics = app.get_workflow_metrics("my-workflow")
-print(f"Workflow executions: {workflow_metrics['executions']}")
-print(f"Workflow success rate: {workflow_metrics['success_rate']}%")
-```
+NexusApp does not have `app.get_metrics()` or `app.get_workflow_metrics()` methods.
+For performance metrics, use external tools that scrape Prometheus-format metrics
+from the `/metrics` endpoint (if enabled via presets), or implement custom tracking
+in your handlers.
 
 ## Best Practices
 

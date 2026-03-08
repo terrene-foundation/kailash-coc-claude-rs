@@ -18,8 +18,8 @@ print(card.capabilities)    # [] (empty by default)
 ### Adding Capabilities
 
 ```python
-card.with_capability("data_analysis")
-card.with_capability("visualization")
+card = card.with_capability("data_analysis")
+card = card.with_capability("visualization")
 print(card.has_capability("data_analysis"))  # True
 ```
 
@@ -36,7 +36,7 @@ print(card.has_capability("data_analysis"))  # True
 
 | Method                      | Description                        |
 | --------------------------- | ---------------------------------- |
-| `with_capability(name)`     | Add a capability                   |
+| `with_capability(name)`     | Add a capability (returns new Self, must capture) |
 | `has_capability(name)`      | Check if capability exists -> bool |
 
 ## AgentRegistry
@@ -47,10 +47,10 @@ from kailash.kaizen import AgentRegistry, AgentCard
 registry = AgentRegistry()
 
 card = AgentCard("DataAnalyst", "Analyzes data")
-registry.register(card)
+agent_id = registry.register(card)  # Returns UUID
 
-# Lookup
-agent = registry.get("DataAnalyst")
+# Lookup by UUID (not name)
+agent = registry.get(agent_id)
 
 # List all
 all_agents = registry.list_all()
@@ -58,8 +58,8 @@ all_agents = registry.list_all()
 # Discover by capability
 matches = registry.discover("data_analysis")
 
-# Remove
-registry.deregister("DataAnalyst")
+# Remove by UUID
+registry.deregister(agent_id)
 ```
 
 ## TrustLevel & TrustPosture

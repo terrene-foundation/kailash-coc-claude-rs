@@ -43,12 +43,12 @@ builder = kailash.WorkflowBuilder()
 
 # LoopNode handles bounded iteration natively
 builder.add_node("LoopNode", "loop", {
-    "max_iterations": 10,
-    "condition": "count < target"
+    "max_iterations": 10
 })
 
 builder.add_node("EmbeddedPythonNode", "body", {
-    "code": "result = {'count': count + 1}"
+    "code": "result = {'count': count + 1}",
+    "output_vars": ["result"]
 })
 
 builder.connect("loop", "results", "body", "data")
@@ -98,17 +98,20 @@ builder = kailash.WorkflowBuilder()
 
 # Instead of a cycle, create sequential processing steps
 builder.add_node("EmbeddedPythonNode", "step1", {
-    "code": "result = {'value': input_val * 2}"
+    "code": "result = {'value': input_val * 2}",
+    "output_vars": ["result"]
 })
 builder.add_node("EmbeddedPythonNode", "step2", {
-    "code": "result = {'value': value * 2}"
+    "code": "result = {'value': value * 2}",
+    "output_vars": ["result"]
 })
 builder.add_node("EmbeddedPythonNode", "step3", {
-    "code": "result = {'value': value * 2}"
+    "code": "result = {'value': value * 2}",
+    "output_vars": ["result"]
 })
 
-builder.connect("step1", "result", "step2", "data")
-builder.connect("step2", "result", "step3", "data")
+builder.connect("step1", "outputs", "step2", "data")
+builder.connect("step2", "outputs", "step3", "data")
 
 wf = builder.build(reg)
 ```
@@ -121,7 +124,7 @@ builder = kailash.WorkflowBuilder()
 # RetryNode handles retry logic with backoff
 builder.add_node("RetryNode", "retry", {
     "max_retries": 3,
-    "backoff_ms": 1000
+    "initial_delay_ms": 1000
 })
 
 builder.add_node("HTTPRequestNode", "fetch", {
@@ -129,7 +132,7 @@ builder.add_node("HTTPRequestNode", "fetch", {
     "method": "GET"
 })
 
-builder.connect("retry", "output", "fetch", "trigger")
+builder.connect("retry", "result", "fetch", "trigger")
 ```
 
 ## Debugging Checklist
@@ -147,7 +150,7 @@ builder.connect("retry", "output", "fetch", "trigger")
 | ------------------------------------ | --------------------------------------------------------- |
 | `workflow.create_cycle("name")`      | Use `LoopNode` or callback node                           |
 | `cycle.connect(a, b, mapping={...})` | `builder.connect(a, output, b, input)` in linear pipeline |
-| `.converge_when("done == True")`     | Condition logic inside callback or LoopNode `condition`   |
+| `.converge_when("done == True")`     | Condition logic inside callback node                      |
 | `.max_iterations(N)`                 | LoopNode `max_iterations` config or callback loop limit   |
 
 ## Related Patterns

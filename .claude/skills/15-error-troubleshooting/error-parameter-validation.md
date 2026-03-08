@@ -102,7 +102,8 @@ builder = kailash.WorkflowBuilder()
 
 # Get email from form data
 builder.add_node("EmbeddedPythonNode", "form", {
-    "code": "result = {'email': 'alice@example.com', 'name': 'Alice'}"
+    "code": "result = {'email': 'alice@example.com', 'name': 'Alice'}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("CreateUser", "create", {
@@ -111,7 +112,7 @@ builder.add_node("CreateUser", "create", {
 })
 
 # Connect email from form to create node
-builder.connect("form", "result.email", "create", "email")
+builder.connect("form", "outputs", "create", "email")
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)

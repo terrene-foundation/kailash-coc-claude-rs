@@ -15,15 +15,27 @@ Correct patterns for accessing DataFlow node results in workflows.
 
 ## Quick Reference
 
-- **Pattern**: `results["node_id"]["result"]`
-- **ListNode**: Returns list in `result` key
-- **Single Ops**: Return dict in `result` key
-- **NOT**: `results["node_id"]` directly (returns metadata)
+Each node type uses specific output keys:
+
+| Node Type           | Output Keys                                 |
+| ------------------- | ------------------------------------------- |
+| `Create{Model}`     | `record`, `id`                              |
+| `Read{Model}`       | `record`, `found`                           |
+| `Update{Model}`     | `updated_count`                             |
+| `Delete{Model}`     | `deleted_count`, `soft_deleted`             |
+| `List{Model}`       | `records`, `count`, `total`                 |
+| `Count{Model}`      | `count`                                     |
+| `Upsert{Model}`     | `record`, `created`                         |
+| `BulkCreate{Model}` | `records`, `count`                          |
+| `BulkUpdate{Model}` | `updated_count`                             |
+| `BulkDelete{Model}` | `deleted_count`                             |
+| `BulkUpsert{Model}` | `records`, `created_count`, `updated_count` |
 
 ## Core Pattern
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 
@@ -50,114 +62,168 @@ builder.add_node("ListUser", "list_users", {
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
-# CORRECT: Access through 'result' key
-created_user = result["results"]["create_user"]["result"]
-user_id = created_user["id"]
+# CORRECT: CreateNode returns "record" and "id"
+created_user = result["results"]["create_user"]["record"]
+user_id = result["results"]["create_user"]["id"]
 user_name = created_user["name"]
 
-# CORRECT: ListNode returns list
-users_list = result["results"]["list_users"]["result"]
-print(f"Found {len(users_list)} users")
+# CORRECT: ListNode returns "records", "count", "total"
+users_list = result["results"]["list_users"]["records"]
+total = result["results"]["list_users"]["total"]
+print(f"Found {len(users_list)} users (total: {total})")
 for user in users_list:
     print(f"User: {user['name']}")
-
-# WRONG: Missing 'result' wrapper
-# user_data = result["results"]["create_user"]  # Returns metadata, not data!
-# user_id = user_data["id"]  # FAILS - no 'id' in metadata
 ```
 
 ## Result Structure
 
-### Single Operation Nodes (Create/Read/Update)
+### Create{Model}
 
 ```python
 results = {
     "node_id": {
-        "result": {  # Actual data here
+        "record": {  # The created record
             "id": 1,
             "name": "Alice",
             "email": "alice@example.com"
         },
-        "metadata": {...},  # Execution metadata
-        "status": "success"
+        "id": 1      # The created record's ID
     }
 }
 
 # Access
-data = result["results"]["node_id"]["result"]
-user_id = data["id"]
+record = result["results"]["node_id"]["record"]
+record_id = result["results"]["node_id"]["id"]
 ```
 
-### ListNode (Query Operations)
+### Read{Model}
 
 ```python
 results = {
     "node_id": {
-        "result": [  # List of records
-            {"id": 1, "name": "Alice"},
-            {"id": 2, "name": "Bob"}
-        ],
-        "metadata": {...}
+        "record": {  # The found record (or null)
+            "id": 1,
+            "name": "Alice"
+        },
+        "found": True  # Whether the record was found
     }
 }
 
 # Access
-users = result["results"]["node_id"]["result"]
+record = result["results"]["node_id"]["record"]
+found = result["results"]["node_id"]["found"]
+```
+
+### List{Model}
+
+```python
+results = {
+    "node_id": {
+        "records": [  # List of matching records
+            {"id": 1, "name": "Alice"},
+            {"id": 2, "name": "Bob"}
+        ],
+        "count": 2,   # Number of records in this page
+        "total": 50    # Total matching records
+    }
+}
+
+# Access
+users = result["results"]["node_id"]["records"]
+total = result["results"]["node_id"]["total"]
 for user in users:
     print(user["name"])
 ```
 
-### Delete/Update Operations
+### Update{Model}
 
 ```python
 results = {
     "node_id": {
-        "result": {
-            "affected_rows": 1,
-            "success": True
-        },
-        "metadata": {...}
+        "updated_count": 1  # Number of records updated
     }
 }
 
 # Access
-result_info = result["results"]["node_id"]["result"]
-affected = result_info["affected_rows"]
+updated = result["results"]["node_id"]["updated_count"]
+```
+
+### Delete{Model}
+
+```python
+results = {
+    "node_id": {
+        "deleted_count": 1,     # Number of records deleted
+        "soft_deleted": True    # Whether soft delete was used
+    }
+}
+
+# Access
+deleted = result["results"]["node_id"]["deleted_count"]
+```
+
+### Count{Model}
+
+```python
+results = {
+    "node_id": {
+        "count": 42  # Total count of matching records
+    }
+}
+
+# Access
+count = result["results"]["node_id"]["count"]
+```
+
+### Upsert{Model}
+
+```python
+results = {
+    "node_id": {
+        "record": {  # The upserted record
+            "id": 1,
+            "name": "Alice"
+        },
+        "created": True  # True if inserted, False if updated
+    }
+}
+
+# Access
+record = result["results"]["node_id"]["record"]
+was_created = result["results"]["node_id"]["created"]
 ```
 
 ## Common Mistakes
 
-### Mistake 1: Missing 'result' Key
+### Mistake 1: Using Generic "result" Key
 
 ```python
-# WRONG
+# WRONG - there is no generic "result" key
 result = rt.execute(builder.build(reg))
-user_data = result["results"]["create_user"]  # Returns full node result (metadata + data)
-user_id = user_data["id"]  # FAILS - 'id' not at this level
+user_data = result["results"]["create_user"]["result"]  # KeyError!
 ```
 
-**Fix: Access Through 'result'**
+**Fix: Use the Correct Key for Each Node Type**
 
 ```python
-# CORRECT
-user_data = result["results"]["create_user"]["result"]
-user_id = user_data["id"]  # Works
+# CORRECT - CreateNode uses "record" and "id"
+user_data = result["results"]["create_user"]["record"]
+user_id = result["results"]["create_user"]["id"]
 ```
 
 ### Mistake 2: Wrong ListNode Access
 
 ```python
-# WRONG
-users = result["results"]["list_users"]
-user_name = users[0]["name"]  # FAILS - users is metadata dict, not list
+# WRONG - ListNode does not use "result"
+users = result["results"]["list_users"]["result"]  # KeyError!
 ```
 
-**Fix: Access List in 'result'**
+**Fix: Access via "records"**
 
 ```python
-# CORRECT
-users_list = result["results"]["list_users"]["result"]  # This is the list
-user_name = users_list[0]["name"]  # Works
+# CORRECT - ListNode uses "records", "count", "total"
+users_list = result["results"]["list_users"]["records"]
+user_name = users_list[0]["name"]
 ```
 
 ## Related Patterns
@@ -169,6 +235,7 @@ user_name = users_list[0]["name"]  # Works
 ## Documentation References
 
 ### Primary Sources
+
 - **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L991-L1001)
 
 ## Examples
@@ -191,12 +258,12 @@ builder.connect("create", "id", "read", "id")
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
-# Access created user
-created = result["results"]["create"]["result"]
-print(f"Created user ID: {created['id']}")
+# Access created user -- CreateNode uses "record" and "id"
+created = result["results"]["create"]["record"]
+print(f"Created user ID: {result['results']['create']['id']}")
 
-# Access read user
-user_details = result["results"]["read"]["result"]
+# Access read user -- ReadNode uses "record" and "found"
+user_details = result["results"]["read"]["record"]
 print(f"User name: {user_details['name']}")
 ```
 
@@ -210,28 +277,33 @@ builder.add_node("ListProduct", "list_products", {
 
 result = rt.execute(builder.build(reg))
 
-# Access list
-products = result["results"]["list_products"]["result"]
+# Access list -- ListNode uses "records", "count", "total"
+products = result["results"]["list_products"]["records"]
+total = result["results"]["list_products"]["total"]
 
 # Process list
 total_value = sum(p["price"] * p["stock"] for p in products)
-print(f"Total inventory value: ${total_value}")
+print(f"Total inventory value: ${total_value} ({total} products)")
 ```
 
 ## Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| `KeyError: 'id'` | Missing 'result' wrapper | Access `results["node"]["result"]["id"]` |
-| `TypeError: 'dict' object is not subscriptable` | Treating metadata as list | Use `results["node"]["result"]` for list |
-| `KeyError: 'result'` | Node failed | Check `results["node"]["status"]` first |
+| Issue                                           | Cause                 | Solution                                                   |
+| ----------------------------------------------- | --------------------- | ---------------------------------------------------------- |
+| `KeyError: 'result'`                            | Using wrong key       | Use node-specific keys: `record`, `records`, `count`, etc. |
+| `KeyError: 'id'`                                | Wrong access path     | CreateNode: `results["node"]["id"]`                        |
+| `TypeError: 'dict' object is not subscriptable` | Treating dict as list | ListNode: use `results["node"]["records"]` for the list    |
 
 ## Quick Tips
 
-- Always access through `results["node"]["result"]`
-- ListNode returns list in 'result' key
-- Single operations return dict in 'result' key
-- Check 'status' if 'result' missing (node failed)
+- Each node type has specific output keys (see Quick Reference table above)
+- CreateNode: `record`, `id`
+- ReadNode: `record`, `found`
+- ListNode: `records`, `count`, `total`
+- UpdateNode: `updated_count`
+- DeleteNode: `deleted_count`, `soft_deleted`
+- CountNode: `count`
+- UpsertNode: `record`, `created`
 
 ## Keywords for Auto-Trigger
 

@@ -43,15 +43,14 @@ builder.add_node("HTTPRequestNode", "send_welcome_email", {
     }
 })
 
-# Add custom validation node
-builder.add_node("ConditionalNode", "check_domain", {
-    "condition": "{{create_user.email}}.endswith('@company.com')",
-    "true_branch": "internal_user",
-    "false_branch": "external_user"
-})
+# Add conditional logic -- ConditionalNode takes NO config params.
+# Inputs: condition, if_value, else_value. Output: result.
+builder.add_node("ConditionalNode", "check_domain", {})
 
 builder.connect("create_user", "email", "send_welcome_email", "to")
-builder.connect("send_welcome_email", "result", "check_domain", "input")
+builder.connect("create_user", "email", "check_domain", "condition")
+builder.connect("create_user", "email", "check_domain", "if_value")
+builder.connect("create_user", "email", "check_domain", "else_value")
 ```
 
 ## Custom Aggregation Nodes

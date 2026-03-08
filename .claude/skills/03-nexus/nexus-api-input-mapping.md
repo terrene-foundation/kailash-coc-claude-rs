@@ -144,7 +144,8 @@ result = {
     'filters': filters,
     'limit': lim
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Node 2: Execute search
@@ -315,7 +316,8 @@ result = {
         'limit_value': lim if has_limit else None
     }
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

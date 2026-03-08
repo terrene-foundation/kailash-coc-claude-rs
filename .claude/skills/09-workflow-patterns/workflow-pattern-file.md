@@ -29,10 +29,13 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# 1. List CSV files
-builder.add_node("ListFile", "list_files", {
-    "directory": "data/input",
-    "pattern": "*.csv"
+# 1. List CSV files — use EmbeddedPythonNode for directory listing
+builder.add_node("EmbeddedPythonNode", "list_files", {
+    "code": """
+import os
+files = [f for f in os.listdir('data/input') if f.endswith('.csv')]
+    """,
+    "output_vars": ["files"]
 })
 
 # 2. Process each file
@@ -44,25 +47,21 @@ for f in files:
     # Process each CSV file
     results.append({'file': f, 'status': 'processed'})
 result = {'results': results}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # 3. Merge results
-builder.add_node("MergeNode", "merge_results", {
-    "inputs": "{{process_files.results}}",
-    "strategy": "combine"
-})
+builder.add_node("MergeNode", "merge_results", {})
 
 # 4. Write consolidated output
 builder.add_node("FileWriterNode", "write_output", {
-    "path": "data/output/consolidated.csv",
-    "data": "{{merge_results.combined}}",
-    "headers": ["id", "name", "value"]
+    "path": "data/output/consolidated.csv"
 })
 
-builder.connect("list_files", "files", "process_files", "input")
-builder.connect("process_files", "results", "merge_results", "inputs")
-builder.connect("merge_results", "combined", "write_output", "content")
+builder.connect("list_files", "outputs", "process_files", "inputs")
+builder.connect("process_files", "outputs", "merge_results", "input_1")
+builder.connect("merge_results", "merged", "write_output", "content")
 
 reg = kailash.NodeRegistry()
 
@@ -80,9 +79,7 @@ builder = kailash.WorkflowBuilder()
 # 1. Read PDF document
 builder.add_node("PDFReaderNode", "extract_pdf", {
     "file_path": "{{input.pdf_path}}",
-    "extract_metadata": True,
-    "preserve_structure": True,
-    "page_numbers": True
+    "extract_metadata": True
 })
 
 # 2. Extract tables
@@ -108,8 +105,8 @@ builder.add_node("FileWriterNode", "save_results", {
     "path": "output/{{input.pdf_name}}_analysis.json"
 })
 
-builder.connect("extract_pdf", "content", "extract_tables", "input")
-builder.connect("extract_pdf", "content", "extract_text", "input")
+builder.connect("extract_pdf", "text", "extract_tables", "inputs")
+builder.connect("extract_pdf", "text", "extract_text", "inputs")
 builder.connect("extract_text", "text", "analyze_document", "prompt")
 builder.connect("analyze_document", "response", "save_results", "content")
 ```
@@ -121,10 +118,9 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# 1. Read source file
-builder.add_node("ConditionalNode", "detect_format", {
-    "condition": "{{input.file_ext}}",
-    "branches": {
+# 1. Detect format and route — use SwitchNode for multi-branch routing
+builder.add_node("SwitchNode", "detect_format", {
+    "cases": {
         ".csv": "read_csv",
         ".json": "read_json",
         ".xlsx": "read_excel"
@@ -151,18 +147,17 @@ builder.add_node("EmbeddedPythonNode", "normalize", {
     "output_vars": ["result"]
 })
 
-# 4. Write in target format
-builder.add_node("ConditionalNode", "write_format", {
-    "condition": "{{input.target_format}}",
-    "branches": {
+# 4. Write in target format — use SwitchNode for multi-branch routing
+builder.add_node("SwitchNode", "write_format", {
+    "cases": {
         "csv": "write_csv",
         "json": "write_json",
         "parquet": "write_parquet"
     }
 })
 
-builder.connect("detect_format", "result", "normalize", "input")
-builder.connect("normalize", "data", "write_format", "input")
+builder.connect("detect_format", "matched", "normalize", "inputs")
+builder.connect("normalize", "outputs", "write_format", "input")
 ```
 
 ## Pattern 4: Watch Folder Automation
@@ -172,44 +167,51 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# 1. Watch directory for new files
-builder.add_node("FileWatchNode", "watch_folder", {
-    "directory": "data/inbox",
-    "pattern": "*.pdf",
-    "event": "created"
+# 1. Receive file via webhook (no FileWatchNode exists — use WebhookNode or poll)
+builder.add_node("WebhookNode", "watch_folder", {
+    "path": "/files/new",
+    "method": "POST"
 })
 
-# 2. Validate file
-builder.add_node("FileValidateNode", "validate", {
-    "file_path": "{{watch_folder.file_path}}",
-    "min_size": 1024,  # 1KB minimum
-    "max_size": 10485760,  # 10MB maximum
-    "extensions": [".pdf"]
+# 2. Validate file — use SchemaValidatorNode for validation
+builder.add_node("SchemaValidatorNode", "validate", {
+    "schema": {
+        "file_path": "string",
+        "file_size": "integer"
+    }
 })
 
 # 3. Process document
 builder.add_node("PDFReaderNode", "process", {
-    "file_path": "{{validate.file_path}}"
+    "file_path": "{{validate.valid}}"
 })
 
-# 4. Move to processed folder
-builder.add_node("FileMoveNode", "move_file", {
-    "source": "{{validate.file_path}}",
-    "destination": "data/processed/{{watch_folder.filename}}"
+# 4. Move to processed folder — use EmbeddedPythonNode for file operations
+builder.add_node("EmbeddedPythonNode", "move_file", {
+    "code": """
+import os
+os.rename(source, destination)
+moved = True
+    """,
+    "output_vars": ["moved"]
 })
 
 # 5. On error, move to failed folder
-builder.add_node("FileMoveNode", "move_failed", {
-    "source": "{{validate.file_path}}",
-    "destination": "data/failed/{{watch_folder.filename}}"
+builder.add_node("EmbeddedPythonNode", "move_failed", {
+    "code": """
+import os
+os.rename(source, destination)
+moved = True
+    """,
+    "output_vars": ["moved"]
 })
 
-builder.connect("watch_folder", "file_path", "validate", "file_path")
-builder.connect("validate", "file_path", "process", "file_path")
-builder.connect("process", "result", "move_file", "source")
+builder.connect("watch_folder", "body", "validate", "data")
+builder.connect("validate", "valid", "process", "file_path")
+builder.connect("process", "text", "move_file", "inputs")
 # Use RetryNode for error handling
 builder.add_node("RetryNode", "retry_process", {"max_retries": 3})
-builder.connect("retry_process", "output", "move_failed", "source")
+builder.connect("retry_process", "output", "move_failed", "inputs")
 ```
 
 ## Best Practices

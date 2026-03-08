@@ -57,7 +57,8 @@ import kailash
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "result = {'status': 'completed'}"
+    "code": "result = {'status': 'completed'}",
+    "output_vars": ["result"]
 })
 
 rt = kailash.Runtime(reg)
@@ -77,7 +78,8 @@ def execute(data):
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'status': 'completed'}"
+        "code": "result = {'status': 'completed'}",
+        "output_vars": ["result"]
     })
 
     rt = kailash.Runtime(reg)

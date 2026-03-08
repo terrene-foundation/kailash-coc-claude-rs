@@ -67,7 +67,8 @@ class Test[Component]Integration:
 
         # Node 1: Data source
         builder.add_node("EmbeddedPythonNode", "source", {
-            "code": "result = {'items': [1, 2, 3, 4, 5]}"
+            "code": "result = {'items': [1, 2, 3, 4, 5]}",
+            "output_vars": ["result"]
         })
 
         # Node 2: Processor
@@ -76,7 +77,8 @@ class Test[Component]Integration:
 items = input_data
 filtered = [x for x in items if x > 2]
 result = {'filtered': filtered, 'count': len(filtered)}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         # Node 3: Validator
@@ -85,12 +87,13 @@ result = {'filtered': filtered, 'count': len(filtered)}
 data = input_data
 valid = data['count'] > 0 and len(data['filtered']) == data['count']
 result = {'valid': valid, 'data': data}
-"""
+""",
+            "output_vars": ["result"]
         })
 
         # Connect nodes
-        builder.connect("source", "result.items", "process", "input_data")
-        builder.connect("process", "result", "validate", "input_data")
+        builder.connect("source", "outputs", "process", "input_data")
+        builder.connect("process", "outputs", "validate", "input_data")
 
         # Execute
         reg = kailash.NodeRegistry()
@@ -98,8 +101,8 @@ result = {'valid': valid, 'data': data}
         result = rt.execute(builder.build(reg))
 
         # Validate integration
-        assert result["results"]["validate"]["result"]["valid"] is True
-        assert result["results"]["validate"]["result"]["data"]["count"] == 3
+        assert result["results"]["validate"]["outputs"]["valid"] is True
+        assert result["results"]["validate"]["outputs"]["data"]["count"] == 3
 ```
 
 ## Docker Setup Required

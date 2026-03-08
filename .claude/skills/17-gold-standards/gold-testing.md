@@ -20,15 +20,16 @@ def test_user_workflow():
     """Test user creation workflow."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "create", {
-        "code": "result = {'email': 'test@example.com', 'created': True}"
+        "code": "email = 'test@example.com'\ncreated = True",
+        "output_vars": ["email", "created"]
     })
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["create"]["result"]["email"] == "test@example.com"
-    assert result["results"]["create"]["result"]["created"] is True
+    assert result["results"]["create"]["outputs"]["email"] == "test@example.com"
+    assert result["results"]["create"]["outputs"]["created"] is True
 
 # Then implement the actual workflow
 ```
@@ -40,7 +41,7 @@ def test_user_workflow():
 def test_workflow_build():
     """Test workflow construction."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "process", {"code": "result = 42"})
+    builder.add_node("EmbeddedPythonNode", "process", {"code": "result = 42", "output_vars": ["result"]})
 
     reg = kailash.NodeRegistry()
     assert builder.build(reg) is not None
@@ -51,7 +52,7 @@ def test_database_integration():
     from tests.utils.docker_config import get_postgres_connection_string
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": get_postgres_connection_string(),
         "query": "SELECT 1 as value",
         "operation": "select"
@@ -90,7 +91,7 @@ def test_database_operations():
     from tests.utils.docker_config import get_postgres_connection_string
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": get_postgres_connection_string(),
         "query": "SELECT * FROM users",
         "operation": "select"
@@ -150,17 +151,17 @@ def runtime():
 
 def test_one(clean_builder, runtime):
     """Isolated test with clean workflow."""
-    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1"})
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1", "output_vars": ["result"]})
     reg = kailash.NodeRegistry()
     result = runtime.execute(clean_builder.build(reg))
-    assert result["results"]["node"]["result"] == 1
+    assert result["results"]["node"]["outputs"]["result"] == 1
 
 def test_two(clean_builder, runtime):
     """Another isolated test with fresh workflow."""
-    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 2"})
+    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 2", "output_vars": ["result"]})
     reg = kailash.NodeRegistry()
     result = runtime.execute(clean_builder.build(reg))
-    assert result["results"]["node"]["result"] == 2
+    assert result["results"]["node"]["outputs"]["result"] == 2
 ```
 
 ### 6. Testing with Runtime
@@ -170,14 +171,15 @@ def test_workflow_execution():
     """Test workflow executes correctly."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'status': 'completed'}"
+        "code": "status = 'completed'",
+        "output_vars": ["status"]
     })
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["node"]["result"]["status"] == "completed"
+    assert result["results"]["node"]["outputs"]["status"] == "completed"
     assert result["run_id"] is not None
 ```
 

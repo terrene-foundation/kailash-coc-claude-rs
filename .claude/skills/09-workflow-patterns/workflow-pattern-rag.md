@@ -37,8 +37,7 @@ builder.add_node("PDFReaderNode", "load_doc", {
 })
 
 # 2. Split into chunks
-builder.add_node("TextChunkerNode", "chunk_text", {
-    "input": "{{load_doc.content}}",
+builder.add_node("TextSplitterNode", "chunk_text", {
     "chunk_size": 512,
     "chunk_overlap": 50,
     "strategy": "semantic"  # Preserve sentence boundaries
@@ -51,7 +50,7 @@ builder.add_node("EmbeddingNode", "generate_embeddings", {
 })
 
 # 4. Store in vector database
-builder.add_node("VectorStoreNode", "store_vectors", {
+builder.add_node("EmbeddingStoreNode", "store_vectors", {
     "collection": "documents",
     "vectors": "{{generate_embeddings.embeddings}}",
     "metadata": {
@@ -61,7 +60,7 @@ builder.add_node("VectorStoreNode", "store_vectors", {
     }
 })
 
-builder.connect("load_doc", "content", "chunk_text", "input")
+builder.connect("load_doc", "text", "chunk_text", "input")
 builder.connect("chunk_text", "chunks", "generate_embeddings", "text")
 builder.connect("generate_embeddings", "embeddings", "store_vectors", "vectors")
 
@@ -90,7 +89,7 @@ builder.add_node("EmbeddingNode", "query_embedding", {
 # 2. Vector similarity search
 builder.add_node("VectorSearchNode", "search_similar", {
     "collection": "documents",
-    "query_vector": "{{query_embedding.embedding}}",
+    "query_embedding": "{{query_embedding.embedding}}",
     "top_k": 5,
     "min_score": 0.7
 })
@@ -98,7 +97,6 @@ builder.add_node("VectorSearchNode", "search_similar", {
 # 3. Rerank results (optional)
 builder.add_node("RerankNode", "rerank", {
     "query": "{{input.query}}",
-    "documents": "{{search_similar.results}}",
     "model": "rerank-english-v2.0"
 })
 
@@ -121,14 +119,14 @@ Answer:'''
 # 5. Generate answer with LLM
 builder.add_node("LLMNode", "generate_answer", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "{{build_prompt.result}}",
     "temperature": 0.3
 })
+# Data flows via connect(), NOT template strings
 
-builder.connect("query_embedding", "embedding", "search_similar", "query_vector")
-builder.connect("search_similar", "results", "rerank", "documents")
-builder.connect("rerank", "documents", "build_prompt", "input")
-builder.connect("build_prompt", "result", "generate_answer", "prompt")
+builder.connect("query_embedding", "embedding", "search_similar", "query_embedding")
+builder.connect("search_similar", "results", "rerank", "results")
+builder.connect("rerank", "reranked", "build_prompt", "inputs")
+builder.connect("build_prompt", "outputs", "generate_answer", "prompt")
 ```
 
 ## Pattern 3: Multi-Document RAG
@@ -147,36 +145,27 @@ builder.add_node("EmbeddingNode", "query_embed", {
 # 2. Search multiple collections in parallel
 builder.add_node("VectorSearchNode", "search_docs", {
     "collection": "documents",
-    "query_vector": "{{query_embed.embedding}}",
+    "query_embedding": "{{query_embed.embedding}}",
     "top_k": 3
 })
 
 builder.add_node("VectorSearchNode", "search_code", {
     "collection": "codebase",
-    "query_vector": "{{query_embed.embedding}}",
+    "query_embedding": "{{query_embed.embedding}}",
     "top_k": 3
 })
 
 builder.add_node("VectorSearchNode", "search_api", {
     "collection": "api_docs",
-    "query_vector": "{{query_embed.embedding}}",
+    "query_embedding": "{{query_embed.embedding}}",
     "top_k": 3
 })
 
 # 3. Merge and rerank all results
-builder.add_node("MergeNode", "merge_results", {
-    "inputs": [
-        "{{search_docs.results}}",
-        "{{search_code.results}}",
-        "{{search_api.results}}"
-    ],
-    "strategy": "combine"
-})
+builder.add_node("MergeNode", "merge_results", {})
 
 builder.add_node("RerankNode", "rerank_all", {
-    "query": "{{input.query}}",
-    "documents": "{{merge_results.combined}}",
-    "top_k": 5
+    "query": "{{input.query}}"
 })
 
 # 4. Generate comprehensive answer
@@ -184,7 +173,7 @@ builder.add_node("LLMNode", "generate", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
     "prompt": """Answer using context from docs, code, and API:
 
-Context: {{rerank_all.documents}}
+Context: {{rerank_all.reranked}}
 
 Question: {{input.query}}
 
@@ -192,16 +181,16 @@ Provide a comprehensive answer with examples."""
 })
 
 # Parallel searches
-builder.connect("query_embed", "embedding", "search_docs", "query_vector")
-builder.connect("query_embed", "embedding", "search_code", "query_vector")
-builder.connect("query_embed", "embedding", "search_api", "query_vector")
+builder.connect("query_embed", "embedding", "search_docs", "query_embedding")
+builder.connect("query_embed", "embedding", "search_code", "query_embedding")
+builder.connect("query_embed", "embedding", "search_api", "query_embedding")
 
-builder.connect("search_docs", "results", "merge_results", "input_docs")
-builder.connect("search_code", "results", "merge_results", "input_code")
-builder.connect("search_api", "results", "merge_results", "input_api")
+builder.connect("search_docs", "results", "merge_results", "input_1")
+builder.connect("search_code", "results", "merge_results", "input_2")
+builder.connect("search_api", "results", "merge_results", "input_3")
 
-builder.connect("merge_results", "combined", "rerank_all", "documents")
-builder.connect("rerank_all", "documents", "generate", "context")
+builder.connect("merge_results", "merged", "rerank_all", "results")
+builder.connect("rerank_all", "reranked", "generate", "prompt")
 ```
 
 ## Pattern 4: Conversational RAG with Memory
@@ -216,7 +205,7 @@ builder.add_node("SQLQueryNode", "load_history", {
         WHERE conversation_id = ?
         ORDER BY created_at DESC LIMIT 5
     """,
-    "parameters": ["{{input.conversation_id}}"]
+    "params": ["{{input.conversation_id}}"]
 })
 
 # 2. Build conversation context
@@ -228,24 +217,35 @@ builder.add_node("EmbeddedPythonNode", "build_context", {
 # 3. Embed query with context
 builder.add_node("EmbeddingNode", "embed_query", {
     "model": "text-embedding-3-small",  # provider auto-detected from model name
-    "text": "{{input.query}} Context: {{build_context.context}}"
 })
 
 # 4. Vector search
 builder.add_node("VectorSearchNode", "search", {
     "collection": "documents",
-    "query_vector": "{{embed_query.embedding}}",
     "top_k": 5
 })
 
 # 5. Generate answer with history
 builder.add_node("LLMNode", "generate", {
     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": """Conversation History:
-{{build_context.context}}
+})
 
-Relevant Documents:
-{{search.results}}
+# Data flows via connect(), NOT template strings:
+builder.connect("build_context", "outputs", "embed_query", "text")
+builder.connect("embed_query", "embedding", "search", "query_embedding")
+builder.connect("search", "results", "generate", "prompt")
 
-User: {{input.query}}
+# NOTE: For complex prompt assembly, use an EmbeddedPythonNode to combine
+# conversation history + search results + query into a single prompt string.
+# Template syntax like {{...}} does NOT work in Kailash node config.
+
+"""
+
+Answer:"""
+})
+
+builder.connect("load_history", "rows", "build_context", "inputs")
+builder.connect("build_context", "outputs", "embed_query", "text")
+builder.connect("embed_query", "embedding", "search", "query_embedding")
+builder.connect("search", "results", "generate", "prompt")
 ```

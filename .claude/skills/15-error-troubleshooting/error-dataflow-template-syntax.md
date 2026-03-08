@@ -143,7 +143,8 @@ builder.add_node("ReadCustomer", "customer", {
 })
 
 builder.add_node("EmbeddedPythonNode", "cart", {
-    "code": "result = {'total': 150.50}"
+    "code": "result = {'total': 150.50}",
+    "output_vars": ["result"]
 })
 
 # Target node (kailash.DataFlow)
@@ -151,7 +152,7 @@ builder.add_node("CreateOrder", "create", {})
 
 # ✅ Use connections for dynamic values
 builder.connect("customer", "id", "create", "customer_id")
-builder.connect("cart", "result.total", "create", "total")
+builder.connect("cart", "outputs", "create", "total")
 
 reg = kailash.NodeRegistry()
 rt = kailash.Runtime(reg)

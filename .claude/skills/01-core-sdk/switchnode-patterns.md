@@ -48,10 +48,10 @@ ConditionalNode selects between two values based on a boolean condition. It take
 # No config needed for ConditionalNode
 builder.add_node("ConditionalNode", "check", {})
 
-# Connect a boolean condition and two candidate values as inputs
-builder.connect("evaluator", "result.is_high", "check", "condition")
-builder.connect("evaluator", "result.high_value", "check", "if_value")
-builder.connect("evaluator", "result.low_value", "check", "else_value")
+# Connect the whole outputs from an EmbeddedPythonNode -- port names are flat, no dot-path resolution
+builder.connect("evaluator", "outputs", "check", "condition")
+builder.connect("evaluator", "outputs", "check", "if_value")
+builder.connect("evaluator", "outputs", "check", "else_value")
 
 # ConditionalNode outputs "result" (the selected value)
 builder.connect("check", "result", "handler", "data")

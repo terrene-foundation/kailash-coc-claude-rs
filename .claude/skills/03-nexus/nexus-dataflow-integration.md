@@ -25,7 +25,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Step 1: Create Nexus with auto_discovery=False
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 # Step 2: Create DataFlow (defaults work fine)
@@ -74,7 +74,7 @@ import kailash
 reg = kailash.NodeRegistry()
 
 # Fast initialization
-app = NexusApp(NexusConfig(port=3000))
+app = NexusApp(config=NexusConfig(port=3000))
 # Register workflows manually (no auto_discovery param)
 
 df = kailash.DataFlow(
@@ -181,7 +181,7 @@ import kailash
 from kailash.nexus import NexusApp, NexusConfig
 
 def create_production_app():
-    app = NexusApp(NexusConfig(
+    app = NexusApp(config=NexusConfig(
         port=int(os.getenv("API_PORT", "3000")),
     ))
 

@@ -103,9 +103,9 @@ builder.add_node("CSVProcessorNode", "reader", {
 ### Invalid Parameter Types
 
 ```python
-# Error: Wrong type for 'threshold'
-builder.add_node("FilterNode", "filter", {
-    "threshold": "100"  # Should be int, not str
+# Error: Wrong type for 'max_retries'
+builder.add_node("RetryNode", "retry", {
+    "max_retries": "3"  # Should be int, not str
 })
 # Raises: WorkflowValidationError
 ```

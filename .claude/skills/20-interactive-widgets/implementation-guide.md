@@ -104,7 +104,7 @@ async def chat_stream(message: str):
         "content": widget
     }) + "\n"
 
-@app.endpoint("/api/widget/hello", methods=["POST"])
+@app.handler()
 async def handle_hello_action():
     """Handle widget button click"""
     return {"message": "Hello from backend!"}
@@ -654,7 +654,7 @@ import uuid
 
 app = NexusApp()
 
-@app.endpoint("/api/widget/action", methods=["POST"])
+@app.handler()
 async def handle_widget_action(
     widget_id: str,
     action_id: str,
@@ -1434,7 +1434,7 @@ actions.append({
 })
 
 # Handle drill-down
-@app.endpoint("/api/data/drilldown", methods=["POST"])
+@app.handler()
 async def drilldown(
     data_key: str,
     selected_item: str,  # e.g., "North Region"

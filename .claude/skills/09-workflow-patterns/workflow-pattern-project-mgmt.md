@@ -19,7 +19,7 @@ builder = kailash.WorkflowBuilder()
 # 1. Create task
 builder.add_node("SQLQueryNode", "create_task", {
     "query": "INSERT INTO tasks (title, description, status) VALUES (?, ?, 'pending')",
-    "parameters": ["{{input.title}}", "{{input.description}}"]
+    "params": ["{{input.title}}", "{{input.description}}"]
 })
 
 # 2. Notify approver
@@ -29,21 +29,21 @@ builder.add_node("HTTPRequestNode", "notify_approver", {
     "body": {"text": "New task needs approval: {{input.title}}"}
 })
 
-# 3. Wait for approval
-builder.add_node("WaitForEventNode", "wait_approval", {
-    "event_type": "task_approved",
-    "timeout": 86400  # 24 hours
+# 3. Wait for approval — use WebhookNode to receive callback
+builder.add_node("WebhookNode", "wait_approval", {
+    "path": "/tasks/approval",
+    "method": "POST"
 })
 
 # 4. Update status
 builder.add_node("SQLQueryNode", "update_status", {
     "query": "UPDATE tasks SET status = 'approved' WHERE id = ?",
-    "parameters": ["{{create_task.task_id}}"]
+    "params": ["{{create_task.rows}}"]
 })
 
-builder.connect("create_task", "task_id", "notify_approver", "task_id")
-builder.connect("notify_approver", "result", "wait_approval", "trigger")
-builder.connect("wait_approval", "event_data", "update_status", "parameters")
+builder.connect("create_task", "rows", "notify_approver", "body")
+builder.connect("notify_approver", "body", "wait_approval", "data")
+builder.connect("wait_approval", "body", "update_status", "body")
 ```
 
 <!-- Trigger Keywords: project workflow, task automation, approval workflow, project management -->

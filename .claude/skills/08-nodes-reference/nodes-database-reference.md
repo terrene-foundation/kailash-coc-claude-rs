@@ -22,7 +22,6 @@ import kailash
 # Available database nodes:
 #   SQLQueryNode (Production recommended)
 #   DatabaseConnectionNode (Connection pooling)
-#   SQLDatabaseNode (Simple queries)
 #   SQLTransactionNode (Transaction management)
 ```
 
@@ -71,19 +70,6 @@ builder.add_node("DatabaseConnectionNode", "pool_init", {
     "database": "myapp",
     "min_connections": 5,
     "max_connections": 20
-})
-```
-
-## Simple SQL Node
-
-### SQLDatabaseNode
-
-```python
-builder.add_node("SQLDatabaseNode", "simple_query", {
-    "connection_string": "postgresql://user:pass@localhost/db",
-    "query": "SELECT * FROM users WHERE id = :user_id",
-    "parameters": {"user_id": 123},
-    "operation": "fetch_one"
 })
 ```
 

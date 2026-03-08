@@ -23,7 +23,7 @@ Examples:
 3. Implement the agent with:
    - `BaseAgent` subclass with class attributes
    - `LlmClient()` with no provider arg (auto-detects from env) or `LlmClient.mock()` for testing
-   - `ToolRegistry` with at least one sample tool
+   - Tools registered via `agent.register_tool()`
    - Memory configuration (`SessionMemory` or `SharedMemory`)
    - Example execution code
 4. Write tests using `LlmClient.mock()` for deterministic responses.
@@ -36,7 +36,6 @@ Examples:
 ```python
 import os
 from kailash.kaizen import BaseAgent, LlmClient, SessionMemory
-from kailash.kaizen import ToolRegistry, ToolDef, ToolParam
 
 class {AgentName}(BaseAgent):
     """A custom agent that {description}."""
@@ -51,9 +50,8 @@ class {AgentName}(BaseAgent):
 
     def execute(self, input_text: str) -> dict:
         """Override execute() with your agent logic."""
-        # Use self.llm to make LLM calls
         # Use self.memory to store/recall data
-        # Use self.tools to access registered tools
+        # Tools are invoked by the TAOD loop, not directly
         return {"response": f"Processed: {input_text}"}
 
 
@@ -64,20 +62,17 @@ def create_{agent_name_snake}():
     # Use LlmClient.mock() for testing
     llm = LlmClient()
 
-    # Build tool registry
-    tools = ToolRegistry()
-    tools.register(ToolDef(
-        name="search",
-        description="Search for information on a topic",
-        handler=lambda args: {"results": f"Results for: {args['query']}"},
-        params=[ToolParam(name="query", required=True)],
-    ))
-
     # Create the agent
     agent = {AgentName}()
-    agent.llm = llm
-    agent.tools = tools
     agent.set_memory(SessionMemory())
+
+    # Register tools via register_tool() (tool_registry is read-only)
+    agent.register_tool(
+        "search",
+        lambda args: {"results": f"Results for: {args['query']}"},
+        "Search for information on a topic",
+        {"query": "string"},
+    )
 
     return agent
 
@@ -155,34 +150,28 @@ hooks.trigger("on_start", {"agent": "hooked-agent", "input": "hello"})
 ### Agent with Tools
 
 ```python
-from kailash.kaizen import BaseAgent, ToolRegistry, ToolDef, ToolParam
+from kailash.kaizen import BaseAgent
 
 class ToolAgent(BaseAgent):
     name = "tool-agent"
 
     def execute(self, input_text: str) -> dict:
-        # Access tools via self.tools
-        tool = self.tools.get("calculator")
-        if tool:
-            result = tool.call({"a": 10, "b": 5, "op": "add"})
-            return {"response": f"Result: {result}"}
-        return {"response": "No calculator tool found"}
+        # Tools are invoked by the agent's TAOD loop, not directly.
+        # Access tool_registry for inspection:
+        tools = self.tool_registry.list_tools()
+        return {"response": f"Processing with {len(tools)} tools available"}
 
-
-tools = ToolRegistry()
-tools.register(ToolDef(
-    name="calculator",
-    description="Performs basic arithmetic",
-    handler=lambda args: args["a"] + args["b"],
-    params=[
-        ToolParam(name="a", param_type="integer", required=True),
-        ToolParam(name="b", param_type="integer", required=True),
-        ToolParam(name="op", param_type="string", required=True),
-    ],
-))
 
 agent = ToolAgent()
-agent.tools = tools
+
+# Register tools via register_tool() (tool_registry is read-only)
+agent.register_tool(
+    "calculator",
+    lambda args: args["a"] + args["b"],
+    "Performs basic arithmetic",
+    {"a": "integer", "b": "integer", "op": "string"},
+)
+
 result = agent.run("Calculate 10 + 5")
 ```
 
@@ -194,11 +183,7 @@ from kailash.kaizen import LlmClient
 
 def test_{agent_name_snake}_responds():
     """Test that the agent produces a valid response."""
-    # Use LlmClient.mock() for deterministic testing
-    llm = LlmClient.mock(responses=["Test response"])
-
     agent = {AgentName}()
-    agent.llm = llm
 
     result = agent.run("Hello")
     assert "response" in result
@@ -206,10 +191,7 @@ def test_{agent_name_snake}_responds():
 
 def test_{agent_name_snake}_with_tools():
     """Test that the agent uses tools correctly."""
-    llm = LlmClient.mock(responses=["Use the calculator"])
-
     agent = create_{agent_name_snake}()
-    agent.llm = llm
 
     result = agent.run("What is 2 + 2?")
     assert result is not None
@@ -234,5 +216,6 @@ def test_mock_client_tracking():
 - **Memory**: `store()`/`recall()`/`remove()` -- NOT set/get/delete.
 - **CostTracker**: `record(model, prompt_tokens, completion_tokens)`, `total_cost()`, `reset()`.
 - **ToolDef**: Use `handler=` kwarg for the callable, not `callback=`.
+- **tool_registry**: Read-only property. Use `agent.register_tool(name, func, desc, params)` to add tools.
 
 <!-- Trigger Keywords: create agent, scaffold agent, new agent, agent template, agent boilerplate -->

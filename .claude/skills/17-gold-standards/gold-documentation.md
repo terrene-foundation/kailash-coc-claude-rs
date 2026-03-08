@@ -47,7 +47,7 @@ import kailash
 builder = kailash.WorkflowBuilder()
 
 # Step 1: Validate payment details
-builder.add_node("DataValidationNode", "validate_payment", {
+builder.add_node("SchemaValidatorNode", "validate_payment", {
     "schema": {"amount": "decimal > 0", "card": "credit_card"}
 })
 

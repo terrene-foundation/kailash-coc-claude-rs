@@ -62,7 +62,7 @@ Represents a tenant's operational lifecycle state.
 ```python
 active = TenantStatus.active()       # Can perform all operations
 suspended = TenantStatus.suspended() # Operations blocked
-pending = TenantStatus.pending()     # Pending deletion
+pending = TenantStatus.pending_deletion()  # Pending deletion
 ```
 
 ## TenantInfo
@@ -75,8 +75,8 @@ info = TenantInfo("tenant-abc", "Acme Corp")
 info.tenant_id   # "tenant-abc"
 info.name        # "Acme Corp"
 
-# With explicit status
-info = TenantInfo("tenant-abc", "Acme Corp", status=TenantStatus.active())
+# With explicit status (use .with_status() -- constructor only takes tenant_id and name)
+info = TenantInfo("tenant-abc", "Acme Corp").with_status(TenantStatus.active())
 
 # With plan and metadata
 info = info.with_plan("enterprise")
@@ -109,12 +109,12 @@ if found:
     print(f"Found: {found.name}")
 
 # List all tenants
-all_tenants = registry.list_tenants()
+all_tenants = registry.list_all()
 for tenant in all_tenants:
     print(f"{tenant.tenant_id}: {tenant.name}")
 
 # Count tenants
-count = registry.tenant_count()  # 1
+count = registry.count()  # 1
 ```
 
 ## EnterpriseContext
@@ -129,16 +129,10 @@ from kailash.enterprise import (
     SecurityClassification,
 )
 
-# Create an enterprise context
-ctx = EnterpriseContext(
-    tenant_id="tenant-abc",
-    user=User("alice").with_role("admin"),
-    classification=SecurityClassification.confidential(),
-)
+# Create an enterprise context (no-arg constructor)
+ctx = EnterpriseContext()
 
-ctx.tenant_id  # "tenant-abc"
-
-# With full tenant context
+# Use builder methods to configure
 ctx = ctx.with_tenant(EnterpriseTenantContext("tenant-abc", name="Acme"))
 ctx = ctx.with_user(User("alice").with_role("admin"))
 ctx = ctx.with_classification(SecurityClassification.restricted())
@@ -236,7 +230,7 @@ def test_tenant_registry():
     registry.register(TenantInfo("t-1", "Acme Corp"))
     registry.register(TenantInfo("t-2", "Globex Inc"))
 
-    assert registry.tenant_count() == 2
+    assert registry.count() == 2
     assert registry.get("t-1").name == "Acme Corp"
     assert registry.get("nonexistent") is None
 
@@ -262,7 +256,7 @@ def test_tenant_info_metadata():
 | Class                     | Key Methods                                                                                                                 |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `EnterpriseTenantContext` | `__init__(tenant_id, name=None, bypass=False, bypass_reason=None)`, `.with_metadata(k, v)`, `.is_bypass()`                  |
-| `TenantStatus`            | `.active()`, `.suspended()`, `.pending()`                                                                                   |
-| `TenantInfo`              | `__init__(tenant_id, name, status=None)`, `.with_plan(plan)`, `.with_status(status)`, `.with_metadata(k, v)`                |
-| `TenantRegistry`          | `__init__()`, `.register(info)`, `.get(id)`, `.list_tenants()`, `.tenant_count()`                                           |
-| `EnterpriseContext`       | `__init__(tenant_id, user=None, classification=None)`, `.with_tenant(ctx)`, `.with_user(user)`, `.with_classification(cls)` |
+| `TenantStatus`            | `.active()`, `.suspended()`, `.pending_deletion()`                                                                          |
+| `TenantInfo`              | `__init__(tenant_id, name)`, `.with_plan(plan)`, `.with_status(status)`, `.with_metadata(k, v)`                             |
+| `TenantRegistry`          | `__init__()`, `.register(info)`, `.get(id)`, `.list_all()`, `.count()`                                                      |
+| `EnterpriseContext`       | `__init__()`, `.with_tenant(ctx)`, `.with_user(user)`, `.with_classification(cls)`                                          |

@@ -17,25 +17,19 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100)
     filters: dict = Field(default_factory=dict)
 
-@server.tool(
-    name="structured_search",
-    description="Search with structured parameters"
-)
 def search(request: SearchRequest) -> dict:
     return {
         "results": perform_search(request.query, request.limit, request.filters),
         "query": request.query,
         "limit": request.limit
     }
+
+server.register_tool("structured_search", "Search with structured parameters", search)
 ```
 
 ### 2. Progress Reporting
 
 ```python
-@server.tool(
-    name="long_running_task",
-    description="Task with progress updates"
-)
 def long_task(items: list, progress_callback=None) -> dict:
     total = len(items)
 
@@ -52,21 +46,20 @@ def long_task(items: list, progress_callback=None) -> dict:
             })
 
     return {"processed": total, "status": "complete"}
+
+server.register_tool("long_running_task", "Task with progress updates", long_task)
 ```
 
 ### 3. Resource Subscriptions
 
 ```python
-@server.resource(
-    uri="realtime://updates",
-    name="Realtime Updates",
-    subscribable=True
-)
 def realtime_updates():
     """Streaming resource with subscriptions."""
     while True:
         yield {"timestamp": datetime.now().isoformat(), "data": get_latest_data()}
         time.sleep(1)
+
+server.register_resource("realtime://updates", "Realtime Updates", "Streaming resource with subscriptions", realtime_updates)
 ```
 
 ## When to Engage

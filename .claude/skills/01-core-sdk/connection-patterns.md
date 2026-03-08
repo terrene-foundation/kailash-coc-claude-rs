@@ -1,6 +1,6 @@
 ---
 name: connection-patterns
-description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'connect', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', 'dot notation', or 'workflow connections'."
+description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'connect', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', or 'workflow connections'."
 ---
 
 # Connection Patterns
@@ -15,7 +15,7 @@ Essential patterns for connecting workflow nodes using the 4-parameter connectio
 
 - **Syntax**: `connect(source, source_output, target, target_input)`
 - **CRITICAL**: Always use 4 parameters (source + output → target + input)
-- **Dot Notation**: Access nested fields: `"result.metrics.accuracy"`
+- **Port names are flat**: Use the actual output port name (e.g., `"outputs"`, `"rows"`, `"body"`)
 - **Fan-Out**: One source → multiple targets
 - **Fan-In**: Multiple sources → one target
 
@@ -30,7 +30,7 @@ builder = kailash.WorkflowBuilder()
 
 # Add nodes
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
 
 # ✅ CORRECT: 4-parameter connection
 builder.connect("reader", "rows", "processor", "data")
@@ -46,7 +46,7 @@ result = rt.execute(builder.build(reg))
 - **Conditional Routing**: Split data based on conditions
 - **Fan-Out**: Broadcast data to multiple processors
 - **Fan-In**: Merge data from multiple sources
-- **Nested Data Access**: Extract specific fields from complex outputs
+- **Multi-Input**: Multiple sources feeding different input ports on one node
 
 ## Connection Types
 
@@ -56,12 +56,12 @@ result = rt.execute(builder.build(reg))
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "input.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
 builder.add_node("FileWriterNode", "writer", {"path": "output.json"})
 
 # Sequential connections
 builder.connect("reader", "rows", "processor", "data")
-builder.connect("processor", "result", "writer", "data")
+builder.connect("processor", "outputs", "writer", "data")
 ```
 
 ### Type 2: Port Name Mapping
@@ -69,16 +69,18 @@ builder.connect("processor", "result", "writer", "data")
 ```python
 # Different port names - explicit mapping
 builder.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}", "output_vars": ["result"]})
 
 # Map 'body' output to 'data' input
 builder.connect("api", "body", "process", "data")
 ```
 
-### Type 3: Dot Notation for Nested Data
+### Type 3: Nested Data via Intermediate Node
+
+The runtime does a direct key lookup on port names -- there is no dot-path resolution. To extract nested fields, use an intermediate EmbeddedPythonNode.
 
 ```python
-# Extract nested fields from complex outputs
+# Analyzer outputs a complex structure
 builder.add_node("EmbeddedPythonNode", "analyzer", {
     "code": """
 result = {
@@ -86,21 +88,29 @@ result = {
     'metrics': {
         'accuracy': 0.95,
         'confidence': 0.87
-    },
-    'metadata': {
-        'timestamp': '2024-01-01',
-        'version': '1.0'
     }
 }
-"""
+""",
+    "output_vars": ["result"]
+})
+
+# Intermediate node to extract the nested field
+builder.add_node("EmbeddedPythonNode", "extractor", {
+    "code": """
+accuracy = data.get('result', {}).get('metrics', {}).get('accuracy', 0)
+result = accuracy
+""",
+    "output_vars": ["result"]
 })
 
 builder.add_node("EmbeddedPythonNode", "reporter", {
-    "code": "result = f'Accuracy: {accuracy}'"
+    "code": "result = f'Accuracy: {accuracy}'",
+    "output_vars": ["result"]
 })
 
-# Extract nested field
-builder.connect("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
+# Pass whole outputs to extractor, then extracted value to reporter
+builder.connect("analyzer", "outputs", "extractor", "data")
+builder.connect("extractor", "outputs", "reporter", "accuracy")
 ```
 
 ### Type 4: Fan-Out (One-to-Many)
@@ -110,9 +120,9 @@ builder.connect("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
 
 # Parallel processors
-builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}"})
-builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': True}"})
-builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}"})
+builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}", "output_vars": ["result"]})
+builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': True}", "output_vars": ["result"]})
+builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}", "output_vars": ["result"]})
 
 # Fan-out: reader → multiple targets
 builder.connect("reader", "rows", "validator", "data")
@@ -136,7 +146,7 @@ builder.connect("source2", "content", "merger", "input2")
 builder.connect("source3", "body", "merger", "input3")
 
 # Process merged data
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}"})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}", "output_vars": ["result"]})
 builder.connect("merger", "merged", "processor", "data")
 ```
 
@@ -158,7 +168,8 @@ result = {
     'orders': len(orders_data),
     'combined': customers_data + orders_data
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Multiple inputs to same node
@@ -166,12 +177,12 @@ builder.connect("customers", "rows", "join", "customers")
 builder.connect("orders", "rows", "join", "orders")
 ```
 
-### Type 7: Complex Nested Extraction
+### Type 7: Multi-Field Extraction via Intermediate Node
 
-Use dot notation to extract nested fields from nodes that output structured data (e.g., EmbeddedPythonNode). Note: LLMNode outputs a flat `response` string, so dot notation does not apply to it.
+The runtime does a direct key lookup -- `"outputs.result.metrics.accuracy"` will NOT resolve. To extract multiple fields from a complex output, use an intermediate EmbeddedPythonNode that unpacks the structure.
 
 ```python
-# EmbeddedPythonNode outputs nested data via 'result'
+# EmbeddedPythonNode outputs via port 'outputs', with named vars from output_vars
 builder.add_node("EmbeddedPythonNode", "analyzer", {
     "code": """
 result = {
@@ -179,7 +190,19 @@ result = {
     'summary': 'Analysis complete',
     'confidence': 0.87
 }
-"""
+""",
+    "output_vars": ["result"]
+})
+
+# Intermediate node to unpack nested fields into separate output vars
+builder.add_node("EmbeddedPythonNode", "unpack", {
+    "code": """
+r = data.get('result', {})
+accuracy = r.get('metrics', {}).get('accuracy', 0)
+summary = r.get('summary', '')
+confidence = r.get('confidence', 0)
+""",
+    "output_vars": ["accuracy", "summary", "confidence"]
 })
 
 builder.add_node("EmbeddedPythonNode", "metrics_reporter", {
@@ -190,13 +213,15 @@ report = {
     'confidence': confidence
 }
 result = report
-"""
+""",
+    "output_vars": ["result"]
 })
 
-# Extract multiple nested fields using dot notation
-builder.connect("analyzer", "result.metrics.accuracy", "metrics_reporter", "accuracy")
-builder.connect("analyzer", "result.summary", "metrics_reporter", "summary")
-builder.connect("analyzer", "result.confidence", "metrics_reporter", "confidence")
+# Pass whole outputs to unpacker, then individual fields to reporter
+builder.connect("analyzer", "outputs", "unpack", "data")
+builder.connect("unpack", "outputs", "metrics_reporter", "accuracy")
+builder.connect("unpack", "outputs", "metrics_reporter", "summary")
+builder.connect("unpack", "outputs", "metrics_reporter", "confidence")
 ```
 
 ## Common Mistakes
@@ -229,18 +254,19 @@ builder.connect("csv_reader", "output", "processor", "input")  # Error
 builder.connect("csv_reader", "rows", "processor", "data")
 ```
 
-### ❌ Mistake 3: Missing Dot Notation for Nested Data
+### ❌ Mistake 3: Using Dot Notation in Port Names
 
 ```python
-# Wrong - Trying to pass entire result when you need one field
-builder.connect("analyzer", "result", "reporter", "accuracy")  # Gets dict, not number
+# Wrong - runtime does a direct key lookup, no dot-path resolution
+builder.connect("analyzer", "outputs.result.accuracy", "reporter", "accuracy")  # Key not found!
 ```
 
-### ✅ Fix: Use Dot Notation
+### ✅ Fix: Use Actual Port Name + Intermediate Node
 
 ```python
-# Correct - Extract specific field
-builder.connect("analyzer", "result.accuracy", "reporter", "accuracy")
+# Correct - pass the whole output, extract in the receiving node's code
+builder.connect("analyzer", "outputs", "extractor", "data")
+# Then in extractor's code: accuracy = data['result']['accuracy']
 ```
 
 ### ❌ Mistake 4: Incorrect Node IDs
@@ -285,15 +311,15 @@ Use `sdk-navigator` subagent when:
 
 - 💡 **Always 4 parameters**: Source node + output port → Target node + input port
 - 💡 **Check port names**: Verify ports exist on nodes before connecting
-- 💡 **Use dot notation**: Access nested data with `"result.field.subfield"`
+- 💡 **No dot notation**: Port names are flat strings -- use an intermediate node to extract nested fields
 - 💡 **Plan data flow**: Map out connections before coding
 - 💡 **Test incrementally**: Add connections one at a time, verify each works
 
 ## Version Notes
 
 - 4-parameter connection syntax is the standard pattern
-- Dot notation is supported for nested field access
+- Port names are flat strings -- use intermediate nodes for nested field extraction
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: connect nodes, connect, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, dot notation, workflow connections, node connections, data mapping, connection patterns -->
+<!-- Trigger Keywords: connect nodes, connect, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, workflow connections, node connections, data mapping, connection patterns -->

@@ -78,24 +78,22 @@ For multi-branch routing to different handlers, use **SwitchNode** instead (see 
 
 ### MergeNode
 
+MergeNode combines inputs from multiple branches. Output port: `"merged"`.
+
 ```python
-builder.add_node("MergeNode", "combine", {
-    "strategy": "all",  # or "any", "first"
-    "input_sources": ["branch_a", "branch_b", "branch_c"]
-})
+builder.add_node("MergeNode", "combine", {})
+# Output: builder.connect("combine", "merged", "next_step", "data")
 ```
 
-## Conditional Router
+## Conditional Routing Note
 
-### ConditionalNode (Multi-Condition)
+ConditionalNode takes NO config params -- it is purely input-driven:
+- Inputs: `condition`, `if_value`, `else_value` (via connections)
+- Output: `result` (the selected value)
 
-ConditionalNode can also be used with multiple conditions for routing:
+For multi-way routing with discrete values, use **SwitchNode**:
 
 ```python
-builder.add_node("ConditionalNode", "conditional", {
-    "condition": "age > 18"
-})
-# Use SwitchNode for multi-way routing with discrete values
 builder.add_node("SwitchNode", "multi_route", {
     "cases": {"child": "child_flow", "teen": "teen_flow", "adult": "adult_flow"},
     "default_branch": "default_flow"
@@ -106,17 +104,22 @@ builder.add_node("SwitchNode", "multi_route", {
 
 ### LoopNode
 
-```python
-builder.add_node("LoopNode", "loop", {
-    "iterations": 5,
-    "body": "process_item"
-})
+LoopNode iterates over items in an array. It does NOT support condition-based looping or iteration counts -- it processes each item in the input array.
 
-# LoopNode also supports condition-based looping
-builder.add_node("LoopNode", "while_loop", {
-    "condition": "count < 100",
-    "body": "increment_counter"
-})
+- **Input**: `items` (Array, required) -- the array to iterate over
+- **Input**: `max_iterations` (Integer, optional, default: 100) -- maximum number of iterations
+- **Output**: `results` (Array) -- accumulated items from the loop
+- **Output**: `count` (Integer) -- number of iterations performed
+
+```python
+builder.add_node("LoopNode", "loop", {})
+
+# Connect the array input
+builder.connect("source", "items_array", "loop", "items")
+
+# Access outputs
+builder.connect("loop", "results", "next_step", "data")
+builder.connect("loop", "count", "next_step", "total")
 ```
 
 ## Related Skills

@@ -39,32 +39,23 @@ app.start()
 
 ## Tool Metadata for AI Discovery
 
+`workflow.add_metadata()` does not exist. Use `@app.handler()` with descriptions
+for AI tool discovery instead:
+
 ```python
-# Add metadata for better AI understanding
-builder = kailash.WorkflowBuilder()
-
-workflow.add_metadata({
-    "name": "github_user_lookup",
-    "description": "Look up GitHub user information by username",
-    "parameters": {
-        "username": {
-            "type": "string",
-            "description": "GitHub username to look up",
-            "required": True
-        }
-    },
-    "returns": {
-        "type": "object",
-        "description": "GitHub user profile information including name, bio, repos, followers"
-    }
-})
-
-builder.add_node("HTTPRequestNode", "fetch", {
-    "url": "https://api.github.com/users/{{username}}",
-    "method": "GET"
-})
-
-app.register("github-lookup", builder.build(reg))
+# Use handler descriptions for MCP tool metadata
+@app.handler("github_user_lookup", description="Look up GitHub user information by username")
+async def github_user_lookup(username: str) -> dict:
+    """Look up GitHub user profile including name, bio, repos, followers."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("HTTPRequestNode", "fetch", {
+        "url": f"https://api.github.com/users/{username}",
+        "method": "GET"
+    })
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["fetch"]
 ```
 
 ## MCP Client Usage
@@ -89,14 +80,14 @@ print(result)
 
 ## MCP Configuration
 
-```python
-app = NexusApp(NexusConfig(port=3001))
+NexusApp does not have `app.mcp.*` attributes. MCP behavior is configured
+server-side via the Rust Nexus engine.
 
-# Fine-tune MCP behavior
-app.mcp.tool_caching = True        # Cache tool results
-app.mcp.batch_operations = True    # Batch tool calls
-app.mcp.async_execution = True     # Async execution
-app.mcp.timeout = 30               # Execution timeout
+```python
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(config=NexusConfig(port=3001))
+# MCP configuration is handled by the Rust Nexus engine
 ```
 
 ## AI Agent Structured Output
@@ -130,7 +121,8 @@ def format_for_agents(data):
     }
 
 result = format_for_agents(user_data)
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

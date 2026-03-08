@@ -143,14 +143,15 @@ reg = kailash.NodeRegistry()
 # Test basic functionality
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "test", {
-    "code": "result = {'status': 'installed', 'version': '2.1.0'}"
+    "code": "result = {'status': 'installed', 'version': '2.1.0'}",
+    "output_vars": ["result"]
 })
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
 
 print("✅ Kailash SDK installed successfully!")
-print(f"Test result: {result['results']['test']['result']}")
+print(f"Test result: {result['results']['test']['outputs']['result']}")
 print(f"Run ID: {result['run_id']}")
 ```
 

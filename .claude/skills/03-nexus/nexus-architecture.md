@@ -53,7 +53,7 @@ Understanding how Nexus works internally.
 
 **Components**:
 
-- **API Channel**: REST server (via enterprise gateway, Starlette/ASGI internally)
+- **API Channel**: REST server (via enterprise gateway, axum internally)
 - **CLI Channel**: Command-line interface (via enterprise gateway)
 - **MCP Channel**: Model Context Protocol server (separate initialization)
 
@@ -125,46 +125,22 @@ bus.publish("user_action", {"user_id": "123", "action": "login"})
 - **Caching**: Response caching
 - **Monitoring**: Metrics and tracing
 
+The enterprise gateway is implemented server-side in Rust via axum + tower middleware.
+NexusAuthPlugin configures JWT, RBAC, and tenant isolation. Rate limiting is configured
+via `app.add_rate_limit()`. These are composed as tower middleware layers, not Python classes.
+
 ```python
-class EnterpriseGateway:
-    def __init__(self):
-        self.auth = AuthenticationManager()
-        self.rate_limiter = RateLimiter()
-        self.circuit_breaker = CircuitBreaker()
-        self.cache = CacheManager()
-        self.monitor = MonitoringManager()
+# Configure enterprise gateway features via NexusApp methods and NexusAuthPlugin
+from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig, RbacConfig
 
-    def process_request(self, request):
-        # Authentication
-        user = self.auth.authenticate(request)
+app = NexusApp(config=NexusConfig(port=3000))
+app.add_rate_limit(max_requests=1000, window_secs=60)
 
-        # Authorization
-        if not self.auth.authorize(user, request.workflow):
-            raise UnauthorizedError()
-
-        # Rate limiting
-        if not self.rate_limiter.check(user):
-            raise RateLimitError()
-
-        # Circuit breaker
-        if self.circuit_breaker.is_open(request.workflow):
-            raise ServiceUnavailableError()
-
-        # Check cache
-        cached = self.cache.get(request)
-        if cached:
-            return cached
-
-        # Execute workflow
-        result = self.execute_workflow(request)
-
-        # Cache result
-        self.cache.set(request, result)
-
-        # Monitor
-        self.monitor.record_request(request, result)
-
-        return result
+auth = NexusAuthPlugin(
+    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
+    tenant_header="X-Tenant-ID",
+)
 ```
 
 ### 4. Workflow Registry
@@ -172,23 +148,15 @@ class EnterpriseGateway:
 **Purpose**: Manage registered workflows
 
 ```python
-class WorkflowRegistry:
-    def __init__(self):
-        self.workflows = {}
-        self.metadata = {}
+# Workflow registration is handled by NexusApp directly
+app = NexusApp(config=NexusConfig(port=3000))
 
-    def register(self, name, workflow, metadata=None):
-        self.workflows[name] = workflow
-        self.metadata[name] = metadata or {}
+# Register workflows
+app.register("my-workflow", builder.build(reg))
 
-    def get(self, name):
-        return self.workflows.get(name)
-
-    def list(self):
-        return list(self.workflows.keys())
-
-    def get_metadata(self, name):
-        return self.metadata.get(name, {})
+# List registered handlers
+handlers = app.get_registered_handlers()
+print(handlers)
 ```
 
 ## Design Principles
@@ -218,9 +186,8 @@ app.start()
 app = NexusApp()
 
 # Add features progressively
-app.enable_auth = True
-app.enable_monitoring = True
-app.rate_limit = 1000
+app.add_rate_limit(1000)
+# Auth configured via NexusAuthPlugin (see nexus-auth-plugin.md)
 ```
 
 **Implementation**:
@@ -329,78 +296,28 @@ NOTE: Response caching is optional (enable_durability flag)
 
 ## Parameter Broadcasting
 
-```python
-# How inputs flow to nodes
-class ParameterBroadcaster:
-    def broadcast_inputs(self, workflow, inputs):
-        """
-        Broadcast API inputs to ALL nodes in workflow
-        Each node receives the full inputs dict
-        """
-        parameters = inputs  # inputs → parameters
-
-        for node in workflow.nodes:
-            # Each node gets full parameters
-            node_params = {**node.config, **parameters}
-            node.execute(node_params)
-```
+Parameter broadcasting is handled internally by the Rust runtime. API inputs
+are broadcast to all nodes in the workflow -- each node receives the full
+inputs dict merged with its static config.
 
 ## Key Implementation Details
 
 ### Auto-Discovery
 
-```python
-class WorkflowDiscovery:
-    PATTERNS = [
-        "workflows/*.py",
-        "*.workflow.py",
-        "workflow_*.py",
-        "*_workflow.py"
-    ]
-
-    def discover(self, paths):
-        workflows = []
-        for pattern in self.PATTERNS:
-            for path in paths:
-                workflows.extend(glob.glob(f"{path}/{pattern}"))
-        return workflows
-
-    def load_workflow(self, file_path):
-        # Dynamic import
-        spec = importlib.util.spec_from_file_location("module", file_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        if hasattr(module, 'workflow'):
-            return module.workflow
-```
+Auto-discovery scans for workflow files matching patterns like `workflows/*.py`,
+`*.workflow.py`, `workflow_*.py`, `*_workflow.py`. However, auto-discovery is
+disabled by default and should stay disabled when using DataFlow to avoid blocking.
+Register workflows manually with `app.register()` or `@app.handler()` instead.
 
 ### Health Checking
 
 ```python
-class HealthChecker:
-    def __init__(self):
-        self.checks = {}
+# Health checking is built into NexusApp
+app = NexusApp()
+health = app.health_check()
+print(health)  # {"status": "healthy", ...}
 
-    def register_check(self, name, check_func):
-        self.checks[name] = check_func
-
-    def check_all(self):
-        results = {}
-        for name, check in self.checks.items():
-            try:
-                results[name] = check()
-            except Exception as e:
-                results[name] = {"status": "unhealthy", "error": str(e)}
-
-        overall = "healthy" if all(
-            r.get("status") == "healthy" for r in results.values()
-        ) else "unhealthy"
-
-        return {
-            "status": overall,
-            "components": results
-        }
+# Health endpoint is available at GET /health
 ```
 
 ## Performance Optimizations

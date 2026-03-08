@@ -27,7 +27,7 @@ Connection mapping error: output key 'X' not found
 1. **Wrong parameter order** - Swapping source_output and target
 2. **Missing node ID** - Referencing non-existent node
 3. **Wrong number of parameters** - Using deprecated 3-parameter syntax
-4. **Nested output access** - Missing dot notation for nested fields
+4. **Dot notation in output paths** - The runtime does not resolve dot paths
 
 ## Quick Fixes
 
@@ -73,32 +73,32 @@ builder.connect("reader", "data", "processor", "data")
 #                       ^source ^output  ^target   ^input
 ```
 
-### ❌ Error 3: Missing Nested Path
+### ❌ Error 3: Dot Notation in Output Paths
 
 ```python
-# If node outputs: {'result': {'filters': {...}, 'limit': 50}}
-
-# Wrong - missing nested path
+# Wrong - the runtime does NOT resolve dot paths
 builder.connect(
-    "prepare_filters", "filters",  # ✗ 'filters' is nested under 'result'
+    "prepare_filters", "result.filters",  # ✗ Dot notation fails silently
     "search", "filter"
 )
-# Error: "Output key 'filters' not found on node 'prepare_filters'"
 ```
 
-### ✅ Fix: Use Dot Notation
+### ✅ Fix: Use Flat Output Names
 
 ```python
-# Correct - full path to nested value
+# Correct - use the actual output port name (flat, no dots)
 builder.connect(
-    "prepare_filters", "result.filters",  # ✓ Full nested path
+    "prepare_filters", "result",  # ✓ Use the actual output name
     "search", "filter"
 )
 
-builder.connect(
-    "prepare_filters", "result.limit",
-    "search", "limit"
-)
+# If you need to extract nested fields, use an intermediate node:
+builder.add_node("EmbeddedPythonNode", "extract", {
+    "code": "result = {'filters': data['filters'], 'limit': data['limit']}",
+    "output_vars": ["result"]
+})
+builder.connect("prepare_filters", "result", "extract", "data")
+builder.connect("extract", "outputs", "search", "filter")
 ```
 
 ## Complete Example: Before & After
@@ -109,7 +109,8 @@ builder.connect(
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("EmbeddedPythonNode", "prep", {
-    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
+    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("ListUser", "search", {})
@@ -130,14 +131,14 @@ builder.connect("prep", "filters", "search", "filter")
 builder = kailash.WorkflowBuilder()
 
 builder.add_node("EmbeddedPythonNode", "prep", {
-    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
+    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("ListUser", "search", {})
 
-# CORRECT: 4 parameters in right order with nested path
-builder.connect("prep", "result.filters", "search", "filter")
-builder.connect("prep", "result.limit", "search", "limit")
+# CORRECT: 4 parameters in right order with flat output name
+builder.connect("prep", "outputs", "search", "filter")
 ```
 
 ## 4-Parameter Connection Pattern
@@ -147,7 +148,7 @@ builder.connect("prep", "result.limit", "search", "limit")
 ```python
 builder.connect(
     source,         # 1. Source node ID (string)
-    source_output,  # 2. Output field name from source (use dot notation for nested)
+    source_output,  # 2. Output field name from source (flat name, no dot notation)
     target,         # 3. Target node ID (string)
     target_input    # 4. Input parameter name on target
 )
@@ -155,12 +156,12 @@ builder.connect(
 
 ### Common Patterns
 
-| Scenario          | source_output         | Example                                                       |
-| ----------------- | --------------------- | ------------------------------------------------------------- |
-| **Simple field**  | `"data"`              | `builder.connect("reader", "data", "processor", "input")`     |
-| **Nested field**  | `"result.data"`       | `builder.connect("prep", "result.data", "process", "input")`  |
-| **Deep nesting**  | `"result.user.email"` | `builder.connect("fetch", "result.user.email", "send", "to")` |
-| **Array element** | `"result.items[0]"`   | Not supported - use EmbeddedPythonNode to extract             |
+| Scenario          | source_output | Example                                                   |
+| ----------------- | ------------- | --------------------------------------------------------- |
+| **Simple field**  | `"data"`      | `builder.connect("reader", "data", "processor", "input")` |
+| **Node outputs**  | `"outputs"`   | `builder.connect("prep", "outputs", "process", "input")`  |
+| **Result field**  | `"result"`    | `builder.connect("fetch", "result", "send", "data")`      |
+| **Nested access** | N/A           | Use EmbeddedPythonNode to extract nested fields           |
 
 ## Debugging Connection Errors
 
@@ -171,8 +172,8 @@ builder.connect(
 node_ids = ["prep", "search", "process"]  # Your nodes
 
 # Check connection references match
-builder.connect("prep", "result", "search", "input")  # ✓ Both exist
-builder.connect("prep", "result", "missing", "input")  # ✗ 'missing' not in workflow
+builder.connect("prep", "outputs", "search", "input")  # ✓ Both exist
+builder.connect("prep", "outputs", "missing", "input")  # ✗ 'missing' not in workflow
 ```
 
 ### Step 2: Check Output Structure
@@ -183,7 +184,7 @@ result = rt.execute(builder.build(reg))
 
 print(f"prep outputs: {results['prep'].keys()}")  # See available keys
 # If output is: {'result': {'filters': {}, 'limit': 10}}
-# Then use: "result.filters" and "result.limit"
+# Then use: "result" as the output port name (no dot notation)
 ```
 
 ### Step 3: Verify Parameter Order
@@ -229,7 +230,7 @@ Use `pattern-expert` subagent when:
 
 - 💡 **Mnemonic**: Source (node + output) → Target (node + input)
 - 💡 **Debug order**: If "node not found", check if you swapped source_output and target
-- 💡 **Nested access**: Use dot notation (`result.data`) for nested fields
+- 💡 **No dot notation**: The runtime does not resolve dot paths -- use flat output names
 - 💡 **Verify IDs**: Ensure all referenced node IDs actually exist in workflow
 - 💡 **Check output**: Print `results[node].keys()` to see available output fields
 

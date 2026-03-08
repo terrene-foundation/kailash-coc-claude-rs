@@ -30,7 +30,8 @@ data = db.query("SELECT * FROM users")
 cache.set("users", data)
 
 result = {'users': data}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

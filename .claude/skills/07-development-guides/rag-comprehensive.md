@@ -45,7 +45,8 @@ for i in range(0, len(text), chunk_size - overlap):
     })
 
 result = {'chunks': chunks}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Generate embeddings
@@ -67,7 +68,8 @@ for chunk in chunks:
     })
 
 result = {'embeddings': embeddings}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Store in vector database
@@ -87,15 +89,16 @@ for emb in embeddings:
     )
 
 result = {'stored': len(embeddings), 'collection': 'documents'}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Connections
     builder.connect("reader", "content", "chunker", "content")
-    builder.connect("chunker", "result", "embedder", "chunks")
-    builder.connect("embedder", "result", "store", "embeddings")
+    builder.connect("chunker", "outputs", "embedder", "chunks")
+    builder.connect("embedder", "outputs", "store", "embeddings")
 
-    return workflow
+    return builder
 ```
 
 ### 3. Query Workflow
@@ -117,7 +120,8 @@ embedding = openai.Embedding.create(
 )
 
 result = {'query_embedding': embedding['data'][0]['embedding']}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Search vector database
@@ -138,7 +142,8 @@ result = {
     'distances': results['distances'][0],
     'ids': results['ids'][0]
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Generate answer with LLM
@@ -162,15 +167,16 @@ Question: {query}
 Answer:\"\"\"
 
 result = {'prompt': prompt}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Connections
-    builder.connect("query_embedder", "result", "search", "query_embedding")
-    builder.connect("search", "result", "construct_prompt", "documents")
-    builder.connect("construct_prompt", "prompt", "generator", "messages")
+    builder.connect("query_embedder", "outputs", "search", "query_embedding")
+    builder.connect("search", "outputs", "construct_prompt", "documents")
+    builder.connect("construct_prompt", "outputs", "generator", "messages")
 
-    return workflow
+    return builder
 ```
 
 ### 4. Advanced RAG with Reranking
@@ -190,7 +196,8 @@ results = collection.query(
     n_results=20
 )
 result = {'candidates': results['documents'][0]}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Rerank results
@@ -216,12 +223,13 @@ result = {
     'documents': [doc for doc, score in ranked[:5]],
     'scores': [score for doc, score in ranked[:5]]
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
-    builder.connect("initial_search", "result", "reranker", "candidates")
+    builder.connect("initial_search", "outputs", "reranker", "candidates")
 
-    return workflow
+    return builder
 ```
 
 ### 5. Hybrid Search (Semantic + Keyword)
@@ -241,7 +249,8 @@ semantic_results = collection.query(
     n_results=10
 )
 result = {'semantic_docs': semantic_results['documents'][0]}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Keyword search
@@ -260,7 +269,8 @@ scores = bm25.get_scores(tokenized_query)
 # Get top results
 top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:10]
 result = {'keyword_docs': [all_documents[i] for i in top_indices]}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Merge and rerank
@@ -284,14 +294,15 @@ for doc in keyword_docs:
 ranked = sorted(all_docs.items(), key=lambda x: x[1], reverse=True)
 
 result = {'documents': [doc for doc, score in ranked[:5]]}
-"""
+""",
+        "output_vars": ["result"]
     })
 
-    builder.connect("semantic_search", "result", "merger", "semantic")
-    builder.connect("keyword_search", "result", "merger", "keyword")
-    builder.connect("merger", "merged", "final_ranker", "input")
+    builder.connect("semantic_search", "outputs", "merger", "semantic")
+    builder.connect("keyword_search", "outputs", "merger", "keyword")
+    builder.connect("merger", "merged", "final_ranker", "data")
 
-    return workflow
+    return builder
 ```
 
 ### 6. RAG with Citations
@@ -317,7 +328,8 @@ Question: {query}
 Answer (include [citation numbers]):\"\"\"
 
 result = {'prompt': prompt, 'sources': source_ids}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -354,13 +366,14 @@ Follow-up Question: {query}
 Standalone Question:\"\"\"
 
 result = {'prompt': prompt}
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Then use rephrased query for retrieval
     # ... (rest of RAG pipeline)
 
-    return workflow
+    return builder
 ```
 
 ### 8. Production RAG Best Practices

@@ -123,7 +123,7 @@ When a model named "User" is registered, these 11 node types are created:
 | `BulkCreateUser` | Batch INSERT (input: `items` array)               |
 | `BulkUpdateUser` | Batch UPDATE (input: array of `{filter, fields}`) |
 | `BulkDeleteUser` | Batch DELETE (input: `ids` array or `filter`)     |
-| `BulkUpsertUser` | Batch INSERT or UPDATE                            |
+| `BulkUpsertUser` | Batch INSERT or UPDATE on conflict                |
 
 ## FilterCondition
 

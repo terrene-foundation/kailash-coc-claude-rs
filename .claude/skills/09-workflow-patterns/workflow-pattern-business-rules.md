@@ -19,13 +19,12 @@ builder = kailash.WorkflowBuilder()
 # 1. Load customer data
 builder.add_node("SQLQueryNode", "load_customer", {
     "query": "SELECT * FROM customers WHERE id = ?",
-    "parameters": ["{{input.customer_id}}"]
+    "params": ["{{input.customer_id}}"]
 })
 
-# 2. Check membership tier
-builder.add_node("ConditionalNode", "check_tier", {
-    "condition": "{{load_customer.tier}}",
-    "branches": {
+# 2. Check membership tier — use SwitchNode for multi-branch routing
+builder.add_node("SwitchNode", "check_tier", {
+    "cases": {
         "gold": "gold_discount",
         "silver": "silver_discount",
         "bronze": "bronze_discount"
@@ -48,15 +47,11 @@ builder.add_node("EmbeddedPythonNode", "bronze_discount", {
     "output_vars": ["result"]
 })
 
-# 4. Apply additional rules
-builder.add_node("ConditionalNode", "check_bulk", {
-    "condition": "{{input.quantity}} > 10",
-    "true_branch": "bulk_discount",
-    "false_branch": "final_price"
-})
+# 4. Apply additional rules — ConditionalNode takes no config
+builder.add_node("ConditionalNode", "check_bulk", {})
 
-builder.connect("load_customer", "tier", "check_tier", "condition")
-builder.connect("check_tier", "result", "check_bulk", "input")
+builder.connect("load_customer", "rows", "check_tier", "input")
+builder.connect("check_tier", "matched", "check_bulk", "condition")
 ```
 
 <!-- Trigger Keywords: business rules, rule engine, conditional logic, decision workflow -->

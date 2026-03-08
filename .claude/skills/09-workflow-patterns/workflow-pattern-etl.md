@@ -38,14 +38,12 @@ builder.add_node("CSVProcessorNode", "extract", {
 })
 
 # 2. TRANSFORM: Validate data
-builder.add_node("DataValidationNode", "validate", {
-    "input": "{{extract.data}}",
+builder.add_node("SchemaValidatorNode", "validate", {
     "schema": {
         "email": "email",
         "age": "integer",
         "name": "string"
-    },
-    "on_error": "collect"  # Collect invalid rows
+    }
 })
 
 # 3. TRANSFORM: Clean data
@@ -55,17 +53,17 @@ for row in data:
     row['email'] = row['email'].lower()
     row['name'] = row['name'].strip()
     row['phone'] = normalize_phone(row['phone'])
-result = data
+cleaned = data
     """,
-    "output_vars": ["result"]
+    "output_vars": ["cleaned"]
 })
 
 # 4. TRANSFORM: Enrich data
 builder.add_node("HTTPRequestNode", "enrich_location", {
     "url": "https://api.example.com/geocode",
     "method": "POST",
-    "body": "{{clean.data}}"
 })
+# Data flows via connect(): builder.connect("clean", "outputs", "enrich_location", "body")
 
 # 5. LOAD: Insert to database
 builder.add_node("SQLQueryNode", "load", {
@@ -77,22 +75,20 @@ builder.add_node("SQLQueryNode", "load", {
             age = EXCLUDED.age,
             location = EXCLUDED.location
     """,
-    "parameters": "{{enrich_location.enriched_data}}"
+    "params": "{{enrich_location.body}}"
 })
 
 # 6. Error handling: Log invalid rows
 builder.add_node("FileWriterNode", "log_errors", {
-    "path": "logs/invalid_rows.csv",
-    "data": "{{validate.invalid_data}}",
-    "headers": ["row", "error", "data"]
+    "path": "logs/invalid_rows.csv"
 })
 
 # Connect nodes
-builder.connect("extract", "rows", "validate", "input")
-builder.connect("validate", "valid_data", "clean", "input")
-builder.connect("clean", "data", "enrich_location", "body")
-builder.connect("enrich_location", "enriched_data", "load", "parameters")
-builder.connect("validate", "invalid_data", "log_errors", "data")
+builder.connect("extract", "rows", "validate", "data")
+builder.connect("validate", "valid", "clean", "inputs")
+builder.connect("clean", "outputs", "enrich_location", "body")
+builder.connect("enrich_location", "body", "load", "body")
+builder.connect("validate", "errors", "log_errors", "content")
 
 reg = kailash.NodeRegistry()
 
@@ -109,7 +105,7 @@ builder = kailash.WorkflowBuilder()
 
 # 1. EXTRACT: Read from source DB
 builder.add_node("SQLQueryNode", "extract_source", {
-    "connection": "source_db",
+    "pool": "source_db",
     "query": """
         SELECT id, name, email, created_at
         FROM legacy_users
@@ -121,64 +117,62 @@ builder.add_node("SQLQueryNode", "extract_source", {
 # 2. TRANSFORM: Data mapping
 builder.add_node("EmbeddedPythonNode", "transform_schema", {
     "code": """
-result = []
+mapped = []
 for row in data:
-    result.append({
+    mapped.append({
         'legacy_id': str(row['id']),
         'full_name': str(row['name']),
         'email_address': row['email'].lower(),
-        'registration_date': row['created_at']
+        'registration_date': row['created_at'],
     })
     """,
-    "output_vars": ["result"]
+    "output_vars": ["mapped"]
 })
 
 # 3. TRANSFORM: Validate business rules
-builder.add_node("DataValidationNode", "validate_rules", {
-    "input": "{{transform_schema.data}}",
-    "rules": [
-        {"field": "email_address", "validation": "email_format"},
-        {"field": "full_name", "validation": "not_empty"},
-        {"field": "registration_date", "validation": "valid_date"}
-    ]
+builder.add_node("SchemaValidatorNode", "validate_rules", {
+    "schema": {
+        "email_address": "email",
+        "full_name": "string",
+        "registration_date": "date"
+    }
 })
 
 # 4. LOAD: Insert to target DB
 builder.add_node("SQLQueryNode", "load_target", {
-    "connection": "target_db",
+    "pool": "target_db",
     "query": """
         INSERT INTO users (legacy_id, full_name, email_address, registration_date)
         VALUES (?, ?, ?, ?)
     """,
-    "batch": True,
-    "parameters": "{{validate_rules.valid_data}}"
+    "params": "{{validate_rules.valid}}"
 })
 
 # 5. Update source DB (mark as migrated)
 builder.add_node("SQLQueryNode", "mark_migrated", {
-    "connection": "source_db",
+    "pool": "source_db",
     "query": """
         UPDATE legacy_users
         SET migrated = TRUE, migrated_at = NOW()
-        WHERE id IN ({{load_target.inserted_ids}})
+        WHERE id IN (SELECT id FROM legacy_users WHERE migrated = FALSE LIMIT 1000)
     """
 })
 
 # 6. Handle failures
 builder.add_node("SQLQueryNode", "log_failures", {
-    "connection": "source_db",
+    "pool": "source_db",
     "query": """
         INSERT INTO migration_failures (legacy_id, error, data)
         VALUES (?, ?, ?)
     """,
-    "parameters": "{{validate_rules.invalid_data}}"
+    "params": "{{validate_rules.errors}}"
 })
 
-builder.connect("extract_source", "results", "transform_schema", "input")
-builder.connect("transform_schema", "data", "validate_rules", "input")
-builder.connect("validate_rules", "valid_data", "load_target", "parameters")
-builder.connect("load_target", "inserted_ids", "mark_migrated", "ids")
-builder.connect("validate_rules", "invalid_data", "log_failures", "parameters")
+builder.connect("extract_source", "rows", "transform_schema", "inputs")
+builder.connect("transform_schema", "outputs", "validate_rules", "data")
+builder.connect("validate_rules", "valid", "load_target", "body")
+builder.connect("load_target", "row_count", "mark_migrated", "body")
+builder.connect("validate_rules", "errors", "log_failures", "body")
 ```
 
 ## Pattern 4: Real-Time Streaming ETL
@@ -188,9 +182,9 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# 1. EXTRACT: Stream from message queue
-builder.add_node("MessageQueueConsumerNode", "extract_stream", {
-    "queue_url": "kafka://localhost:9092/events",
+# 1. EXTRACT: Stream from Kafka
+builder.add_node("KafkaConsumerNode", "extract_stream", {
+    "broker": "localhost:9092",
     "topic": "user_events",
     "batch_size": 50
 })
@@ -213,36 +207,33 @@ for msg in messages:
 })
 
 # 3. TRANSFORM: Aggregate metrics
-builder.add_node("AggregateNode", "calculate_metrics", {
-    "input": "{{parse_events.events}}",
-    "group_by": ["user_id", "event_type"],
-    "aggregations": {
-        "count": "COUNT(*)",
-        "avg_duration": "AVG(data.duration)",
-        "last_seen": "MAX(timestamp)"
-    },
-    "window": "5m"  # 5-minute window
+builder.add_node("EmbeddedPythonNode", "calculate_metrics", {
+    "code": """
+from collections import defaultdict
+groups = defaultdict(lambda: {'count': 0, 'total_duration': 0, 'last_seen': ''})
+for event in events:
+    key = (event['user_id'], event['event_type'])
+    groups[key]['count'] += 1
+    groups[key]['total_duration'] += event.get('data', {}).get('duration', 0)
+    groups[key]['last_seen'] = max(groups[key]['last_seen'], event['timestamp'])
+aggregated = [{'user_id': k[0], 'event_type': k[1], **v} for k, v in groups.items()]
+    """,
+    "output_vars": ["aggregated"]
 })
 
 # 4. LOAD: Write to time-series DB
 builder.add_node("SQLQueryNode", "load_metrics", {
-    "connection": "timescaledb",
+    "pool": "timescaledb",
     "query": """
         INSERT INTO user_metrics (user_id, event_type, count, avg_duration, last_seen, window_start)
         VALUES (?, ?, ?, ?, ?, ?)
     """,
-    "parameters": "{{calculate_metrics.aggregated}}"
 })
+# Data flows via connect(): builder.connect("calculate_metrics", "outputs", "load_metrics", "params")
 
-# 5. Acknowledge messages
-builder.add_node("MessageQueueAckNode", "ack_messages", {
-    "message_ids": "{{extract_stream.message_ids}}"
-})
-
-builder.connect("extract_stream", "messages", "parse_events", "input")
-builder.connect("parse_events", "events", "calculate_metrics", "input")
-builder.connect("calculate_metrics", "aggregated", "load_metrics", "parameters")
-builder.connect("load_metrics", "result", "ack_messages", "message_ids")
+builder.connect("extract_stream", "messages", "parse_events", "inputs")
+builder.connect("parse_events", "outputs", "calculate_metrics", "inputs")
+builder.connect("calculate_metrics", "outputs", "load_metrics", "body")
 ```
 
 ## Best Practices

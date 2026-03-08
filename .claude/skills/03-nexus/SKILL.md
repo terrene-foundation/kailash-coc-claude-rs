@@ -200,11 +200,12 @@ async def process_data(input_text: str) -> dict:
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'processed': True}"
+        "code": "result = {'processed': True}",
+        "output_vars": ["result"]
     })
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
-    return result["results"]["process"]["result"]
+    return result["results"]["process"]["outputs"]
 
 app.start()
 ```

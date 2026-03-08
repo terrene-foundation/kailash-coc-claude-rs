@@ -87,10 +87,9 @@ app = NexusApp()
 # Add rate limiting
 app.add_rate_limit(1000)
 
-# Fine-tune API behavior
-app.api.response_compression = True
-app.api.request_timeout = 30
-app.api.max_concurrent_requests = 100
+# NOTE: NexusApp does not have app.api.* attributes.
+# API behavior (compression, timeouts, concurrency) is configured
+# server-side via Rust Nexus engine and tower middleware.
 ```
 
 ## CLI Channel
@@ -111,15 +110,8 @@ nexus info github-user
 nexus --help
 ```
 
-**Configuration**:
-
-```python
-# Configure CLI behavior
-app.cli.interactive = True          # Enable prompts
-app.cli.auto_complete = True        # Tab completion
-app.cli.progress_bars = True        # Progress indicators
-app.cli.colored_output = True       # Colors
-```
+**Note**: NexusApp does not have `app.cli.*` attributes. CLI behavior is configured
+server-side via the Rust Nexus engine (clap-based CLI generation).
 
 ## MCP Channel
 
@@ -130,21 +122,20 @@ app.cli.colored_output = True       # Colors
 from kailash.nexus import NexusApp
 app = NexusApp()
 
-# Add metadata for AI discovery
-builder = kailash.WorkflowBuilder()
-workflow.add_metadata({
-    "name": "github_user_lookup",
-    "description": "Look up GitHub user by username",
-    "parameters": {
-        "username": {
-            "type": "string",
-            "description": "GitHub username",
-            "required": True
-        }
-    }
-})
-
-app.register("github-lookup", builder.build(reg))
+# Use @app.handler() with descriptions for AI discovery
+# NOTE: workflow.add_metadata() does not exist. Use handler descriptions instead.
+@app.handler("github_user_lookup", description="Look up GitHub user by username")
+async def github_user_lookup(username: str) -> dict:
+    """Look up GitHub user information by username."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("HTTPRequestNode", "fetch", {
+        "url": f"https://api.github.com/users/{username}",
+        "method": "GET"
+    })
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["fetch"]
 ```
 
 **MCP Usage**:
@@ -156,13 +147,8 @@ client = mcp_client.connect("http://localhost:3001")
 result = client.call_tool("github-lookup", {"username": "octocat"})
 ```
 
-**Configuration**:
-
-```python
-app.mcp.tool_caching = True        # Cache tool results
-app.mcp.batch_operations = True    # Batch calls
-app.mcp.async_execution = True     # Async execution
-```
+**Note**: NexusApp does not have `app.mcp.*` attributes. MCP behavior is configured
+server-side via the Rust Nexus engine.
 
 ## Cross-Channel Parameter Consistency
 
@@ -253,7 +239,8 @@ result = {
     'cli_display': format_text(data),   # For CLI
     'mcp_result': format_tool(data)     # For MCP
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -265,16 +252,9 @@ Start simple, add channel-specific features as needed:
 app = NexusApp()
 app.register("workflow", builder.build(reg))
 
-# Add API features
-app.api.enable_docs = True
-app.api.enable_metrics = True
-
-# Add CLI features
-app.cli.enable_autocomplete = True
-app.cli.enable_history = True
-
-# Add MCP features
-app.mcp.enable_tool_discovery = True
+# NOTE: NexusApp does not have app.api.*, app.cli.*, or app.mcp.* attributes.
+# Channel-specific features are configured server-side via the Rust Nexus engine.
+# Use presets for bundled middleware configurations.
 ```
 
 ### 3. Consistent Error Handling
@@ -290,7 +270,8 @@ if 'error' in data:
         'cli_error': f"Error: {data['error']}",
         'mcp_error': {'error': True, 'details': data['error']}
     }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

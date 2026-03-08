@@ -42,7 +42,7 @@ builder.add_node("SQLQueryNode", "query", {
 ### 3. Input Validation
 ```python
 # ✅ GOOD: Validate all inputs
-builder.add_node("DataValidationNode", "validate", {
+builder.add_node("SchemaValidatorNode", "validate", {
     "input": "{{input.user_data}}",
     "schema": {
         "email": "email",
@@ -61,11 +61,9 @@ builder.add_node("SQLQueryNode", "check_auth", {
     "parameters": ["{{input.user_id}}"]
 })
 
-builder.add_node("ConditionalNode", "authorize", {
-    "condition": "{{check_auth.role}} in ['admin', 'editor']",
-    "true_branch": "process",
-    "false_branch": "unauthorized"
-})
+builder.add_node("ConditionalNode", "authorize", {})
+# ConditionalNode takes NO config params — inputs via connections only
+builder.connect("check_auth", "result", "authorize", "condition")
 ```
 
 ### 5. Audit Logging

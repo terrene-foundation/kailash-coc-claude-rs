@@ -39,6 +39,7 @@ RuntimeError: Event loop is closed
 
 ```python
 import kailash
+from kailash.dataflow import db
 from kailash.nexus import NexusApp
 
 df = kailash.DataFlow("postgresql://localhost/mydb")
@@ -65,9 +66,10 @@ def get_user(user_id: str):
 ```python
 import pytest
 import kailash
+from kailash.dataflow import db
 
 @pytest.fixture
-async def db():
+async def dataflow():
     """Async fixture with proper cleanup."""
     df = kailash.DataFlow("postgresql://...")
 
@@ -79,14 +81,14 @@ async def db():
     # Use async version in async context
     await df.create_tables_async()
 
-    yield db
+    yield df
 
     # Use async cleanup
     await df.close_async()
 
 @pytest.mark.asyncio
-async def test_user_creation(db):
-    # Test with async db fixture
+async def test_user_creation(dataflow):
+    # Test with async dataflow fixture
     pass
 ```
 
@@ -125,31 +127,35 @@ See DF-501 for details.
 **Before (DF-501 Error):**
 
 ```python
+from kailash.dataflow import db
+
 # WRONG - Causes DF-501 in async context
 async def setup():
-    db = kailash.DataFlow("postgresql://...")
+    df = kailash.DataFlow("postgresql://...")
 
     @db.model
     class User:
         id: str
         name: str
 
-    db.create_tables()  # DF-501 ERROR!
+    df.create_tables()  # DF-501 ERROR!
 ```
 
 **Correct Pattern:**
 
 ```python
+from kailash.dataflow import db
+
 # CORRECT - Use async methods in async context
 async def setup():
-    db = kailash.DataFlow("postgresql://...")
+    df = kailash.DataFlow("postgresql://...")
 
     @db.model
     class User:
         id: str
         name: str
 
-    await db.create_tables_async()  # Works correctly
+    await df.create_tables_async()  # Works correctly
 ```
 
 ## close_async() Method Details
@@ -177,14 +183,16 @@ await db.close_async()  # Third call - no-op, safe
 DataFlow supports sync context managers for CLI/scripts:
 
 ```python
+from kailash.dataflow import db
+
 # Sync context manager (for CLI/scripts)
-with kailash.DataFlow("sqlite:///dev.db") as db:
+with kailash.DataFlow("sqlite:///dev.db") as df:
     @db.model
     class User:
         id: str
         name: str
 
-    db.create_tables()  # OK in sync context
+    df.create_tables()  # OK in sync context
     # Automatic cleanup when exiting context
 
 # For async contexts, use the lifespan pattern above

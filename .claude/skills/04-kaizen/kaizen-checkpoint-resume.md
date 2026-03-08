@@ -14,11 +14,10 @@ checkpoint = AgentCheckpoint("researcher", os.environ.get("LLM_MODEL", "gpt-4o")
 # - checkpoint_id: str         (UUID v4, auto-generated)
 # - agent_name: str
 # - model: str
-# - conversation: list         (empty by default)
-# - memory_snapshot: dict      (empty by default)
-# - tool_state: dict           (empty by default)
+# - memory_snapshot: dict|None (None by default)
+# - tool_state: dict|None      (None by default)
 # - created_at: str            (ISO 8601, auto-generated)
-# - metadata: dict             (empty by default)
+# - metadata: dict|None        (None by default)
 
 # Populate fields
 checkpoint.memory_snapshot = {"context": "market research"}
@@ -79,46 +78,43 @@ from kailash import AgentInterrupt
 
 interrupt = AgentInterrupt()
 
-# Check state
-assert not interrupt.is_interrupted()
-
-# Register a callback
-interrupt.on_interrupt(lambda: print("interrupted!"))
+# Check state (is_interrupted is a property, no parens)
+assert not interrupt.is_interrupted
 
 # Fire the interrupt
 interrupt.request_interrupt()
-assert interrupt.is_interrupted()
+assert interrupt.is_interrupted
 
 # Clear
 interrupt.clear()
-assert not interrupt.is_interrupted()
+assert not interrupt.is_interrupted
 
 # Graceful shutdown with timeout
-interrupt.request_graceful_shutdown(timeout_seconds=30)
+interrupt.request_graceful_shutdown(timeout_secs=30.0)
 
 # Chain interrupts
 parent = AgentInterrupt()
 child = AgentInterrupt()
 parent.chain(child)
 parent.request_interrupt()
-assert child.is_interrupted()
+assert child.is_interrupted
 ```
 
 ### Key Behaviors
 
-- **Fire-once callbacks**: Callbacks run exactly once, even if `request_interrupt()` is called multiple times
+- **Fire-once**: Once interrupted, subsequent `request_interrupt()` calls are no-ops
 - **Chaining**: `parent.chain(child)` -- when parent fires, child fires too
-- **Graceful shutdown**: `request_graceful_shutdown(timeout)` spawns a thread that waits then fires
+- **Graceful shutdown**: `request_graceful_shutdown(timeout_secs)` spawns a thread that waits then fires
+- **`is_interrupted`**: Property (not method) -- returns `bool`
 
 ## Integration Pattern
 
 ```python
 # After each agent task completion, save a checkpoint
-async def save_agent_state(storage, agent_name, model, conversation, memory):
+async def save_agent_state(storage, agent_name, model, memory):
     checkpoint = AgentCheckpoint(agent_name, model)
-    checkpoint.conversation = conversation
     checkpoint.memory_snapshot = memory
-    return storage.save(checkpoint)
+    return storage.save(checkpoint)  # Returns checkpoint_id (UUID)
 
 # Resume from most recent checkpoint
 async def resume_agent(storage, agent_name):

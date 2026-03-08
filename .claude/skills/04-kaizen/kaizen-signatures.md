@@ -4,57 +4,41 @@ Define agent input/output contracts using `Signature`, `InputField`, and `Output
 
 ## API
 
+Signature uses a **subclass** pattern. Field names come from class attribute names.
+
 ```python
 from kailash.kaizen import Signature, InputField, OutputField
 
-# Define a signature
-sig = Signature(
-    name="research",
-    description="Research a topic and provide findings",
-    inputs=[
-        InputField(name="topic", description="Topic to research", required=True),
-        InputField(name="depth", description="Research depth", required=False),
-    ],
-    outputs=[
-        OutputField(name="findings", description="Research findings"),
-        OutputField(name="sources", description="List of sources"),
-    ],
-)
+class Research(Signature):
+    topic = InputField(description="Topic to research")
+    depth = InputField(description="Research depth", default="medium")
+    findings = OutputField(description="Research findings")
+    sources = OutputField(description="List of sources")
 
-# Access properties
-print(sig.name)           # "research"
-print(sig.description)    # "Research a topic and provide findings"
-print(sig.inputs)         # list of InputField
-print(sig.outputs)        # list of OutputField
+# Class methods
+input_fields = Research.input_fields()    # dict of input field names -> InputField
+output_fields = Research.output_fields()  # dict of output field names -> OutputField
 
-# InputField properties
-for field in sig.inputs:
-    print(field.name)        # str
-    print(field.description) # str
-    print(field.required)    # bool
-
-# OutputField properties
-for field in sig.outputs:
-    print(field.name)        # str
-    print(field.description) # str
+# Validation
+Research.validate_inputs({"topic": "AI safety"})  # OK
+Research.validate_inputs({})  # raises ValueError: missing required input 'topic'
 ```
+
+**InputField kwargs**: `description` (str) and `default` (optional). NO `name`, `required`, or `type` kwargs -- the field name comes from the class attribute, and fields without `default` are required.
+
+**OutputField kwargs**: `description` (str) only.
 
 ## Using Signatures with Agents
 
 ```python
 from kailash.kaizen import BaseAgent, Signature, InputField, OutputField
 
+class ResearchSignature(Signature):
+    topic = InputField(description="Topic to research")
+    findings = OutputField(description="Research findings")
+
 class ResearchAgent(BaseAgent):
-    signature = Signature(
-        name="research",
-        description="Research agent",
-        inputs=[
-            InputField(name="topic", description="Topic", required=True),
-        ],
-        outputs=[
-            OutputField(name="findings", description="Findings"),
-        ],
-    )
+    signature = ResearchSignature
 
     async def run(self, input_text: str) -> dict:
         # Process the input according to the signature contract
@@ -64,57 +48,45 @@ class ResearchAgent(BaseAgent):
         }
 ```
 
-## Signature Validation
-
-Signatures provide runtime validation of agent inputs and outputs:
-
-```python
-# Validate that required inputs are present
-sig.validate_inputs({"topic": "AI safety"})  # OK
-sig.validate_inputs({})  # raises ValueError: missing required input 'topic'
-
-# Check if an input is expected
-sig.has_input("topic")    # True
-sig.has_input("unknown")  # False
-
-# Check outputs
-sig.has_output("findings")  # True
-```
-
 ## Common Patterns
 
 ### Chain of Thought Signature
 
 ```python
-cot_sig = Signature(
-    name="chain_of_thought",
-    description="Step-by-step reasoning",
-    inputs=[
-        InputField(name="question", description="Question to reason about", required=True),
-    ],
-    outputs=[
-        OutputField(name="reasoning", description="Step-by-step reasoning"),
-        OutputField(name="answer", description="Final answer"),
-    ],
-)
+from kailash.kaizen import Signature, InputField, OutputField
+
+class ChainOfThought(Signature):
+    question = InputField(description="Question to reason about")
+    reasoning = OutputField(description="Step-by-step reasoning")
+    answer = OutputField(description="Final answer")
 ```
 
 ### Multi-Output Signature
 
 ```python
-analysis_sig = Signature(
-    name="analysis",
-    description="Analyze data and provide insights",
-    inputs=[
-        InputField(name="data", description="Data to analyze", required=True),
-        InputField(name="format", description="Output format", required=False),
-    ],
-    outputs=[
-        OutputField(name="summary", description="Summary of analysis"),
-        OutputField(name="insights", description="Key insights"),
-        OutputField(name="recommendations", description="Action recommendations"),
-    ],
-)
+class Analysis(Signature):
+    data = InputField(description="Data to analyze")
+    format = InputField(description="Output format", default="json")
+    summary = OutputField(description="Summary of analysis")
+    insights = OutputField(description="Key insights")
+    recommendations = OutputField(description="Action recommendations")
+```
+
+### Accessing Field Metadata
+
+```python
+class MySignature(Signature):
+    query = InputField(description="Search query")
+    depth = InputField(description="Search depth", default="shallow")
+    results = OutputField(description="Search results")
+
+# input_fields() returns a dict: {"query": InputField(...), "depth": InputField(...)}
+for name, field in MySignature.input_fields().items():
+    print(f"{name}: {field.description}")
+
+# output_fields() returns a dict: {"results": OutputField(...)}
+for name, field in MySignature.output_fields().items():
+    print(f"{name}: {field.description}")
 ```
 
 <!-- Trigger Keywords: signature, Signature, InputField, OutputField, agent contract, structured input, structured output -->

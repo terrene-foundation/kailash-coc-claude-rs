@@ -54,7 +54,7 @@ def test_database_integration():
     conn_string = get_postgres_connection_string()
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
@@ -106,7 +106,7 @@ def test_with_real_postgres():
     conn_string = get_postgres_connection_string()
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT * FROM users",
         "operation": "select"
@@ -166,7 +166,7 @@ def test_database_with_real_services():
     conn_string = get_postgres_connection_string()
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
@@ -261,13 +261,13 @@ def test_workflow(mock_execute):
 
 def test_workflow():
     builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 42"})
+    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 42", "output_vars": ["result"]})
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["node"]["result"] == 42
+    assert result["results"]["node"]["outputs"]["result"] == 42
 ```
 
 ## Policy Summary

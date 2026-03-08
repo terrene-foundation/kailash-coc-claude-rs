@@ -22,15 +22,14 @@ builder = kailash.WorkflowBuilder()
 # 1. Load data
 builder.add_node("CSVProcessorNode", "load", {"action": "read", "source_path": "data.csv"})
 
-# 2. Remove duplicates
-builder.add_node("DeduplicateNode", "dedupe", {
-    "input": "{{load.data}}",
+# 2. Remove duplicates — use ArrayOperationsNode for deduplication
+builder.add_node("ArrayOperationsNode", "dedupe", {
+    "operation": "unique",
     "key_fields": ["email"]
 })
 
-# 3. Validate schema
-builder.add_node("DataValidationNode", "validate", {
-    "input": "{{dedupe.data}}",
+# 3. Validate schema — use SchemaValidatorNode
+builder.add_node("SchemaValidatorNode", "validate", {
     "schema": {"email": "email", "age": "integer"}
 })
 
@@ -45,17 +44,23 @@ result = data
     "output_vars": ["result"]
 })
 
-# 5. Aggregate metrics
-builder.add_node("AggregateNode", "aggregate", {
-    "input": "{{clean.data}}",
-    "group_by": ["country"],
-    "aggregations": {"count": "COUNT(*)", "avg_age": "AVG(age)"}
+# 5. Aggregate metrics — use EmbeddedPythonNode for aggregation
+builder.add_node("EmbeddedPythonNode", "aggregate", {
+    "code": """
+from collections import defaultdict
+groups = defaultdict(lambda: {'count': 0, 'total_age': 0})
+for row in data:
+    groups[row['country']]['count'] += 1
+    groups[row['country']]['total_age'] += row.get('age', 0)
+aggregated = [{'country': k, 'count': v['count'], 'avg_age': v['total_age']/v['count']} for k, v in groups.items()]
+    """,
+    "output_vars": ["aggregated"]
 })
 
 builder.connect("load", "rows", "dedupe", "input")
-builder.connect("dedupe", "data", "validate", "input")
-builder.connect("validate", "valid_data", "clean", "input")
-builder.connect("clean", "data", "aggregate", "input")
+builder.connect("dedupe", "result", "validate", "data")
+builder.connect("validate", "valid", "clean", "inputs")
+builder.connect("clean", "outputs", "aggregate", "inputs")
 ```
 
 <!-- Trigger Keywords: data pipeline, data processing, data transformation, data cleaning, data quality -->

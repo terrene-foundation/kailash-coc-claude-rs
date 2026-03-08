@@ -35,7 +35,8 @@ except Exception as e:
         'error': str(e)
     }))
     raise
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -61,7 +62,8 @@ finally:
     duration = time.time() - start_time
     execution_time.observe(duration)
     active_workflows.dec()
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

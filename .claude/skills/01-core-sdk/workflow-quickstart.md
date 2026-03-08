@@ -37,7 +37,8 @@ builder.add_node("CSVProcessorNode", "reader", {
 })
 
 builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'count': len(data)}"
+    "code": "result = {'count': len(data)}",
+    "output_vars": ["result"]
 })
 
 # 3. Connect nodes (4 parameters: source, source_output, target, target_input)
@@ -51,7 +52,7 @@ rt = kailash.Runtime(reg)
 result = rt.execute(wf)
 
 # result is a dict: {"results": {...}, "run_id": "...", "metadata": {...}}
-print(result["results"]["processor"]["count"])
+print(result["results"]["processor"]["outputs"]["result"]["count"])
 ```
 
 ## Common Use Cases
@@ -71,7 +72,7 @@ builder = kailash.WorkflowBuilder()
 
 # Auto-generate node IDs for rapid prototyping
 reader_id = builder.add_node_auto_id("CSVProcessorNode", {"action": "read", "source_path": "data.csv"})
-processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)"})
+processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "result = len(input_data)", "output_vars": ["result"]})
 
 # Use returned IDs for connections
 builder.connect(reader_id, "rows", processor_id, "input_data")
@@ -83,16 +84,16 @@ All these patterns are equivalent and work correctly:
 
 ```python
 # 1. Current/Preferred Pattern
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "processor", {"code": "...", "output_vars": ["result"]})
 
 # 2. Keyword-Only Pattern
-builder.add_node(type_name="EmbeddedPythonNode", node_id="processor", config={"code": "..."})
+builder.add_node(type_name="EmbeddedPythonNode", node_id="processor", config={"code": "...", "output_vars": ["result"]})
 
 # 3. Mixed Pattern (common in existing code)
-builder.add_node("EmbeddedPythonNode", node_id="processor", config={"code": "..."})
+builder.add_node("EmbeddedPythonNode", node_id="processor", config={"code": "...", "output_vars": ["result"]})
 
 # 4. Auto ID Pattern (returns generated ID)
-processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "..."})
+processor_id = builder.add_node_auto_id("EmbeddedPythonNode", {"code": "...", "output_vars": ["result"]})
 ```
 
 ## Key Parameters / Options
@@ -223,11 +224,12 @@ builder.add_node("CSVProcessorNode", "read_data", {
 # Transform data with EmbeddedPythonNode
 builder.add_node("EmbeddedPythonNode", "transform", {
     "code": """
-import pandas as pd
-df = pd.DataFrame(data)
-df['total'] = df['quantity'] * df['price']
-result = df.to_dict('records')
-"""
+result = [
+    {**row, 'total': row.get('quantity', 0) * row.get('price', 0)}
+    for row in (data if isinstance(data, list) else [])
+]
+""",
+    "output_vars": ["result"]
 })
 
 # Write results
@@ -237,12 +239,12 @@ builder.add_node("FileWriterNode", "write_data", {
 
 # Connect the pipeline
 builder.connect("read_data", "rows", "transform", "data")
-builder.connect("transform", "result", "write_data", "content")
+builder.connect("transform", "outputs", "write_data", "content")
 
 # Execute
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
-print(f"Processed {len(result["results"]['transform']['result']['result'])} records")  # Nested 'result' keys
+print(f"Processed {len(result['results']['transform']['outputs']['result'])} records")
 ```
 
 ### Example 2: Data Processing ETL
@@ -252,7 +254,8 @@ builder = kailash.WorkflowBuilder()
 
 # Extract (simulate data source)
 builder.add_node("EmbeddedPythonNode", "extract", {
-    "code": "result = {'data': [{'amount': 150}, {'amount': 50}, {'amount': 200}]}"
+    "code": "result = {'data': [{'amount': 150}, {'amount': 50}, {'amount': 200}]}",
+    "output_vars": ["result"]
 })
 
 # Transform (filter and process)
@@ -262,22 +265,24 @@ data = input_data.get('data', [])
 filtered = [item for item in data if item.get('amount', 0) > 100]
 transformed = [{'id': i, 'total': item['amount'] * 1.1} for i, item in enumerate(filtered)]
 result = transformed
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Load (save results)
 builder.add_node("EmbeddedPythonNode", "load", {
-    "code": "result = {'saved': len(input_data), 'status': 'complete'}"
+    "code": "result = {'saved': len(input_data), 'status': 'complete'}",
+    "output_vars": ["result"]
 })
 
 # Connect the pipeline
-builder.connect("extract", "result", "transform", "input_data")
-builder.connect("transform", "result", "load", "input_data")
+builder.connect("extract", "outputs", "transform", "input_data")
+builder.connect("transform", "outputs", "load", "input_data")
 
 # Execute
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
-print(f"Processed {result["results"]['load']['result']['saved']} items")
+print(f"Processed {result['results']['load']['outputs']['result']['saved']} items")
 ```
 
 ### Example 3: API Data Collection
@@ -298,18 +303,18 @@ builder.add_node("EmbeddedPythonNode", "extract", {
 import json
 data = json.loads(response)
 result = [item for item in data['items'] if item['active']]
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Store in database
 builder.add_node("SQLQueryNode", "store", {
     "connection_string": "postgresql://localhost/db",
-    "query": "INSERT INTO data_table (json_data) VALUES (:data)",
-    "params": {"data": "${extract.result}"}
+    "query": "INSERT INTO data_table (json_data) VALUES (:data)"
 })
 
 builder.connect("fetch_data", "body", "extract", "response")
-builder.connect("extract", "result", "store", "data")
+builder.connect("extract", "outputs", "store", "data")
 
 rt = kailash.Runtime(reg)
 result = rt.execute(builder.build(reg))
@@ -330,7 +335,7 @@ result = rt.execute(builder.build(reg))
 - 💡 **String-based nodes**: Use `"CSVProcessorNode"` (string), not `CSVProcessorNode()` (instance)
 - 💡 **Unique node IDs**: Each node needs a unique ID within the workflow (or use auto-ID)
 - 💡 **4-parameter connections**: Source (node + output) → Target (node + input)
-- 💡 **Nested output access**: Use dot notation: `"result.data"` for nested fields
+- 💡 **Port names are flat**: Use the actual output port name (e.g., `"outputs"`, `"rows"`) -- there is no dot-path resolution
 - 💡 **Check examples**: Browse the workflow pattern skills for domain-specific examples
 
 ## Version Notes

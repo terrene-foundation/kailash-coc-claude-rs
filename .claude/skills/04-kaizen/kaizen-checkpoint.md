@@ -15,19 +15,21 @@ A serializable snapshot of an agent's state at a point in time.
 from kailash import AgentCheckpoint
 
 # Create a checkpoint (auto-generates ID)
-checkpoint = AgentCheckpoint("researcher", step=0)
+checkpoint = AgentCheckpoint("researcher", "model-name")
 
 # Properties
-print(checkpoint.agent_id)         # "researcher"
-print(checkpoint.step)             # 0
+print(checkpoint.checkpoint_id)    # Auto-generated UUID
+print(checkpoint.agent_name)       # "researcher"
+print(checkpoint.model)            # "model-name"
+print(checkpoint.created_at)       # ISO 8601 timestamp
 
 # Mutable properties (None by default, NOT empty dicts)
 checkpoint.memory_snapshot = {"context": "market research"}
 checkpoint.tool_state = {"last_tool": "search"}
 checkpoint.metadata = {"progress": 0.5, "step": "analysis"}
 
-# Serialize to dict
-data = checkpoint.to_dict()
+# Serialize to JSON string
+data = checkpoint.to_json()
 ```
 
 **IMPORTANT**: `memory_snapshot`, `tool_state`, and `metadata` are `None` by default, not empty dicts.
@@ -41,20 +43,20 @@ from kailash import AgentCheckpoint, InMemoryCheckpointStorage
 
 storage = InMemoryCheckpointStorage()
 
-# Save a checkpoint
-checkpoint = AgentCheckpoint("assistant", step=1)
+# Save a checkpoint (returns UUID)
+checkpoint = AgentCheckpoint("assistant", "gpt-4o")
 checkpoint.memory_snapshot = {"key": "value"}
-storage.save(checkpoint)
+checkpoint_id = storage.save(checkpoint)
 
-# Load by agent_id
-restored = storage.load("assistant")
+# Load by checkpoint_id (UUID from save())
+restored = storage.load(checkpoint_id)
 # Raises RuntimeError if not found (does NOT return None)
 
-# List all checkpoint IDs
-ids = storage.list_checkpoints()
+# List all checkpoints for an agent
+checkpoints = storage.list("assistant")
 
-# Delete
-deleted = storage.delete("assistant")  # Returns bool
+# Delete by checkpoint_id (UUID)
+storage.delete(checkpoint_id)
 ```
 
 **IMPORTANT**: `storage.load()` raises `RuntimeError` when checkpoint not found. It does NOT return `None`.
@@ -68,19 +70,19 @@ from kailash import AgentCheckpoint, FileCheckpointStorage
 
 storage = FileCheckpointStorage("/tmp/agent-checkpoints")
 
-# Save
-checkpoint = AgentCheckpoint("researcher", step=3)
+# Save (returns UUID)
+checkpoint = AgentCheckpoint("researcher", "gpt-4o")
 checkpoint.metadata = {"task": "market research"}
-storage.save(checkpoint)
+checkpoint_id = storage.save(checkpoint)
 
-# Load
-restored = storage.load("researcher")
+# Load by checkpoint_id (UUID from save())
+restored = storage.load(checkpoint_id)
 
-# List
+# List all checkpoints for an agent
 checkpoints = storage.list("researcher")
 
-# Delete
-storage.delete("researcher")
+# Delete by checkpoint_id (UUID)
+storage.delete(checkpoint_id)
 ```
 
 ## AgentInterrupt
@@ -132,27 +134,28 @@ storage = InMemoryCheckpointStorage()
 interrupt = AgentInterrupt()
 
 # Save agent state after each task completion
-def save_agent_state(agent_name, step, memory):
-    checkpoint = AgentCheckpoint(agent_name, step=step)
+def save_agent_state(agent_name, model, memory):
+    checkpoint = AgentCheckpoint(agent_name, model)
     checkpoint.memory_snapshot = memory
-    storage.save(checkpoint)
+    return storage.save(checkpoint)  # Returns checkpoint_id (UUID)
 
 
-# Resume from most recent checkpoint
+# Resume from most recent checkpoint for an agent
 def resume_agent(agent_name):
-    try:
-        return storage.load(agent_name)
-    except RuntimeError:
-        return None  # No checkpoint found
+    checkpoints = storage.list(agent_name)
+    if checkpoints:
+        checkpoints.sort(key=lambda c: c.created_at, reverse=True)
+        return checkpoints[0]
+    return None
 
 
 # Interrupt-aware agent loop
-def agent_loop(agent_name):
+def agent_loop(agent_name, model):
     step = 0
     while not interrupt.is_interrupted:
         # Do work...
         step += 1
-        save_agent_state(agent_name, step, {"progress": step})
+        save_agent_state(agent_name, model, {"progress": step})
 
     print(f"Agent interrupted at step {step}")
 ```
@@ -172,8 +175,11 @@ This skill (`kaizen-checkpoint.md`) and `kaizen-checkpoint-resume.md` cover over
 
 ## Key Points
 
-- **`AgentCheckpoint(agent_id, step=0)`** -- constructor takes agent_id and optional step
-- **`storage.load()`** -- raises `RuntimeError` if not found (NOT None)
+- **`AgentCheckpoint(agent_name, model)`** -- constructor takes two positional strings: agent_name and model
+- **`storage.save(checkpoint)`** -- returns checkpoint_id (UUID)
+- **`storage.load(checkpoint_id)`** -- takes UUID from save(), raises `RuntimeError` if not found (NOT None)
+- **`storage.list(agent_name)`** -- lists checkpoints for an agent
+- **`storage.delete(checkpoint_id)`** -- takes UUID from save()
 - **`memory_snapshot`/`tool_state`/`metadata`** -- are `None` by default, not empty dicts
 - **`AgentInterrupt.is_interrupted`** -- is a property, not a method
 - **Chaining**: Parent interrupt cascades to children

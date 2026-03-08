@@ -51,7 +51,7 @@ import kailash
 from kailash.nexus import NexusApp, NexusConfig
 
 # Production configuration
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
@@ -243,12 +243,13 @@ import kailash
 
 from kailash.nexus import NexusApp
 app = NexusApp()
+app.add_rate_limit(50)  # Global rate limit
 
-# Custom endpoint with specific rate limit
-@app.endpoint("/api/search", rate_limit=50)
-async def search_endpoint(q: str):
-    """Search endpoint with lower rate limit."""
-    return await app._execute_workflow("search", {"query": q})
+# Use @app.handler() (NOT @app.endpoint())
+@app.handler("search", description="Search endpoint")
+async def search_endpoint(q: str) -> dict:
+    """Search endpoint."""
+    return {"query": q, "results": []}
 ```
 
 ### Input Validation
@@ -262,15 +263,8 @@ All channels (API, MCP, CLI) now validate inputs automatically:
 - ✅ **Path Traversal Prevention**: Blocks `../`, `..\\`, absolute paths
 - ✅ **Key Length Limits**: 256 characters max
 
-**Configuration**:
-
-```python
-# Default (10MB input limit)
-app = NexusApp()
-
-# Custom input size limit
-app._max_input_size = 20 * 1024 * 1024  # 20MB
-```
+Input size limits (default 10MB) are configured server-side by the Rust Nexus engine.
+NexusApp does not expose `_max_input_size` as a settable attribute.
 
 **No configuration needed** - automatically applied across all channels.
 
@@ -286,7 +280,7 @@ from kailash.nexus import NexusApp, NexusConfig
 reg = kailash.NodeRegistry()
 
 # Production configuration with all security features
-app = NexusApp(NexusConfig(
+app = NexusApp(config=NexusConfig(
     port=int(os.getenv("PORT", "3000")),
     host="0.0.0.0",
 ))
@@ -396,15 +390,12 @@ volumes:
 **Monitor security events**:
 
 ```python
-# Check auth status
+# Check health status
 health = app.health_check()
-print(f"Auth Enabled: {health.get('auth_enabled', False)}")
+print(f"Health: {health}")
 
-# Monitor rate limiting
-print(f"Rate Limit: {app._rate_limit} req/min")
-
-# Get security logs
-# Security warnings logged at CRITICAL level
+# NOTE: NexusApp does not expose _rate_limit as a private attribute.
+# Verify your rate limiting setup at the application level.
 ```
 
 ### Common Security Mistakes
@@ -697,32 +688,25 @@ app.add_rate_limit(5000)
 
 ### 6. Health Checks
 
-```python
-# Configure health check endpoints
-@app.health_check_handler("database")
-def check_database():
-    # Verify database connectivity
-    return {"status": "healthy"}
+NexusApp does not have a `@app.health_check_handler()` decorator. Health checks
+are built into the platform at `/health`. For custom health logic, use a handler:
 
-@app.health_check_handler("cache")
-def check_cache():
-    # Verify Redis connectivity
-    return {"status": "healthy"}
+```python
+@app.handler("custom_health", description="Custom health check")
+async def custom_health() -> dict:
+    # Verify database and cache connectivity
+    return {"database": "healthy", "cache": "healthy"}
 ```
 
 ### 7. Graceful Shutdown
 
+NexusApp does not have an `app.stop()` method. Graceful shutdown is handled
+by the Rust Nexus engine when the process receives SIGTERM/SIGINT. For Docker
+and Kubernetes, the default signal handling works correctly.
+
 ```python
-import signal
-import sys
-
-def graceful_shutdown(signum, frame):
-    print("Shutting down gracefully...")
-    app.stop()
-    sys.exit(0)
-
-signal.signal(signal.SIGTERM, graceful_shutdown)
-signal.signal(signal.SIGINT, graceful_shutdown)
+# The Rust runtime handles SIGTERM/SIGINT gracefully.
+# No explicit shutdown code needed in Python.
 ```
 
 ## Monitoring in Production

@@ -28,7 +28,7 @@ def test_db():
         email: str
 
     df.create_tables()
-    yield db
+    yield df
     df.close()
 
 def test_user_creation(test_db):

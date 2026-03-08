@@ -90,8 +90,8 @@ supervisor.add_worker(coder)
 supervisor.add_worker(writer)
 
 # Introspection
-print(f"Workers: {supervisor.worker_count()}")
-print(f"Names: {supervisor.worker_names()}")
+print(f"Workers: {supervisor.worker_count}")    # Property, no parens
+print(f"Names: {supervisor.worker_names}")      # Property, no parens
 print(f"Statuses: {supervisor.worker_statuses()}")
 
 # Delegate task -- routes to appropriate worker

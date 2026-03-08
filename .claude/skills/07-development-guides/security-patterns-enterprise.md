@@ -21,7 +21,8 @@ if user_role not in allowed_roles:
     raise PermissionError(f"Role '{user_role}' not authorized")
 
 result = {'authorized': True, 'role': user_role}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

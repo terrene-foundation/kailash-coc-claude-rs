@@ -95,10 +95,10 @@ result = rt.execute(builder.build(reg))
 
 ```python
 # Data processing
-builder.add_node("PythonCode", "transform", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "transform", {"code": "result = data", "output_vars": ["result"]})
 
 # API calls
-builder.add_node("HTTPRequest", "api", {"url": "...", "method": "GET"})
+builder.add_node("HTTPRequestNode", "api", {"url": "...", "method": "GET"})
 
 # AI/LLM
 builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), "prompt": "..."})
@@ -108,9 +108,9 @@ builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL"
 
 ```python
 builder.add_node("LoopNode", "loop", {"max_iterations": 5})
-builder.add_node("ProcessNode", "process", {})
-builder.connect("loop", "results", "process", "input")
-builder.connect("process", "output", "loop", "feedback")
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = input_data", "output_vars": ["result"]})
+builder.connect("source", "items_array", "loop", "items")
+builder.connect("loop", "results", "process", "data")
 ```
 
 ## CRITICAL Gotchas

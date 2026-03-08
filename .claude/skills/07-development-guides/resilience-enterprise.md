@@ -27,7 +27,8 @@ while attempt < max_retries:
         time.sleep(2 ** attempt)  # Exponential backoff
 
 result = {'success': True, 'attempts': attempt}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -83,7 +84,8 @@ except Exception:
     except Exception:
         # Use cached data as last resort
         result = cached_data
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

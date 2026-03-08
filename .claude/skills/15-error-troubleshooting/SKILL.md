@@ -154,20 +154,21 @@ builder.connect("node1", "result", "node2", "data")
 ### 4. Cycle Convergence Issues
 
 ```python
-# ❌ WRONG (infinite loop)
-builder.add_node("LoopNode", "cycle", {
-    "max_iterations": 1000  # Will run all 1000
+# LoopNode iterates over an items array (not condition-based)
+builder.add_node("LoopNode", "loop", {
+    "max_iterations": 100  # Optional safety limit
 })
+# Connect the array to iterate over
+builder.connect("source", "items_array", "loop", "items")
 
-# ✅ CORRECT (with convergence)
-builder.add_node("EmbeddedPythonNode", "check", {
-    "code": """
-if abs(current - previous) < 0.01:
-    cycle_complete = True
-else:
-    cycle_complete = False
-"""
-})
+# For convergence logic, use a callback node with internal state
+def converge(inputs):
+    current = inputs.get("current", 0)
+    previous = inputs.get("previous", 0)
+    done = abs(current - previous) < 0.01
+    return {"done": done, "value": current}
+
+reg.register_callback("ConvergeCheck", converge, ["current", "previous"], ["done", "value"])
 ```
 
 ### 5. DataFlow Template Errors

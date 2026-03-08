@@ -27,7 +27,7 @@ available_nodes = reg.list_types()  # Returns 139+ node types
 # Core node categories:
 # - Data: CSVProcessorNode, SQLQueryNode, FileReaderNode
 # - API: HTTPRequestNode
-# - AI: LLMNode, EmbeddingNode, ClassificationNode, SentimentAnalysisNode
+# - AI: LLMNode, EmbeddingNode, ClassificationNode, SentimentNode
 # - Logic: SwitchNode, MergeNode, ConditionalNode
 # - Transform: DataMapperNode, JSONTransformNode
 # - Code: EmbeddedPythonNode
@@ -56,7 +56,8 @@ builder = kailash.WorkflowBuilder()
 
 # Try different nodes
 builder.add_node("EmbeddedPythonNode", "test", {
-    "code": "result = {'test': 'success'}"
+    "code": "result = {'test': 'success'}",
+    "output_vars": ["result"]
 })
 
 # Explore connections

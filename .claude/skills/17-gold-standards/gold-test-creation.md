@@ -23,7 +23,8 @@ def test_workflow_execution():
     # Arrange: Build workflow
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'status': 'success', 'value': 42}"
+        "code": "status = 'success'\nvalue = 42",
+        "output_vars": ["status", "value"]
     })
 
     # Act: Execute workflow
@@ -31,9 +32,9 @@ def test_workflow_execution():
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    # Assert: Verify results
-    assert result["results"]["process"]["result"]["status"] == "success"
-    assert result["results"]["process"]["result"]["value"] == 42
+    # Assert: Verify results (access via outputs -> var_name)
+    assert result["results"]["process"]["outputs"]["status"] == "success"
+    assert result["results"]["process"]["outputs"]["value"] == 42
     assert result["run_id"] is not None
 ```
 
@@ -46,14 +47,15 @@ async def test_async_workflow_execution():
     """Test workflow execution with Runtime."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'status': 'completed'}"
+        "code": "status = 'completed'",
+        "output_vars": ["status"]
     })
 
     reg = kailash.NodeRegistry()
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["process"]["result"]["status"] == "completed"
+    assert result["results"]["process"]["outputs"]["status"] == "completed"
 ```
 
 ## 3-Tier Test Creation
@@ -65,7 +67,7 @@ async def test_async_workflow_execution():
 def test_workflow_builder_creates_workflow():
     """Test WorkflowBuilder creates valid workflow."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1"})
+    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1", "output_vars": ["result"]})
 
     reg = kailash.NodeRegistry()
     built_workflow = builder.build(reg)
@@ -75,9 +77,9 @@ def test_workflow_builder_creates_workflow():
 def test_workflow_builder_adds_connection():
     """Test WorkflowBuilder adds connections correctly."""
     builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "source", {"code": "result = {'data': 42}"})
-    builder.add_node("EmbeddedPythonNode", "target", {"code": "result = data"})
-    builder.connect("source", "result.data", "target", "data")
+    builder.add_node("EmbeddedPythonNode", "source", {"code": "result = {'data': 42}", "output_vars": ["result"]})
+    builder.add_node("EmbeddedPythonNode", "target", {"code": "result = data", "output_vars": ["result"]})
+    builder.connect("source", "outputs", "target", "data")
 
     reg = kailash.NodeRegistry()
     built_workflow = builder.build(reg)
@@ -96,7 +98,7 @@ def test_database_query_workflow():
     conn_string = get_postgres_connection_string()
 
     builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLDatabaseNode", "db", {
+    builder.add_node("SQLQueryNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as id, 'test' as name",
         "operation": "select"
@@ -182,12 +184,13 @@ def redis_connection():
 def test_workflow_returns_correct_value(workflow_builder, registry, runtime):
     """Test workflow returns expected value."""
     workflow_builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'value': 100}"
+        "code": "value = 100",
+        "output_vars": ["value"]
     })
 
     result = runtime.execute(workflow_builder.build(registry))
 
-    assert result["results"]["node"]["result"]["value"] == 100
+    assert result["results"]["node"]["outputs"]["value"] == 100
     assert result["run_id"] is not None
 ```
 
@@ -202,7 +205,8 @@ def test_workflow_returns_correct_value(workflow_builder, registry, runtime):
 def test_double_value_workflow(input_value, expected, workflow_builder, registry, runtime):
     """Test workflow doubles input value correctly."""
     workflow_builder.add_node("EmbeddedPythonNode", "double", {
-        "code": "result = {'value': input_val * 2}"
+        "code": "value = input_val * 2",
+        "output_vars": ["value"]
     })
 
     result = runtime.execute(
@@ -210,7 +214,7 @@ def test_double_value_workflow(input_value, expected, workflow_builder, registry
         inputs={"double": {"input_val": input_value}}
     )
 
-    assert result["results"]["double"]["result"]["value"] == expected
+    assert result["results"]["double"]["outputs"]["value"] == expected
 ```
 
 ## Error Testing

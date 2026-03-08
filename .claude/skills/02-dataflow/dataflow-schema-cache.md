@@ -13,11 +13,11 @@ The schema cache is a thread-safe table existence cache that eliminates redundan
 
 ## Performance Characteristics
 
-| Operation | Time |
-|-----------|------|
-| Cache miss (first check) | ~1500ms |
-| Cache hit (subsequent) | ~1ms |
-| Improvement | 91-99% faster |
+| Operation                | Time          |
+| ------------------------ | ------------- |
+| Cache miss (first check) | ~1500ms       |
+| Cache hit (subsequent)   | ~1ms          |
+| Improvement              | 91-99% faster |
 
 ## Configuration
 
@@ -45,7 +45,9 @@ df = kailash.DataFlow("postgresql://...", schema_cache_enabled=False)
 Cache works automatically - no code changes needed:
 
 ```python
-db = kailash.DataFlow("postgresql://...")
+from kailash.dataflow import db
+
+df = kailash.DataFlow("postgresql://...")
 
 @db.model
 class User:
@@ -90,6 +92,7 @@ The schema cache is fully thread-safe for multi-threaded applications:
 
 ```python
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 from concurrent.futures import ThreadPoolExecutor
@@ -120,12 +123,11 @@ All cache operations are protected by RLock, ensuring safe concurrent access fro
 
 ## Performance Impact Summary
 
-| Metric | Without Cache | With Cache |
-|--------|---------------|--------------|
-| Instance creation | ~700ms | <50ms (14x faster) |
-| First operation | ~1500ms | ~1500ms (cache miss) |
-| Subsequent operations | ~1500ms | ~1ms (99% faster) |
-| Memory per table | N/A | <1KB |
+| Metric                | Without Cache | With Cache           |
+| --------------------- | ------------- | -------------------- |
+| Instance creation     | ~700ms        | <50ms (14x faster)   |
+| First operation       | ~1500ms       | ~1500ms (cache miss) |
+| Subsequent operations | ~1500ms       | ~1ms (99% faster)    |
+| Memory per table      | N/A           | <1KB                 |
 
 ## Requirements
-

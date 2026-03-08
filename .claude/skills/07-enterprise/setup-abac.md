@@ -103,19 +103,13 @@ abac = AbacEvaluator(
 )
 
 # 3. Combined evaluation: RBAC first, then ABAC
-combined = CombinedEvaluator(rbac=rbac, abac=abac)
+combined = CombinedEvaluator(rbac, abac, strategy="deny_override")
 
 user = User("alice").with_role("editor")
-result = combined.evaluate(
-    user=user,
-    resource="documents",
-    action="write",
-    resource_attrs={"type": "report"},
-    environment={"hour": 14},   # 2 PM - within business hours
-)
+result = combined.evaluate(user, "documents", "write", environment={"hour": 14})
 
-print(f"Allowed: {result.allowed}")
-print(f"Reason: {result.reason}")
+print(f"Allowed: {result['allowed']}")
+print(f"Reason: {result['reason']}")
 ```
 
 ## Template: Tests
@@ -203,17 +197,11 @@ def test_combined_rbac_abac():
     biz_hours = biz_hours.with_environment_condition("hour", "lt", 17)
 
     abac = AbacEvaluator(policies=[biz_hours], strategy="first_applicable")
-    combined = CombinedEvaluator(rbac=rbac, abac=abac)
+    combined = CombinedEvaluator(rbac, abac, strategy="deny_override")
 
     user = User("alice").with_role("editor")
-    result = combined.evaluate(
-        user=user,
-        resource="documents",
-        action="write",
-        resource_attrs={},
-        environment={"hour": 14},
-    )
-    assert result.allowed is True
+    result = combined.evaluate(user, "documents", "write", environment={"hour": 14})
+    assert result["allowed"] is True
 ```
 
 ## Checklist

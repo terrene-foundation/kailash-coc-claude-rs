@@ -13,44 +13,55 @@ You are an expert in Model Context Protocol (MCP) server development with Kailas
 
 ### 2. Basic MCP Server
 
+**McpServer (Rust-backed)** uses `register_tool()` / `register_resource()`:
+
 ```python
 import kailash
 
-# Create MCP server
+# Create MCP server (Rust-backed)
 server = kailash.McpServer(
     "my-mcp-server",
     "1.0.0",
     description="My custom MCP server"
 )
 
-# Define tool
-@server.tool(
-    name="calculate_sum",
-    description="Calculate the sum of two numbers"
-)
+# Register tool (positional: name, description, handler)
 def calculate_sum(a: float, b: float) -> dict:
     """Add two numbers together."""
-    return {
-        "result": a + b,
-        "operation": "addition"
-    }
+    return {"result": a + b, "operation": "addition"}
 
-# Define resource
-@server.resource(
-    uri="config://settings",
-    name="Server Settings",
-    description="Server configuration"
-)
+server.register_tool("calculate_sum", "Calculate the sum of two numbers", calculate_sum)
+
+# Register resource (positional: uri, name, description, handler)
 def get_settings() -> dict:
     """Return server settings."""
-    return {
-        "version": "1.0.0",
-        "environment": "production"
-    }
+    return {"version": "1.0.0", "environment": "production"}
+
+server.register_resource("config://settings", "Server Settings", "Server configuration", get_settings)
 
 # Run server
 if __name__ == "__main__":
     server.run(transport="stdio")
+```
+
+**McpApplication (Python compat)** uses `@app.tool()` / `@app.resource()` decorators:
+
+```python
+from kailash.nexus import McpApplication
+
+# Create MCP application (Python compat wrapper with decorator API)
+app = McpApplication("my-mcp-server", "1.0.0")
+
+@app.tool(name="calculate_sum", description="Calculate the sum of two numbers")
+def calculate_sum(a: float, b: float) -> dict:
+    return {"result": a + b, "operation": "addition"}
+
+@app.resource(uri="config://settings", name="Server Settings", description="Server configuration")
+def get_settings() -> dict:
+    return {"version": "1.0.0", "environment": "production"}
+
+if __name__ == "__main__":
+    app.run(transport="stdio")
 ```
 
 ### 3. Advanced MCP Tools
@@ -67,28 +78,24 @@ class SearchParams(BaseModel):
     limit: int = Field(default=10, description="Number of results")
     category: str = Field(default="all", description="Category filter")
 
-@server.tool(
-    name="search_database",
-    description="Search database with filters"
-)
 def search_database(params: SearchParams) -> dict:
     """Search database with structured parameters."""
-    # Real database search
     results = perform_search(
         query=params.query,
         limit=params.limit,
         category=params.category
     )
-
     return {
         "results": results,
         "count": len(results),
         "query": params.query
     }
 
+# Register with McpServer (name, description, handler)
+server.register_tool("search_database", "Search database with filters", search_database)
+
 def perform_search(query, limit, category):
     """Actual search implementation."""
-    # Implementation
     return []
 ```
 
@@ -99,10 +106,6 @@ import kailash
 
 server = kailash.McpServer("workflow-server", "1.0.0")
 
-@server.tool(
-    name="process_data",
-    description="Process data through workflow"
-)
 def process_data(input_data: dict) -> dict:
     """Execute workflow to process data."""
     # Create workflow
@@ -116,7 +119,8 @@ result = {
     'data': input_data,
     'timestamp': str(datetime.now())
 }
-"""
+""",
+        "output_vars": ["result"]
     })
 
     # Execute workflow
@@ -126,49 +130,32 @@ result = {
         "processor": {"input_data": input_data}
     })
 
-    return results["processor"]["result"]
+    return results["processor"]["outputs"]
+
+server.register_tool("process_data", "Process data through workflow", process_data)
 ```
 
 ### 5. Resource Management
 
 ```python
-@server.resource(
-    uri="database://users",
-    name="User Database",
-    description="Access user data",
-    mime_type="application/json"
-)
 def get_users() -> dict:
     """Retrieve users from database."""
-    # Real database access
     users = fetch_users_from_db()
-    return {
-        "users": users,
-        "count": len(users)
-    }
+    return {"users": users, "count": len(users)}
 
-@server.resource(
-    uri="file://logs/{date}",
-    name="Log Files",
-    description="Access log files by date"
-)
+server.register_resource("database://users", "User Database", "Access user data", get_users)
+
 def get_logs(date: str) -> dict:
     """Retrieve logs for specific date."""
     logs = read_log_file(date)
-    return {
-        "date": date,
-        "logs": logs,
-        "lines": len(logs)
-    }
+    return {"date": date, "logs": logs, "lines": len(logs)}
+
+server.register_resource("file://logs/{date}", "Log Files", "Access log files by date", get_logs)
 ```
 
 ### 6. MCP Prompts
 
 ```python
-@server.prompt(
-    name="data_analysis",
-    description="Prompt for data analysis tasks"
-)
 def data_analysis_prompt(dataset: str, question: str) -> dict:
     """Generate analysis prompt."""
     return {
@@ -183,6 +170,8 @@ def data_analysis_prompt(dataset: str, question: str) -> dict:
             }
         ]
     }
+
+server.register_prompt("data_analysis", "Prompt for data analysis tasks", data_analysis_prompt)
 ```
 
 ### 7. Transport Configuration
@@ -255,10 +244,6 @@ For full MCP client integration (auto-discovery, iterative tool execution, MCP p
 ### 9. Error Handling in MCP Tools
 
 ```python
-@server.tool(
-    name="safe_operation",
-    description="Operation with error handling"
-)
 def safe_operation(data: dict) -> dict:
     """Execute operation with error handling."""
     try:
@@ -290,6 +275,8 @@ def safe_operation(data: dict) -> dict:
             "error": "internal_error",
             "message": str(e)
         }
+
+server.register_tool("safe_operation", "Operation with error handling", safe_operation)
 ```
 
 ### 10. MCP Server Testing
@@ -302,11 +289,12 @@ def test_mcp_tool():
     """Test MCP tool execution."""
     server = kailash.McpServer("test-server", "1.0.0")
 
-    @server.tool(name="test_tool", description="Test tool")
     def test_tool(value: int) -> dict:
         return {"result": value * 2}
 
-    # Test tool execution
+    server.register_tool("test_tool", "Test tool", test_tool)
+
+    # Test tool execution directly
     result = test_tool(5)
     assert result["result"] == 10
 
@@ -314,9 +302,10 @@ def test_mcp_resource():
     """Test MCP resource."""
     server = kailash.McpServer("test-server", "1.0.0")
 
-    @server.resource(uri="test://resource", name="Test")
     def test_resource() -> dict:
         return {"data": "test"}
+
+    server.register_resource("test://resource", "Test", "Test resource", test_resource)
 
     result = test_resource()
     assert result["data"] == "test"

@@ -27,11 +27,12 @@ Lightning-fast isolated tests (<100ms) using savepoint-based rollback for DataFl
 ```python
 import pytest
 import kailash
+from kailash.dataflow import db
 
 reg = kailash.NodeRegistry()
 
 @pytest.fixture
-def db():
+def dataflow():
     """TDD mode - savepoint isolation."""
     df = kailash.DataFlow(
         ":memory:",  # In-memory for speed; provides natural isolation
@@ -43,10 +44,10 @@ def db():
         name: str
         email: str
 
-    yield db
+    yield df
     # Automatic rollback via savepoint
 
-def test_user_creation(db):
+def test_user_creation(dataflow):
     """Test runs in <100ms with isolation."""
     builder = kailash.WorkflowBuilder()
     builder.add_node("CreateUser", "create", {
@@ -57,7 +58,7 @@ def test_user_creation(db):
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
 
-    assert result["results"]["create"]["result"]["name"] == "Test User"
+    assert result["results"]["create"]["record"]["name"] == "Test User"
     # Automatic rollback - no cleanup needed
 ```
 
@@ -66,16 +67,18 @@ def test_user_creation(db):
 ### Savepoint Isolation
 
 ```python
+from kailash.dataflow import db
+
 @pytest.fixture
 def isolated_db():
-    db = kailash.DataFlow(":memory:")  # In-memory DB provides per-fixture isolation
+    df = kailash.DataFlow(":memory:")  # In-memory DB provides per-fixture isolation
 
     @db.model
     class Product:
         name: str
         price: float
 
-    yield db
+    yield df
     # In-memory DB is discarded when fixture tears down
 
 def test_product_1(isolated_db):
@@ -91,7 +94,7 @@ def test_product_2(isolated_db):
 ### Fast Test Execution
 
 ```python
-def test_suite_performance(db):
+def test_suite_performance(dataflow):
     """100 tests in <10 seconds."""
     for i in range(100):
         builder = kailash.WorkflowBuilder()
@@ -111,20 +114,20 @@ def test_suite_performance(db):
 ```python
 # SLOW - Full cleanup needed
 @pytest.fixture
-def db():
-    db = kailash.DataFlow("sqlite:///test.db")
-    yield db
+def dataflow():
+    df = kailash.DataFlow("sqlite:///test.db")
+    yield df
     # Manual cleanup - slow!
-    db.drop_all_tables()
+    df.drop_all_tables()
 ```
 
 **Fix: Use In-Memory SQLite**
 
 ```python
 @pytest.fixture
-def db():
-    db = kailash.DataFlow(":memory:")  # Fresh DB per fixture invocation
-    yield db
+def dataflow():
+    df = kailash.DataFlow(":memory:")  # Fresh DB per fixture invocation
+    yield df
     # No cleanup needed - in-memory DB is discarded automatically
 ```
 

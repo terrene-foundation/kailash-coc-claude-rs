@@ -62,7 +62,8 @@ except Exception as e:
 
 finally:
     active_workflows.dec()
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

@@ -21,7 +21,8 @@ builder = kailash.WorkflowBuilder()
 
 # Initialize counter
 builder.add_node("EmbeddedPythonNode", "init", {
-    "code": "result = {'counter': 0, 'max_iterations': 5}"
+    "code": "result = {'counter': 0, 'max_iterations': 5}",
+    "output_vars": ["result"]
 })
 
 # Process iteration
@@ -33,7 +34,8 @@ result = {
     'value': counter * 10,
     'continue': counter < data.get('max_iterations', 5)
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Check continuation — use SwitchNode for routing between loop/exit branches
@@ -44,8 +46,8 @@ builder.add_node("SwitchNode", "check", {
 # SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Connections
-builder.connect("init", "result", "process", "data")
-builder.connect("process", "result", "check", "condition")
+builder.connect("init", "outputs", "process", "data")
+builder.connect("process", "outputs", "check", "condition")
 builder.connect("check", "data", "process", "data")  # Loop back
 
 reg = kailash.NodeRegistry()
@@ -63,33 +65,37 @@ builder = kailash.WorkflowBuilder()
 
 # Single source
 builder.add_node("EmbeddedPythonNode", "source", {
-    "code": "result = {'data': [1, 2, 3, 4, 5]}"
+    "code": "result = {'data': [1, 2, 3, 4, 5]}",
+    "output_vars": ["result"]
 })
 
 # Parallel processors
 builder.add_node("EmbeddedPythonNode", "processor_a", {
-    "code": "result = {'sum': sum(data)}"
+    "code": "result = {'sum': sum(data)}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("EmbeddedPythonNode", "processor_b", {
-    "code": "result = {'avg': sum(data) / len(data)}"
+    "code": "result = {'avg': sum(data) / len(data)}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("EmbeddedPythonNode", "processor_c", {
-    "code": "result = {'max': max(data), 'min': min(data)}"
+    "code": "result = {'max': max(data), 'min': min(data)}",
+    "output_vars": ["result"]
 })
 
 # Merge results
 builder.add_node("MergeNode", "merge", {})
 
 # Connections for parallel execution
-builder.connect("source", "result", "processor_a", "data")
-builder.connect("source", "result", "processor_b", "data")
-builder.connect("source", "result", "processor_c", "data")
+builder.connect("source", "outputs", "processor_a", "data")
+builder.connect("source", "outputs", "processor_b", "data")
+builder.connect("source", "outputs", "processor_c", "data")
 
-builder.connect("processor_a", "result", "merge", "sum_data")
-builder.connect("processor_b", "result", "merge", "avg_data")
-builder.connect("processor_c", "result", "merge", "stats_data")
+builder.connect("processor_a", "outputs", "merge", "sum_data")
+builder.connect("processor_b", "outputs", "merge", "avg_data")
+builder.connect("processor_c", "outputs", "merge", "stats_data")
 ```
 
 ### 4. Dynamic Workflow Composition
@@ -102,7 +108,8 @@ def create_processing_workflow(processors):
     builder = kailash.WorkflowBuilder()
 
     builder.add_node("EmbeddedPythonNode", "source", {
-        "code": "result = input_data"
+        "code": "result = input_data",
+        "output_vars": ["result"]
     })
 
     # Add processors dynamically
@@ -112,9 +119,9 @@ def create_processing_workflow(processors):
 
         # Connect to previous node
         prev_id = "source" if i == 0 else f"processor_{i-1}"
-        builder.connect(prev_id, "result", node_id, "input_data")
+        builder.connect(prev_id, "outputs", node_id, "input_data")
 
-    return workflow
+    return builder
 ```
 
 ### 5. Advanced Error Handling
@@ -133,7 +140,8 @@ except ZeroDivisionError:
     result = {'status': 'error', 'error': 'division_by_zero'}
 except Exception as e:
     result = {'status': 'error', 'error': str(e)}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Route based on status — SwitchNode matches condition input against case keys
@@ -141,17 +149,19 @@ builder.add_node("SwitchNode", "error_router", {
     "cases": {"success": "success_handler", "error": "error_handler"},
     "default_branch": "error_handler"
 })
-# Connect the status field as the condition input
-builder.connect("risky_op", "result.status", "error_router", "condition")
+# Connect the outputs to the error_router condition input
+builder.connect("risky_op", "outputs", "error_router", "condition")
 # SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Separate handlers
 builder.add_node("EmbeddedPythonNode", "success_handler", {
-    "code": "result = {'final': data['data']}"
+    "code": "result = {'final': data['data']}",
+    "output_vars": ["result"]
 })
 
 builder.add_node("EmbeddedPythonNode", "error_handler", {
-    "code": "result = {'final': None, 'error': data['error']}"
+    "code": "result = {'final': None, 'error': data['error']}",
+    "output_vars": ["result"]
 })
 ```
 
@@ -171,10 +181,10 @@ class WorkflowTemplates:
         builder.add_node("EmbeddedPythonNode", "transform", transform_config)
         builder.add_node("EmbeddedPythonNode", "load", load_config)
 
-        builder.connect("extract", "result", "transform", "data")
-        builder.connect("transform", "result", "load", "data")
+        builder.connect("extract", "outputs", "transform", "data")
+        builder.connect("transform", "outputs", "load", "data")
 
-        return workflow
+        return builder
 
     @staticmethod
     def create_validation_pipeline(validators):
@@ -183,7 +193,7 @@ class WorkflowTemplates:
         for i, validator in enumerate(validators):
             builder.add_node("EmbeddedPythonNode", f"validator_{i}", validator)
 
-        return workflow
+        return builder
 ```
 
 ### 7. Performance Optimization
@@ -200,7 +210,8 @@ for i in range(0, len(data), batch_size):
     batch = data[i:i+batch_size]
     results.extend([process_item(item) for item in batch])
 result = {'processed': results}
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -219,7 +230,8 @@ else:
     result = expensive_operation(input_data)
     cache[key] = result
     globals()['operation_cache'] = cache
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -234,7 +246,8 @@ try:
     result = use_resource(resource)
 finally:
     release_resource(resource)
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 

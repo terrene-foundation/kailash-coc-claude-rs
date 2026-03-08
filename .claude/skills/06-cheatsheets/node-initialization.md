@@ -35,7 +35,8 @@ my_param = input_data.get("my_param", "default")
 threshold = input_data.get("threshold", 0.75)
 
 result = {"result": f"Processed with {my_param}"}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # Execute with runtime parameters

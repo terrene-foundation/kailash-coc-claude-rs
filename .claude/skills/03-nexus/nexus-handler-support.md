@@ -93,7 +93,8 @@ import kailash
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "trusted_node", {
     "code": "import subprocess\nresult = subprocess.run(['ls'])",
-    "sandbox_mode": "trusted"  # Default: "restricted"
+    "sandbox_mode": "trusted"  # Default: "restricted",
+    "output_vars": ["result"]
 })
 ```
 
@@ -141,7 +142,8 @@ def sync_operation(data: str) -> dict:
 
 ```python
 builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "import asyncio\nfrom my_app import Service\n..."
+    "code": "import asyncio\nfrom my_app import Service\n...",
+    "output_vars": ["result"]
 })
 app.register("process", builder.build(reg))
 ```

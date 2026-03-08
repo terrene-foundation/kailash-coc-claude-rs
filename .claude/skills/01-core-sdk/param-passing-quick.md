@@ -42,9 +42,10 @@ builder.add_node("EmailAlertNode", "send", {
 
 # Method 2: Workflow Connection (dynamic from another node)
 builder.add_node("EmbeddedPythonNode", "lookup", {
-    "code": "result = {'email': 'user@example.com'}"
+    "code": "result = {'email': 'user@example.com'}",
+    "output_vars": ["result"]
 })
-builder.connect("lookup", "result.email", "send", "to")
+builder.connect("lookup", "outputs", "send", "to")
 
 # Method 3: Runtime Parameter (override at execution)
 rt = kailash.Runtime(reg)
@@ -97,7 +98,8 @@ result = {
     'email': email,
     'active': active
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -114,15 +116,17 @@ result = {
 
 ```python
 builder.add_node("EmbeddedPythonNode", "form", {
-    "code": "result = {'email_field': 'alice@example.com'}"
+    "code": "result = {'email_field': 'alice@example.com'}",
+    "output_vars": ["result"]
 })
 builder.add_node("EmbeddedPythonNode", "create", {
     "code": "result = {'name': 'Alice', 'email': email}"
-    # 'email' comes from connection
+    # 'email' comes from connection,
+    "output_vars": ["result"]
 })
 
 # 4-parameter syntax: source, source_output, target, target_input
-builder.connect("form", "result.email_field", "create", "email")
+builder.connect("form", "outputs", "create", "email")
 ```
 
 **Advantages:**
@@ -139,7 +143,8 @@ builder.connect("form", "result.email_field", "create", "email")
 ```python
 builder.add_node("EmbeddedPythonNode", "generate", {
     "code": "result = {'report': f'Report from {start_date} to {end_date}'}"
-    # 'start_date' and 'end_date' from runtime
+    # 'start_date' and 'end_date' from runtime,
+    "output_vars": ["result"]
 })
 
 rt.execute(builder.build(reg), inputs={

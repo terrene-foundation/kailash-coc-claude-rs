@@ -42,7 +42,7 @@ builder.add_node("HTTPRequestNode", "get_user", {
     "url": "https://api.example.com/users/{{input.user_id}}",
     "method": "GET",
     "headers": {
-        "Authorization": "Bearer {{auth.access_token}}",
+        "Authorization": "Bearer {{auth.body}}",
     },
 })
 
@@ -51,7 +51,7 @@ builder.add_node("HTTPRequestNode", "update_profile", {
     "url": "https://api.example.com/users/{{input.user_id}}/profile",
     "method": "PUT",
     "headers": {
-        "Authorization": "Bearer {{auth.access_token}}",
+        "Authorization": "Bearer {{auth.body}}",
     },
     "body": "{{input.profile_data}}",
 })
@@ -66,9 +66,9 @@ builder.add_node("HTTPRequestNode", "notify_webhook", {
     },
 })
 
-builder.connect("auth", "access_token", "get_user", "token")
-builder.connect("get_user", "body", "update_profile", "user_data")
-builder.connect("update_profile", "result", "notify_webhook", "body")
+builder.connect("auth", "body", "get_user", "headers")
+builder.connect("get_user", "body", "update_profile", "body")
+builder.connect("update_profile", "body", "notify_webhook", "body")
 
 wf = builder.build(reg)
 rt = kailash.Runtime(reg)
@@ -103,15 +103,13 @@ builder.add_node("HTTPRequestNode", "api_events", {
     "method": "GET",
 })
 
-# Merge results
-builder.add_node("MergeNode", "merge_results", {
-    "strategy": "combine",
-})
+# Merge results — MergeNode takes no config, output is "merged"
+builder.add_node("MergeNode", "merge_results", {})
 
 # No connections between parallel nodes - they run simultaneously
-builder.connect("api_weather", "body", "merge_results", "weather_data")
-builder.connect("api_news", "body", "merge_results", "news_data")
-builder.connect("api_events", "body", "merge_results", "events_data")
+builder.connect("api_weather", "body", "merge_results", "input_1")
+builder.connect("api_news", "body", "merge_results", "input_2")
+builder.connect("api_events", "body", "merge_results", "input_3")
 ```
 
 ## Pattern 3: GraphQL API Integration

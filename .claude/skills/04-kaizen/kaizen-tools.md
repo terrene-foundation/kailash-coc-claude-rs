@@ -5,7 +5,7 @@ description: "Tool system for Kaizen agents. Use when asking about defining tool
 
 # Kaizen Tools: Agent Tool System
 
-The Kaizen tool system allows agents to call external functions. Tools are defined with `ToolDef`, registered in a `ToolRegistry`, and executed via `call()`.
+The Kaizen tool system allows agents to call external functions. Tools are defined with `ToolDef`, registered in a `ToolRegistry`, and invoked through the agent's TAOD execution loop.
 
 ## Core Types
 
@@ -104,13 +104,18 @@ tool = registry.get("calculator")     # Returns ToolDef or None
 assert tool is not None
 ```
 
-## Calling Tools
+## Tool Invocation
+
+**Known limitation**: `PyToolDef` does not expose `handler` as a Python-accessible getter, and there is no `call()` method. Tools are invoked through the agent's TAOD execution loop, not called directly from Python.
 
 ```python
-# Call a tool directly
+# Tools are invoked by the agent runtime during execution, not directly.
+# The agent's TAOD loop (think/act/observe/decide) handles tool dispatch.
+
+# To access tool metadata (name, description, params) for inspection:
 tool = registry.get("calculator")
-result = tool.call({"a": 10, "b": 5, "op": "add"})
-# result == 15
+print(tool.name)           # "calculator"
+print(tool.description)    # "Performs basic arithmetic"
 ```
 
 ## Schema Generation
@@ -131,32 +136,30 @@ schema = tool.to_anthropic_schema()
 
 ## Tools with BaseAgent
 
+`BaseAgent.tool_registry` is a **read-only property**. Use `register_tool()` to add tools:
+
 ```python
-from kailash.kaizen import BaseAgent, ToolRegistry, ToolDef, ToolParam
+from kailash.kaizen import BaseAgent, ToolDef, ToolParam
 
 class ToolAgent(BaseAgent):
     name = "tool-agent"
 
     def execute(self, input_text: str) -> dict:
-        # Look up tool by name
-        tool = self.tools.get("search")
-        if tool:
-            result = tool.call({"query": input_text})
-            return {"response": str(result)}
-        return {"response": "No tools available"}
+        # The agent's TAOD loop invokes tools automatically.
+        # Access tool_registry for inspection if needed:
+        tools = self.tool_registry.list_tools()
+        return {"response": f"Available tools: {tools}"}
 
-
-# Register tools
-tools = ToolRegistry()
-tools.register(ToolDef(
-    name="search",
-    description="Search for information",
-    handler=lambda args: f"Results for: {args['query']}",
-    params=[ToolParam(name="query", required=True)],
-))
 
 agent = ToolAgent()
-agent.tools = tools
+
+# Register tools via register_tool() (tool_registry is read-only)
+agent.register_tool(
+    "search",
+    lambda args: f"Results for: {args['query']}",
+    "Search for information",
+    {"query": "string"},
+)
 
 result = agent.run("latest Rust news")
 ```
@@ -200,7 +203,8 @@ tool = ToolDef(
 - **`ToolDef(handler=...)`** -- use `handler=` kwarg, NOT `callback=`
 - **`ToolParam`** -- supports types: `"string"`, `"integer"`, `"float"`, `"boolean"`, `"object"`, `"array"`
 - **`ToolRegistry`** -- `register()`, `get()`, `list_tools()`, `count()`
-- **`tool.call(args_dict)`** -- execute a tool with a dict of arguments
+- **`tool_registry` is read-only** -- use `agent.register_tool(name, func, description, params_dict)` to add tools
+- **Tool invocation** -- tools are invoked by the agent's TAOD loop, not called directly from Python
 - **Schema generation** -- `to_openai_schema()` and `to_anthropic_schema()` for LLM integration
 
 <!-- Trigger Keywords: tool, ToolDef, ToolRegistry, ToolParam, tool parameter, handler, function calling, tool schema -->

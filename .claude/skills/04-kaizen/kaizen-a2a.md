@@ -25,9 +25,9 @@ from kailash.kaizen import AgentCard
 
 # Create an agent card (auto-generates UUID)
 card = AgentCard("researcher", "Researches topics using web search")
-card.with_capability("text-generation")
-card.with_capability("research")
-card.with_capability("web-search")
+card = card.with_capability("text-generation")
+card = card.with_capability("research")
+card = card.with_capability("web-search")
 
 # Each card has a unique UUID
 print(card.id)            # Auto-generated UUID
@@ -49,18 +49,18 @@ registry = AgentRegistry()
 
 # Register agents
 researcher_card = AgentCard("researcher", "Researches topics")
-researcher_card.with_capability("research")
-researcher_card.with_capability("text-generation")
-registry.register(researcher_card)
+researcher_card = researcher_card.with_capability("research")
+researcher_card = researcher_card.with_capability("text-generation")
+researcher_id = registry.register(researcher_card)
 
 coder_card = AgentCard("coder", "Writes code")
-coder_card.with_capability("code-generation")
-coder_card.with_capability("code-review")
-registry.register(coder_card)
+coder_card = coder_card.with_capability("code-generation")
+coder_card = coder_card.with_capability("code-review")
+coder_id = registry.register(coder_card)
 
 reviewer_card = AgentCard("reviewer", "Reviews code")
-reviewer_card.with_capability("code-review")
-registry.register(reviewer_card)
+reviewer_card = reviewer_card.with_capability("code-review")
+reviewer_id = registry.register(reviewer_card)
 
 # Discover agents by capability
 code_reviewers = registry.discover("code-review")
@@ -73,16 +73,16 @@ assert len(researchers) == 1
 empty = registry.discover("data-analysis")
 assert len(empty) == 0
 
-# Fetch a specific agent
-card = registry.get("researcher")
+# Fetch a specific agent by UUID (returned from register())
+card = registry.get(researcher_id)
 assert card is not None
 
 # List all registered agents
 all_agents = registry.list_all()
 assert len(all_agents) == 3
 
-# Unregister an agent
-registry.deregister("coder")
+# Unregister an agent by UUID
+registry.deregister(coder_id)
 ```
 
 ## Messaging Pattern
@@ -96,8 +96,8 @@ from kailash.kaizen import AgentCard, AgentRegistry
 registry = AgentRegistry()
 
 analyzer_card = AgentCard("analyzer", "Analyzes data")
-analyzer_card.with_capability("analysis")
-registry.register(analyzer_card)
+analyzer_card = analyzer_card.with_capability("analysis")
+analyzer_id = registry.register(analyzer_card)
 
 # Step 2: Discover agents by capability
 matches = registry.discover("analysis")
@@ -131,9 +131,9 @@ from kailash.kaizen import AgentCard, AgentRegistry
 registry = AgentRegistry()
 
 card = AgentCard("coder", "Writes code")
-card.with_capability("python")
-card.with_capability("rust")
-registry.register(card)
+card = card.with_capability("python")
+card = card.with_capability("rust")
+coder_id = registry.register(card)
 
 # Create corresponding WorkerAgent for execution
 def code_fn(input_text: str) -> str:

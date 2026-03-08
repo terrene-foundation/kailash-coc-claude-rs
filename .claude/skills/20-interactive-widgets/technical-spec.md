@@ -575,7 +575,7 @@ from kailash.nexus import NexusApp
 
 app = NexusApp()
 
-@app.endpoint("/api/widget/action", methods=["POST"])
+@app.handler()
 async def handle_widget_action(
     widget_id: str,
     action_id: str,

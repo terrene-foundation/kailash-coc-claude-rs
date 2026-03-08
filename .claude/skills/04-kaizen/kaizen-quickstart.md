@@ -39,7 +39,8 @@ class MyAgent(BaseAgent):
         return {"response": f"Processed: {input_text}"}
 
 agent = MyAgent()
-agent.llm = LlmClient()  # Auto-detects API keys from env
+# BaseAgent does NOT have an `llm` attribute.
+# Use LlmClient separately or pass via AgentConfig + Agent (Rust-backed).
 
 result = agent.run("What is 2 + 2?")
 print(result)
@@ -80,32 +81,26 @@ assert client.is_mock
 ## Agent with Tools
 
 ```python
-from kailash.kaizen import BaseAgent, ToolRegistry, ToolDef, ToolParam, LlmClient
-
-def search_impl(args):
-    return {"results": f"Results for: {args['query']}"}
-
-tools = ToolRegistry()
-tools.register(ToolDef(
-    name="search_web",
-    description="Search the web for information",
-    handler=search_impl,
-    params=[ToolParam(name="query", required=True)],
-))
+from kailash.kaizen import BaseAgent, LlmClient
 
 class SearchAgent(BaseAgent):
     name = "search-agent"
 
     def execute(self, input_text: str) -> dict:
-        tool = self.tools.get("search_web")
-        if tool:
-            result = tool.call({"query": input_text})
-            return {"response": str(result)}
-        return {"response": "No search tool available"}
+        # Tools are invoked by the agent's TAOD loop, not directly.
+        # Access tool_registry for inspection if needed:
+        tools = self.tool_registry.list_tools()
+        return {"response": f"Processing with {len(tools)} tools"}
 
 agent = SearchAgent()
-agent.llm = LlmClient.mock()
-agent.tools = tools
+
+# Register tools via register_tool() (tool_registry is read-only)
+agent.register_tool(
+    "search_web",
+    lambda args: {"results": f"Results for: {args['query']}"},
+    "Search the web for information",
+    {"query": "string"},
+)
 
 result = agent.run("What is the latest news about Rust?")
 ```
@@ -125,7 +120,6 @@ class MemoryAgent(BaseAgent):
 
 agent = MemoryAgent()
 agent.set_memory(SessionMemory())
-agent.llm = LlmClient.mock()
 
 agent.run("Hello")
 agent.run("World")
@@ -184,5 +178,7 @@ print(f"Over budget: {tracker.is_over_budget()}")
 | `AgentCheckpoint` | `from kailash import AgentCheckpoint`              | Save/restore agent state                    |
 | `WorkerAgent`     | `from kailash.kaizen import WorkerAgent`           | `run()`, `accept_task()`, `status`          |
 | `SupervisorAgent` | `from kailash.kaizen import SupervisorAgent`       | `add_worker()`, `run()`                     |
+
+**Tool registration**: Use `agent.register_tool(name, func, description, params_dict)` -- `tool_registry` is read-only.
 
 <!-- Trigger Keywords: kaizen quickstart, getting started, first agent, hello world, agent basics -->

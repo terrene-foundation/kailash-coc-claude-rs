@@ -39,7 +39,8 @@ result = {
     "processed": True,
     "threshold_used": threshold
 }
-"""
+""",
+    "output_vars": ["result"]
 })
 
 reg = kailash.NodeRegistry()
@@ -196,11 +197,12 @@ builder.add_node("MyCustomNode", "custom_processor", {
 
 # Add standard node
 builder.add_node("EmbeddedPythonNode", "output", {
-    "code": "result = {'final': result}"
+    "code": "result = {'final': result}",
+    "output_vars": ["result"]
 })
 
 # Connect
-builder.connect("custom_processor", "result", "output", "result")
+builder.connect("custom_processor", "outputs", "output", "result")
 
 # Execute
 reg = kailash.NodeRegistry()

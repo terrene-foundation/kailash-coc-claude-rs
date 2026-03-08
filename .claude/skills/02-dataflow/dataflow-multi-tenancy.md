@@ -37,7 +37,7 @@ class Order:
     tenant_id: str  # Tenant isolation field
 
 # Use with_tenant context manager for automatic filtering
-with with_tenant(df, "tenant_abc"):
+with with_tenant(df, "tenant_abc") as scoped_interceptor:
     builder = kailash.WorkflowBuilder()
     builder.add_node("CreateOrder", "create", {
         "customer_id": 123,
@@ -68,7 +68,7 @@ Multi-tenancy is auto-wired via `QueryInterceptor`, which hooks into SQL executi
 from kailash.dataflow import with_tenant
 
 # Set tenant context once; all queries are automatically filtered
-with with_tenant(df, tenant_id="tenant_abc"):
+with with_tenant(df, "tenant_abc") as scoped_interceptor:
     # All operations inside this block are tenant-scoped
     result = rt.execute(builder.build(reg))
 ```
@@ -83,7 +83,7 @@ with with_tenant(df, tenant_id="tenant_abc"):
 ## Quick Tips
 
 - Add `tenant_id: str` field to your model
-- Use `with_tenant(df, "tenant_id")` context manager
+- Use `with with_tenant(df, "tenant_id") as scoped_interceptor:` context manager
 - QueryInterceptor auto-filters all queries by tenant
 - Prevents cross-tenant access at the SQL level
 - Perfect for SaaS applications

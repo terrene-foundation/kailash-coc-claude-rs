@@ -1744,7 +1744,7 @@ from kailash.nexus import NexusApp
 
 app = NexusApp()
 
-@app.endpoint("/conversations/{conversation_id}/branch")
+@app.handler()
 async def create_branch(
     conversation_id: str,
     branch_point_turn_id: str,

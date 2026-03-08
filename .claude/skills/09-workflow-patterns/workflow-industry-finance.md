@@ -16,9 +16,8 @@ import kailash
 
 builder = kailash.WorkflowBuilder()
 
-# 1. Validate payment details
-builder.add_node("DataValidationNode", "validate", {
-    "input": "{{input.payment}}",
+# 1. Validate payment details — use SchemaValidatorNode
+builder.add_node("SchemaValidatorNode", "validate", {
     "schema": {"amount": "decimal", "card_number": "credit_card"}
 })
 
@@ -26,13 +25,12 @@ builder.add_node("DataValidationNode", "validate", {
 builder.add_node("HTTPRequestNode", "fraud_check", {
     "url": "https://api.fraudcheck.com/analyze",
     "method": "POST",
-    "body": "{{validate.valid_data}}"
+    "body": "{{validate.valid}}"
 })
 
-# 3. Risk assessment
-builder.add_node("ConditionalNode", "assess_risk", {
-    "condition": "{{fraud_check.risk_score}}",
-    "branches": {
+# 3. Risk assessment — use SwitchNode for multi-branch routing
+builder.add_node("SwitchNode", "assess_risk", {
+    "cases": {
         "low": "process_payment",
         "medium": "manual_review",
         "high": "reject_payment"
@@ -49,13 +47,13 @@ builder.add_node("HTTPRequestNode", "process_payment", {
 # 5. Record transaction
 builder.add_node("SQLQueryNode", "record", {
     "query": "INSERT INTO transactions (amount, status, timestamp) VALUES (?, ?, NOW())",
-    "parameters": ["{{input.amount}}", "completed"]
+    "params": ["{{input.amount}}", "completed"]
 })
 
-builder.connect("validate", "valid_data", "fraud_check", "body")
-builder.connect("fraud_check", "risk_score", "assess_risk", "condition")
-builder.connect("assess_risk", "output_low", "process_payment", "body")
-builder.connect("process_payment", "result", "record", "parameters")
+builder.connect("validate", "valid", "fraud_check", "body")
+builder.connect("fraud_check", "body", "assess_risk", "input")
+builder.connect("assess_risk", "matched", "process_payment", "body")
+builder.connect("process_payment", "body", "record", "body")
 ```
 
 <!-- Trigger Keywords: finance workflow, payment processing, fraud detection, financial compliance -->

@@ -11,7 +11,8 @@ builder.add_node("EmbeddedPythonNode", "prepare", {
 filter_data = {"id": summary_id}
 summary_markdown = updated_text
 edited_by_user = True
-"""
+""",
+    "output_vars": ["filter_data"]
 })
 
 builder.add_node("UpdateSummary", "update", {})
@@ -25,6 +26,7 @@ builder.connect("prepare", "edited_by_user", "update", "edited_by_user")
 **EmbeddedPythonNode** now supports exporting multiple variables without nesting in `result`.
 
 ### Before (Legacy Pattern)
+
 ```python
 # Forced to nest everything in 'result'
 result = {
@@ -34,6 +36,7 @@ result = {
 ```
 
 ### After (Current Pattern)
+
 ```python
 # Natural variable definitions
 filter_data = {"id": summary_id}
@@ -70,7 +73,8 @@ filter_data = {"id": summary_id}
 summary_markdown = generate_markdown(raw_text)
 topics_json = json.dumps(extract_topics(raw_text))
 edited_by_user = True
-"""
+""",
+    "output_vars": ["filter_data"]
 })
 
 builder.add_node("ConversationUpdateSummary", "update", {})
@@ -90,13 +94,15 @@ result = rt.execute(builder.build(reg), {
 
 ## Backward Compatibility
 
-Legacy patterns still work 100%:
+Use an intermediate EmbeddedPythonNode to extract fields:
 
 ```python
-# This still works fine
-result = {"filter": {...}, "fields": {...}}
-builder.connect("prepare", "result.filter", "update", "filter")
-builder.connect("prepare", "result.fields", "update", "fields")
+# Use EmbeddedPythonNode to unpack and re-emit as separate outputs
+builder.add_node("EmbeddedPythonNode", "prepare", {
+    "code": "filter_val = data['filter']\nfields_val = data['fields']",
+    "output_vars": ["filter_val", "fields_val"]
+})
+builder.connect("prepare", "outputs", "update", "filter")  # outputs contains filter_val, fields_val
 ```
 
 ## Benefits

@@ -20,7 +20,7 @@ Common issues and solutions for Nexus platform.
 ```python
 # Use custom ports
 from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(NexusConfig(port=8001))
+app = NexusApp(config=NexusConfig(port=8001))
 ```
 
 **Check port usage**:
@@ -42,11 +42,11 @@ kill -9 <PID>
 ```python
 # Ensure .build() is called
 builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}"})
+builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}", "output_vars": ["result"]})
 app.register("my-workflow", builder.build(reg))  # Don't forget .build()
 
-# Check registered workflows
-print(list(app.workflows.keys()))
+# Check registered handlers
+print(app.get_registered_handlers())
 ```
 
 ### 3. Auto-Discovery Blocking (with DataFlow)
@@ -169,7 +169,8 @@ except NameError:
     param = None  # Not provided
 
 result = {'param': param}
-"""
+""",
+    "output_vars": ["result"]
 })
 
 # API request
@@ -215,7 +216,8 @@ builder.add_node("EmbeddedPythonNode", "debug", {
 import json
 print(f"Debug data: {json.dumps(data, indent=2)}")
 result = data  # Pass through
-"""
+""",
+    "output_vars": ["result"]
 })
 ```
 
@@ -232,12 +234,8 @@ curl http://localhost:3000/health/detailed
 ### 4. Verify Workflow Registration
 
 ```python
-# List registered workflows
-print("Registered workflows:", list(app.workflows.keys()))
-
-# Get workflow details
-workflow_info = app.get_workflow_info("my-workflow")
-print(workflow_info)
+# List registered handlers
+print("Registered handlers:", app.get_registered_handlers())
 ```
 
 ### 5. Test Individual Nodes
@@ -319,16 +317,18 @@ grep "my-workflow" nexus.log
 
 ### Slow API Responses
 
-```python
-# Check workflow execution time
-metrics = app.get_workflow_metrics("workflow-name")
-print(f"Avg execution time: {metrics['avg_execution_time']}s")
+NexusApp does not have `app.get_workflow_metrics()`. Monitor performance via
+external tools (Prometheus, reverse proxy logs) or add timing in your handlers:
 
-# Optimize workflow
-# - Remove unnecessary nodes
-# - Optimize EmbeddedPythonNode code
-# - Add caching
-# - Use async operations
+```python
+import time
+
+@app.handler("timed_workflow", description="Workflow with timing")
+async def timed_workflow(data: str) -> dict:
+    start = time.time()
+    # ... workflow execution ...
+    elapsed = time.time() - start
+    return {"result": data, "execution_time_s": elapsed}
 ```
 
 ### High Memory Usage
@@ -344,14 +344,8 @@ app = NexusApp()
 
 ### High CPU Usage
 
-```python
-# Check concurrent requests
-metrics = app.get_metrics()
-print(f"Concurrent requests: {metrics['concurrent_requests']}")
-
-# Limit concurrency
-app.api.max_concurrent_requests = 50
-```
+NexusApp does not have `app.get_metrics()` or `app.api.*` attributes. Monitor
+CPU and concurrency via system-level tools or your reverse proxy.
 
 ## Getting Help
 
@@ -378,7 +372,8 @@ app = NexusApp()
 
 builder = kailash.WorkflowBuilder()
 builder.add_node("EmbeddedPythonNode", "test", {
-    "code": "result = {'test': True}"
+    "code": "result = {'test': True}",
+    "output_vars": ["result"]
 })
 
 app.register("test", builder.build(reg))

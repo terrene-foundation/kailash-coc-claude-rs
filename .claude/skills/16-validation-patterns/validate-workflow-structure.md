@@ -44,7 +44,7 @@ import kailash
 reg = kailash.NodeRegistry()
 builder = kailash.WorkflowBuilder()
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)"})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)", "output_vars": ["result"]})
 builder.connect("reader", "rows", "process", "data")
 
 rt = kailash.Runtime(reg)
@@ -103,7 +103,7 @@ workflow.run()
 ```python
 # ✅ VALID - String-based
 builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "..."})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "..."})
+builder.add_node("EmbeddedPythonNode", "process", {"code": "...", "output_vars": ["result"]})
 
 # ❌ INVALID - Instance-based (deprecated)
 builder.add_node("reader", CSVProcessorNode(source_path="..."))
