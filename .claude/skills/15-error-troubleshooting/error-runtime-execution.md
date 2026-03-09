@@ -10,7 +10,7 @@ Fix common runtime execution errors including wrong runtime usage, execution fai
 > **Skill Metadata**
 > Category: `cross-cutting` (error-resolution)
 > Priority: `HIGH`
-> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`runtime-execution`](../../01-core-sdk/runtime-execution.md), [`decide-runtime`](../decisions/decide-runtime.md)
+> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`runtime-execution`](../../01-core-sdk/runtime-execution.md), [`decide-runtime`](../13-architecture-decisions/decide-runtime.md)
 > Related Subagents: `pattern-expert` (complex debugging)
 
 ## Common Errors
@@ -88,7 +88,7 @@ def execute(data):
 
 ## Related Patterns
 
-- **Runtime selection**: [`decide-runtime`](../decisions/decide-runtime.md)
+- **Runtime selection**: [`decide-runtime`](../13-architecture-decisions/decide-runtime.md)
 - **Execution guide**: [`runtime-execution`](../../01-core-sdk/runtime-execution.md)
 - **Parameter errors**: [`error-parameter-validation`](error-parameter-validation.md)
 

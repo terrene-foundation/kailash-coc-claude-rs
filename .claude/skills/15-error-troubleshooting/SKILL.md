@@ -231,7 +231,7 @@ Use this skill when you encounter:
 
 ## Related Skills
 
-- **[16-validation-patterns](../validation/SKILL.md)** - Validation patterns
+- **[16-validation-patterns](../16-validation-patterns/SKILL.md)** - Validation patterns
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices to avoid errors
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core patterns
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow specifics

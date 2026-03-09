@@ -223,7 +223,7 @@ except Exception as e:
 - **Node selection**: [`node-selection-guide`](../../08-nodes-reference/node-selection-guide.md)
 - **Connection patterns**: [`connection-patterns`](../../01-core-sdk/connection-patterns.md)
 - **Parameter passing**: [`param-passing-quick`](../../01-core-sdk/param-passing-quick.md)
-- **Runtime selection**: [`decide-runtime`](../decisions/decide-runtime.md)
+- **Runtime selection**: [`decide-runtime`](../13-architecture-decisions/decide-runtime.md)
 - **Complete guide**: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
 
 ## When to Escalate to Subagent

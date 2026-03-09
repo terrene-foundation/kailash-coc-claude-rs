@@ -10,7 +10,7 @@ Patterns for automated file processing, transformation, and batch operations.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
-> Related Skills: [`nodes-data-reference`](../nodes/nodes-data-reference.md), [`workflow-pattern-etl`](workflow-pattern-etl.md)
+> Related Skills: [`nodes-data-reference`](../08-nodes-reference/nodes-data-reference.md), [`workflow-pattern-etl`](workflow-pattern-etl.md)
 > Related Subagents: `pattern-expert` (file workflows)
 
 > **Note**: `{{...}}` values in node configs below are illustrative placeholders.
@@ -236,7 +236,7 @@ builder.connect("retry_process", "output", "move_failed", "inputs")
 
 ## Related Skills
 
-- **Data Nodes**: [`nodes-data-reference`](../nodes/nodes-data-reference.md)
+- **Data Nodes**: [`nodes-data-reference`](../08-nodes-reference/nodes-data-reference.md)
 - **ETL Patterns**: [`workflow-pattern-etl`](workflow-pattern-etl.md)
 
 <!-- Trigger Keywords: file processing, batch file, document workflow, file automation, CSV processing, PDF extraction -->

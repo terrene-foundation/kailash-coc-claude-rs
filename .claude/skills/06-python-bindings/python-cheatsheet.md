@@ -452,9 +452,10 @@ result = wr.execute("my-workflow", rt, {"input": "data"})
 ## Nexus: EventBus
 
 ```python
-from kailash.nexus import EventBus
+from kailash.nexus import NexusApp
 
-bus = EventBus()
+app = NexusApp()
+bus = app._nexus.event_bus()  # EventBus cannot be constructed directly
 bus.on("user.created", lambda data: print(data))  # type-specific subscription
 bus.subscribe(lambda data: print(data))            # subscribe to ALL events
 bus.publish("user.created", {"user_id": "123"})

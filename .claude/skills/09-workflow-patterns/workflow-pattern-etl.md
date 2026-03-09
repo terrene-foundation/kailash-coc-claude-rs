@@ -258,6 +258,6 @@ builder.connect("calculate_metrics", "outputs", "load_metrics", "body")
 
 - **DataFlow Framework**: [`dataflow-specialist`](../../02-dataflow/dataflow-specialist.md)
 - **Data Patterns**: [`workflow-pattern-data`](workflow-pattern-data.md)
-- **Database Nodes**: [`nodes-database-reference`](../nodes/nodes-database-reference.md)
+- **Database Nodes**: [`nodes-database-reference`](../08-nodes-reference/nodes-database-reference.md)
 
 <!-- Trigger Keywords: ETL, data pipeline, extract transform load, data migration, data integration, batch processing -->

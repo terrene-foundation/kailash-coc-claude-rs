@@ -163,8 +163,8 @@ Use this skill when you need:
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core SDK fundamentals
-- **[06-cheatsheets](../cheatsheets/SKILL.md)** - Quick reference patterns
-- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference
+- **[06-cheatsheets](../06-cheatsheets/SKILL.md)** - Quick reference patterns
+- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Node reference
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
 
 ## Support

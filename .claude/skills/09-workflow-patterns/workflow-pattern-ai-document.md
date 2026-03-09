@@ -10,7 +10,7 @@ AI-powered document analysis, extraction, and classification workflows.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
-> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../nodes/nodes-ai-reference.md)
+> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../08-nodes-reference/nodes-ai-reference.md)
 
 ## Pattern: Invoice Processing with AI
 

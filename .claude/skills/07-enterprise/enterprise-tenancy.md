@@ -249,10 +249,10 @@ def test_tenant_info_metadata():
 
 ## API Reference
 
-| Class                     | Key Methods                                                                                     |
-| ------------------------- | ----------------------------------------------------------------------------------------------- |
-| `EnterpriseTenantContext` | `__init__(tenant_id, name=None, bypass=False, bypass_reason=None)`, `.is_bypass()`              |
-| `TenantStatus`            | `.active()`, `.suspended()`, `.pending_deletion()`                                              |
-| `TenantInfo`              | `__init__(tenant_id, name)`, `.with_plan(plan)`, `.with_status(status)`, `.with_metadata(k, v)` |
-| `TenantRegistry`          | `__init__()`, `.register(info)`, `.get(id)`, `.list_all()`, `.count()`                          |
-| `EnterpriseContext`       | `__init__()`, `.with_tenant(ctx)`, `.with_user(user)`, `.with_classification(cls)`              |
+| Class                     | Key Methods                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `EnterpriseTenantContext` | `__init__(tenant_id, name=None, bypass=False, bypass_reason=None)`, `.is_bypass()`, `.with_metadata(k, v)` |
+| `TenantStatus`            | `.active()`, `.suspended()`, `.pending_deletion()`                                                         |
+| `TenantInfo`              | `__init__(tenant_id, name)`, `.with_plan(plan)`, `.with_status(status)`, `.with_metadata(k, v)`            |
+| `TenantRegistry`          | `__init__()`, `.register(info)`, `.get(id)`, `.list_all()`, `.count()`                                     |
+| `EnterpriseContext`       | `__init__()`, `.with_tenant(ctx)`, `.with_user(user)`, `.with_classification(cls)`                         |

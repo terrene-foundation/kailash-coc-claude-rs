@@ -160,7 +160,7 @@ app = NexusApp(config=NexusConfig(port=3000))
 async def create_user(name: str) -> dict:
     reg = kailash.NodeRegistry()
     builder = kailash.WorkflowBuilder()
-    builder.add_node("User_Create", "create", {"data": {"name": name}})
+    builder.add_node("CreateUser", "create", {"data": {"name": name}})
     rt = kailash.Runtime(reg)
     result = rt.execute(builder.build(reg))
     return result["results"]["create"]["result"]
@@ -299,8 +299,8 @@ docker-compose up --scale nexus=3
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
-- **[02-dataflow](../dataflow/SKILL.md)** - Auto CRUD API generation
-- **[04-kaizen](../kaizen/SKILL.md)** - AI agent deployment
+- **[02-dataflow](../02-dataflow/SKILL.md)** - Auto CRUD API generation
+- **[04-kaizen](../04-kaizen/SKILL.md)** - AI agent deployment
 - **[05-kailash-mcp](../05-kailash-mcp/SKILL.md)** - MCP channel details
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
 

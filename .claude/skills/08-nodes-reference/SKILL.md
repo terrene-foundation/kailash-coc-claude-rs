@@ -174,8 +174,8 @@ Use this skill when you need to:
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
-- **[06-cheatsheets](../cheatsheets/SKILL.md)** - Node usage patterns
-- **[07-development-guides](../development-guides/SKILL.md)** - Custom node development
+- **[06-cheatsheets](../06-cheatsheets/SKILL.md)** - Node usage patterns
+- **[07-development-guides](../07-development-guides/SKILL.md)** - Custom node development
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - Auto-generated database nodes
 
 ## Support

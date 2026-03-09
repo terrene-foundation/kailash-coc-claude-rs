@@ -49,7 +49,7 @@ from kailash.kaizen.pipelines import RouterPipeline, SupervisorPipeline
 
 > **Known Issue**: ToolDef uses `handler=` kwarg, not `callback=`.
 
-> **Known Issue**: `Signature.validate_inputs()` returns a `dict` (errors), not `bool`. Empty dict means valid.
+> **Known Issue**: `Signature.validate_inputs()` returns a `dict` of validated inputs with defaults filled in. Raises `ValueError` if a required field is missing.
 
 > **Known Issue**: Checkpoint storage `load()` raises `RuntimeError` when checkpoint not found (does NOT return None).
 

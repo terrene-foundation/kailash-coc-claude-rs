@@ -10,7 +10,7 @@ Patterns for data cleaning, transformation, and aggregation workflows.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `HIGH`
-> Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`nodes-transform-reference`](../nodes/nodes-transform-reference.md)
+> Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`nodes-transform-reference`](../08-nodes-reference/nodes-transform-reference.md)
 
 ## Pattern: Data Quality Pipeline
 

@@ -10,7 +10,7 @@ Retrieval Augmented Generation patterns for AI-powered document search and Q&A.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `HIGH`
-> Related Skills: [`nodes-ai-reference`](../nodes/nodes-ai-reference.md), [`workflow-pattern-ai-document`](workflow-pattern-ai-document.md)
+> Related Skills: [`nodes-ai-reference`](../08-nodes-reference/nodes-ai-reference.md), [`workflow-pattern-ai-document`](workflow-pattern-ai-document.md)
 > Related Subagents: `pattern-expert` (RAG workflows), `kaizen-specialist` (AI agents)
 
 > **Note**: `{{...}}` values in node configs below are illustrative placeholders

@@ -182,8 +182,8 @@ builder.add_node("LLMNode", "generate", {"model": os.environ.get("DEFAULT_LLM_MO
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow creation
-- **[06-cheatsheets](../cheatsheets/SKILL.md)** - Pattern quick reference
-- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference
+- **[06-cheatsheets](../06-cheatsheets/SKILL.md)** - Pattern quick reference
+- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Node reference
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - Database workflows
 - **[03-nexus](../../03-nexus/SKILL.md)** - Workflow deployment
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
