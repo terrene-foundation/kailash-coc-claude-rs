@@ -86,7 +86,7 @@ from kailash.nexus import NexusApp
 
 app = NexusApp()
 
-@app.stream_endpoint("/ai/chat")
+@app.handler(name="chat_stream", description="Simple streaming endpoint")
 async def chat_stream(message: str):
     """Simple streaming endpoint"""
     agent = SimpleWidgetAgent()
@@ -473,7 +473,7 @@ from kailash.nexus import NexusApp
 app = NexusApp()
 df = kailash.DataFlow(os.environ["DATABASE_URL"])  # Initialize kailash.DataFlow
 
-@app.stream_endpoint("/ai/chat")
+@app.handler(name="chat_stream", description="Main chat streaming endpoint")
 async def chat_stream(
     session_id: str,
     message: str,
@@ -1499,7 +1499,7 @@ void _handleBarTap(int index) {
 **Backend**:
 
 ```python
-@app.stream_endpoint("/ai/chat/filter")
+@app.handler(name="filter_and_visualize", description="Filter and visualize data")
 async def filter_and_visualize(
     form_data: Dict[str, Any],
     user_context: Dict[str, Any]

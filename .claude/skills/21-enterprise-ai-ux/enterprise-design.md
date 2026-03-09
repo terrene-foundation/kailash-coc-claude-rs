@@ -567,7 +567,7 @@ from kailash.nexus import NexusApp
 
 app = NexusApp()
 
-@app.stream_endpoint("/ai/chat")
+@app.handler(name="chat_stream", description="Streaming chat endpoint")
 async def chat_stream(session_id: str, message: str):
     agent = DashboardAgent()
 
