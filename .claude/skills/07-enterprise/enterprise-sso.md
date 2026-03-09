@@ -91,6 +91,7 @@ sso = SSOProvider({
     "redirect_uri": "https://app.example.com/saml/acs",
     "metadata_url": "https://dev-123456.okta.com/saml/sso",
     "issuer": "https://dev-123456.okta.com/saml",
+    "attribute_mapping": {"user_id": "nameId", "email": "email", "name": "name"},
 })
 login_url = sso.login_url()
 ```
@@ -200,6 +201,7 @@ sso = SSOProvider({
     "metadata_url": os.environ["SSO_METADATA_URL"],
     "issuer": os.environ["SSO_ISSUER"],
     "scopes": ["openid", "profile", "email"],
+    "attribute_mapping": {"user_id": "sub", "email": "email", "name": "name"},
 })
 tm = TokenManager({"secret": os.environ["TOKEN_SECRET"]})
 
