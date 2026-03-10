@@ -41,14 +41,15 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 | Command      | Phase | Purpose                                            |
 | ------------ | ----- | -------------------------------------------------- |
-| `/analyze`   | 01    | Load analysis phase for current workspace          |
-| `/todos`     | 02    | Load todos phase; stops for human approval         |
-| `/implement` | 03    | Load implementation phase; repeat until todos done |
-| `/redteam`   | 04    | Load validation phase; red team with MCP tools     |
-| `/codify`    | 05    | Load codification phase; create agents & skills    |
-| `/deploy`    | —     | Deployment onboarding + package/cloud release      |
-| `/ws`        | —     | Read-only workspace status dashboard               |
-| `/wrapup`    | —     | Write session notes before ending                  |
+| `/start`     | —     | New user orientation; explains the workflow         |
+| `/analyze`   | 01    | Research and validate the project idea              |
+| `/todos`     | 02    | Create project roadmap; stops for your approval     |
+| `/implement` | 03    | Build the project one task at a time; repeat        |
+| `/redteam`   | 04    | Test everything from a real user's perspective      |
+| `/codify`    | 05    | Capture knowledge for future sessions              |
+| `/deploy`    | —     | Get the project live (standalone)                  |
+| `/ws`        | —     | Check project status anytime                       |
+| `/wrapup`    | —     | Save progress before ending a session              |
 
 **Workspace detection**: Hooks automatically detect the active workspace and inject context. `session-start.js` shows workspace status on session start (human-facing). `user-prompt-rules-reminder.js` injects a 1-line `[WORKSPACE]` summary into Claude's context every turn (survives context compression).
 
@@ -58,6 +59,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 | Concern                               | Rule File                    | Scope                                               |
 | ------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| Plain-language communication          | `rules/communication.md`     | Global                                              |
 | Agent orchestration & review mandates | `rules/agents.md`            | Global                                              |
 | E2E god-mode testing                  | `rules/e2e-god-mode.md`      | `tests/e2e/**`, `**/*e2e*`, `**/*playwright*`       |
 | API keys & model names                | `rules/env-models.md`        | `**/*.py`, `**/*.ts`, `**/*.js`, `.env*`            |
