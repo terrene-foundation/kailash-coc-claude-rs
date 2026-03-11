@@ -69,14 +69,16 @@ function validateFile(data) {
   const rustExts = [".rs"];
   const jsExts = [".ts", ".tsx", ".js", ".jsx"];
   const pyExts = [".py"];
+  const rbExts = [".rb"];
   const configExts = [".yaml", ".yml", ".json", ".env", ".sh", ".toml"];
 
   const isRust = rustExts.includes(ext);
   const isJs = jsExts.includes(ext);
   const isPython = pyExts.includes(ext);
+  const isRuby = rbExts.includes(ext);
   const isConfig = configExts.includes(ext);
 
-  if (!isRust && !isJs && !isPython && !isConfig) {
+  if (!isRust && !isJs && !isPython && !isRuby && !isConfig) {
     return {
       continue: true,
       exitCode: 0,
@@ -108,8 +110,13 @@ function validateFile(data) {
     checkPythonPatterns(content, filePath, messages);
   }
 
+  // -- Ruby-specific checks (.rb only) ------------------------------------
+  if (isRuby) {
+    checkRubyPatterns(content, filePath, messages);
+  }
+
   // -- Hardcoded model detection (code files only -- configs may list models intentionally)
-  if (isRust || isJs || isPython) {
+  if (isRust || isJs || isPython || isRuby) {
     const modelResult = checkHardcodedModels(content, filePath, env, isRust);
     messages.push(...modelResult.messages);
     if (modelResult.block) shouldBlock = true;
@@ -119,7 +126,7 @@ function validateFile(data) {
   checkHardcodedKeys(content, filePath, messages);
 
   // -- Stub/TODO/simulation detection (code files only) -------------------
-  if (isRust || isJs || isPython) {
+  if (isRust || isJs || isPython || isRuby) {
     checkStubsAndSimulations(content, filePath, messages);
   }
 
@@ -334,6 +341,90 @@ function checkPythonPatterns(content, filePath, messages) {
         [/\bMagicMock\s*\(/, "MagicMock()"],
         [/\bMock\s*\(/, "Mock()"],
         [/mocker\.patch/, "mocker.patch"],
+      ];
+      for (const [pat, name] of mockPatterns) {
+        if (pat.test(content)) {
+          messages.push(
+            `WARNING: ${name} detected in integration/e2e test. NO MOCKING in Tier 2-3 tests.`,
+          );
+        }
+      }
+    }
+  }
+}
+
+// =====================================================================
+// Kailash SDK pattern checks (Ruby only)
+// =====================================================================
+
+function checkRubyPatterns(content, filePath, messages) {
+  // Anti-pattern: workflow.execute(runtime) -- wrong direction
+  if (/workflow\s*\.\s*execute\s*\(\s*runtime/.test(content)) {
+    messages.push(
+      "WARNING: workflow.execute(runtime) found. Use runtime.execute(workflow).",
+    );
+  }
+
+  // Anti-pattern: builder.build without registry argument
+  if (/builder\.build\s*\(\s*\)/.test(content) && !isTestFile(filePath)) {
+    messages.push(
+      "WARNING: builder.build() without registry. Use builder.build(registry).",
+    );
+  }
+
+  // Anti-pattern: Symbol keys in config hashes (common Ruby mistake)
+  // Detect: add_node("Type", "id", { key: value }) -- symbol shorthand
+  if (/add_node\s*\([^)]*\{\s*\w+:(?!\s*:)/.test(content)) {
+    messages.push(
+      'WARNING: Symbol keys detected in node config. Use String keys: { "key" => value }.',
+    );
+  }
+
+  // Anti-pattern: Timeout.timeout around execute (won't interrupt Rust)
+  if (
+    /Timeout\.timeout.*execute/s.test(content) ||
+    /timeout.*do.*execute/s.test(content)
+  ) {
+    messages.push(
+      "WARNING: Timeout.timeout won't interrupt Rust execution. Use RuntimeConfig#workflow_timeout= instead.",
+    );
+  }
+
+  // Stub detection
+  if (!isTestFile(filePath)) {
+    if (/raise\s+NotImplementedError/.test(content)) {
+      messages.push(
+        "WARNING: raise NotImplementedError found. Implement the method fully.",
+      );
+    }
+    if (/fail\s+["']not\s+(yet\s+)?implement/i.test(content)) {
+      messages.push(
+        "WARNING: Unimplemented method found. Implement fully.",
+      );
+    }
+  }
+
+  // SQL injection risk: string interpolation in SQL
+  if (/"(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s[^"]*#\{/i.test(content)) {
+    messages.push(
+      "CRITICAL: String interpolation in SQL detected -- potential SQL injection. Use parameterized queries.",
+    );
+  }
+
+  // Mocking in integration/e2e tests
+  if (isTestFile(filePath)) {
+    const isIntegrationTest =
+      filePath.includes("/integration/") ||
+      filePath.includes("/e2e/") ||
+      filePath.includes("_integration") ||
+      filePath.includes("_e2e");
+
+    if (isIntegrationTest) {
+      const mockPatterns = [
+        [/\ballow\s*\(.*\)\s*\.to\s+receive/, "allow().to receive (RSpec mock)"],
+        [/\bexpect\s*\(.*\)\s*\.to\s+receive/, "expect().to receive (RSpec mock)"],
+        [/\bdouble\s*\(/, "double() (RSpec test double)"],
+        [/\binstance_double\s*\(/, "instance_double() (RSpec mock)"],
       ];
       for (const [pat, name] of mockPatterns) {
         if (pat.test(content)) {
@@ -681,10 +772,11 @@ function buildDocCommentLines(lines) {
 function isTestFile(filePath) {
   const basename = path.basename(filePath).toLowerCase();
   return (
-    /^test_|_test\.|\.test\.|\.spec\.|__tests__/.test(basename) ||
+    /^test_|_test\.|\.test\.|\.spec\.|_spec\.rb$|__tests__/.test(basename) ||
     filePath.includes("__tests__") ||
     filePath.includes("/tests/") ||
     filePath.includes("/test/") ||
+    filePath.includes("/spec/") ||
     // Rust test convention: files in tests/ directory or #[cfg(test)] modules
     (filePath.endsWith(".rs") && basename.startsWith("test_"))
   );

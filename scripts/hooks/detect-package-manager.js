@@ -30,6 +30,28 @@ const PACKAGE_MANAGERS = [
 const DEFAULT_PM = { name: "npm", lockFile: null, command: "npm" };
 
 /**
+ * Detect Ruby package manager (Bundler) in a directory
+ */
+function detectRubyPackageManager(dir) {
+  const gemfilePath = path.join(dir, "Gemfile");
+  if (fs.existsSync(gemfilePath)) {
+    return {
+      detected: true,
+      packageManager: "bundler",
+      command: "bundle",
+      lockFile: fs.existsSync(path.join(dir, "Gemfile.lock")) ? "Gemfile.lock" : null,
+      commands: {
+        install: "bundle install",
+        installPackage: "bundle add <gem>",
+        run: "bundle exec <command>",
+        exec: "bundle exec <command>",
+      },
+    };
+  }
+  return null;
+}
+
+/**
  * Detect package manager in a directory
  */
 function detectPackageManager(dir) {
@@ -45,6 +67,12 @@ function detectPackageManager(dir) {
         lockPath: lockPath,
       };
     }
+  }
+
+  // Check for Ruby/Bundler (Gemfile)
+  const rubyResult = detectRubyPackageManager(dir);
+  if (rubyResult) {
+    return rubyResult;
   }
 
   // Check package.json for packageManager field (Corepack)
@@ -231,6 +259,7 @@ if (require.main === module) {
 
 module.exports = {
   detectPackageManager,
+  detectRubyPackageManager,
   getInstallCommand,
   getRunCommand,
   getExecCommand,

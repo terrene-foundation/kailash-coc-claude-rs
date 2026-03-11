@@ -182,6 +182,19 @@ function detectFramework(cwd) {
           return "kaizen";
       } catch {}
     }
+
+    // Also scan .rb files for Ruby projects
+    for (const file of files.filter((f) => f.endsWith(".rb")).slice(0, 10)) {
+      try {
+        const content = fs.readFileSync(path.join(cwd, file), "utf8");
+        if (/Kailash::DataFlow/.test(content)) return "dataflow";
+        if (/Kailash::Nexus/.test(content)) return "nexus";
+        if (/Kailash::Kaizen/.test(content)) return "kaizen";
+        if (/Kailash::Enterprise/.test(content)) return "enterprise";
+        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
+      } catch {}
+    }
+
     return "core-sdk";
   } catch {
     return "unknown";

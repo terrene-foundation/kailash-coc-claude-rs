@@ -1,10 +1,11 @@
-# Kailash COC Claude (Rust-backed Python)
+# Kailash COC Claude (Rust-backed Bindings)
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.2.0-green.svg" alt="v2.2.0">
   <img src="https://img.shields.io/badge/platform-Claude%20Code-7C3AED.svg" alt="Claude Code">
   <img src="https://img.shields.io/badge/architecture-COC%205--Layer-blue.svg" alt="COC 5-Layer">
   <img src="https://img.shields.io/badge/language-Python-3776AB.svg" alt="Python">
+  <img src="https://img.shields.io/badge/language-Ruby-CC342D.svg" alt="Ruby">
   <img src="https://img.shields.io/badge/backend-Rust--powered-orange.svg" alt="Rust-powered">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="Apache 2.0">
 </p>
@@ -24,9 +25,9 @@ Vibe coding fails because AI forgets your conventions (amnesia), drifts across p
 
 ## What Is This?
 
-This COC template is for **Python developers** who use the **Rust-backed** Kailash package (`pip install kailash-enterprise`). You write Python — you never touch Rust. The Rust engine runs under the hood, giving you 25-435x faster performance and 100-300x less memory usage compared to the pure Python SDK.
+This COC template is for **Python and Ruby developers** who use the **Rust-backed** Kailash packages (`pip install kailash-enterprise` / `gem install kailash`). You write Python or Ruby — you never touch Rust. The Rust engine runs under the hood, giving you 25-435x faster performance and 100-300x less memory usage compared to pure interpreted SDKs.
 
-> **Not a Rust developer?** You're in the right place. This template teaches Claude Code how to help you build Python applications with the high-performance Kailash engine.
+> **Not a Rust developer?** You're in the right place. This template teaches Claude Code how to help you build Python and Ruby applications with the high-performance Kailash engine.
 
 ---
 
@@ -121,7 +122,11 @@ git clone https://github.com/your-org/kailash-coc-claude-rs.git
 cd kailash-coc-claude-rs
 
 # Install the Rust-backed Kailash package
+# Python
 pip install kailash-enterprise
+
+# Ruby
+gem install kailash
 
 # Configure
 cp .env.example .env   # Edit with your API keys
@@ -155,6 +160,7 @@ workspaces/
 
 CLAUDE.md          Root instructions (auto-loaded every session)
 pyproject.toml     Python project configuration
+Gemfile            Ruby project configuration
 .env.example       Environment template
 ```
 
@@ -172,6 +178,8 @@ Built for the [Kailash SDK](https://github.com/your-org/kailash_sdk) ecosystem, 
 
 **Sibling repos**: [kailash-coc-claude-py](https://github.com/your-org/kailash-coc-claude-py) (Pure Python SDK) | [kailash-vibe-gemini-setup](https://github.com/your-org/kailash-vibe-gemini-setup) (Gemini CLI)
 
+> **Note**: There is no separate Ruby COC repo. This repo covers both Python and Ruby Rust-backed bindings.
+
 ---
 
 ## License
@@ -181,5 +189,5 @@ Apache License, Version 2.0. See [LICENSE](LICENSE).
 <p align="center">
   <a href=".claude/guides/claude-code/README.md">Full Documentation</a> |
   <a href="https://github.com/your-org/kailash_sdk">Kailash SDK</a> |
-  <a href="https://github.com/your-org/kailash-coc-claude-py">Python Sibling</a>
+  <a href="https://github.com/your-org/kailash-coc-claude-py">Pure Python COC</a>
 </p>

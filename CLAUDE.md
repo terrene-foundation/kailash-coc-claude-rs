@@ -1,8 +1,8 @@
-# Kailash COC Claude (Rust-backed Python)
+# Kailash COC Claude (Rust-backed Bindings)
 
-This repository is the **COC (Cognitive Orchestration for Codegen) setup** for Claude Code — providing agents, skills, rules, and hooks for building applications with the **Rust-backed Kailash Python bindings** (`pip install kailash-enterprise`). All projects using this setup inherit these capabilities through the `.claude/` directory.
+This repository is the **COC (Cognitive Orchestration for Codegen) setup** for Claude Code — providing agents, skills, rules, and hooks for building applications with the **Rust-backed Kailash Python and Ruby bindings** (`pip install kailash-enterprise` / `gem install kailash`). All projects using this setup inherit these capabilities through the `.claude/` directory.
 
-> **Important**: This COC is for **Python developers** who use the high-performance Rust-backed Kailash package. You write Python — you never touch Rust. For the pure Python SDK, see `kailash-coc-claude-py`.
+> **Important**: This COC is for **Python and Ruby developers** who use the high-performance Rust-backed Kailash package. You write Python or Ruby — you never touch Rust. For the pure Python SDK, see `kailash-coc-claude-py`.
 
 ## Absolute Directives
 
@@ -12,14 +12,14 @@ These override ALL other instructions. They govern behavior before any rule file
 
 Never write code from scratch before checking whether the Kailash frameworks already handle it.
 
-- Instead of direct SQL/SQLAlchemy/Django ORM → check with **dataflow-specialist**
+- Instead of direct SQL/SQLAlchemy/Django ORM/ActiveRecord/Sequel → check with **dataflow-specialist**
 - Instead of FastAPI/custom API gateway → check with **nexus-specialist**
 - Instead of custom MCP server/client → check with **mcp-specialist**
 - Instead of custom agentic platform → check with **kaizen-specialist**
 
 ### 2. .env Is the Single Source of Truth
 
-All API keys and model names MUST come from `.env`. Never hardcode model strings like `"gpt-4"` or `"claude-3-opus"`. Root `conftest.py` auto-loads `.env` for pytest.
+All API keys and model names MUST come from `.env`. Never hardcode model strings like `"gpt-4"` or `"claude-3-opus"`. Root `conftest.py` auto-loads `.env` for pytest; `spec/spec_helper.rb` auto-loads `.env` for RSpec.
 
 See `rules/env-models.md` for full details.
 
@@ -65,7 +65,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | API keys & model names                | `rules/env-models.md`        | `**/*.py`, `**/*.ts`, `**/*.js`, `.env*`            |
 | Git commits, branches, PRs            | `rules/git.md`               | Global                                              |
 | No stubs, TODOs, or placeholders      | `rules/no-stubs.md`          | Global                                              |
-| Kailash SDK execution patterns        | `rules/patterns.md`          | `**/*.py`, `**/*.ts`, `**/*.js`                     |
+| Kailash SDK execution patterns        | `rules/patterns.md`          | `**/*.py`, `**/*.rb`, `**/*.ts`, `**/*.js`          |
 | Security (secrets, injection)         | `rules/security.md`          | Global                                              |
 | 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`           | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
 | Deployment & cloud release rules      | `rules/deployment.md`        | Global                                              |
@@ -128,9 +128,11 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 ## Skills Navigation
 
-For SDK implementation patterns, see `.claude/skills/` — organized by framework (`01-core-sdk` through `05-kailash-mcp`) and topic (`06-cheatsheets` through `28-coc-reference`).
+For SDK implementation patterns, see `.claude/skills/` — organized by framework (`01-core-sdk` through `05-kailash-mcp`) and topic (`06-cheatsheets` through `28-coc-reference`). Binding-specific skills: `06-python-bindings` (PyO3 patterns) and `06-ruby-bindings` (Ruby FFI patterns).
 
 ## Critical Execution Rules
+
+### Python
 
 ```python
 import kailash
@@ -145,14 +147,32 @@ result = rt.execute(wf)
 # result is a dict: {"results": {...}, "run_id": "...", "metadata": {...}}
 ```
 
+### Ruby
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  builder = Kailash::WorkflowBuilder.new
+  builder.add_node("NodeType", "node_id", { "param" => "value" })
+  builder.connect("node1", "output", "node2", "input")
+  workflow = builder.build(registry)
+  Kailash::Runtime.open(registry) do |runtime|
+    result = runtime.execute(workflow, { "data" => "hello" })
+    output = result.results["node_id"]
+  end
+  workflow.close
+end
+```
+
 ## Kailash Platform
 
-| Framework      | Purpose                                | Install                          |
-| -------------- | -------------------------------------- | -------------------------------- |
-| **Core SDK**   | Workflow orchestration, 140+ nodes     | `pip install kailash-enterprise` |
-| **DataFlow**   | Zero-config database operations        | included                         |
-| **Nexus**      | Multi-channel deployment (API+CLI+MCP) | included                         |
-| **Kaizen**     | AI agent framework                     | included                         |
-| **Enterprise** | RBAC, ABAC, audit, multi-tenancy       | included                         |
+| Framework      | Purpose                                | Python Install                   | Ruby Install          |
+| -------------- | -------------------------------------- | -------------------------------- | --------------------- |
+| **Core SDK**   | Workflow orchestration, 140+ nodes     | `pip install kailash-enterprise` | `gem install kailash` |
+| **DataFlow**   | Zero-config database operations        | included                         | included              |
+| **Nexus**      | Multi-channel deployment (API+CLI+MCP) | included                         | included              |
+| **Kaizen**     | AI agent framework                     | included                         | included              |
+| **Enterprise** | RBAC, ABAC, audit, multi-tenancy       | included                         | included              |
 
-All frameworks ship in a single `pip install kailash-enterprise`. Import via `import kailash`.
+All frameworks ship in a single package per language. Python: `pip install kailash-enterprise` (import via `import kailash`). Ruby: `gem install kailash` (require via `require "kailash"`).

@@ -32,6 +32,17 @@ env.bak/
 venv.bak/
 .python-version
 
+# Ruby
+*.gem
+*.rbc
+/.bundle
+/vendor/bundle
+Gemfile.lock
+.ruby-version
+.ruby-gemset
+/coverage/
+/spec/reports/
+
 # IDE specific files
 .idea/
 .vscode/

@@ -1,6 +1,7 @@
 ---
 paths:
   - "**/*.py"
+  - "**/*.rb"
   - "**/*.ts"
   - "**/*.js"
 ---
@@ -9,13 +10,15 @@ paths:
 
 ## Scope
 
-These rules apply to all code using the Kailash Python package (`kailash-enterprise`).
+These rules apply to all code using the Kailash Python package (`kailash-enterprise`) or Ruby gem (`kailash`).
 
 ## MUST Rules
 
 ### 1. Runtime Execution Pattern
 
 MUST use `rt.execute(wf)` where `wf = builder.build(reg)`.
+
+#### Python
 
 ```python
 import kailash
@@ -37,6 +40,33 @@ result = rt.execute(wf)
 ❌ runtime.run(workflow)  # Wrong method
 ```
 
+#### Ruby
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  builder = Kailash::WorkflowBuilder.new
+  builder.add_node("NodeType", "node_id", { "param" => "value" })
+  workflow = builder.build(registry)
+  Kailash::Runtime.open(registry) do |runtime|
+    result = runtime.execute(workflow, { "data" => "hello" })
+    output = result.results["node_id"]
+  end
+  workflow.close
+end
+```
+
+**Incorrect**:
+
+```ruby
+❌ builder.build  # Missing registry argument
+❌ builder.build()  # Missing registry argument
+❌ { key: value }  # Symbol keys - use { "key" => value }
+❌ Kailash::Runtime.new  # Missing registry
+❌ Timeout.timeout(5) { runtime.execute(...) }  # Won't interrupt Rust
+```
+
 **Enforced by**: validate-workflow hook
 **Violation**: Code review flag
 
@@ -44,7 +74,7 @@ result = rt.execute(wf)
 
 Node IDs MUST be string literals.
 
-**Correct**:
+#### Python
 
 ```python
 builder.add_node("NodeType", "my_node_id", {"param": "value"})
@@ -57,14 +87,27 @@ builder.add_node("NodeType", "my_node_id", {"param": "value"})
 ❌ builder.add_node("NodeType", f"node_{i}", {...})
 ```
 
+#### Ruby
+
+```ruby
+builder.add_node("NodeType", "my_node_id", { "param" => "value" })
+```
+
+**Incorrect**:
+
+```ruby
+❌ builder.add_node("NodeType", node_id_var, { "param" => "value" })
+❌ builder.add_node("NodeType", "node_#{i}", { "param" => "value" })
+```
+
 **Enforced by**: Code review
 **Violation**: Potential runtime issues
 
-### 3. Absolute Imports
+### 3. Imports
+
+#### Python
 
 MUST use `import kailash` for all Kailash types.
-
-**Correct**:
 
 ```python
 import kailash
@@ -75,6 +118,19 @@ rt = kailash.Runtime(reg)
 df = kailash.DataFlow("sqlite:///db.sqlite")
 app = kailash.NexusApp(kailash.NexusConfig(port=3000))
 agent = kailash.Agent(config, client)
+```
+
+#### Ruby
+
+MUST use `require "kailash"` (single require). All types live under the `Kailash::` namespace.
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  builder = Kailash::WorkflowBuilder.new
+  runtime = Kailash::Runtime.open(registry) { |rt| rt }
+end
 ```
 
 **Enforced by**: validate-workflow hook
@@ -93,6 +149,8 @@ MUST load .env before any operation.
 
 MUST use correct parameter order for add_node.
 
+#### Python
+
 ```python
 builder.add_node(
     "NodeType",      # 1. Type (string)
@@ -101,9 +159,21 @@ builder.add_node(
 )
 ```
 
+#### Ruby
+
+```ruby
+builder.add_node(
+  "NodeType",          # 1. Type (string)
+  "node_id",           # 2. ID (string)
+  { "param" => "v" }   # 3. Config (hash with string keys, optional)
+)
+```
+
 ## Framework-Specific Rules
 
 ### DataFlow
+
+#### Python
 
 ```python
 import kailash
@@ -136,7 +206,24 @@ migration = mgr.generate_migration(df)
 mgr.apply(migration, df)  # NOTE: apply(migration, dataflow) -- NOT apply(dataflow, migration)
 ```
 
+#### Ruby
+
+```ruby
+require "kailash"
+
+df = Kailash::DataFlow.new("sqlite:///mydb.sqlite")
+
+model = Kailash::ModelDefinition.new("User", "users")
+model.field("name", Kailash::FieldType.text)
+model.field("email", Kailash::FieldType.text, unique: true, index: true)
+
+df.register_model(model)
+df.auto_migrate!
+```
+
 ### Nexus
+
+#### Python
 
 ```python
 import kailash
@@ -166,7 +253,24 @@ bus.subscribe("user.created", lambda data: print(data))
 bus.publish("user.created", {"user_id": "123"})
 ```
 
+#### Ruby
+
+```ruby
+require "kailash"
+
+config = Kailash::NexusConfig.new(port: 3000)
+app = Kailash::NexusApp.new(config)
+
+app.handler("chat") do |params|
+  { "message" => "Hello" }
+end
+
+app.start
+```
+
 ### Kaizen
+
+#### Python
 
 ```python
 import os
@@ -192,7 +296,24 @@ from kailash.kaizen import StreamingAgent, StreamHandler
 from kailash.kaizen import ObservabilityManager, MetricsCollector
 ```
 
+#### Ruby
+
+```ruby
+require "kailash"
+
+config = Kailash::AgentConfig.new(
+  model: ENV.fetch("OPENAI_PROD_MODEL")  # NEVER hardcode model names
+)
+client = Kailash::LlmClient.new("openai", ENV.fetch("OPENAI_API_KEY"))
+agent = Kailash::Agent.new(config, client)
+
+# Mock LLM for testing
+mock_client = Kailash::LlmClient.mock
+```
+
 ### Enterprise
+
+#### Python
 
 ```python
 import kailash
@@ -236,7 +357,30 @@ sso = SSOProvider({"protocol": "oidc", "provider_name": "okta",
     "scopes": ["openid", "profile", "email"]})
 ```
 
+#### Ruby
+
+```ruby
+require "kailash"
+
+# RBAC
+role = Kailash::Role.new("admin")
+role.add_permission(Kailash::Permission.new("users", "read"))
+evaluator = Kailash::RbacEvaluator.new
+evaluator.add_role(role)
+
+# ABAC
+policy = Kailash::AbacPolicy.new("age-check", "allow")
+policy.add_action("read")
+abac = Kailash::AbacEvaluator.new([policy])
+
+# Audit
+logger = Kailash::AuditLogger.new
+logger.log_event("data_access", "user", "user-123", "users", "read", true)
+```
+
 ### MCP
+
+#### Python
 
 ```python
 from kailash.mcp import McpApplication, prompt_argument

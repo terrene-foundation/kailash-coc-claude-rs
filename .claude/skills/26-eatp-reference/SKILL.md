@@ -1,10 +1,6 @@
 ---
 name: eatp-reference
 description: Load EATP Framework technical reference. Use when explaining EATP concepts, trust lineage, attestation, verification gradient, trust postures, or comparing to other identity standards.
-allowed-tools:
-  - Read
-  - Glob
-  - Grep
 ---
 
 # EATP Framework Reference
@@ -13,20 +9,19 @@ This skill provides the technical reference for the Enterprise Agent Trust Proto
 
 ## Authoritative Sources
 
-### PRIMARY: White Paper
-- `docs/02-standards/publications/EATP-Core-Thesis.md` - Definitive thesis by Dr. Jack Hong
+### PRIMARY: This Skill Document
+This file is the in-repo EATP reference. The concepts below are drawn from the EATP specification and the standalone EATP SDK (Apache 2.0, Terrene Foundation).
 
-### PRIMARY: Anchor Documents
-- `docs/00-anchor/00-first-principles.md` - Core mission and principles
-- `docs/00-anchor/01-core-entities.md` - EATP as core asset
-- `docs/00-anchor/02-the-gap.md` - Why EATP exists (the agentic gap)
-- `docs/00-anchor/03-ip-ownership.md` - EATP IP model
-
-### SECONDARY: Technical Specifications
-- `docs/02-standards/eatp/01-first-principles.md` - EATP design principles
-- `docs/02-standards/eatp/02-trust-lineage-chain.md` - The five EATP elements
-- `docs/02-standards/eatp/03-operations.md` - EATP operations
-- `docs/02-standards/eatp/04-integration.md` - Integration patterns
+### REFERENCE: Kailash SDK Implementation
+EATP trust features are available in the Kailash Python binding:
+```bash
+pip install kailash-enterprise
+```
+```python
+from kailash.kaizen import BaseAgent, HookManager
+# Trust types (verification gradient, delegation chains, etc.) are
+# available through the Kaizen trust module in kailash-enterprise.
+```
 
 ## What is EATP?
 
@@ -153,13 +148,29 @@ Operations: ESTABLISH → DELEGATE → VERIFY → AUDIT
 | **COC** | COC maps EATP concepts to development guardrails |
 | **Kailash** | Reference implementation (Apache 2.0) |
 
+## Standalone EATP SDK
+
+The EATP protocol has a standalone Rust SDK crate (Apache 2.0, Terrene Foundation) with these key modules:
+
+| Module           | Contents                                |
+| ---------------- | --------------------------------------- |
+| Keys             | Ed25519 key management (ZeroizeOnDrop)  |
+| Chain            | CareChain (genesis, trust blocks)       |
+| Delegation       | Delegation chains, constraint tightening |
+| Verification     | Verification gradient (4 levels)        |
+| Governed         | GovernedTaodRunner pipeline             |
+| Human            | PseudoAgent, HoldQueue                  |
+| Constraints      | 5-dimensional constraints + 6 templates |
+| Store            | Memory, Filesystem (age-encrypted), PostgreSQL |
+| CLI              | 16 commands                             |
+| MCP              | MCP server (5 tools, 4 resources)       |
+
+The Kailash Kaizen framework re-exports EATP types via its `trust` feature, so Python users of `kailash-enterprise` access these through the Kaizen module.
+
 ## For Detailed Information
 
-Read these source documents:
-- `docs/02-standards/publications/EATP-Core-Thesis.md` - The thesis paper
-- `docs/02-standards/eatp/01-first-principles.md` - Design principles
-- `docs/02-standards/eatp/02-trust-lineage-chain.md` - The five elements
-- `docs/02-standards/eatp/03-operations.md` - EATP operations
-- `docs/02-standards/eatp/04-integration.md` - Integration patterns
-
 For comprehensive analysis, invoke the **eatp-expert** agent.
+
+Related skills:
+- `.claude/skills/27-care-reference/` - CARE governance philosophy
+- `.claude/skills/28-coc-reference/` - COC development guardrails

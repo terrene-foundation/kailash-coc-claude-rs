@@ -1,6 +1,6 @@
-# Contributing to Kailash Python SDK
+# Contributing to Kailash SDK (Rust-backed Bindings)
 
-We welcome contributions to the Kailash Python SDK! This document provides guidelines for contributing to the project.
+We welcome contributions to the Kailash SDK! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
@@ -8,13 +8,19 @@ We welcome contributions to the Kailash Python SDK! This document provides guide
 2. Clone your fork locally
 3. Set up the development environment:
    ```bash
+   # Python
    pip install -e ".[dev]"
+
+   # Ruby
+   bundle install
    ```
 4. Create a new branch for your feature or bugfix
 
 ## Development Process
 
 ### Code Style
+
+#### Python
 
 We use standard Python tools for code quality:
 
@@ -30,13 +36,25 @@ isort src/
 mypy src/
 ```
 
+#### Ruby
+
+We use RuboCop for code quality:
+
+```bash
+bundle exec rubocop --autocorrect
+```
+
 ### Testing
 
 All new features should include tests:
 
 ```bash
+# Python
 pytest
 pytest --cov=kailash
+
+# Ruby
+bundle exec rspec
 ```
 
 ### Architecture Decision Records (ADRs)
