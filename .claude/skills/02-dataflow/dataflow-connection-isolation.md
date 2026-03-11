@@ -441,7 +441,7 @@ result = rt.execute(builder.build(reg))
 
 ### Primary Sources
 
-- **kailash.Runtime**: `crates/kailash-core/src/runtime.rs`
+- **kailash.Runtime**: See [`runtime-execution`](../01-core-sdk/runtime-execution.md) skill
 
 ### Related Documentation
 

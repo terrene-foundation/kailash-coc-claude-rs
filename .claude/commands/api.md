@@ -8,8 +8,8 @@ Load the Nexus skill for zero-config multi-channel platform deployment (API + CL
 
 Before loading Nexus patterns, check that this project uses Kailash Nexus:
 
-- Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`
-- Look for `import kailash` in source files
+- Python: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`; `import kailash` in source files
+- Ruby: Look for `kailash` in `Gemfile` or `*.gemspec`; `require "kailash"` / `Kailash::Nexus` in source files
 
 If not found, inform the user: "This project doesn't appear to use Kailash Nexus. These patterns may not apply. Continue anyway?"
 
@@ -32,23 +32,30 @@ If not found, inform the user: "This project doesn't appear to use Kailash Nexus
 
 ## Quick Pattern
 
-All Nexus types are available directly from `import kailash`:
+**Python** (`import kailash`):
 
 ```python
 import kailash
 
-# Nexus types
 config = kailash.NexusConfig(port=3000)
 app = kailash.NexusApp(config)
-
-# Presets: None, Lightweight, Standard, SaaS, Enterprise
 config_with_preset = kailash.NexusConfig(preset=kailash.Preset.Standard)
-
-# Handler parameters
 param = kailash.HandlerParam(name="user_id", required=True)
-
-# MCP server (AI agent integration)
 mcp = kailash.McpServer(name="my-service")
+```
+
+**Ruby** (`require "kailash"`):
+
+```ruby
+require "kailash"
+
+config = Kailash::Nexus::NexusConfig.new
+config.host = "0.0.0.0"
+config.port = 3000
+preset = Kailash::Nexus::Preset.standard
+param = Kailash::Nexus::HandlerParam.new("user_id", "string")
+jwt = Kailash::Nexus::JwtConfig.new("secret-at-least-32-bytes-long!!")
+mcp = Kailash::Nexus::McpServer.new("my-service", "1.0")
 ```
 
 ## Key Concepts

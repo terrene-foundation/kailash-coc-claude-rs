@@ -266,50 +266,42 @@ app.add_plugin(auth)
 ### JWT Configuration
 
 ```python
-from kailash.nexus import JWTConfig
+import os
+import kailash
 
-# Symmetric (HS256) - secret MUST be >= 32 chars
-jwt_config = JWTConfig(
-    secret=os.environ["JWT_SECRET"],     # CRITICAL: `secret` not `secret_key`; >= 32 chars
-    algorithm="HS256",
-    exempt_paths=["/health", "/docs"],   # CRITICAL: `exempt_paths` not `exclude_paths`
-    verify_exp=True,
-    leeway=0,
+# JwtConfig constructor: JwtConfig(secret_key, expiry_secs=3600, algorithm="HS256", issuer=None)
+jwt_config = kailash.JwtConfig(
+    secret_key=os.environ["JWT_SECRET"],  # MUST be `secret_key`, >= 32 chars
+    expiry_secs=3600,                      # Token expiry in seconds
+    algorithm="HS256",                     # Default algorithm
+    issuer="https://my-domain.com",        # Optional issuer claim
 )
 
-# Asymmetric (RS256) with SSO
-jwt_config = JWTConfig(
-    algorithm="RS256",
-    public_key="-----BEGIN PUBLIC KEY-----...",
-    private_key="-----BEGIN PRIVATE KEY-----...",  # For token creation
-    issuer="https://your-issuer.com",
-    audience="your-api",
-)
-
-# JWKS for SSO providers (Auth0, Okta, etc.)
-jwt_config = JWTConfig(
-    algorithm="RS256",
-    jwks_url="https://your-tenant.auth0.com/.well-known/jwks.json",
-    jwks_cache_ttl=3600,
-)
+# Use with NexusAuthPlugin
+auth = kailash.NexusAuthPlugin(jwt=jwt_config)
 ```
 
 ### RBAC Setup
 
 ```python
-from kailash.nexus import RequireRole, RequirePermission, get_current_user
+import os
+import kailash
 
-# Define roles in plugin
-auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),  # >= 32 chars
-    rbac={
+# Define roles with RbacConfig
+rbac = kailash.RbacConfig(
+    roles={
         "admin": ["*"],                           # Full access
         "editor": ["read:*", "write:articles"],   # Wildcard + specific
         "viewer": ["read:*"],                     # Read-only
     },
-    rbac_default_role="viewer",  # Users without roles get this
+    deny_by_default=True,
 )
-# NOTE: RequireRole/RequirePermission return generic "Forbidden" (no role leakage)
+
+# Combine JWT + RBAC in auth plugin
+auth = kailash.NexusAuthPlugin(
+    jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
+    rbac=rbac,
+)
 
 ```
 

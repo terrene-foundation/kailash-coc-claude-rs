@@ -4,6 +4,8 @@ paths:
   - "**/*test*"
   - "**/*spec*"
   - "conftest.py"
+  - "spec/**"
+  - "spec_helper.rb"
 ---
 
 # Testing Rules
@@ -73,7 +75,7 @@ Integration and E2E tests MUST use real infrastructure.
 
 MUST NOT use mocking in integration or E2E tests.
 
-**Detection Patterns**:
+**Detection Patterns (Python)**:
 
 ```python
 ❌ @patch('module.function')
@@ -81,6 +83,16 @@ MUST NOT use mocking in integration or E2E tests.
 ❌ unittest.mock
 ❌ from mock import Mock
 ❌ mocker.patch()
+```
+
+**Detection Patterns (Ruby)**:
+
+```ruby
+❌ allow(obj).to receive(:method)
+❌ expect(obj).to receive(:method)
+❌ double("name")
+❌ instance_double(Class)
+❌ class_double(Class)
 ```
 
 **Why This Matters**:
@@ -126,11 +138,21 @@ tests/
 
 ### Naming Convention
 
+**Python**:
+
 ```
 test_[feature]_[scenario]_[expected_result].py
 ```
 
 Example: `test_user_login_with_valid_credentials_succeeds.py`
+
+**Ruby**:
+
+```
+[feature]_[scenario]_spec.rb
+```
+
+Example: `user_login_with_valid_credentials_spec.rb`
 
 ## Kailash-Specific Testing
 
@@ -152,6 +174,8 @@ def test_user_creation(db):
 
 ### Workflow Testing
 
+**Python**:
+
 ```python
 # Tier 2: Use real runtime
 import kailash
@@ -163,6 +187,29 @@ def test_workflow_execution():
     rt = kailash.Runtime(reg)
     result = rt.execute(wf)
     assert result["results"] is not None
+```
+
+**Ruby**:
+
+```ruby
+# Tier 2: Use real runtime
+require "kailash"
+
+RSpec.describe "Workflow execution" do
+  let(:registry) { Kailash::Registry.new }
+  after { registry.close unless registry.closed? }
+
+  it "executes successfully" do
+    builder = Kailash::WorkflowBuilder.new
+    builder.add_node("NoOpNode", "n", {})
+    wf = builder.build(registry)
+    Kailash::Runtime.open(registry) do |rt|
+      result = rt.execute(wf, {})
+      expect(result.results).to have_key("n")
+    end
+    wf.close
+  end
+end
 ```
 
 ## Exceptions

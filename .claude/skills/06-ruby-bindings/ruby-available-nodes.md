@@ -112,4 +112,4 @@ All four framework modules are available as Ruby classes:
 | **Kaizen**     | `Kailash::Kaizen::*`     | Agent, AgentConfig, LlmClient, ToolRegistry, ToolDef, SessionMemory, SharedMemory |
 | **Enterprise** | `Kailash::Enterprise::*` | RbacEvaluator, Role, Permission, User, AbacPolicy, AbacEvaluator, AuditLogger     |
 | **Nexus**      | `Kailash::Nexus::*`      | NexusConfig, JwtConfig, RbacConfig, HandlerParam, Preset, MiddlewareConfig        |
-| **DataFlow**   | `Kailash::DataFlow::*`   | DataFlowConfig, ModelDefinition, FieldType, FieldDef, FilterCondition             |
+| **DataFlow**   | `Kailash::DataFlow::*`   | Config, ModelDefinition, FieldType, FieldDef, FilterCondition                     |

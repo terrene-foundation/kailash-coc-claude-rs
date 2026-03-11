@@ -176,7 +176,51 @@ except RuntimeError as e:
     print(f"Workflow execution failed: {e}")
 ```
 
+## Ruby Equivalent
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  builder = Kailash::WorkflowBuilder.new
+  builder.add_node("TextTransformNode", "upper", { "operation" => "uppercase" })
+  workflow = builder.build(registry)
+
+  Kailash::Runtime.open(registry) do |runtime|
+    result = runtime.execute(workflow, { "text" => "hello world" })
+    puts result.results["upper"]["result"]
+  end
+  workflow.close
+end
+```
+
+**Ruby RuntimeConfig**:
+
+```ruby
+config = Kailash::RuntimeConfig.new
+config.debug = true
+config.max_concurrent_nodes = 8
+config.workflow_timeout = 120
+config.node_timeout = 30
+
+Kailash::Runtime.open(registry, config) do |runtime|
+  result = runtime.execute(workflow, inputs)
+end
+```
+
+## Resource Lifecycle (Three-Layer Model)
+
+The Runtime manages resources through a three-layer model:
+
+1. **Access layer** -- Global pool registry for key-based pool lookup
+2. **Ownership layer** -- DataFlow and nodes own pools with explicit cleanup
+3. **Lifecycle layer** -- Per-Runtime resource registry with LIFO shutdown
+
+Database connections created by `DatabaseConnectionNode` are automatically registered and cleaned up when the Runtime is garbage collected (Python) or when the block closes (Ruby).
+
 ## Testing with Runtime
+
+### Python
 
 ```python
 import kailash
@@ -196,11 +240,38 @@ def test_workflow_produces_correct_output():
     assert output.get("result") == "HELLO"
 ```
 
+### Ruby
+
+```ruby
+require "kailash"
+
+RSpec.describe "TextTransform workflow" do
+  it "uppercases text" do
+    Kailash::Registry.open do |registry|
+      builder = Kailash::WorkflowBuilder.new
+      builder.add_node("TextTransformNode", "upper", { "operation" => "uppercase" })
+      workflow = builder.build(registry)
+
+      Kailash::Runtime.open(registry) do |runtime|
+        result = runtime.execute(workflow, { "text" => "hello" })
+        expect(result.results["upper"]["result"]).to eq("HELLO")
+      end
+      workflow.close
+    end
+  end
+end
+```
+
 ## Verify
 
 ```bash
+# Python
 pip install kailash-enterprise
 python -c "import kailash; print(kailash.NodeRegistry().list_types()[:5])"
+
+# Ruby
+gem install kailash
+ruby -e 'require "kailash"; puts Kailash::Registry.new.list_types.first(5).inspect'
 ```
 
 <!-- Trigger Keywords: execute workflow, runtime, kailash.Runtime, run workflow, execution, workflow execution -->

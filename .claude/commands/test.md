@@ -9,6 +9,7 @@ Load the testing strategies skill for 3-tier testing with NO MOCKING policy enfo
 Before loading test patterns, check what the project uses:
 
 - Look at `requirements.txt`, `pyproject.toml`, `setup.py` for `pytest`, `unittest`
+- Look at `Gemfile` for `rspec`, `minitest`
 - Look at `package.json` for `jest`, `vitest`, `mocha`, `playwright`
 - Look at `pubspec.yaml` for `flutter_test`, `integration_test`
 - Look for existing test directories (`tests/`, `test/`, `__tests__/`, `spec/`)
@@ -74,15 +75,27 @@ def test_user_creation(db):
 ## Critical Rule - NO MOCKING in Tier 2-3
 
 ```python
-# PROHIBITED in integration/e2e tests (any framework)
+# PROHIBITED in integration/e2e tests (Python)
 @patch('module.function')
 MagicMock()
 unittest.mock
 from mock import Mock
 mocker.patch()
-jest.mock()
-jest.spyOn()
-vi.mock()
+```
+
+```ruby
+# PROHIBITED in integration/e2e tests (Ruby)
+allow(obj).to receive(:method)
+expect(obj).to receive(:method)
+double("name")
+instance_double(Class)
+```
+
+```javascript
+// PROHIBITED in integration/e2e tests (JS/TS)
+jest.mock();
+jest.spyOn();
+vi.mock();
 ```
 
 ## Agent Teams

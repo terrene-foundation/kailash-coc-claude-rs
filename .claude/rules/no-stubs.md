@@ -11,9 +11,12 @@ These rules apply to ALL production code (non-test files).
 Production code MUST NOT contain:
 
 - `TODO`, `FIXME`, `HACK`, `STUB`, `XXX` markers
-- `raise NotImplementedError` (implement the method)
-- `pass # placeholder` or `pass # stub`
-- `return None # not implemented`
+- Python: `raise NotImplementedError` (implement the method)
+- Python: `pass # placeholder` or `pass # stub`
+- Python: `return None # not implemented`
+- Ruby: `raise NotImplementedError` (implement the method)
+- Ruby: `# stub` or `# placeholder` markers
+- Ruby: `nil # not implemented`
 - Empty function/method bodies that should have logic
 
 ### 2. No Simulated or Fake Data
@@ -29,11 +32,13 @@ Production code MUST NOT contain:
 
 Production code MUST NOT silently swallow errors:
 
-- `except: pass` (bare except with pass)
+- Python: `except: pass` (bare except with pass)
+- Python: `except Exception: return None` without logging
+- Ruby: `rescue => e; end` (bare rescue with no handling)
+- Ruby: `rescue StandardError; nil` without logging
 - `catch(e) {}` (empty catch block)
-- `except Exception: return None` without logging
 
-**Acceptable**: `except: pass` in hooks/cleanup code where failure is expected.
+**Acceptable**: `except: pass` / `rescue; end` in hooks/cleanup code where failure is expected.
 
 ### 4. No Deferred Implementation
 
@@ -61,7 +66,7 @@ Stubs and TODOs accumulate silently. Each one is a hidden failure point:
 
 ## Exceptions
 
-Test files (`test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `__tests__/`) are excluded.
+Test files (`test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `*_spec.rb`, `__tests__/`, `spec/`) are excluded.
 Stub exceptions require:
 
 1. Explicit user approval ("skip this for now")

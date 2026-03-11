@@ -8,8 +8,9 @@ Run compliance checks against the project's applicable standards. Automatically 
 
 Before validating, determine what frameworks the project uses:
 
-1. **Check for Kailash SDK (Rust-backed)**: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, or `import kailash` in Python files
-2. **Generic project**: If not detected, apply universal standards only
+1. **Check for Kailash SDK (Python)**: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, or `import kailash` in Python files
+2. **Check for Kailash SDK (Ruby)**: Look for `kailash` in `Gemfile` or `*.gemspec`, or `require "kailash"` / `Kailash::` in Ruby files
+3. **Generic project**: If neither detected, apply universal standards only
 
 Report what you detected before proceeding.
 
@@ -45,8 +46,8 @@ If Step 1 detected Kailash SDK usage, ALSO run these checks by loading the Kaila
 
 | Check            | What It Validates                                                                   |
 | ---------------- | ----------------------------------------------------------------------------------- |
-| Absolute Imports | `import kailash` — no relative or submodule imports                                  |
-| Runtime Pattern  | `rt.execute(builder.build(reg))` — never skip `.build(reg)`                   |
+| Absolute Imports | `import kailash` — no relative or submodule imports                                 |
+| Runtime Pattern  | `rt.execute(builder.build(reg))` — never skip `.build(reg)`                         |
 | Connections      | 4-parameter format: `(source_id, source_param, target_id, target_param)`            |
 | Result Access    | `results["node_id"]["result"]` — not `.result` attribute                            |
 | Custom Nodes     | `@register_node()`, `run()` not `execute()`, attributes before `super().__init__()` |

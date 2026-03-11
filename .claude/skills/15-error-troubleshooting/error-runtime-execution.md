@@ -20,7 +20,7 @@ Fix common runtime execution errors including wrong runtime usage, execution fai
 ```python
 # ❌ Error: these parameter names do NOT exist
 rt.execute(builder.build(reg), config={"node": {"param": "value"}})
-rt.execute(builder.build(reg), parameters={"node": {"param": "value"}})
+rt.execute(builder.build(reg), {"node": {"param": "value"}})  # positional OK, but named arg is 'inputs'
 rt.execute(builder.build(reg), overrides={"node": {"param": "value"}})
 
 # ✅ Fix: Use 'inputs'

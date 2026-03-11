@@ -8,8 +8,10 @@ Load the Kailash Core SDK skill for workflow patterns, node configuration, and r
 
 Before loading SDK patterns, check that this project uses Kailash:
 
-- Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`
-- Look for `from kailash` / `import kailash` in source files
+- Python: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`
+- Python: Look for `from kailash` / `import kailash` in source files
+- Ruby: Look for `kailash` in `Gemfile` or `*.gemspec`
+- Ruby: Look for `require "kailash"` / `Kailash::` in source files
 
 If not found, inform the user: "This project doesn't appear to use Kailash SDK. These patterns may not apply. Continue anyway?"
 
@@ -32,6 +34,8 @@ If not found, inform the user: "This project doesn't appear to use Kailash SDK. 
 
 ## Quick Pattern
 
+**Python**:
+
 ```python
 import kailash
 
@@ -43,6 +47,24 @@ wf = builder.build(reg)
 rt = kailash.Runtime(reg)
 result = rt.execute(wf)
 # result is dict: {"results": {...}, "run_id": "...", "metadata": {...}}
+```
+
+**Ruby**:
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  builder = Kailash::WorkflowBuilder.new
+  builder.add_node("NodeType", "node_id", { "param" => "value" })
+  builder.connect("node1", "output", "node2", "input")
+  wf = builder.build(registry)
+  Kailash::Runtime.open(registry) do |rt|
+    result = rt.execute(wf, {})
+    # result.results is Hash, result.run_id is String
+  end
+  wf.close
+end
 ```
 
 ## Critical Rules

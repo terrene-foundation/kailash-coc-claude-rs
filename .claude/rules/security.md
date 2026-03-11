@@ -1,14 +1,17 @@
 # Security Rules
 
 ## Scope
+
 These rules apply to ALL code changes in the repository.
 
 ## MUST Rules
 
 ### 1. No Hardcoded Secrets
+
 All sensitive data MUST use environment variables.
 
 **Detection Patterns**:
+
 ```
 ❌ api_key = "sk-..."
 ❌ password = "admin123"
@@ -16,26 +19,38 @@ All sensitive data MUST use environment variables.
 ❌ DATABASE_URL = "postgres://user:pass@..."
 ```
 
-**Correct Pattern**:
-```
+**Correct Pattern (Python)**:
+
+```python
 ✅ api_key = os.environ.get("API_KEY")
 ✅ password = os.environ["DB_PASSWORD"]
 ✅ from dotenv import load_dotenv; load_dotenv()
+```
+
+**Correct Pattern (Ruby)**:
+
+```ruby
+✅ api_key = ENV.fetch("API_KEY")
+✅ password = ENV.fetch("DB_PASSWORD")
+✅ require "dotenv/load"  # loads .env automatically
 ```
 
 **Enforced by**: security-reviewer agent, pre-commit hook
 **Violation**: BLOCK commit
 
 ### 2. Parameterized Queries
+
 All database queries MUST use parameterized queries or ORM.
 
 **Detection Patterns**:
+
 ```
 ❌ f"SELECT * FROM users WHERE id = {user_id}"
 ❌ "DELETE FROM users WHERE name = '" + name + "'"
 ```
 
 **Correct Pattern**:
+
 ```
 ✅ "SELECT * FROM users WHERE id = %s", (user_id,)
 ✅ cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -46,15 +61,18 @@ All database queries MUST use parameterized queries or ORM.
 **Violation**: BLOCK commit
 
 ### 3. Input Validation
+
 All user input MUST be validated before use.
 
 **Applies to**:
+
 - API endpoints
 - CLI inputs
 - File uploads
 - Form submissions
 
 **Required Validations**:
+
 - Type checking
 - Length limits
 - Format validation (email, URL, etc.)
@@ -64,20 +82,24 @@ All user input MUST be validated before use.
 **Violation**: HIGH priority fix
 
 ### 4. Output Encoding
+
 All user-generated content MUST be encoded before display.
 
 **Applies to**:
+
 - HTML templates
 - JSON responses
 - Log output
 
 **Detection Patterns**:
+
 ```
 ❌ element.innerHTML = userContent
 ❌ dangerouslySetInnerHTML={{ __html: userContent }}
 ```
 
 **Correct Pattern**:
+
 ```
 ✅ element.textContent = userContent
 ✅ DOMPurify.sanitize(userContent)
@@ -90,21 +112,56 @@ All user-generated content MUST be encoded before display.
 ## MUST NOT Rules
 
 ### 1. No eval() on User Input
+
 MUST NOT use eval(), exec(), or similar on user-controlled data.
 
-**Detection Patterns**:
-```
+**Detection Patterns (Python)**:
+
+```python
 ❌ eval(user_input)
 ❌ exec(user_code)
 ❌ subprocess.call(user_command, shell=True)
 ```
 
+**Detection Patterns (Ruby)**:
+
+```ruby
+# Code execution
+❌ eval(user_input)
+❌ instance_eval(user_input)
+❌ class_eval(user_input)
+❌ module_eval(user_input)
+❌ Binding.eval(user_input)
+
+# Shell execution
+❌ Kernel.system(user_input)
+❌ Kernel.exec(user_input)
+❌ `#{user_input}`  # backtick interpolation
+❌ %x(#{user_input})
+❌ IO.popen(user_input)
+❌ Open3.capture2(user_input)
+❌ Open3.popen3(user_input)
+
+# Unsafe deserialization
+❌ Marshal.load(user_input)   # arbitrary object instantiation
+❌ YAML.load(user_input)      # use YAML.safe_load instead
+❌ JSON.parse(user_input, create_additions: true)  # object creation
+
+# Dynamic dispatch on user input
+❌ object.send(user_input)
+❌ object.public_send(user_input)
+❌ Object.const_get(user_input)
+❌ Kernel.const_get(user_input)
+```
+
 **Consequence**: BLOCK commit
 
 ### 2. No Secrets in Logs
+
 MUST NOT log sensitive data (passwords, tokens, PII).
 
 **Detection Patterns**:
+
 ```
 ❌ logger.info(f"User logged in with password: {password}")
 ❌ print(f"API key: {api_key}")
@@ -113,9 +170,11 @@ MUST NOT log sensitive data (passwords, tokens, PII).
 **Consequence**: CRITICAL fix required
 
 ### 3. No .env in Git
+
 MUST NOT commit .env files to version control.
 
 **Required**:
+
 - .env in .gitignore
 - .env.example for templates (no real values)
 
@@ -124,22 +183,27 @@ MUST NOT commit .env files to version control.
 ## Kailash-Specific Security
 
 ### DataFlow Models
+
 - Use proper access controls on models
 - Validate inputs at model level
 - Never expose internal IDs directly
 
 ### Nexus Endpoints
+
 - Authentication on all protected routes
 - Rate limiting enabled
 - CORS properly configured
 
 ### Kaizen Agents
+
 - Prompt injection protection
 - Sensitive data filtering in prompts
 - Output validation
 
 ## Exceptions
+
 Security exceptions require:
+
 1. Written justification
 2. Approval from security-reviewer
 3. Documentation in security review

@@ -211,11 +211,12 @@ mgr.apply(migration, df)  # NOTE: apply(migration, dataflow) -- NOT apply(datafl
 ```ruby
 require "kailash"
 
-df = Kailash::DataFlow.new("sqlite:///mydb.sqlite")
+config = Kailash::DataFlow::Config.new("sqlite:///mydb.sqlite")
+df = Kailash::DataFlow.new(config)
 
-model = Kailash::ModelDefinition.new("User", "users")
-model.field("name", Kailash::FieldType.text)
-model.field("email", Kailash::FieldType.text, unique: true, index: true)
+model = Kailash::DataFlow::ModelDefinition.new("User", "users")
+model.field("name", Kailash::DataFlow::FieldType.text)
+model.field("email", Kailash::DataFlow::FieldType.text, unique: true, index: true)
 
 df.register_model(model)
 df.auto_migrate!
@@ -258,8 +259,9 @@ bus.publish("user.created", {"user_id": "123"})
 ```ruby
 require "kailash"
 
-config = Kailash::NexusConfig.new(port: 3000)
-app = Kailash::NexusApp.new(config)
+config = Kailash::Nexus::NexusConfig.new
+config.port = 3000
+app = Kailash::Nexus::NexusApp.new(config)
 
 app.handler("chat") do |params|
   { "message" => "Hello" }
@@ -301,14 +303,13 @@ from kailash.kaizen import ObservabilityManager, MetricsCollector
 ```ruby
 require "kailash"
 
-config = Kailash::AgentConfig.new(
-  model: ENV.fetch("OPENAI_PROD_MODEL")  # NEVER hardcode model names
-)
-client = Kailash::LlmClient.new("openai", ENV.fetch("OPENAI_API_KEY"))
-agent = Kailash::Agent.new(config, client)
+config = Kailash::Kaizen::AgentConfig.new
+config.model = ENV.fetch("OPENAI_PROD_MODEL")  # NEVER hardcode model names
+client = Kailash::Kaizen::LlmClient.new("openai")  # API key from ENV automatically
+agent = Kailash::Kaizen::Agent.new(config, client)
 
 # Mock LLM for testing
-mock_client = Kailash::LlmClient.mock
+mock_client = Kailash::Kaizen::LlmClient.new("mock")
 ```
 
 ### Enterprise
@@ -363,18 +364,18 @@ sso = SSOProvider({"protocol": "oidc", "provider_name": "okta",
 require "kailash"
 
 # RBAC
-role = Kailash::Role.new("admin")
-role.add_permission(Kailash::Permission.new("users", "read"))
-evaluator = Kailash::RbacEvaluator.new
+role = Kailash::Enterprise::Role.new("admin")
+role.add_permission(Kailash::Enterprise::Permission.new("users", "read"))
+evaluator = Kailash::Enterprise::RbacEvaluator.new
 evaluator.add_role(role)
 
 # ABAC
-policy = Kailash::AbacPolicy.new("age-check", "allow")
+policy = Kailash::Enterprise::AbacPolicy.new("age-check", "allow")
 policy.add_action("read")
-abac = Kailash::AbacEvaluator.new([policy])
+abac = Kailash::Enterprise::AbacEvaluator.new([policy])
 
 # Audit
-logger = Kailash::AuditLogger.new
+logger = Kailash::Enterprise::AuditLogger.new
 logger.log_event("data_access", "user", "user-123", "users", "read", true)
 ```
 

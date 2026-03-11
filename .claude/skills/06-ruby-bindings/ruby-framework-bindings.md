@@ -233,7 +233,7 @@ mcp = Kailash::Nexus::McpServer.new
 ### Configuration
 
 ```ruby
-config = Kailash::DataFlow::DataFlowConfig.new("sqlite::memory:")
+config = Kailash::DataFlow::Config.new("sqlite::memory:")
 # or: "postgresql://user:pass@localhost/mydb"
 # or: "mysql://user:pass@localhost/mydb"
 ```

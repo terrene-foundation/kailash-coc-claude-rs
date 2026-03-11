@@ -184,7 +184,7 @@ config.port = 3000
 ### DataFlow (Database)
 
 ```ruby
-config = Kailash::DataFlow::DataFlowConfig.new("sqlite::memory:")
+config = Kailash::DataFlow::Config.new("sqlite::memory:")
 model = Kailash::DataFlow::ModelDefinition.new("User", "users")
 model.add_field("name", "text", required: true)
 ```

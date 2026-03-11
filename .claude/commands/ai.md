@@ -8,8 +8,8 @@ Load the Kaizen skill for production-ready AI agent implementation with signatur
 
 Before loading Kaizen patterns, check that this project uses Kailash Kaizen:
 
-- Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`
-- Look for `import kailash` in source files
+- Python: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`; `import kailash` in source files
+- Ruby: Look for `kailash` in `Gemfile` or `*.gemspec`; `require "kailash"` / `Kailash::Kaizen` in source files
 
 If not found, inform the user: "This project doesn't appear to use Kailash Kaizen. These patterns may not apply. Continue anyway?"
 
@@ -32,42 +32,31 @@ If not found, inform the user: "This project doesn't appear to use Kailash Kaize
 
 ## Quick Pattern
 
-All Kaizen types are available directly from `import kailash`:
+**Python** (`import kailash`):
 
 ```python
-import os
-import kailash
+import os, kailash
 
-# Agent with config
-config = kailash.AgentConfig(
-    model=os.environ["KAIZEN_MODEL"],
-    max_iterations=10,
-)
+config = kailash.AgentConfig(model=os.environ["KAIZEN_MODEL"], max_iterations=10)
 agent = kailash.Agent(config)
-
-# LLM client (raw HTTP to providers)
-llm = kailash.LlmClient(
-    provider="openai",
-    api_key=os.environ["OPENAI_API_KEY"],
-)
-
-# Cost tracking
+llm = kailash.LlmClient(provider="openai", api_key=os.environ["OPENAI_API_KEY"])
 tracker = kailash.CostTracker()
-
-# Tool registration
 tool = kailash.ToolDef(name="search", description="Search the web")
 tool_reg = kailash.ToolRegistry()
+```
 
-# Trust types
-trust_level = kailash.TrustLevel
-posture = kailash.EatpPosture
-verify_config = kailash.VerificationConfig()
+**Ruby** (`require "kailash"`):
 
-# Enterprise types
-rbac = kailash.RbacEvaluator()  # no-arg, then .add_role()
-abac = kailash.AbacEvaluator([])  # requires policies list
-audit = kailash.AuditLogger()
-tenants = kailash.TenantRegistry()
+```ruby
+require "kailash"
+
+config = Kailash::Kaizen::AgentConfig.new
+config.model = ENV.fetch("KAIZEN_MODEL")
+client = Kailash::Kaizen::LlmClient.new("openai")
+agent = Kailash::Kaizen::Agent.new(config, client)
+tracker = Kailash::Kaizen::CostTracker.new
+tools = Kailash::Kaizen::ToolRegistry.new
+tool = Kailash::Kaizen::ToolDef.new("search", "Search the web")
 ```
 
 ## Key Concepts

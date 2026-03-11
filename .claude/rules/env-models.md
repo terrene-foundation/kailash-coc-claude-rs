@@ -1,6 +1,7 @@
 ---
 paths:
   - "**/*.py"
+  - "**/*.rb"
   - "**/*.ts"
   - "**/*.js"
   - ".env*"
@@ -45,6 +46,13 @@ load_dotenv()
 model = os.environ.get("OPENAI_PROD_MODEL", os.environ.get("DEFAULT_LLM_MODEL"))
 ```
 
+**Correct Pattern (Ruby):**
+
+```ruby
+require "dotenv/load"
+model = ENV.fetch("OPENAI_PROD_MODEL", ENV.fetch("DEFAULT_LLM_MODEL", nil))
+```
+
 **Correct Pattern (TypeScript):**
 
 ```typescript
@@ -56,16 +64,23 @@ const model = process.env.OPENAI_PROD_MODEL ?? process.env.DEFAULT_LLM_MODEL;
 
 ### 3. ALWAYS Load .env Before Operations
 
-Every Python script, test, or service that uses environment variables MUST load .env first.
+Every script, test, or service that uses environment variables MUST load .env first.
 
-**Correct Pattern:**
+**Python:**
 
 ```python
 from dotenv import load_dotenv
 load_dotenv()  # MUST be before any os.environ access
 ```
 
+**Ruby:**
+
+```ruby
+require "dotenv/load"  # MUST be before any ENV.fetch access
+```
+
 **For pytest**: Root `conftest.py` auto-loads `.env` (no manual setup needed).
+**For RSpec**: Root `spec/spec_helper.rb` should `require "dotenv/load"` (template includes this).
 
 **Enforced by**: session-start.js hook, validate-workflow.js hook
 **Violation**: BLOCK test/script execution

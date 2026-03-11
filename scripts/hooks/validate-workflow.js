@@ -398,9 +398,7 @@ function checkRubyPatterns(content, filePath, messages) {
       );
     }
     if (/fail\s+["']not\s+(yet\s+)?implement/i.test(content)) {
-      messages.push(
-        "WARNING: Unimplemented method found. Implement fully.",
-      );
+      messages.push("WARNING: Unimplemented method found. Implement fully.");
     }
   }
 
@@ -409,6 +407,57 @@ function checkRubyPatterns(content, filePath, messages) {
     messages.push(
       "CRITICAL: String interpolation in SQL detected -- potential SQL injection. Use parameterized queries.",
     );
+  }
+
+  // Code execution / eval injection (non-test files only)
+  if (!isTestFile(filePath)) {
+    const evalPatterns = [
+      [/\beval\s*\(/, "eval()"],
+      [/\binstance_eval\s*\(/, "instance_eval()"],
+      [/\bclass_eval\s*\(/, "class_eval()"],
+      [/\bmodule_eval\s*\(/, "module_eval()"],
+      [/\bBinding\s*\.\s*eval\s*\(/, "Binding.eval()"],
+      [/\bKernel\s*\.\s*exec\s*\(/, "Kernel.exec()"],
+      [/\bIO\s*\.\s*popen\s*\(/, "IO.popen()"],
+    ];
+    for (const [pat, name] of evalPatterns) {
+      if (pat.test(content)) {
+        messages.push(
+          `CRITICAL: ${name} detected in Ruby code. Potential code injection risk.`,
+        );
+      }
+    }
+
+    // Unsafe deserialization
+    if (/\bMarshal\s*\.\s*load\s*\(/.test(content)) {
+      messages.push(
+        "CRITICAL: Marshal.load() detected -- arbitrary object instantiation risk. Validate input source.",
+      );
+    }
+    if (
+      /\bYAML\s*\.\s*load\s*\(/.test(content) &&
+      !/\bYAML\s*\.\s*safe_load\s*\(/.test(content)
+    ) {
+      messages.push(
+        "WARNING: YAML.load() detected -- use YAML.safe_load() to prevent unsafe deserialization.",
+      );
+    }
+
+    // Dynamic dispatch on potentially user-controlled input
+    if (
+      /\.\s*send\s*\(\s*params|\.send\s*\(\s*request|\.send\s*\(\s*input/.test(
+        content,
+      )
+    ) {
+      messages.push(
+        "WARNING: .send() with potentially user-controlled argument. Use .public_send() with allowlist.",
+      );
+    }
+    if (/\bconst_get\s*\(/.test(content)) {
+      messages.push(
+        "WARNING: const_get() detected. Validate input against an allowlist to prevent arbitrary class access.",
+      );
+    }
   }
 
   // Mocking in integration/e2e tests
@@ -421,8 +470,14 @@ function checkRubyPatterns(content, filePath, messages) {
 
     if (isIntegrationTest) {
       const mockPatterns = [
-        [/\ballow\s*\(.*\)\s*\.to\s+receive/, "allow().to receive (RSpec mock)"],
-        [/\bexpect\s*\(.*\)\s*\.to\s+receive/, "expect().to receive (RSpec mock)"],
+        [
+          /\ballow\s*\(.*\)\s*\.to\s+receive/,
+          "allow().to receive (RSpec mock)",
+        ],
+        [
+          /\bexpect\s*\(.*\)\s*\.to\s+receive/,
+          "expect().to receive (RSpec mock)",
+        ],
         [/\bdouble\s*\(/, "double() (RSpec test double)"],
         [/\binstance_double\s*\(/, "instance_double() (RSpec mock)"],
       ];

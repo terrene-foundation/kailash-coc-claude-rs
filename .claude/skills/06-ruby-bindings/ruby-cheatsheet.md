@@ -269,7 +269,7 @@ jwt = Kailash::Nexus::JwtConfig.new("secret-at-least-32-bytes-long!!")
 ## DataFlow: Model
 
 ```ruby
-config = Kailash::DataFlow::DataFlowConfig.new("sqlite::memory:")
+config = Kailash::DataFlow::Config.new("sqlite::memory:")
 model = Kailash::DataFlow::ModelDefinition.new("User", "users")
 model.add_field("name", "text", required: true)
 model.add_field("email", "text", nullable: true)
