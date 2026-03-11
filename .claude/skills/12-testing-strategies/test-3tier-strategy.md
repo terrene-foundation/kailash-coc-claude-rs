@@ -70,6 +70,36 @@ def test_full_application():
 - Databases
 - External APIs (in integration tests)
 
+## Resource Cleanup
+
+Tests that use database connections or other resources should manage cleanup through pytest fixtures:
+
+```python
+import pytest
+import kailash
+
+@pytest.fixture
+def runtime():
+    """Runtime with fresh registry -- cleaned up after each test."""
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    yield rt
+    # Resources are cleaned up when Runtime is garbage collected
+
+def test_with_db_pool(runtime):
+    """Test with database resources."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLQueryNode", "db", {
+        "connection_string": "postgresql://test:test@localhost:5433/testdb",
+        "query": "SELECT 1",
+        "operation": "select"
+    })
+    reg = kailash.NodeRegistry()
+    result = runtime.execute(builder.build(reg))
+    assert result["results"]["db"]["success"]
+    # Resources cleaned up in LIFO order when fixture teardown runs
+```
+
 ## Runtime Parity Testing
 
 Test workflows against **both** Runtime and Runtime using shared fixtures:
@@ -98,6 +128,6 @@ def test_workflow_execution():
 
 ## Documentation
 
-- **Testing Guide**: [`sdk-contributors/5-testing/01-testing-strategy.md`](../../../../sdk-contributors/5-testing/01-testing-strategy.md)
+- **Testing Rules**: See `rules/testing.md` for NO MOCKING policy
 
 <!-- Trigger Keywords: 3-tier testing, testing strategy, test tiers, testing pyramid, unit tests, integration tests -->

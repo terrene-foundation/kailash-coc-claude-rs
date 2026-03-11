@@ -206,6 +206,38 @@ builder.add_node("UserUpdateNode", "update", {
 | Count records     | CountNode                       |
 | Upsert            | UpsertNode                      |
 
+## Resource Lifecycle Integration
+
+DataFlow integrates with the Runtime's resource management for orderly pool shutdown:
+
+```python
+import kailash
+
+# DataFlow manages its own connection pool
+df = kailash.DataFlow("postgresql://user:pass@localhost/mydb")
+
+# The pool is automatically registered with the Runtime for lifecycle management
+# When the Runtime is garbage collected, pools are closed in LIFO order
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
+
+# Use DataFlow nodes in workflows
+builder = kailash.WorkflowBuilder()
+builder.add_node("UserCreateNode", "create", {
+    "name": "Alice",
+    "email": "alice@example.com"
+})
+
+result = rt.execute(builder.build(reg))
+```
+
+**Key points**:
+
+- DataFlow pools are automatically registered for lifecycle management
+- Pools are closed in LIFO (last-in, first-out) order during cleanup
+- If not using DataFlow with a Runtime, close the pool manually via `df.close()`
+- The pool is closed when the DataFlow instance is garbage collected
+
 ## Key Rules
 
 ### Always

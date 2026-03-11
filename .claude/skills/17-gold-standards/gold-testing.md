@@ -183,6 +183,36 @@ def test_workflow_execution():
     assert result["run_id"] is not None
 ```
 
+### 7. Resource Cleanup
+
+```python
+import pytest
+
+@pytest.fixture
+def runtime():
+    """Runtime with fresh registry -- cleaned up after each test."""
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    yield rt
+    # Runtime cleanup happens on garbage collection
+
+def test_workflow_with_resources(runtime):
+    """Test that uses database resources."""
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLQueryNode", "db", {
+        "connection_string": "postgresql://test:test@localhost:5433/testdb",
+        "query": "SELECT 1 as value",
+        "operation": "select"
+    })
+
+    reg = kailash.NodeRegistry()
+    result = runtime.execute(builder.build(reg))
+    assert result["results"]["db"]["success"]
+
+# Resources (database pools, etc.) are cleaned up in LIFO order
+# when the Runtime is garbage collected
+```
+
 ## Testing Checklist
 
 - [ ] Test written before implementation (TDD)
@@ -190,6 +220,7 @@ def test_workflow_execution():
 - [ ] NO MOCKING in Tiers 2-3 (use real Docker services)
 - [ ] Clear, descriptive test names
 - [ ] Test isolation with fixtures
+- [ ] Resource cleanup via pytest fixtures for Runtime lifecycle
 - [ ] Tests run in CI/CD
 - [ ] 80%+ code coverage
 - [ ] Error cases tested

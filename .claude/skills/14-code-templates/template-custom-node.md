@@ -153,11 +153,66 @@ Use `pattern-expert` when:
 - Performance optimization
 - Advanced parameter handling
 
+## Resource-Aware Node Pattern
+
+For custom nodes that need to work with database connections or other shared resources, use workflow connections to receive data from resource-providing nodes:
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+
+def resource_aware_handler(inputs):
+    """Custom node that processes data from database queries.
+
+    Receives data through workflow connections from SQLQueryNode
+    or other resource-providing nodes.
+    """
+    records = inputs.get("records", [])
+    operation = inputs.get("operation", "count")
+
+    if operation == "count":
+        return {"result": len(records)}
+    elif operation == "summarize":
+        return {"result": {"total": len(records), "records": records}}
+    else:
+        raise ValueError(f"Unknown operation: {operation}")
+
+reg.register_callback(
+    "ResourceAwareNode",
+    resource_aware_handler,
+    ["records", "operation"],
+    ["result"]
+)
+
+# Wire it up: DatabaseConnectionNode -> SQLQueryNode -> Custom Node
+builder = kailash.WorkflowBuilder()
+builder.add_node("DatabaseConnectionNode", "connect", {
+    "connection_string": os.environ["DATABASE_URL"]
+})
+builder.add_node("SQLQueryNode", "query", {
+    "query": "SELECT * FROM users",
+    "operation": "select"
+})
+builder.add_node("ResourceAwareNode", "process", {
+    "operation": "summarize"
+})
+
+builder.connect("connect", "pool_key", "query", "pool_key")
+builder.connect("query", "data", "process", "records")
+
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
+```
+
+**Key points**: Custom nodes receive data through workflow connections, not direct resource access. Database pools are managed by the Runtime and shared across SQL nodes via `DatabaseConnectionNode`. Resources are cleaned up in LIFO order when the Runtime is garbage collected.
+
 ## Quick Tips
 
 - Always register custom nodes via `reg.register_callback(name, handler, inputs, outputs)`
 - Use Pydantic for complex input validation inside the handler
 - Handler receives a single `inputs` dict and returns a single output dict
 - Declare all input/output parameter names in the registration call
+- Database resources flow through workflow connections, not direct pool access
 
 <!-- Trigger Keywords: custom node template, create custom node, extend node, node development, custom node boilerplate, custom node example, develop node -->

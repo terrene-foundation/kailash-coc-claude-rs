@@ -88,6 +88,42 @@ cd tests/utils && ./test-env up
 # Elasticsearch: localhost:9201
 ```
 
+## Resource Cleanup in Tests
+
+Tests that create database connections or other resources should ensure proper cleanup:
+
+```python
+import kailash
+
+def test_workflow_with_database():
+    """Test that uses database resources."""
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("SQLQueryNode", "db", {
+        "connection_string": test_database_url,
+        "query": "SELECT 1",
+        "operation": "select"
+    })
+    result = rt.execute(builder.build(reg))
+
+    assert result["results"]["db"]["success"]
+    # Resources are cleaned up automatically when Runtime is garbage collected
+```
+
+For long-running test suites, use pytest fixtures to manage resource lifetimes:
+
+```python
+@pytest.fixture
+def runtime():
+    """Runtime with fresh registry for each test."""
+    reg = kailash.NodeRegistry()
+    rt = kailash.Runtime(reg)
+    yield rt
+    # Runtime cleanup happens on garbage collection
+```
+
 ## Common Issues & Solutions
 
 | Issue | Solution |
@@ -97,6 +133,8 @@ cd tests/utils && ./test-env up
 | Flaky test | Check for race conditions, add proper waits |
 | Mock in Tier 2-3 | Remove mock, use real Docker service |
 | Database state leakage | Add cleanup fixture |
+| Resource leak in test | Use pytest fixtures for Runtime lifecycle management |
+| Pool exhaustion | Ensure database connections are properly closed between tests |
 
 ## Test Execution Commands
 

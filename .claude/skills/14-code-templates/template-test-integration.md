@@ -200,9 +200,10 @@ Use `tdd-implementer` when:
 
 ## Quick Tips
 
-- 💡 **Real services**: Use Docker for databases, Redis, etc.
-- 💡 **<5 seconds**: Keep tests fast
-- 💡 **NO MOCKING**: Absolute rule for Tier 2
-- 💡 **Cleanup**: Always clean test data before/after
+- **Real services**: Use Docker for databases, Redis, etc.
+- **Less than 5 seconds**: Keep tests fast
+- **NO MOCKING**: Absolute rule for Tier 2
+- **Cleanup**: Always clean test data before/after
+- **Resource cleanup**: Use pytest fixtures for Runtime lifecycle management when tests create database connections or other resources
 
 <!-- Trigger Keywords: integration test template, Tier 2 test, real infrastructure test, NO MOCKING test, integration test example, integration test boilerplate, Docker test template -->

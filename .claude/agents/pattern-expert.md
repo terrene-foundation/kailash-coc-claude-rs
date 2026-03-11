@@ -98,6 +98,43 @@ connect("source", "source_output", "target", "target_input")
 | 3-param connection               | 4-param: `(src, src_out, tgt, tgt_in)` |
 | Swapped connection params        | Source first, then Target              |
 
+## Resource Lifecycle Pattern
+
+The Runtime manages resource lifecycle through a three-layer model:
+
+1. **Access** -- Global pool registry for key-based pool lookup
+2. **Ownership** -- DataFlow and nodes own pools with explicit cleanup
+3. **Lifecycle** -- Per-Runtime resource registry with LIFO shutdown
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+rt = kailash.Runtime(reg)
+
+# Database connections are managed automatically by the Runtime
+builder = kailash.WorkflowBuilder()
+builder.add_node("DatabaseConnectionNode", "connect", {
+    "connection_string": os.environ["DATABASE_URL"]
+})
+builder.add_node("SQLQueryNode", "query", {
+    "pool_key": "my_db",
+    "query": "SELECT * FROM users",
+    "operation": "select"
+})
+builder.connect("connect", "pool_key", "query", "pool_key")
+
+result = rt.execute(builder.build(reg))
+# Resources are cleaned up when Runtime is garbage collected
+```
+
+**Key rules**:
+
+- Database pools are managed automatically by the Runtime
+- `DatabaseConnectionNode` registers pools for reuse across nodes
+- Pool lookup is by key (string identifier)
+- Resources are cleaned up in reverse registration order (LIFO)
+
 ## Debugging Guide
 
 ### "Node 'X' missing required inputs"

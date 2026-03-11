@@ -64,18 +64,6 @@ result = rt.execute(wf)
 print(result["results"]["proc1"])
 ```
 
-## Gold Standard Checklist
-
-- [ ] Handler function defined with `inputs` dict parameter
-- [ ] Registered via `reg.register_callback(name, handler, inputs_list, outputs_list)`
-- [ ] All input parameter names declared in `inputs_list`
-- [ ] All output keys declared in `outputs_list`
-- [ ] Type hints for helper methods
-- [ ] Docstrings for handler and helper functions
-- [ ] Error handling for invalid inputs
-- [ ] Unit tests for handler logic
-- [ ] Integration test in workflow
-
 ## Correct vs Incorrect Patterns
 
 ### Correct: register_callback()
@@ -151,6 +139,62 @@ result = rt.execute(wf, inputs={
     "node1": {"data": "override_payload"}
 })
 ```
+
+## Accessing Resources from Workflows
+
+Custom nodes that need database connections or other shared resources can access them through the workflow:
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+
+# Register a custom node that processes database results
+def db_result_processor(inputs):
+    """Process data from a database query node."""
+    records = inputs.get("records", [])
+    processed = [{"name": r["name"].upper()} for r in records]
+    return {"processed": processed, "count": len(processed)}
+
+reg.register_callback(
+    "DbResultProcessor",
+    db_result_processor,
+    ["records"],
+    ["processed", "count"]
+)
+
+# Use DatabaseConnectionNode to establish a pool, then query, then process
+builder = kailash.WorkflowBuilder()
+builder.add_node("DatabaseConnectionNode", "connect", {
+    "connection_string": os.environ["DATABASE_URL"]
+})
+builder.add_node("SQLQueryNode", "query", {
+    "query": "SELECT name FROM users",
+    "operation": "select"
+})
+builder.add_node("DbResultProcessor", "process", {})
+
+builder.connect("connect", "pool_key", "query", "pool_key")
+builder.connect("query", "data", "process", "records")
+
+rt = kailash.Runtime(reg)
+result = rt.execute(builder.build(reg))
+```
+
+**Key rules**: Database pools are managed by the Runtime automatically. Custom nodes receive data through workflow connections, not direct pool access. Use `DatabaseConnectionNode` to establish pools that are shared across SQL nodes.
+
+## Gold Standard Checklist
+
+- [ ] Handler function defined with `inputs` dict parameter
+- [ ] Registered via `reg.register_callback(name, handler, inputs_list, outputs_list)`
+- [ ] All input parameter names declared in `inputs_list`
+- [ ] All output keys declared in `outputs_list`
+- [ ] Type hints for helper methods
+- [ ] Docstrings for handler and helper functions
+- [ ] Error handling for invalid inputs
+- [ ] Database resources accessed through workflow connections (not direct pool access)
+- [ ] Unit tests for handler logic
+- [ ] Integration test in workflow
 
 ## Documentation
 
