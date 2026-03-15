@@ -165,6 +165,59 @@ Claude Code CLI implements approximately 5% of EATP:
 
 EATP and Claude Code solve different problems at different layers. Claude Code controls tool access. EATP governs organizational trust. Position EATP as the governance layer ABOVE identity/authorization — complementary to execution tools, not competitive.
 
+## EATP SDK Implementation
+
+The EATP specification is implemented as part of the Kailash RS SDK. Key capabilities exposed through the Kailash binding:
+
+### Standalone EATP SDK (proprietary)
+
+Zero Kailash dependencies. Contains all protocol primitives:
+
+- **Keys**: Ed25519 `TrustKeyPair` with `ZeroizeOnDrop`
+- **Chain**: `CareChain` — append-only genesis + trust blocks
+- **Delegation**: `DelegationChain` — constraint tightening, cascade revocation, Ed25519 signed
+- **Verification**: 4-level gradient (`AutoApproved/Flagged/Held/Blocked`) with configurable thresholds
+- **Governed**: `GovernedTaodRunner` — pipeline: capability check -> verification -> evidence -> resource tracking
+- **Human**: `PseudoAgent` (sole human entry), `HoldQueue` with signed approval/rejection
+- **Multi-Sig**: `MultiSigPolicy` (M-of-N threshold), `MultiSigBundle`, domain-separated signatures
+- **Constraints**: 5-dimensional (`Financial/Operational/Temporal/DataAccess/Communication`) + 6 templates
+- **Reasoning**: `ReasoningTrace` with structured evidence, confidence, separate Ed25519 signing
+- **Stores**: `MemoryStore`, `FilesystemStore` (age-encrypted), `SqlxStore` (PostgreSQL)
+- **CLI**: 16 commands including `multi-sig` subgroup
+- **MCP**: 6 tools + 4 resources, stdio/SSE transports
+- **Scoring**: 5-component composite trust score
+- **Compliance**: EU AI Act + OWASP Agentic Top 10 mappings
+
+### Kaizen Trust Module (behind `trust` feature flag)
+
+Orchestration-level trust enforcement, composes with the standalone EATP SDK:
+
+- **GovernedAgent**: Wraps `BaseAgent` with trust checks, composes circuit breaker + shadow enforcer + hooks
+- **Circuit Breaker**: All-atomic FSM (Closed -> Open -> HalfOpen), per-agent via `CircuitBreakerRegistry`
+- **Shadow Enforcer**: Dual-config evaluation, bounded memory, divergence tracking
+- **Lifecycle Hooks**: `TrustEventHook` trait, `TrustEventDispatcher` with panic isolation
+- **Posture System**: 5 EATP postures with state machine and transition hooks
+
+### Key Implementation Patterns
+
+- **Serde invariant enforcement**: Deserialization routes through validation constructors
+- **Panic isolation**: Hooks run in isolated tasks — panics produce errors instead of unwinding the caller
+- **Key material safety**: `ZeroizeOnDrop` on key pairs, zeroed temporary buffers
+- **Constraint tightening invariant**: Child delegation is always a subset of parent — enforced at delegation time, not at verification time
+
+### Python Bindings
+
+19+ types exposing trust features: `TrustLevel`, `EatpPosture`, `VerificationConfig`, `VerificationResult`, `DelegationChain`, `DelegationScope`, `PseudoAgent`, `MultiSigPolicy`, `MultiSigBundle`, `CircuitBreakerConfig`, `CircuitBreakerRegistry`, `ShadowEnforcer`, `ShadowReport`, `GovernedTaodConfig`, `GovernedTaodResult`, `HumanCompetency`, `ComplianceReport`.
+
+```python
+import kailash
+
+# Access trust types through the binding
+posture = kailash.EatpPosture.supervised()
+config = kailash.VerificationConfig()
+result = kailash.VerificationResult(...)
+```
+
 ## Before Answering
 
 1. Ground your response in the Core Concepts above — they contain the essential EATP knowledge

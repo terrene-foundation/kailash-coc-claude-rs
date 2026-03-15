@@ -86,11 +86,12 @@ Traditional governance assumes a human made the decision. AI breaks this assumpt
 
 ## CARE's Relationship to Companion Frameworks
 
-| Framework   | Relationship to CARE                                                |
-| ----------- | ------------------------------------------------------------------- |
-| **EATP**    | Operationalizes CARE's trust chains as a verifiable protocol        |
-| **COC**     | Applies CARE's Human-on-the-Loop philosophy to software development |
-| **Kailash** | Reference implementation of CARE governance architecture            |
+| Framework   | Relationship to CARE                                                       |
+| ----------- | -------------------------------------------------------------------------- |
+| **EATP**    | Operationalizes CARE's trust chains as a verifiable protocol               |
+| **CO**      | Applies CARE's Human-on-the-Loop as a domain-agnostic methodology          |
+| **COC**     | CO applied to software development (the first and most mature application) |
+| **Kailash** | Reference implementation of CARE governance architecture                   |
 
 ## Honest Limitations
 

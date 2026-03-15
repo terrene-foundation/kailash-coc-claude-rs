@@ -86,7 +86,7 @@ CARE, EATP, and CO are peers inheriting from CARE as parent philosophy. They sol
 
 | Application       | Short Name | Status                                                         |
 | ----------------- | ---------- | -------------------------------------------------------------- |
-| CO for Codegen    | COC        | Mature, in production (29 agents, 28 skills, 9 rules, 9 hooks) |
+| CO for Codegen    | COC        | Mature, in production (32 agents, 32 skills, 11 rules, 14 hooks, 22 commands) |
 | CO for Compliance | —          | Planned                                                        |
 | CO for Finance    | —          | Planned                                                        |
 | CO for Operations | —          | Future                                                         |
@@ -105,6 +105,14 @@ CARE, EATP, and CO are peers inheriting from CARE as parent philosophy. They sol
 - **coc-expert** — For the codegen-specific application (most mature)
 - **care-expert** — For the governance philosophy CO inherits from
 - **eatp-expert** — For the trust protocol CO's guardrails connect to
+
+## Relevant Skills
+
+Invoke these skills when needed:
+
+- `/co-reference` - Quick reference for CO methodology and five-layer architecture
+- `/care-reference` - When explaining how CO inherits from CARE
+- `/eatp-reference` - When mapping CO guardrails to EATP constraints
 
 ## CO vs Execution Tools (Governance Layer Thesis, March 2026)
 

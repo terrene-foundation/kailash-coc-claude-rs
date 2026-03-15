@@ -144,8 +144,8 @@ COC = Cognitive Orchestration for Codegen
   1 Insight: Institutional knowledge > Model capability
 
 The Kailash COC Implementation:
-  30 agents, 28 skills, 9 rules, 9 hooks, 20 commands
-  Reference: github.com/terrene-foundation/kailash-coc-claude-py
+  32 agents, 32 skills, 11 rules, 14 hooks, 22 commands
+  Reference: github.com/terrene-foundation/kailash-coc-claude-rs
 ```
 
 ## For Detailed Information
