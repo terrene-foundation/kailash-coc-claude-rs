@@ -174,6 +174,17 @@ GovernedAgent = BaseAgent + CircuitBreaker + ShadowEnforcer + Hooks
 - `.with_event_dispatcher(dispatcher)` — attach lifecycle hooks
 - `run_governed(input)` — executes with full trust pipeline (direct `run()` bypasses all checks)
 
+### Trust-Integrated Durability (behind `durability-trust` feature)
+
+EATP signing applied to the workflow durability layer:
+
+- **TrustedCheckpointStore**: Wraps any `CheckpointStore` with Ed25519 signing -- every checkpoint is signed on save, verified on load. Tampered checkpoints are rejected.
+- **SignatureStore**: Pluggable signature persistence (`InMemorySignatureStore`, `SqliteSignatureStore`) so signatures survive process restarts.
+- **GovernedResumePolicy**: Verifies EATP delegation authority before allowing workflow resume. Enforces monotonic constraint tightening across pause/resume cycles.
+- **ConstraintAwareRetryPolicy**: Checks financial and temporal constraints before retrying failed executions. Prevents unbounded cost accumulation from retries.
+
+These features are available through the Kailash SDK binding when the `durability-trust` feature is enabled.
+
 ## Quick Reference
 
 ```

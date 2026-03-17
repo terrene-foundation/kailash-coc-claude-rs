@@ -198,6 +198,15 @@ Orchestration-level trust enforcement, composes with the standalone EATP SDK:
 - **Lifecycle Hooks**: `TrustEventHook` trait, `TrustEventDispatcher` with panic isolation
 - **Posture System**: 5 EATP postures with state machine and transition hooks
 
+### Trust-Integrated Durability (behind `durability-trust` feature)
+
+EATP applied to the workflow checkpoint and resume layer:
+
+- **TrustedCheckpointStore**: Wraps any checkpoint store with Ed25519 signing -- tamper-evident checkpoint logs
+- **GovernedResumePolicy**: Verifies EATP delegation authority before allowing workflow resume, enforces monotonic constraint tightening
+- **ConstraintAwareRetryPolicy**: Checks financial and temporal constraints before retrying failed executions
+- **SignatureStore**: Pluggable signature persistence (in-memory or SQLite) for process restart survival
+
 ### Key Implementation Patterns
 
 - **Serde invariant enforcement**: Deserialization routes through validation constructors
