@@ -16,6 +16,67 @@ These rules apply to all test files and test-related code.
 
 ## MUST Rules
 
+### 0. Regression Testing (MANDATORY)
+
+Every bug fix MUST include a regression test BEFORE the fix is merged or released.
+
+**The Rule:**
+
+1. When a bug is reported, the FIRST step is writing a test that REPRODUCES the bug
+2. The test MUST fail before the fix and pass after
+3. Regression test location depends on language:
+   - Rust: `tests/regression_*.rs` in the affected crate
+   - Python: `tests/regression/test_issue_*.py`
+   - Ruby: `spec/regression/issue_*_spec.rb`
+4. The test name includes the issue number (e.g., `issue_42_user_creation_drops_pk`)
+5. Regression tests are NEVER deleted — they are permanent guards
+
+**Why:**
+
+- Without regression tests, teams forget past bugs and re-introduce them (Amnesia fault line)
+- Without regression tests, the "shortest path" fix skips verification (Security Blindness fault line)
+- A fix verified only by code review is not verified at all
+
+**Python Pattern:**
+
+```python
+# tests/regression/test_issue_42.py
+
+def test_issue_42_user_creation_preserves_explicit_id():
+    """Regression: #42 — CreateUser silently drops explicit id.
+
+    The bug: when auto_increment is enabled on the model, passing an
+    explicit id value was silently ignored.
+    Fixed in: commit abc1234
+    """
+    # Reproduce the exact bug from the issue
+    # ...
+    assert result["id"] == "custom-id-value"
+```
+
+**Ruby Pattern:**
+
+```ruby
+# spec/regression/issue_42_spec.rb
+
+RSpec.describe "Issue #42: user creation preserves explicit id" do
+  it "does not silently drop the explicit id" do
+    # Reproduce the exact bug from the issue
+    # ...
+    expect(result["id"]).to eq("custom-id-value")
+  end
+end
+```
+
+**Enforcement:**
+
+- Pre-merge: regression test suite must pass
+- Pre-release: regression suite is a mandatory checklist item
+- Code review: reviewer must verify a regression test exists for every bug fix
+
+**Applies to**: All bug fixes
+**Violation**: BLOCK merge — a fix without a regression test is not a fix
+
 ### 1. Test-First Development
 
 Tests MUST be written before implementation for new features.
@@ -131,6 +192,7 @@ Tests MUST be deterministic.
 
 ```
 tests/
+├── regression/     # Tier 0: Permanent bug reproduction tests
 ├── unit/           # Tier 1: Mocking allowed
 ├── integration/    # Tier 2: NO MOCKING
 └── e2e/           # Tier 3: NO MOCKING

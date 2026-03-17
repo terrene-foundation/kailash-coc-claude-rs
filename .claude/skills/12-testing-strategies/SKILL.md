@@ -11,7 +11,8 @@ Comprehensive testing approach for Kailash applications using the 3-tier testing
 
 Kailash testing philosophy:
 
-- **3-Tier Strategy**: Unit, Integration, End-to-End
+- **4-Tier Strategy**: Regression, Unit, Integration, End-to-End
+- **Regression-First**: Every bug fix starts with a failing regression test
 - **NO MOCKING Policy**: Tiers 2-3 use real infrastructure
 - **Real Database Testing**: Actual PostgreSQL/SQLite
 - **Real API Testing**: Live HTTP calls
@@ -21,7 +22,8 @@ Kailash testing philosophy:
 
 ### Core Strategy
 
-- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete 3-tier testing guide
+- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete testing guide
+  - Tier 0: Regression Tests (reproduce known bugs, permanent guards)
   - Tier 1: Unit Tests (test doubles allowed)
   - Tier 2: Integration Tests (NO MOCKING)
   - Tier 3: End-to-End Tests (NO MOCKING)
@@ -29,7 +31,54 @@ Kailash testing philosophy:
   - Helper function patterns
   - CI/CD integration
 
-## 3-Tier Testing Strategy
+## 4-Tier Testing Strategy
+
+### Tier 0: Regression Tests
+
+**Scope**: Reproduce known bugs, permanent guards against re-introduction
+**Mocking**: Depends on bug scope (Tier 1 rules for unit bugs, Tier 2 rules for integration bugs)
+**Speed**: Varies
+**Lifetime**: PERMANENT — regression tests are never deleted
+
+Every bug fix MUST start with a failing regression test that reproduces the exact bug from the issue tracker. The test MUST fail before the fix and pass after.
+
+**Python:**
+
+```python
+# tests/regression/test_issue_42.py
+
+def test_issue_42_user_creation_preserves_explicit_id():
+    """Regression: #42 — CreateUser silently drops explicit id."""
+    import kailash
+
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    # ... reproduce the exact bug from the issue body ...
+    result = rt.execute(wf)
+    assert result["results"]["create"]["id"] == "custom-id-value"
+```
+
+**Ruby:**
+
+```ruby
+# spec/regression/issue_42_spec.rb
+
+RSpec.describe "Issue #42: user creation preserves explicit id" do
+  it "does not silently drop the explicit id" do
+    Kailash::Registry.open do |registry|
+      builder = Kailash::WorkflowBuilder.new
+      # ... reproduce the exact bug from the issue body ...
+      expect(result.results["create"]["id"]).to eq("custom-id-value")
+    end
+  end
+end
+```
+
+**Why Tier 0 exists:** Without regression tests, teams forget past bugs and re-introduce them (the Amnesia fault line). Without regression tests, the "shortest path" fix skips verification (the Security Blindness fault line). Regression tests are the cheapest insurance against known bugs.
+
+**Naming convention:**
+- Python: `tests/regression/test_issue_{number}.py`, function `test_issue_{number}_{description}`
+- Ruby: `spec/regression/issue_{number}_spec.rb`
 
 ### Tier 1: Unit Tests
 
@@ -139,6 +188,8 @@ project/
     app/
       main.py
   tests/
+    regression/         # Tier 0: Permanent bug reproduction tests
+      test_issue_42.py
     unit/               # Tier 1
       test_workflows.py
       test_models.py
@@ -240,12 +291,15 @@ def test_agent_execution():
 
 ## Critical Rules
 
+- Tier 0: Every bug fix starts with a failing regression test
+- Tier 0: Regression tests are permanent — NEVER delete them
 - Tier 1: Test doubles for external dependencies allowed
 - Tier 2-3: Use real infrastructure
 - Use Docker for test databases
 - Clean up resources after tests
 - Cache LLM responses for cost
-- Run Tier 1 in CI, Tier 2-3 optionally
+- Run Tier 0-1 in CI, Tier 2-3 optionally
+- NEVER publish a bug fix without a regression test
 - NEVER use mock frameworks in Tier 2-3
 - NEVER mock database in Tier 2-3
 - NEVER mock HTTP calls in Tier 2-3
@@ -261,6 +315,7 @@ def test_agent_execution():
 pytest tests/unit/
 
 # Run by tier
+pytest tests/regression/                    # Tier 0: Regression
 pytest tests/unit/                          # Tier 1: Unit
 pytest tests/integration/ -m integration    # Tier 2: Integration
 pytest tests/e2e/ -m e2e                    # Tier 3: E2E
