@@ -30,6 +30,8 @@ Analyze the project to understand what needs deploying. Check:
 - Docs tool? (sphinx, mkdocs, none)
 - CI system? (GitHub Actions, GitLab CI)
 
+> **WARNING: CI/CD GitHub Actions — ALWAYS ASK FIRST.** Do NOT auto-create `.github/workflows/` files. Present the workflow, explain compute cost implications, and get explicit human approval before creating any workflow file. See `rules/deployment.md` Rule 7.
+
 ### Cloud Deployment (if applicable)
 
 - Provider? (AWS, Azure, GCP)

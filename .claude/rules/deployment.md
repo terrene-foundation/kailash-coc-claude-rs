@@ -68,6 +68,21 @@ Every project that deploys MUST have `deploy/deployment-config.md` at the projec
 
 Cloud provider CLIs and services change frequently. MUST verify current syntax via web search or `--help` before running deployment commands. Do NOT rely on memorized commands that may be outdated.
 
+### 7. CI/CD GitHub Actions — ALWAYS ASK FIRST
+
+MUST NOT auto-create `.github/workflows/` files without explicit human approval. GitHub Actions workflows consume CI minutes (a finite, paid resource) and can interfere with existing pipelines.
+
+Before creating ANY workflow file:
+
+1. Present the proposed workflow to the human
+2. Explain compute cost implications (CI minutes, matrix size, build times)
+3. Get explicit approval: "yes, create the workflow"
+4. Only then create the file
+
+**Existing workflows** may be MODIFIED with the standard code review process. Creating NEW workflows requires the approval gate above.
+
+**Violation**: Unapproved CI workflow creation wastes compute resources and can break existing pipelines.
+
 ## MUST NOT Rules
 
 ### 1. No Long-Lived Cloud Credentials
