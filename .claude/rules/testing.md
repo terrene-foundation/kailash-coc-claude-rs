@@ -77,6 +77,31 @@ end
 **Applies to**: All bug fixes
 **Violation**: BLOCK merge — a fix without a regression test is not a fix
 
+### 0b. Test-Once Protocol (MANDATORY)
+
+Tests run ONCE per code change, not once per phase. This eliminates redundant test execution across `/implement`, `/redteam`, and pre-commit.
+
+**The Protocol:**
+
+1. `/implement` runs the full test suite ONCE per todo and writes `.test-results` to the workspace
+2. `/redteam` READS `.test-results` — does NOT re-run existing tests
+3. `/redteam` runs only NEW tests it creates (E2E user flows, Playwright, Marionette)
+4. Pre-commit hooks (if configured) run regression tests as a fast safety net
+5. CI runs the full matrix as the final gate
+
+**`.test-results` artifact:**
+
+Written to `workspaces/<project>/.test-results` after each `/implement` todo completion. Contains commit hash, pass/fail counts, and regression count. Red team and deploy phases read this file instead of re-running.
+
+**Re-run exceptions:**
+
+- Code changed since `.test-results` was written (commit hash mismatch)
+- Infrastructure-specific tests needing real database verification
+- Red team suspects a specific test is wrong (re-run THAT test only)
+
+**Enforced by**: `/implement` and `/redteam` command templates
+**Violation**: Wasted compute, context window bloat, slower iteration
+
 ### 1. Test-First Development
 
 Tests MUST be written before implementation for new features.
