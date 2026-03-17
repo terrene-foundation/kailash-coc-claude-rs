@@ -678,6 +678,149 @@ def search(query, limit=10):
 
 ---
 
+## Enterprise Infrastructure
+
+Progressive infrastructure scaling from in-memory to distributed PostgreSQL. All types are behind the `enterprise-infra` feature (included by default in `kailash-enterprise`).
+
+### Imports
+
+```python
+import kailash
+
+# Auto-configuration (module-level functions)
+rt = kailash.configure_from_env(reg)            # Returns Runtime
+infra = kailash.configure_from_env_full(reg)    # Returns ConfiguredInfra
+
+# Infrastructure types
+from kailash import (
+    ConfiguredInfra,            # Auto-configuration result
+    InfraLevel,                 # Infrastructure level (4 variants)
+    ShutdownToken,              # Graceful shutdown token
+    InMemorySagaStore,          # Saga coordination store
+    InProcessTaskQueue,         # In-process task queue
+    IdempotencyKeyStrategy,     # Idempotency key strategies
+    WorkflowTask,               # Task queue entry
+    SagaDefinition,             # Saga with steps
+    SagaStepDef,                # Single saga step
+    SagaState,                  # Saga state
+    SagaStepState,              # Step state
+    SagaStatus,                 # Saga status enum
+    SagaStepStatus,             # Step status enum
+    TaskStatus,                 # Task status enum
+    TaskInfo,                   # Task metadata
+)
+```
+
+### Auto-Configuration
+
+```python
+import kailash
+
+reg = kailash.NodeRegistry()
+
+# Simple: returns a Runtime configured from env vars
+rt = kailash.configure_from_env(reg)
+result = rt.execute(wf)
+
+# Full: returns ConfiguredInfra with runtime + queue + worker lifecycle
+infra = kailash.configure_from_env_full(reg)
+rt = infra.runtime             # kailash.Runtime
+level = infra.level            # kailash.InfraLevel
+worker_id = infra.worker_id    # str
+
+# Level 2: start background worker
+token = infra.start_worker()   # kailash.ShutdownToken
+# ... later:
+token.shutdown()
+assert token.is_shutdown()
+```
+
+### InfraLevel
+
+```python
+level = kailash.InfraLevel.in_memory()       # Level 0 (default)
+level = kailash.InfraLevel.local_file()      # Level 0.5 (SQLite)
+level = kailash.InfraLevel.shared_state()    # Level 1 (PostgreSQL)
+level = kailash.InfraLevel.multi_worker()    # Level 2 (PostgreSQL + workers)
+
+print(level.kind)         # "in_memory" | "local_file" | "shared_state" | "multi_worker"
+print(level.description)  # Human-readable description
+```
+
+### IdempotencyKeyStrategy
+
+```python
+strategy = kailash.IdempotencyKeyStrategy.none()
+strategy = kailash.IdempotencyKeyStrategy.execution_scoped()
+strategy = kailash.IdempotencyKeyStrategy.input_scoped()
+strategy = kailash.IdempotencyKeyStrategy.from_input("payment_id")
+
+print(strategy.kind)         # "none" | "execution_scoped" | "input_scoped" | "from_input"
+print(strategy.field_name)   # None or "payment_id"
+```
+
+### Saga Store
+
+```python
+store = kailash.InMemorySagaStore()
+
+# Create a saga
+saga = kailash.SagaDefinition(
+    saga_id="order-001",
+    workflow_run_id="run-001",
+    steps=[
+        kailash.SagaStepDef(step_name="charge_card", compensation_action="refund_card"),
+        kailash.SagaStepDef(step_name="reserve_inventory", compensation_action="release_inventory"),
+    ],
+)
+store.create(saga)
+
+# Step lifecycle
+store.step_completed("order-001", 0)
+store.step_failed("order-001", 1, "out of stock")
+
+# Get steps that need compensation (returns list of (index, step) tuples)
+to_compensate = store.steps_to_compensate("order-001")
+for idx, step in to_compensate:
+    # Execute compensation action...
+    store.step_compensated("order-001", idx)
+store.mark_compensated("order-001")
+
+# Query
+state = store.get("order-001")       # SagaState or None
+active = store.list_active()          # list of SagaState
+```
+
+### Task Queue
+
+```python
+queue = kailash.InProcessTaskQueue(capacity=100)
+
+# Submit a task
+task = kailash.WorkflowTask(
+    task_id="task-001",
+    workflow_hash="abc123",
+    inputs=None,       # optional dict
+    priority=0,        # lower = higher priority
+    metadata=None,     # optional dict
+)
+queue.submit(task)
+
+# Claim next task (returns WorkflowTask or None)
+claimed = queue.claim("worker-1")
+if claimed:
+    # Process...
+    queue.complete(claimed.task_id, "run-001")
+    # Or on failure:
+    # queue.fail(claimed.task_id, "error message")
+
+# Query
+count = queue.pending_count()
+info = queue.status("task-001")   # TaskInfo or None
+```
+
+---
+
 ## Common Patterns
 
 ### Using Multiple Frameworks Together
@@ -885,3 +1028,25 @@ class SecureAgent(BaseAgent):
 | `STDIO`           | Rust   | STDIO transport constant (P17)   |
 | `SSE`             | Rust   | SSE transport constant (P17)     |
 | `HTTP`            | Rust   | HTTP transport constant (P17)    |
+
+### Enterprise Infrastructure Types (enterprise-infra feature)
+
+| Type                        | Layer    | Purpose                                  |
+| --------------------------- | -------- | ---------------------------------------- |
+| `ConfiguredInfra`           | Rust     | Auto-configuration result (runtime + queue) |
+| `InfraLevel`                | Rust     | Infrastructure level (4 variants)        |
+| `ShutdownToken`             | Rust     | Cancellation token for graceful shutdown |
+| `InMemorySagaStore`         | Rust     | In-memory saga coordination store        |
+| `SagaDefinition`            | Rust     | Saga with ordered steps                  |
+| `SagaStepDef`               | Rust     | Single saga step definition              |
+| `SagaState`                 | Rust     | Saga current state                       |
+| `SagaStepState`             | Rust     | Step current state                       |
+| `SagaStatus`                | Rust     | Saga status enum                         |
+| `SagaStepStatus`            | Rust     | Step status enum                         |
+| `IdempotencyKeyStrategy`    | Rust     | Idempotency key strategy (4 variants)    |
+| `InProcessTaskQueue`        | Rust     | In-process task queue                    |
+| `WorkflowTask`              | Rust     | Task queue entry                         |
+| `TaskStatus`                | Rust     | Task status enum                         |
+| `TaskInfo`                  | Rust     | Task metadata                            |
+| `configure_from_env`        | Function | Auto-configure Runtime from env vars     |
+| `configure_from_env_full`   | Function | Auto-configure Runtime + queue + worker  |

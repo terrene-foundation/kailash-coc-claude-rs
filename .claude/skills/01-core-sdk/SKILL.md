@@ -56,6 +56,10 @@ result = rt.execute(builder.build(reg))
 - **[pythoncode-best-practices](pythoncode-best-practices.md)** - PythonCode node best practices
 - **[mcp-integration-guide](mcp-integration-guide.md)** - Model Context Protocol integration
 
+### Infrastructure & Scaling
+
+- **[enterprise-infrastructure](enterprise-infrastructure.md)** - Progressive scaling from in-memory to PostgreSQL via env vars
+
 ## Key Concepts
 
 ### Canonical Node Pattern (3-Parameter)

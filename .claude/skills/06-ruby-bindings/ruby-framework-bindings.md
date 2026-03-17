@@ -274,6 +274,126 @@ interceptor = Kailash::DataFlow::QueryInterceptor.new(ctx)
 tx = Kailash::DataFlow::DataFlowTransaction.new
 ```
 
+---
+
+## Enterprise Infrastructure
+
+Progressive infrastructure scaling. All types are in the `Kailash::` namespace.
+
+### Auto-Configuration
+
+```ruby
+require "kailash"
+
+Kailash::Registry.open do |registry|
+  # Simple: auto-configured Runtime from env vars (Level 0-1)
+  runtime = Kailash.configure_from_env(registry)
+
+  # Full: Runtime + task queue + worker lifecycle (Level 0-2)
+  infra = Kailash.configure_from_env_full(registry)
+  runtime = infra.runtime       # Kailash::Runtime
+  level = infra.level           # Kailash::InfraLevel
+  worker_id = infra.worker_id   # String
+end
+```
+
+### InfraLevel
+
+```ruby
+level = Kailash::InfraLevel.in_memory       # Level 0 (default)
+level = Kailash::InfraLevel.local_file      # Level 0.5 (SQLite)
+level = Kailash::InfraLevel.shared_state    # Level 1 (PostgreSQL)
+level = Kailash::InfraLevel.multi_worker    # Level 2 (PostgreSQL + workers)
+
+puts level.kind         # "in_memory" | "local_file" | "shared_state" | "multi_worker"
+puts level.description  # Human-readable description
+```
+
+### IdempotencyKeyStrategy
+
+```ruby
+strategy = Kailash::IdempotencyKeyStrategy.none
+strategy = Kailash::IdempotencyKeyStrategy.execution_scoped
+strategy = Kailash::IdempotencyKeyStrategy.input_scoped
+strategy = Kailash::IdempotencyKeyStrategy.from_input("payment_id")
+
+puts strategy.kind       # "none" | "execution_scoped" | "input_scoped" | "from_input"
+puts strategy.input_key  # nil or "payment_id"
+```
+
+### ShutdownToken
+
+```ruby
+token = Kailash::ShutdownToken.new
+token.cancelled?   # false
+token.cancel
+token.cancelled?   # true
+```
+
+### Saga Store
+
+```ruby
+store = Kailash::InMemorySagaStore.new
+
+# Create a saga
+step1 = Kailash::SagaStepDef.new("charge_card", "refund_card")
+step2 = Kailash::SagaStepDef.new("reserve_inventory", "release_inventory")
+saga = Kailash::SagaDefinition.new("order-001", "run-001", [step1, step2])
+store.create(saga)
+
+# Step lifecycle
+store.step_completed("order-001", 0)
+store.step_failed("order-001", 1, "out of stock")
+
+# Compensate
+to_compensate = store.steps_to_compensate("order-001")
+to_compensate.each { |idx, step| store.step_compensated("order-001", idx) }
+store.mark_compensated("order-001")
+
+# Query
+state = store.get("order-001")   # SagaState or nil
+active = store.list_active       # Array of SagaState
+```
+
+### Task Queue
+
+```ruby
+queue = Kailash::InProcessTaskQueue.new(100)  # capacity
+
+task = Kailash::WorkflowTask.new("task-001", "abc123")
+queue.submit(task)
+
+claimed = queue.claim("worker-1")
+if claimed
+  queue.complete(claimed.task_id, "run-001")
+end
+
+count = queue.pending_count
+info = queue.status("task-001")
+```
+
+### Enterprise Infrastructure Types
+
+| Type                                 | Purpose                                  |
+| ------------------------------------ | ---------------------------------------- |
+| `Kailash::ConfiguredInfra`           | Auto-configuration result (runtime + queue) |
+| `Kailash::InfraLevel`               | Infrastructure level (4 variants)        |
+| `Kailash::ShutdownToken`            | Cancellation token for graceful shutdown |
+| `Kailash::InMemorySagaStore`        | In-memory saga coordination store        |
+| `Kailash::SagaDefinition`           | Saga with ordered steps                  |
+| `Kailash::SagaStepDef`              | Single saga step definition              |
+| `Kailash::SagaState`                | Saga current state                       |
+| `Kailash::SagaStepState`            | Step current state                       |
+| `Kailash::SagaStatus`               | Saga status enum                         |
+| `Kailash::SagaStepStatus`           | Step status enum                         |
+| `Kailash::IdempotencyKeyStrategy`   | Idempotency key strategy (4 variants)    |
+| `Kailash::InProcessTaskQueue`       | In-process task queue                    |
+| `Kailash::WorkflowTask`             | Task queue entry                         |
+| `Kailash::TaskStatus`               | Task status enum                         |
+| `Kailash::TaskInfo`                 | Task metadata                            |
+
+---
+
 ## Key Differences from Python Binding
 
 | Feature          | Python                               | Ruby                                   |
