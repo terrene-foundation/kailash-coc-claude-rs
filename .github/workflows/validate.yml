@@ -1,0 +1,39 @@
+name: Validate COC Structure
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate structure
+        run: |
+          echo "Checking COC structure..."
+          # Verify critical directories exist
+          test -d .claude/agents && echo "✓ agents/"
+          test -d .claude/skills && echo "✓ skills/"
+          test -d .claude/rules && echo "✓ rules/"
+          test -d .claude/commands && echo "✓ commands/"
+          test -f CLAUDE.md && echo "✓ CLAUDE.md"
+
+          # Check for contamination (builder paths should not be in template)
+          if grep -r "src/kailash_rs/" .claude/ 2>/dev/null; then
+            echo "ERROR: Found builder paths (src/kailash_rs/) in template"
+            exit 1
+          fi
+          echo "✓ No contamination detected"
+
+          # Count agents and skills
+          echo "Agents: $(find .claude/agents -name '*.md' | wc -l)"
+          echo "Skills: $(find .claude/skills -name '*.md' | wc -l)"
+          echo "Rules: $(find .claude/rules -name '*.md' | wc -l)"
+          echo "Commands: $(find .claude/commands -name '*.md' | wc -l)"
+          echo "All checks passed!"

@@ -1,110 +1,67 @@
-# Contributing to Kailash SDK (Rust-backed Bindings)
+# Contributing to Kailash COC Claude (Rust)
 
-We welcome contributions to the Kailash SDK! This document provides guidelines for contributing to the project.
+We welcome contributions to the Kailash COC template for Rust-backed projects. This document provides guidelines for contributing.
+
+## About This Repository
+
+This is a **COC (Cognitive Orchestration for Codegen) template** for Claude Code. It provides agents, skills, rules, commands, and hooks that Rust-backed projects inherit through the `.claude/` directory.
+
+This project is maintained by the [Terrene Foundation](https://terrene.foundation) and licensed under Apache 2.0.
 
 ## Getting Started
 
 1. Fork the repository on GitHub
 2. Clone your fork locally
-3. Set up the development environment:
+3. Create a new branch for your changes:
    ```bash
-   # Python
-   pip install -e ".[dev]"
-
-   # Ruby
-   bundle install
+   git checkout -b feat/your-feature
    ```
-4. Create a new branch for your feature or bugfix
 
-## Development Process
+## What to Contribute
 
-### Code Style
+- **Agents**: New or improved agent definitions in `.claude/agents/`
+- **Skills**: Knowledge documents in `.claude/skills/`
+- **Rules**: Development rules in `.claude/rules/`
+- **Commands**: Slash commands in `.claude/commands/`
+- **Hooks**: Automation hooks in `.claude/hooks/`
 
-#### Python
+## Guidelines
 
-We use standard Python tools for code quality:
+### Template Independence
 
-- `black` for code formatting
-- `isort` for import sorting
-- `mypy` for type checking
+COC templates are framework-agnostic tools for Claude Code. Contributions must not:
 
-Before submitting, run:
+- Reference or depend on any proprietary codebase
+- Include paths or patterns specific to a single project
+- Hardcode API keys, secrets, or credentials
 
-```bash
-black src/
-isort src/
-mypy src/
+### Quality Standards
+
+- Agent and skill files should be well-structured Markdown
+- Rules should include clear scope, rationale, and examples
+- Hook scripts should be tested and include error handling
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
 ```
-
-#### Ruby
-
-We use RuboCop for code quality:
-
-```bash
-bundle exec rubocop --autocorrect
+feat(agents): add data-migration specialist
+fix(rules): correct testing tier definitions
+docs(skills): update workflow quickstart guide
 ```
-
-### Testing
-
-All new features should include tests:
-
-```bash
-# Python
-pytest
-pytest --cov=kailash
-
-# Ruby
-bundle exec rspec
-```
-
-### Architecture Decision Records (ADRs)
-
-For significant architectural changes, please document them appropriately:
-
-1. Describe the architectural change in your pull request
-2. Explain the rationale and trade-offs
-3. Update relevant documentation
 
 ## Pull Request Process
 
-1. Update the README.md with details of interface changes
-2. Ensure all tests pass
-3. Update documentation as needed
-4. Request review from maintainers
+1. Ensure your changes do not break the COC structure validation (CI will check)
+2. Update documentation if you add new agents, skills, or rules
+3. Request review from maintainers
+4. Squash or rebase to clean commit history before merge
 
-## Licensing and Intellectual Property
+## License
 
-### License
-
-Kailash SDK is licensed under the Apache License, Version 2.0. By submitting a contribution, you agree that your contribution will be licensed under the same terms as the rest of the project. See the [LICENSE](LICENSE) file for details.
-
-### Contributor License Agreement
-
-By contributing to this repository, you represent that:
-
-1. You have the right to submit the contribution under the project's license terms.
-2. Your contribution is your original work, or you have the right to submit it.
-3. You grant Integrum Pte. Ltd. a perpetual, worldwide, non-exclusive, royalty-free license to use, reproduce, modify, and distribute your contribution as part of the project.
-
-### Patent Notice
-
-The Kailash SDK is the subject of patent applications owned by Integrum Pte. Ltd. See the [PATENTS](PATENTS) file for details.
-
-Under Apache License 2.0, Section 3, each Contributor grants a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable patent license covering claims necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work. This grant applies to all users of the software, whether or not they are contributors.
-
-**Defensive termination**: If you institute patent litigation alleging that the Work constitutes patent infringement, patent licenses granted to you under Section 3 for that Work terminate as of the date such litigation is filed.
-
-### What This Means for You
-
-- **Your code**: You retain copyright of your contributions.
-- **License grant**: Your contributions are licensed under Apache License 2.0, the same terms as the rest of the project.
-- **Patent grant**: Under Section 3, each Contributor (including you) grants a patent license scoped to claims necessarily infringed by their Contribution(s). All users receive the same grant.
-- **No additional obligations**: Beyond the above, there are no further IP obligations for contributors.
-
-## Code of Conduct
-
-Be respectful and professional in all interactions. We strive to maintain a welcoming environment for all contributors.
+By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE), the same license as the rest of the project.
 
 ## Questions?
 
-Feel free to open an issue for questions or reach out to info@integrum.global
+Open an issue on GitHub or reach out at [info@terrene.foundation](mailto:info@terrene.foundation).
