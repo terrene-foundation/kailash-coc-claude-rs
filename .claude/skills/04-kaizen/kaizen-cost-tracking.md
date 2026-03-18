@@ -58,7 +58,24 @@ if im.is_interrupted():
 
 > **Note**: `CostTracker` is standalone. `BaseAgent` has a `run()` convenience method (P17-002) that calls your custom `execute()`. Record costs manually via `CostTracker.record()`.
 
+## BudgetTracker (Two-Phase Budget Enforcement)
+
+For tool agent invocations where you need to **reserve** budget before spending, use `BudgetTracker` instead:
+
+```python
+from kailash.kaizen import BudgetTracker
+
+tracker = BudgetTracker(10_000_000)  # $10 budget in microdollars
+if tracker.reserve(50_000):          # Reserve $0.05
+    # ... invoke tool ...
+    tracker.record(50_000, 48_000)   # Actual cost was $0.048
+print(tracker.remaining())          # Budget remaining
+```
+
+See [kaizen-budget-tracking](kaizen-budget-tracking.md) for the full two-phase reserve/record API.
+
 ## References
 
 - **Specialist**: `.claude/agents/frameworks/kaizen-specialist.md`
+- **Related**: [kaizen-budget-tracking](kaizen-budget-tracking.md) for two-phase budget enforcement
 - **Related**: [kaizen-interrupt-mechanism](kaizen-interrupt-mechanism.md) for budget-based interrupts

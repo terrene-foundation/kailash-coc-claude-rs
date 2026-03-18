@@ -17,6 +17,8 @@ AI agent framework for building intelligent agents with kailash-enterprise.
 | [kaizen-react-pattern](kaizen-react-pattern.md)             | ReAct (Reasoning + Acting) agent pattern           |
 | [kaizen-rag-agent](kaizen-rag-agent.md)                     | RAG agent implementation                           |
 | [kaizen-cost-tracking](kaizen-cost-tracking.md)             | LLM cost tracking and budget management            |
+| [kaizen-budget-tracking](kaizen-budget-tracking.md)         | Two-phase budget enforcement for tool agents       |
+| [kaizen-trust-architecture](kaizen-trust-architecture.md)   | Three-layer trust stack map (EATP/Trust-Plane/Kaizen) |
 | [kaizen-streaming](kaizen-streaming.md)                     | Streaming agent responses                          |
 | [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol (cards & registry)         |
 | [kaizen-a2a](kaizen-a2a.md)                                 | A2A messaging, discovery, and delegation           |

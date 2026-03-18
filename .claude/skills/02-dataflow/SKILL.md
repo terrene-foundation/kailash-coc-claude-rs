@@ -119,6 +119,7 @@ Each model generates:
 ### Advanced Features
 
 - **[dataflow-multi-tenancy](dataflow-multi-tenancy.md)** - Multi-tenant architectures
+- **[dataflow-aggregation](dataflow-aggregation.md)** - Grouped aggregation (COUNT, SUM, AVG, MIN, MAX)
 - **[dataflow-gotchas](dataflow-gotchas.md)** - Common pitfalls and solutions
 
 ## Database Support Matrix
