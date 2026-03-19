@@ -53,6 +53,23 @@ Run the deployment onboarding process:
 
 Read the config and execute the appropriate track:
 
+#### Step 0: Package Freshness (ALL tracks — MANDATORY)
+
+Before ANY deployment, verify SDK packages are current:
+
+```bash
+# Check installed vs latest
+pip install --upgrade kailash-enterprise  # For Rust SDK users
+# OR
+pip install --upgrade kailash kailash-dataflow kailash-nexus kailash-kaizen  # For Python SDK users
+```
+
+If the deployment target (server, container, etc.) has stale packages, update them BEFORE deploying application code. **This is the #1 cause of "my fix isn't working on the server" issues.**
+
+Also verify COC sync is current — check `.claude/.coc-sync-marker` if it exists.
+
+**BLOCKED:** Deploying with outdated SDK packages. See `rules/zero-tolerance.md` Rule 5.
+
 #### Package Release Track
 
 1. **Pre-release prep**

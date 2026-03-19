@@ -66,8 +66,6 @@ Stubs and TODOs accumulate silently. Each one is a hidden failure point:
 
 ## Exceptions
 
-Test files (`test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `*_spec.rb`, `__tests__/`, `spec/`) are excluded.
-Stub exceptions require:
+Test files (`test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `__tests__/`) are excluded from stub detection.
 
-1. Explicit user approval ("skip this for now")
-2. A tracked TODO with timeline for completion
+**There are NO exceptions for production code.** If you cannot implement something, ask the user, then implement it. If they say remove it, delete the function — do NOT leave a stub. See also: `rules/zero-tolerance.md`
