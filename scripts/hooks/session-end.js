@@ -135,8 +135,25 @@ function collectSessionStats(cwd) {
 // Scans top-level cwd only (not subdirectories) for performance in hooks.
 function detectFramework(cwd) {
   try {
-    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
-    for (const file of files.slice(0, 10)) {
+    const files = fs.readdirSync(cwd);
+
+    // ── Rust detection ──────────────────────────────────────────────────
+    const rsFiles = files.filter((f) => f.endsWith(".rs")).slice(0, 10);
+    for (const file of rsFiles) {
+      try {
+        const content = fs.readFileSync(path.join(cwd, file), "utf8");
+        if (/use kailash_dataflow/.test(content)) return "kailash-dataflow";
+        if (/use kailash_nexus/.test(content)) return "kailash-nexus";
+        if (/use kailash_kaizen/.test(content)) return "kailash-kaizen";
+        if (/use kailash_enterprise/.test(content)) return "kailash-enterprise";
+        if (/use kailash_core/.test(content)) return "kailash-core";
+      } catch {}
+    }
+    if (files.includes("Cargo.toml")) return "rust-sdk";
+
+    // ── Python detection ────────────────────────────────────────────────
+    const pyFiles = files.filter((f) => f.endsWith(".py"));
+    for (const file of pyFiles.slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
         if (/@db\.model/.test(content) || /from dataflow/.test(content))

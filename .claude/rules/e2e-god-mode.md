@@ -9,7 +9,7 @@ paths:
 
 ## Scope
 
-These rules apply to ALL end-to-end testing, validation, and browser-based test runs.
+These rules apply to ALL end-to-end testing, validation, and browser-based test runs against the Kailash Rust services.
 
 ## ABSOLUTE RULES
 
@@ -23,11 +23,30 @@ When running E2E tests and a required record is missing (404, 403, empty respons
 **Pattern:**
 
 ```
-1. Attempt operation
+1. Attempt operation (e.g., reqwest client or axum test helper)
 2. If 404/403/missing -> identify what's missing
 3. Create the missing record via API (use admin credentials)
 4. Retry the original operation
 5. NEVER skip or move on
+```
+
+**Rust Example:**
+
+```rust
+// In E2E test using reqwest
+let resp = client.get(&format!("{}/api/users/{}", base_url, user_id))
+    .send().await?;
+
+if resp.status() == StatusCode::NOT_FOUND {
+    // God-mode: create the missing user
+    client.post(&format!("{}/api/users", base_url))
+        .json(&CreateUserRequest { name: "test_user".into(), role: "admin".into() })
+        .send().await?;
+    // Retry original operation
+    let resp = client.get(&format!("{}/api/users/{}", base_url, user_id))
+        .send().await?;
+    assert_eq!(resp.status(), StatusCode::OK);
+}
 ```
 
 ### 2. Adapt to Data Changes
@@ -50,7 +69,7 @@ Test data WILL change between runs. User emails, IDs, names may all differ.
 
 If an API endpoint doesn't exist and testing needs it:
 
-**MUST**: Implement the endpoint immediately.
+**MUST**: Implement the endpoint immediately in the appropriate `kailash-nexus` axum router.
 **MUST NOT**: Document it as a "limitation" and move on.
 
 ### 4. Follow Up on Failures
@@ -64,8 +83,8 @@ When an operation fails gracefully (error message displayed, no crash):
 
 ```
 1. Operation fails with error
-2. Check backend logs for root cause
-3. If missing API key -> verify .env is loaded
+2. Check service logs (tracing output) for root cause
+3. If missing API key -> verify .env is loaded (dotenvy)
 4. If missing record -> create it (Rule 1)
 5. If missing endpoint -> implement it (Rule 3)
 6. Retry the operation
@@ -79,8 +98,8 @@ During multi-persona testing, assume the role needed for each operation.
 **Pattern:**
 
 ```
-1. Need admin actions -> log in as admin/owner
-2. Need to test restricted views -> log in as restricted user
+1. Need admin actions -> authenticate as admin/owner (JWT or API key)
+2. Need to test restricted views -> authenticate as restricted user
 3. Need to test RBAC -> try each role and verify access/denial
 ```
 
@@ -88,9 +107,10 @@ During multi-persona testing, assume the role needed for each operation.
 
 Before starting ANY E2E test run:
 
-- [ ] Backend running and healthy
-- [ ] Frontend dev server running
-- [ ] .env loaded and verified (check MODEL and API_KEY vars)
+- [ ] Rust service compiled and running (`cargo run --release` or Docker container)
+- [ ] Frontend dev server running (if applicable)
+- [ ] `.env` loaded and verified (check `MODEL` and `API_KEY` vars)
+- [ ] Database migrations applied (`sqlx migrate run`)
 - [ ] Required users exist (query API, create if missing)
 - [ ] Required resources exist (query API, create if missing)
 - [ ] Access records exist (query API, create if missing)
