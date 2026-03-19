@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules apply to all git operations.
+These rules apply to all git operations in the Kailash Rust workspace.
 
 ## MUST Rules
 
@@ -29,15 +29,26 @@ type(scope): description
 - `refactor`: Code restructure
 - `test`: Adding tests
 - `chore`: Maintenance
+- `perf`: Performance improvement
+- `ci`: CI/CD changes
+
+**Scopes** (use crate names):
+
+- `core`, `value`, `nodes`, `plugin`, `capi`
+- `dataflow`, `nexus`, `kaizen`, `enterprise`
+- `python`, `node`, `wasm` (bindings)
+- `workspace` (cross-crate changes)
 
 **Examples**:
 
 ```
-feat(auth): add OAuth2 support
-fix(api): resolve rate limiting issue
-docs(readme): update installation guide
-refactor(workflow): simplify node connection logic
+feat(nexus): add OAuth2 middleware for axum router
+fix(dataflow): resolve sqlx connection pool exhaustion
+docs(core): update Node trait rustdoc examples
+refactor(value): simplify KailashValue serde impl
 test(dataflow): add integration tests for bulk operations
+perf(core): optimize workflow DAG traversal
+ci(workspace): add cargo-deny to CI pipeline
 ```
 
 **Enforced by**: Pre-commit hook (future)
@@ -45,9 +56,16 @@ test(dataflow): add integration tests for bulk operations
 
 ### 2. Security Review Before Commit
 
-> See `agents.md` Rule 2 for the full security review mandate. Non-negotiable.
+MUST run security-reviewer before commit.
 
-**Enforced by**: agents.md, PreToolUse hook
+**Process**:
+
+1. Complete code changes
+2. Delegate to security-reviewer
+3. Address all CRITICAL findings (especially `unsafe` blocks, FFI boundaries)
+4. Then commit
+
+**Enforced by**: agents.md rule
 **Violation**: Potential security issues
 
 ### 3. Branch Naming
@@ -58,8 +76,8 @@ Feature branches MUST follow naming convention.
 
 **Examples**:
 
-- `feat/add-auth`
-- `fix/api-timeout`
+- `feat/add-auth-middleware`
+- `fix/sqlx-pool-timeout`
 - `docs/update-readme`
 - `refactor/workflow-builder`
 - `test/dataflow-integration`
@@ -71,6 +89,7 @@ Pull requests MUST include:
 - Summary of changes (what and why)
 - Test plan (how to verify)
 - Related issues (links)
+- Crates affected
 
 **Template**:
 
@@ -79,9 +98,15 @@ Pull requests MUST include:
 
 [1-3 bullet points]
 
+## Crates Affected
+
+- `kailash-core`
+- `kailash-nexus`
+
 ## Test plan
 
-- [ ] Unit tests pass
+- [ ] `cargo test --workspace` passes
+- [ ] `cargo clippy --workspace -- -D warnings` clean
 - [ ] Integration tests pass
 - [ ] Manual testing completed
 
@@ -98,15 +123,15 @@ Each commit MUST be self-contained.
 
 - One commit per logical change
 - Tests and implementation together
-- Each commit builds and passes tests
+- Each commit compiles and passes `cargo test`
 
 **Incorrect**:
 
 ```
-❌ "WIP"
-❌ "fix stuff"
-❌ "update files"
-❌ Multiple unrelated changes
+"WIP"
+"fix stuff"
+"update files"
+Multiple unrelated crate changes
 ```
 
 ## MUST NOT Rules
@@ -138,7 +163,8 @@ MUST NOT commit secrets, even in history.
 - Passwords
 - Tokens
 - Private keys
-- .env files
+- `.env` files
+- `Cargo` registry tokens
 
 ### 4. No Large Binaries
 
@@ -153,6 +179,12 @@ MUST NOT commit large binary files.
 
 - Git LFS for large files
 - External storage for assets
+- Use `cargo build` artifacts in `target/` (already gitignored)
+
+### 5. No Cargo.lock for Libraries, Required for Binaries
+
+- MUST commit `Cargo.lock` for binary crates and the workspace root
+- MUST NOT commit `Cargo.lock` for library-only crates published to crates.io independently
 
 ## Pre-Commit Checklist
 
@@ -160,8 +192,10 @@ Before every commit:
 
 - [ ] Code review completed (intermediate-reviewer)
 - [ ] Security review completed (security-reviewer)
-- [ ] Tests pass
-- [ ] Linting passes
+- [ ] `cargo test --workspace` passes
+- [ ] `cargo fmt --check` passes
+- [ ] `cargo clippy --workspace -- -D warnings` passes
+- [ ] `cargo audit` clean
 - [ ] No secrets in changes
 - [ ] Commit message follows convention
 
@@ -184,6 +218,20 @@ Before every commit:
 - Branch from main
 - Fix critical issues
 - Fast-track review process
+
+## Release Process
+
+### Version Bumps
+
+- Update `version` in the affected crate's `Cargo.toml`
+- Update workspace `Cargo.toml` if using workspace version inheritance
+- Tag with `v{version}` (e.g., `v0.1.0`)
+
+### Publishing to crates.io
+
+- Run `cargo publish --dry-run -p kailash-{crate}` before actual publish
+- Publish dependency crates first (e.g., `kailash-value` before `kailash-core`)
+- Never publish with `--allow-dirty`
 
 ## Exceptions
 

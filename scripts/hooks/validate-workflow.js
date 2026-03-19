@@ -68,17 +68,13 @@ function validateFile(data) {
 
   const rustExts = [".rs"];
   const jsExts = [".ts", ".tsx", ".js", ".jsx"];
-  const pyExts = [".py"];
-  const rbExts = [".rb"];
   const configExts = [".yaml", ".yml", ".json", ".env", ".sh", ".toml"];
 
   const isRust = rustExts.includes(ext);
   const isJs = jsExts.includes(ext);
-  const isPython = pyExts.includes(ext);
-  const isRuby = rbExts.includes(ext);
   const isConfig = configExts.includes(ext);
 
-  if (!isRust && !isJs && !isPython && !isRuby && !isConfig) {
+  if (!isRust && !isJs && !isConfig) {
     return {
       continue: true,
       exitCode: 0,
@@ -105,18 +101,8 @@ function validateFile(data) {
     checkRustPatterns(content, filePath, messages);
   }
 
-  // -- Python-specific checks (.py only) -----------------------------------
-  if (isPython) {
-    checkPythonPatterns(content, filePath, messages);
-  }
-
-  // -- Ruby-specific checks (.rb only) ------------------------------------
-  if (isRuby) {
-    checkRubyPatterns(content, filePath, messages);
-  }
-
   // -- Hardcoded model detection (code files only -- configs may list models intentionally)
-  if (isRust || isJs || isPython || isRuby) {
+  if (isRust || isJs) {
     const modelResult = checkHardcodedModels(content, filePath, env, isRust);
     messages.push(...modelResult.messages);
     if (modelResult.block) shouldBlock = true;
@@ -126,8 +112,9 @@ function validateFile(data) {
   checkHardcodedKeys(content, filePath, messages);
 
   // -- Stub/TODO/simulation detection (code files only) -------------------
-  if (isRust || isJs || isPython || isRuby) {
-    checkStubsAndSimulations(content, filePath, messages);
+  if (isRust || isJs) {
+    const stubBlocked = checkStubsAndSimulations(content, filePath, messages);
+    if (stubBlocked) shouldBlock = true;
   }
 
   if (messages.length === 0) {
@@ -261,234 +248,6 @@ function checkRustPatterns(content, filePath, messages) {
     messages.push(
       "CRITICAL: Possible hardcoded secret in Rust code. Use std::env::var() or dotenvy.",
     );
-  }
-}
-
-// =====================================================================
-// Kailash SDK pattern checks (Python only)
-// =====================================================================
-
-function checkPythonPatterns(content, filePath, messages) {
-  // Anti-pattern: workflow.execute(runtime) -- wrong direction
-  if (/workflow\s*\.\s*execute\s*\(\s*runtime/.test(content)) {
-    messages.push(
-      "WARNING: workflow.execute(runtime) found. Use runtime.execute(workflow).",
-    );
-  }
-
-  // Anti-pattern: DataFlowInspector() constructor (static methods only)
-  if (/DataFlowInspector\s*\(/.test(content)) {
-    messages.push(
-      "WARNING: DataFlowInspector has NO constructor. Use static methods: DataFlowInspector.tables(df), .table_info(df, table), etc.",
-    );
-  }
-
-  // Anti-pattern: MigrationManager(config) -- no-arg constructor
-  if (/MigrationManager\s*\([^)]+\)/.test(content)) {
-    messages.push(
-      "WARNING: MigrationManager() takes no arguments. Use MigrationManager() then mgr.apply(migration, dataflow).",
-    );
-  }
-
-  // Anti-pattern: FieldType.Text (should be FieldType.text())
-  if (
-    /FieldType\.(?:Text|Integer|Real|Boolean|Float|Json|Timestamp|Uuid)\b(?!\()/.test(
-      content,
-    )
-  ) {
-    messages.push(
-      "WARNING: FieldType uses method constructors: FieldType.text(), not FieldType.Text.",
-    );
-  }
-
-  // Anti-pattern: callback= in ToolDef (should be handler=)
-  if (/ToolDef\s*\([^)]*callback\s*=/.test(content)) {
-    messages.push("WARNING: ToolDef uses handler=fn, NOT callback=fn.");
-  }
-
-  // Stub/TODO detection in non-test Python files
-  if (!isTestFile(filePath)) {
-    if (/\braise\s+NotImplementedError\b/.test(content)) {
-      messages.push(
-        "WARNING: raise NotImplementedError found. Implement the method fully.",
-      );
-    }
-    if (/\bpass\s*#\s*(?:stub|placeholder|todo)/i.test(content)) {
-      messages.push("WARNING: Stub/placeholder pass found. Implement fully.");
-    }
-  }
-
-  // SQL injection risk: f-string with SQL
-  if (/f["'](?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(content)) {
-    messages.push(
-      "CRITICAL: f-string with SQL detected -- potential SQL injection. Use parameterized queries.",
-    );
-  }
-
-  // Mocking in integration/e2e Python tests
-  if (isTestFile(filePath)) {
-    const isIntegrationTest =
-      filePath.includes("/integration/") ||
-      filePath.includes("/e2e/") ||
-      filePath.includes("_integration") ||
-      filePath.includes("_e2e");
-
-    if (isIntegrationTest) {
-      const mockPatterns = [
-        [/from\s+unittest\.mock\s+import/, "unittest.mock import"],
-        [/from\s+unittest\s+import\s+mock/, "unittest mock import"],
-        [/@patch\b/, "@patch decorator"],
-        [/\bMagicMock\s*\(/, "MagicMock()"],
-        [/\bMock\s*\(/, "Mock()"],
-        [/mocker\.patch/, "mocker.patch"],
-      ];
-      for (const [pat, name] of mockPatterns) {
-        if (pat.test(content)) {
-          messages.push(
-            `WARNING: ${name} detected in integration/e2e test. NO MOCKING in Tier 2-3 tests.`,
-          );
-        }
-      }
-    }
-  }
-}
-
-// =====================================================================
-// Kailash SDK pattern checks (Ruby only)
-// =====================================================================
-
-function checkRubyPatterns(content, filePath, messages) {
-  // Anti-pattern: workflow.execute(runtime) -- wrong direction
-  if (/workflow\s*\.\s*execute\s*\(\s*runtime/.test(content)) {
-    messages.push(
-      "WARNING: workflow.execute(runtime) found. Use runtime.execute(workflow).",
-    );
-  }
-
-  // Anti-pattern: builder.build without registry argument
-  if (/builder\.build\s*\(\s*\)/.test(content) && !isTestFile(filePath)) {
-    messages.push(
-      "WARNING: builder.build() without registry. Use builder.build(registry).",
-    );
-  }
-
-  // Anti-pattern: Symbol keys in config hashes (common Ruby mistake)
-  // Detect: add_node("Type", "id", { key: value }) -- symbol shorthand
-  if (/add_node\s*\([^)]*\{\s*\w+:(?!\s*:)/.test(content)) {
-    messages.push(
-      'WARNING: Symbol keys detected in node config. Use String keys: { "key" => value }.',
-    );
-  }
-
-  // Anti-pattern: Timeout.timeout around execute (won't interrupt Rust)
-  if (
-    /Timeout\.timeout.*execute/s.test(content) ||
-    /timeout.*do.*execute/s.test(content)
-  ) {
-    messages.push(
-      "WARNING: Timeout.timeout won't interrupt Rust execution. Use RuntimeConfig#workflow_timeout= instead.",
-    );
-  }
-
-  // Stub detection
-  if (!isTestFile(filePath)) {
-    if (/raise\s+NotImplementedError/.test(content)) {
-      messages.push(
-        "WARNING: raise NotImplementedError found. Implement the method fully.",
-      );
-    }
-    if (/fail\s+["']not\s+(yet\s+)?implement/i.test(content)) {
-      messages.push("WARNING: Unimplemented method found. Implement fully.");
-    }
-  }
-
-  // SQL injection risk: string interpolation in SQL
-  if (/"(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s[^"]*#\{/i.test(content)) {
-    messages.push(
-      "CRITICAL: String interpolation in SQL detected -- potential SQL injection. Use parameterized queries.",
-    );
-  }
-
-  // Code execution / eval injection (non-test files only)
-  if (!isTestFile(filePath)) {
-    const evalPatterns = [
-      [/\beval\s*\(/, "eval()"],
-      [/\binstance_eval\s*\(/, "instance_eval()"],
-      [/\bclass_eval\s*\(/, "class_eval()"],
-      [/\bmodule_eval\s*\(/, "module_eval()"],
-      [/\bBinding\s*\.\s*eval\s*\(/, "Binding.eval()"],
-      [/\bKernel\s*\.\s*exec\s*\(/, "Kernel.exec()"],
-      [/\bIO\s*\.\s*popen\s*\(/, "IO.popen()"],
-    ];
-    for (const [pat, name] of evalPatterns) {
-      if (pat.test(content)) {
-        messages.push(
-          `CRITICAL: ${name} detected in Ruby code. Potential code injection risk.`,
-        );
-      }
-    }
-
-    // Unsafe deserialization
-    if (/\bMarshal\s*\.\s*load\s*\(/.test(content)) {
-      messages.push(
-        "CRITICAL: Marshal.load() detected -- arbitrary object instantiation risk. Validate input source.",
-      );
-    }
-    if (
-      /\bYAML\s*\.\s*load\s*\(/.test(content) &&
-      !/\bYAML\s*\.\s*safe_load\s*\(/.test(content)
-    ) {
-      messages.push(
-        "WARNING: YAML.load() detected -- use YAML.safe_load() to prevent unsafe deserialization.",
-      );
-    }
-
-    // Dynamic dispatch on potentially user-controlled input
-    if (
-      /\.\s*send\s*\(\s*params|\.send\s*\(\s*request|\.send\s*\(\s*input/.test(
-        content,
-      )
-    ) {
-      messages.push(
-        "WARNING: .send() with potentially user-controlled argument. Use .public_send() with allowlist.",
-      );
-    }
-    if (/\bconst_get\s*\(/.test(content)) {
-      messages.push(
-        "WARNING: const_get() detected. Validate input against an allowlist to prevent arbitrary class access.",
-      );
-    }
-  }
-
-  // Mocking in integration/e2e tests
-  if (isTestFile(filePath)) {
-    const isIntegrationTest =
-      filePath.includes("/integration/") ||
-      filePath.includes("/e2e/") ||
-      filePath.includes("_integration") ||
-      filePath.includes("_e2e");
-
-    if (isIntegrationTest) {
-      const mockPatterns = [
-        [
-          /\ballow\s*\(.*\)\s*\.to\s+receive/,
-          "allow().to receive (RSpec mock)",
-        ],
-        [
-          /\bexpect\s*\(.*\)\s*\.to\s+receive/,
-          "expect().to receive (RSpec mock)",
-        ],
-        [/\bdouble\s*\(/, "double() (RSpec test double)"],
-        [/\binstance_double\s*\(/, "instance_double() (RSpec mock)"],
-      ];
-      for (const [pat, name] of mockPatterns) {
-        if (pat.test(content)) {
-          messages.push(
-            `WARNING: ${name} detected in integration/e2e test. NO MOCKING in Tier 2-3 tests.`,
-          );
-        }
-      }
-    }
   }
 }
 
@@ -642,73 +401,134 @@ function checkHardcodedKeys(content, filePath, messages) {
 
 /**
  * Detect stubs, TODOs, placeholders, naive fallbacks, and simulated services.
- * Warn-only (never blocks) -- these are code-quality indicators.
+ *
+ * BLOCKING (exit 2) for Rust production code — stubs are NOT warnings.
+ * See rules/zero-tolerance.md (Absolute Rule 2).
+ *
+ * Returns true if any blocking violation was found.
  */
 function checkStubsAndSimulations(content, filePath, messages) {
   // Skip test files -- stubs in tests are intentional fixture data
   if (isTestFile(filePath)) {
-    return;
+    return false;
   }
 
+  const isRust = filePath.endsWith(".rs");
   const lines = content.split("\n");
 
   // For Rust files: skip #[cfg(test)] regions (test code within source files)
-  const cfgTestLine = filePath.endsWith(".rs") ? findCfgTestLine(lines) : -1;
+  const cfgTestLine = isRust ? findCfgTestLine(lines) : -1;
 
-  const stubPatterns = [
-    // Explicit markers
-    [/\bTODO\b/i, "TODO marker"],
-    [/\bFIXME\b/i, "FIXME marker"],
-    [/\bHACK\b/i, "HACK marker"],
-    [/\bSTUB\b/i, "STUB marker"],
-    [/\bXXX\b/, "XXX marker"],
-    // Rust stubs
-    [/\btodo!\s*\(/, "todo!() (unimplemented)"],
-    [/\bunimplemented!\s*\(/, "unimplemented!() macro"],
+  // Blocking patterns — these STOP the operation for Rust production code
+  const blockingPatterns = [
+    [/\btodo!\s*\(/, "todo!() macro — IMPLEMENT the function fully"],
+    [
+      /\bunimplemented!\s*\(/,
+      "unimplemented!() macro — IMPLEMENT the function fully",
+    ],
     [
       /\bpanic!\s*\(\s*"not\s+(yet\s+)?implement/i,
-      "panic with not-implemented message",
+      'panic!("not implemented") — IMPLEMENT the function fully',
     ],
-    // Simulated/mock data in production code
+  ];
+
+  // Warning patterns — flagged but not blocking (need human judgment)
+  const warningPatterns = [
+    [/\bTODO\b/, "TODO marker — do it now, don't defer"],
+    [/\bFIXME\b/, "FIXME marker — fix it now, don't defer"],
+    [/\bHACK\b/, "HACK marker — implement properly"],
+    [/\bSTUB\b/, "STUB marker — implement the real logic"],
+    [/\bXXX\b/, "XXX marker — resolve this immediately"],
     [
       /\b(simulated?|fake|dummy|placeholder)\s*(data|response|result|value)/i,
-      "simulated data",
+      "simulated/fake data in production code",
     ],
-    // JS-specific naive silent fallbacks
-    [/catch\s*\([^)]*\)\s*\{\s*\}/, "empty catch block (silent fallback)"],
+    [
+      /catch\s*\([^)]*\)\s*\{\s*\}/,
+      "empty catch block — handle the error or propagate it",
+    ],
+  ];
+
+  // Naive fallback patterns — BLOCKING for Rust production code
+  const naiveFallbackPatterns = [
+    [
+      /\.unwrap_or_default\(\)/,
+      "unwrap_or_default() — verify this is not hiding a meaningful error",
+    ],
   ];
 
   const found = new Set();
+  let hasBlocking = false;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
     // Skip #[cfg(test)] regions in Rust files
     if (cfgTestLine > 0 && i + 1 >= cfgTestLine) {
-      break; // All remaining lines are test code
+      break;
     }
 
-    // Skip comments
-    if (
-      trimmed.startsWith("//") ||
-      trimmed.startsWith("*") ||
-      trimmed.startsWith("/*") ||
+    // Skip comments (but NOT TODO/FIXME in comments — those are still violations)
+    const isComment =
       trimmed.startsWith("///") ||
-      trimmed.startsWith("//!")
-    ) {
-      continue;
+      trimmed.startsWith("//!") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*");
+
+    // For blocking patterns: only check non-comment code lines
+    if (!isComment) {
+      for (const [pattern, label] of blockingPatterns) {
+        if (pattern.test(line) && !found.has(label)) {
+          found.add(label);
+          if (isRust) {
+            messages.push(
+              `BLOCKED: ${label} at ${path.basename(filePath)}:${i + 1}. ` +
+                `Stubs are NOT allowed. Implement fully or remove the function.`,
+            );
+            hasBlocking = true;
+          } else {
+            messages.push(
+              `WARNING: ${label} at ${path.basename(filePath)}:${i + 1}.`,
+            );
+          }
+        }
+      }
     }
 
-    for (const [pattern, label] of stubPatterns) {
+    // Check for TODO/FIXME/HACK/STUB/XXX in comments — these are still violations
+    // but we check the raw line (comments included) since these markers ARE in comments
+    for (const [pattern, label] of warningPatterns) {
       if (pattern.test(line) && !found.has(label)) {
+        // Skip if the line is a rule file reference or documentation about the pattern
+        if (
+          trimmed.includes("rules/") ||
+          trimmed.includes("Detection Patterns")
+        ) {
+          continue;
+        }
         found.add(label);
         messages.push(
-          `WARNING: ${label} at ${path.basename(filePath)}:${i + 1}. ` +
-            `Implement fully -- don't leave stubs in production code.`,
+          `WARNING: ${label} at ${path.basename(filePath)}:${i + 1}.`,
         );
       }
     }
+
+    // Check naive fallback patterns (non-comment lines only)
+    if (!isComment) {
+      for (const [pattern, label] of naiveFallbackPatterns) {
+        if (pattern.test(line) && !found.has(label)) {
+          found.add(label);
+          messages.push(
+            `REVIEW: ${label} at ${path.basename(filePath)}:${i + 1}. ` +
+              `Ensure this is not hiding a real error.`,
+          );
+        }
+      }
+    }
   }
+
+  return hasBlocking;
 }
 
 // =====================================================================
@@ -827,11 +647,10 @@ function buildDocCommentLines(lines) {
 function isTestFile(filePath) {
   const basename = path.basename(filePath).toLowerCase();
   return (
-    /^test_|_test\.|\.test\.|\.spec\.|_spec\.rb$|__tests__/.test(basename) ||
+    /^test_|_test\.|\.test\.|\.spec\.|__tests__/.test(basename) ||
     filePath.includes("__tests__") ||
     filePath.includes("/tests/") ||
     filePath.includes("/test/") ||
-    filePath.includes("/spec/") ||
     // Rust test convention: files in tests/ directory or #[cfg(test)] modules
     (filePath.endsWith(".rs") && basename.startsWith("test_"))
   );

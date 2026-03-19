@@ -61,7 +61,7 @@ function ensureLearningDir(cwd) {
   if (!fs.existsSync(identityFile)) {
     try {
       const identity = {
-        system: "kailash-coc-claude-rs",
+        system: "kailash-vibe-cc-setup",
         version: "2.0.0",
         created_at: new Date().toISOString(),
         learning_enabled: true,
