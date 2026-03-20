@@ -5,7 +5,7 @@
  * Purpose: Discover env config, validate model-key pairings, create .env if
  *          missing, output model configuration prominently.
  *
- * Framework-agnostic — works with any Kailash project.
+ * Framework-agnostic -- works with any Kailash project.
  *
  * Exit Codes:
  *   0 = success (continue)
@@ -152,7 +152,7 @@ function initializeSession(data) {
 
     // Detail each model-key validation
     for (const v of discovery.validations) {
-      const icon = v.status === "ok" ? "✓" : "✗";
+      const icon = v.status === "ok" ? "\u2713" : "\u2717";
       console.error(`[ENV]   ${icon} ${v.message}`);
     }
 
@@ -177,24 +177,18 @@ function initializeSession(data) {
 
 /**
  * Check package freshness and COC sync status.
- * For BUILD repos: verify Cargo.lock is consistent.
  * For USE repos: verify installed SDK package is latest.
  * For all: check if COC template has newer commits.
  */
 function checkPackageFreshness(cwd) {
   const { execSync } = require("child_process");
 
-  // Detect repo type
-  const isBuildRepo =
-    fs.existsSync(path.join(cwd, "crates")) &&
-    fs.existsSync(path.join(cwd, "bindings"));
   const hasPyproject = fs.existsSync(path.join(cwd, "pyproject.toml"));
-  const hasCargoToml = fs.existsSync(path.join(cwd, "Cargo.toml"));
   const hasRequirements = fs.existsSync(path.join(cwd, "requirements.txt"));
   const hasGemfile = fs.existsSync(path.join(cwd, "Gemfile"));
 
-  // For USE repos with Python: check kailash-enterprise version
-  if (!isBuildRepo && (hasPyproject || hasRequirements)) {
+  // For projects with Python: check kailash-enterprise version
+  if (hasPyproject || hasRequirements) {
     try {
       const installed = execSync(
         "pip show kailash-enterprise 2>/dev/null | grep Version | awk '{print $2}'",
@@ -214,12 +208,12 @@ function checkPackageFreshness(cwd) {
         console.error(`[FRESHNESS] kailash-enterprise ${installed} (latest)`);
       }
     } catch {
-      // pip commands may fail — non-fatal
+      // pip commands may fail -- non-fatal
     }
   }
 
-  // For USE repos with Ruby: check kailash gem version
-  if (!isBuildRepo && hasGemfile) {
+  // For projects with Ruby: check kailash gem version
+  if (hasGemfile) {
     try {
       const installed = execSync(
         "gem list kailash --local 2>/dev/null | grep kailash | grep -oP '\\d+\\.\\d+\\.\\d+'",
@@ -231,102 +225,68 @@ function checkPackageFreshness(cwd) {
     } catch {}
   }
 
-  // For BUILD repos: verify workspace version consistency
-  if (isBuildRepo && hasCargoToml) {
-    try {
-      const cargoToml = fs.readFileSync(path.join(cwd, "Cargo.toml"), "utf8");
-      const versionMatch = cargoToml.match(
-        /\[workspace\.package\]\s*[\s\S]*?version\s*=\s*"([^"]+)"/,
+  // Check COC template sync status
+  try {
+    // Look for a .coc-sync-marker file that records last sync commit
+    const markerPath = path.join(cwd, ".claude", ".coc-sync-marker");
+    if (fs.existsSync(markerPath)) {
+      const marker = fs.readFileSync(markerPath, "utf8").trim();
+      const markerData = JSON.parse(marker);
+      const lastSync = markerData.synced_at || "unknown";
+      const templateCommit = markerData.template_commit || "unknown";
+      console.error(
+        `[COC-SYNC] Last synced: ${lastSync} (template: ${templateCommit})`,
       );
-      if (versionMatch) {
-        const wsVersion = versionMatch[1];
-        // Check pyproject.toml version matches
-        const pyprojectPath = path.join(
-          cwd,
-          "bindings",
-          "kailash-python",
-          "pyproject.toml",
-        );
-        if (fs.existsSync(pyprojectPath)) {
-          const pyproject = fs.readFileSync(pyprojectPath, "utf8");
-          const pyVersionMatch = pyproject.match(/version\s*=\s*"([^"]+)"/);
-          if (pyVersionMatch && pyVersionMatch[1] !== wsVersion) {
-            console.error(
-              `[FRESHNESS] VERSION MISMATCH: Cargo.toml=${wsVersion}, pyproject.toml=${pyVersionMatch[1]}. ` +
-                `Update pyproject.toml version before release!`,
-            );
-          }
-        }
-        console.error(`[FRESHNESS] Workspace version: ${wsVersion}`);
-      }
-    } catch {}
-  }
 
-  // Check COC template sync status (for USE repos)
-  if (!isBuildRepo) {
-    try {
-      // Look for a .coc-sync-marker file that records last sync commit
-      const markerPath = path.join(cwd, ".claude", ".coc-sync-marker");
-      if (fs.existsSync(markerPath)) {
-        const marker = fs.readFileSync(markerPath, "utf8").trim();
-        const markerData = JSON.parse(marker);
-        const lastSync = markerData.synced_at || "unknown";
-        const templateCommit = markerData.template_commit || "unknown";
-        console.error(
-          `[COC-SYNC] Last synced: ${lastSync} (template: ${templateCommit})`,
-        );
-
-        // Check if sync is older than 7 days
-        if (markerData.synced_at) {
-          const syncDate = new Date(markerData.synced_at);
-          const daysSince =
-            (Date.now() - syncDate.getTime()) / (1000 * 60 * 60 * 24);
-          if (daysSince > 7) {
-            console.error(
-              `[COC-SYNC] WARNING: COC sync is ${Math.floor(daysSince)} days old. ` +
-                `Run COC sync to get latest agents, skills, and rules from template.`,
-            );
-          }
+      // Check if sync is older than 7 days
+      if (markerData.synced_at) {
+        const syncDate = new Date(markerData.synced_at);
+        const daysSince =
+          (Date.now() - syncDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince > 7) {
+          console.error(
+            `[COC-SYNC] WARNING: COC sync is ${Math.floor(daysSince)} days old. ` +
+              `Run COC sync to get latest agents, skills, and rules from template.`,
+          );
         }
-      } else {
-        console.error(
-          "[COC-SYNC] No sync marker found. Consider running COC sync to align with template.",
-        );
       }
-    } catch {}
-  }
+    } else {
+      console.error(
+        "[COC-SYNC] No sync marker found. Consider running COC sync to align with template.",
+      );
+    }
+  } catch {}
 }
 
 function detectFramework(cwd) {
   try {
     const files = fs.readdirSync(cwd);
 
-    // ── Rust detection ──────────────────────────────────────────────────
-    const rsFiles = files.filter((f) => f.endsWith(".rs")).slice(0, 10);
-    for (const file of rsFiles) {
-      try {
-        const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/use kailash_dataflow/.test(content)) return "kailash-dataflow";
-        if (/use kailash_nexus/.test(content)) return "kailash-nexus";
-        if (/use kailash_kaizen/.test(content)) return "kailash-kaizen";
-        if (/use kailash_enterprise/.test(content)) return "kailash-enterprise";
-        if (/use kailash_core/.test(content)) return "kailash-core";
-      } catch {}
-    }
-    if (files.includes("Cargo.toml")) return "rust-sdk";
-
     // ── Python detection ────────────────────────────────────────────────
     for (const file of files.filter((f) => f.endsWith(".py")).slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/@db\.model/.test(content) || /from dataflow/.test(content))
+        if (/@db\.model/.test(content) || /from kailash\.dataflow/.test(content))
           return "dataflow";
-        if (/from nexus/.test(content) || /Nexus\(/.test(content))
+        if (/from kailash\.nexus/.test(content) || /NexusApp/.test(content))
           return "nexus";
-        if (/from kaizen/.test(content) || /BaseAgent/.test(content))
+        if (/from kailash\.kaizen/.test(content) || /BaseAgent/.test(content))
           return "kaizen";
       } catch {}
     }
+
+    // ── Ruby detection ──────────────────────────────────────────────────
+    for (const file of files.filter((f) => f.endsWith(".rb")).slice(0, 10)) {
+      try {
+        const content = fs.readFileSync(path.join(cwd, file), "utf8");
+        if (/Kailash::DataFlow/.test(content)) return "dataflow";
+        if (/Kailash::Nexus/.test(content)) return "nexus";
+        if (/Kailash::Kaizen/.test(content)) return "kaizen";
+        if (/Kailash::Enterprise/.test(content)) return "enterprise";
+        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
+      } catch {}
+    }
+
     return "core-sdk";
   } catch {
     return "unknown";

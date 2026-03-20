@@ -9,7 +9,7 @@ paths:
 
 ## Scope
 
-These rules apply to ALL end-to-end testing, validation, and browser-based test runs against the Kailash Rust services.
+These rules apply to ALL end-to-end testing, validation, and browser-based test runs against applications built with the Kailash SDK.
 
 ## ABSOLUTE RULES
 
@@ -23,30 +23,48 @@ When running E2E tests and a required record is missing (404, 403, empty respons
 **Pattern:**
 
 ```
-1. Attempt operation (e.g., reqwest client or axum test helper)
+1. Attempt operation (e.g., HTTP client request)
 2. If 404/403/missing -> identify what's missing
 3. Create the missing record via API (use admin credentials)
 4. Retry the original operation
 5. NEVER skip or move on
 ```
 
-**Rust Example:**
+**Python Example:**
 
-```rust
-// In E2E test using reqwest
-let resp = client.get(&format!("{}/api/users/{}", base_url, user_id))
-    .send().await?;
+```python
+import requests
 
-if resp.status() == StatusCode::NOT_FOUND {
-    // God-mode: create the missing user
-    client.post(&format!("{}/api/users", base_url))
-        .json(&CreateUserRequest { name: "test_user".into(), role: "admin".into() })
-        .send().await?;
-    // Retry original operation
-    let resp = client.get(&format!("{}/api/users/{}", base_url, user_id))
-        .send().await?;
-    assert_eq!(resp.status(), StatusCode::OK);
-}
+resp = requests.get(f"{base_url}/api/users/{user_id}")
+
+if resp.status_code == 404:
+    # God-mode: create the missing user
+    requests.post(f"{base_url}/api/users", json={
+        "name": "test_user", "role": "admin"
+    })
+    # Retry original operation
+    resp = requests.get(f"{base_url}/api/users/{user_id}")
+    assert resp.status_code == 200
+```
+
+**Ruby Example:**
+
+```ruby
+require "net/http"
+require "json"
+
+uri = URI("#{base_url}/api/users/#{user_id}")
+resp = Net::HTTP.get_response(uri)
+
+if resp.code == "404"
+  # God-mode: create the missing user
+  post_uri = URI("#{base_url}/api/users")
+  Net::HTTP.post(post_uri, { name: "test_user", role: "admin" }.to_json,
+                 "Content-Type" => "application/json")
+  # Retry original operation
+  resp = Net::HTTP.get_response(uri)
+  expect(resp.code).to eq("200")
+end
 ```
 
 ### 2. Adapt to Data Changes
@@ -69,7 +87,7 @@ Test data WILL change between runs. User emails, IDs, names may all differ.
 
 If an API endpoint doesn't exist and testing needs it:
 
-**MUST**: Implement the endpoint immediately in the appropriate `kailash-nexus` axum router.
+**MUST**: Implement the endpoint immediately using the Kailash SDK (NexusApp handler or equivalent).
 **MUST NOT**: Document it as a "limitation" and move on.
 
 ### 4. Follow Up on Failures
@@ -83,8 +101,8 @@ When an operation fails gracefully (error message displayed, no crash):
 
 ```
 1. Operation fails with error
-2. Check service logs (tracing output) for root cause
-3. If missing API key -> verify .env is loaded (dotenvy)
+2. Check service logs for root cause
+3. If missing API key -> verify .env is loaded
 4. If missing record -> create it (Rule 1)
 5. If missing endpoint -> implement it (Rule 3)
 6. Retry the operation
@@ -107,10 +125,10 @@ During multi-persona testing, assume the role needed for each operation.
 
 Before starting ANY E2E test run:
 
-- [ ] Rust service compiled and running (`cargo run --release` or Docker container)
+- [ ] Application server running (Python: `python -m app` or equivalent; Ruby: `bundle exec rails s` or equivalent)
 - [ ] Frontend dev server running (if applicable)
 - [ ] `.env` loaded and verified (check `MODEL` and `API_KEY` vars)
-- [ ] Database migrations applied (`sqlx migrate run`)
+- [ ] Database migrations applied
 - [ ] Required users exist (query API, create if missing)
 - [ ] Required resources exist (query API, create if missing)
 - [ ] Access records exist (query API, create if missing)

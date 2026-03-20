@@ -6,7 +6,7 @@
  *          This is the PRIMARY mechanism that survives context compression,
  *          because it runs fresh on every turn (independent of memory).
  *
- * Framework-agnostic — works with any Kailash project.
+ * Framework-agnostic -- works with any Kailash project.
  *
  * Exit Codes:
  *   0 = success (continue)
@@ -72,23 +72,23 @@ function buildReminder(data) {
   // Line 2: If there are failures, highlight them
   if (failures.length > 0) {
     lines.push(
-      `[ENV] CRITICAL: ${failures.length} model(s) missing API keys — LLM calls will fail!`,
+      `[ENV] CRITICAL: ${failures.length} model(s) missing API keys -- LLM calls will fail!`,
     );
   }
 
-  // Line 3: Zero-tolerance behavioral rules (always present, survives compression)
+  // Line 3: Zero-tolerance rules (always present, survives compression)
   lines.push(
     "[ZERO-TOLERANCE] " +
       "Pre-existing failures MUST be FIXED, not reported. " +
-      "Stubs/TODOs/placeholders are BLOCKED — implement fully or remove. " +
+      "Stubs/TODOs/placeholders are BLOCKED -- implement fully or remove. " +
       "No naive fallbacks hiding errors. " +
-      "No workarounds for SDK bugs — deep dive, reproduce, file GitHub issue. " +
+      "No workarounds for SDK bugs -- deep dive, reproduce, file GitHub issue (gh issue create --repo esperie-enterprise/kailash-rs). " +
+      "File COC improvement issues for unclear docs (gh issue create --repo terrene-foundation/kailash-coc-claude-rs --label coc-improvement). " +
       "Never hardcode models/keys. " +
-      "Create missing records (god-mode). " +
       "Implement gaps, don't document them.",
   );
 
-  // Line 4: Workspace context (survives compaction — primary anti-amnesia mechanism)
+  // Line 4: Workspace context (survives compaction -- primary anti-amnesia mechanism)
   try {
     const wsSummary = buildWorkspaceSummary(cwd);
     if (wsSummary) {

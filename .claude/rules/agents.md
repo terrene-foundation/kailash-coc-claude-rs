@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules govern when and how specialized agents MUST be used in the Kailash Rust codebase.
+These rules govern when and how specialized agents MUST be used when building applications with the Kailash SDK.
 
 ## MANDATORY Delegations
 
@@ -28,40 +28,41 @@ Before executing ANY git commit command, you MUST:
 **Enforced by**: PreToolUse hook on git commit
 **Exception**: NONE - security review is always required
 
-### Rule 3: Crate Specialist for Crate Work
+### Rule 3: Framework Specialist for SDK Work
 
-When working with Kailash crates, you MUST consult the appropriate specialist:
+When working with Kailash SDK frameworks, you MUST consult the appropriate specialist:
 
-- **rust-architect**: For crate architecture, trait hierarchy, dependency decisions, API surface design across `kailash-core`, `kailash-value`, `kailash-nodes`, `kailash-dataflow`, `kailash-nexus`, `kailash-kaizen`, `kailash-enterprise`
-- **cargo-specialist**: For workspace configuration, dependency management, feature flags, cross-compilation, publishing
-- **ffi-specialist**: For `kailash-capi` (C ABI), `kailash-python` (PyO3), `kailash-node` (napi-rs), `kailash-wasm` (wasm-bindgen), Go/Java FFI
+- **dataflow-specialist**: For database models, queries, migrations using `kailash.DataFlow` (Python) or `Kailash::DataFlow` (Ruby)
+- **nexus-specialist**: For web endpoints, middleware, deployment using `kailash.NexusApp` (Python) or `Kailash::Nexus` (Ruby)
+- **kaizen-specialist**: For AI agents, TAOD loop, orchestration using `kailash.Agent` (Python) or `Kailash::Kaizen::Agent` (Ruby)
+- **enterprise-specialist**: For RBAC, ABAC, audit, multi-tenancy using `kailash.RbacEvaluator` (Python) or `Kailash::Enterprise` (Ruby)
+- **mcp-specialist**: For MCP server/client patterns using `kailash.mcp.McpApplication`
 
 **Applies when**:
 
-- Creating new nodes or workflows
+- Creating new workflows or nodes
 - Modifying database models or migrations
 - Setting up API routes or middleware
 - Building AI agents
-- Implementing WASM or native plugins
-- Working on FFI bindings
+- Integrating MCP tools
 
-**Enforced by**: Crate detection in session-start hook
+**Enforced by**: Session-start hook
 
 ### Rule 4: Analysis Chain for Complex Features
 
 For features requiring design decisions, follow this chain:
 
-1. **deep-analyst** -> Identify failure points and unsafe boundaries
+1. **deep-analyst** -> Identify failure points and edge cases
 2. **requirements-analyst** -> Break down requirements
-3. **rust-architect** -> Choose implementation crate and approach
+3. **framework-advisor** -> Choose which Kailash framework to use
 4. Then appropriate specialist for implementation
 
 **Applies when**:
 
-- New feature spanning multiple crates
+- New feature spanning multiple frameworks
 - Unclear requirements
 - Multiple valid approaches exist
-- Cross-crate API design decisions
+- Cross-framework design decisions
 
 ### Rule 5: Parallel Execution for Independent Operations
 
@@ -74,9 +75,9 @@ When multiple independent operations are needed, you MUST:
 **Example independent operations**:
 
 - Reading multiple unrelated source files
-- Running multiple search queries across crates
-- Validating separate crate implementations
-- Running `cargo clippy` and `cargo test` in parallel
+- Running multiple search queries across modules
+- Validating separate framework implementations
+- Running `pytest` and `flake8` in parallel (Python) or `bundle exec rspec` and `rubocop` in parallel (Ruby)
 
 ## Examples
 
@@ -103,9 +104,15 @@ User asks for code change
 See `rules/zero-tolerance.md` Rule 1. If you find it, you fix it. "Not introduced in this session" is BLOCKED.
 **Exception**: User explicitly says "skip this issue."
 
-### Rule 7: No Workarounds for Core SDK Issues
+### Rule 7: No Workarounds for SDK Issues
 
-See `rules/zero-tolerance.md` Rule 4. Deep dive, reproduce, fix directly. NEVER re-implement SDK functionality.
+When you encounter a bug or limitation in the Kailash SDK:
+
+1. Check if it is a known issue (GitHub issues on the SDK repo)
+2. File a bug report with a minimal reproduction
+3. Use a supported alternative pattern if available
+4. NEVER re-implement SDK functionality with naive workarounds
+
 **Exception**: NONE.
 
 ## PROHIBITED Actions
@@ -118,12 +125,11 @@ Code review is mandatory after changes. Skipping requires explicit user approval
 
 Security review before commits is non-negotiable.
 
-### MUST NOT: Crate Work Without Specialist
+### MUST NOT: Ignore SDK Patterns
 
-Never use raw SQL strings when `kailash-dataflow` (sqlx) patterns exist.
-Never build custom HTTP handlers when `kailash-nexus` (axum) patterns exist.
-Never build custom agent loops when `kailash-kaizen` patterns exist.
-Never use raw FFI when `kailash-capi` patterns exist.
+Never write raw SQL strings when `kailash.DataFlow` patterns exist.
+Never build custom HTTP servers when `kailash.NexusApp` patterns exist.
+Never build custom agent loops when `kailash.Agent` patterns exist.
 
 ### MUST NOT: Sequential When Parallel Possible
 
@@ -139,22 +145,22 @@ Stubs, naive fallbacks, unfixed pre-existing failures, and SDK workarounds are a
 
 - [ ] Requirements understood
 - [ ] Approach validated
-- [ ] Target crate(s) identified
+- [ ] Target framework(s) identified
 
 ### Checkpoint 2: After Implementation
 
 - [ ] Code review completed
-- [ ] Tests written (`cargo test`)
-- [ ] `cargo clippy -- -D warnings` passes
-- [ ] `cargo fmt --check` passes
+- [ ] Tests written (`pytest` / `bundle exec rspec`)
+- [ ] Linting passes (`flake8` / `rubocop`)
+- [ ] Type checking passes (`mypy` / `sorbet`) if applicable
 - [ ] Patterns validated
 
 ### Checkpoint 3: Before Commit
 
 - [ ] Security review passed
-- [ ] `cargo test --workspace` passes
-- [ ] `cargo audit` clean
-- [ ] Documentation updated (rustdoc)
+- [ ] `pytest` passes (Python) or `bundle exec rspec` passes (Ruby)
+- [ ] `pip-audit` or `bundle-audit` clean
+- [ ] Documentation updated
 
 ### Checkpoint 4: Before Push
 
