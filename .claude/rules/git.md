@@ -186,6 +186,19 @@ MUST NOT commit large binary files.
 - MUST commit `Cargo.lock` for binary crates and the workspace root
 - MUST NOT commit `Cargo.lock` for library-only crates published to crates.io independently
 
+### 6. Close Issues After Fix
+
+MUST close GitHub issues immediately after the fix is committed or released.
+
+**Process**:
+
+1. Comment on the issue with what was done and which version includes the fix
+2. Close the issue: `gh issue close N`
+3. Reference the version: "Fixed in vX.Y.Z"
+
+**Enforced by**: Post-release checklist
+**Violation**: Stale issue tracker, misleading backlog
+
 ## Pre-Commit Checklist
 
 Before every commit:
