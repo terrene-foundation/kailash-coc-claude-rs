@@ -74,6 +74,16 @@ function autoFormat(data) {
       }
     }
 
+    // Ruby files: rubocop
+    if (ext === ".rb") {
+      try {
+        execFileSync("rubocop", ["--autocorrect-all", "--fail-level", "fatal", filePath], { stdio: "pipe" });
+        return { formatted: true, formatter: "rubocop" };
+      } catch {
+        return { formatted: false, formatter: "none (rubocop not found)" };
+      }
+    }
+
     // JavaScript/TypeScript files: prettier
     if ([".js", ".jsx", ".ts", ".tsx", ".json"].includes(ext)) {
       try {

@@ -107,14 +107,18 @@ function collectSessionStats(cwd) {
   try {
     const stats = {
       pythonFiles: 0,
+      rubyFiles: 0,
       testFiles: 0,
       workflowFiles: 0,
     };
 
-    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
-    stats.pythonFiles = files.length;
+    const files = fs.readdirSync(cwd);
+    const pyFiles = files.filter((f) => f.endsWith(".py"));
+    const rbFiles = files.filter((f) => f.endsWith(".rb"));
+    stats.pythonFiles = pyFiles.length;
+    stats.rubyFiles = rbFiles.length;
 
-    for (const file of files) {
+    for (const file of pyFiles) {
       if (/_test\.py$|test_.*\.py$/.test(file)) {
         stats.testFiles++;
       }
@@ -124,6 +128,12 @@ function collectSessionStats(cwd) {
           stats.workflowFiles++;
         }
       } catch {}
+    }
+
+    for (const file of rbFiles) {
+      if (/_spec\.rb$/.test(file)) {
+        stats.testFiles++;
+      }
     }
 
     return stats;
@@ -137,34 +147,34 @@ function detectFramework(cwd) {
   try {
     const files = fs.readdirSync(cwd);
 
-    // ── Rust detection ──────────────────────────────────────────────────
-    const rsFiles = files.filter((f) => f.endsWith(".rs")).slice(0, 10);
-    for (const file of rsFiles) {
-      try {
-        const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/use kailash_dataflow/.test(content)) return "kailash-dataflow";
-        if (/use kailash_nexus/.test(content)) return "kailash-nexus";
-        if (/use kailash_kaizen/.test(content)) return "kailash-kaizen";
-        if (/use kailash_enterprise/.test(content)) return "kailash-enterprise";
-        if (/use kailash_core/.test(content)) return "kailash-core";
-      } catch {}
-    }
-    if (files.includes("Cargo.toml")) return "rust-sdk";
-
     // ── Python detection ────────────────────────────────────────────────
     const pyFiles = files.filter((f) => f.endsWith(".py"));
     for (const file of pyFiles.slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/@db\.model/.test(content) || /from dataflow/.test(content))
+        if (/@db\.model/.test(content) || /from kailash\.dataflow/.test(content))
           return "dataflow";
-        if (/from nexus/.test(content) || /Nexus\(/.test(content))
+        if (/from kailash\.nexus/.test(content) || /NexusApp/.test(content))
           return "nexus";
-        if (/from kaizen/.test(content) || /BaseAgent/.test(content))
+        if (/from kailash\.kaizen/.test(content) || /BaseAgent/.test(content))
           return "kaizen";
         if (/WorkflowBuilder/.test(content)) return "core-sdk";
       } catch {}
     }
+
+    // ── Ruby detection ──────────────────────────────────────────────────
+    const rbFiles = files.filter((f) => f.endsWith(".rb"));
+    for (const file of rbFiles.slice(0, 10)) {
+      try {
+        const content = fs.readFileSync(path.join(cwd, file), "utf8");
+        if (/Kailash::DataFlow/.test(content)) return "dataflow";
+        if (/Kailash::Nexus/.test(content)) return "nexus";
+        if (/Kailash::Kaizen/.test(content)) return "kaizen";
+        if (/Kailash::Enterprise/.test(content)) return "enterprise";
+        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
+      } catch {}
+    }
+
     return "core-sdk";
   } catch {
     return "unknown";

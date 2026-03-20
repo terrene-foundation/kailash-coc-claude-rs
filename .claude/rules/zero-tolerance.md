@@ -57,14 +57,42 @@ When you encounter a bug, limitation, or unexpected behavior in the Kailash SDK:
 
 **BLOCKED:** Naive re-implementations, post-processing to "fix" SDK output, downgrading to avoid bugs, monkey-patching SDK internals.
 
-## ABSOLUTE RULE 5: Version Consistency
+## ABSOLUTE RULE 5: Package Freshness and COC Sync
 
-Before any release, verify that all dependency version pins are consistent. For projects using the Kailash SDK:
+At session start AND before any deployment:
 
-- Python: `kailash-enterprise` version in `pyproject.toml` / `requirements.txt` must match deployed SDK
-- Ruby: `kailash` version in `Gemfile` / `*.gemspec` must match deployed SDK
+1. **Verify installed SDK packages are latest version**
+2. **Verify COC sync is current**
+3. **If outdated, update FIRST**
 
-**BLOCKED:** Releasing with mismatched or stale SDK dependency versions.
+```bash
+pip install --upgrade kailash-enterprise  # Python
+gem update kailash                        # Ruby
+```
+
+**During `/deploy`**: The deployment MUST verify the server/container has the latest SDK packages. If stale, update BEFORE deploying application code.
+
+**BLOCKED:** Proceeding with development or deployment when the SDK package is outdated.
+
+## ABSOLUTE RULE 6: File Improvement Issues for SDK/COC Gaps
+
+When you encounter unclear, missing, or incorrect information that caused a mistake or wasted time:
+
+**File an improvement issue immediately** to the appropriate repo:
+
+- **SDK issues** (API behavior, error messages, missing features) -> `gh issue create --repo esperie-enterprise/kailash-rs`
+- **COC issues** (agents, skills, rules, scripts, commands) -> `gh issue create --repo terrene-foundation/kailash-coc-claude-rs`
+
+COC artifacts to examine: **agents** (intent/delegation), **skills** (context/knowledge), **rules** (guardrails), **scripts/hooks** (automation), **commands** (instructions/workflows).
+
+```bash
+gh issue create --repo terrene-foundation/kailash-coc-claude-rs \
+  --title "COC: [agent/skill/rule/command] -- [what's unclear/missing]" \
+  --label "coc-improvement" \
+  --body "## What happened\n...\n## Which COC artifact\n...\n## Suggested fix\n..."
+```
+
+**Every mistake caused by unclear documentation or COC guidance is a system bug, not a user error.**
 
 ## Enforcement
 
