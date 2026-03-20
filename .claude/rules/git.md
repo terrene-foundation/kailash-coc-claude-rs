@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules apply to all git operations in the Kailash Rust workspace.
+These rules apply to all git operations in projects using the Kailash SDK.
 
 ## MUST Rules
 
@@ -32,23 +32,23 @@ type(scope): description
 - `perf`: Performance improvement
 - `ci`: CI/CD changes
 
-**Scopes** (use crate names):
+**Scopes** (use module/framework names):
 
-- `core`, `value`, `nodes`, `plugin`, `capi`
 - `dataflow`, `nexus`, `kaizen`, `enterprise`
-- `python`, `node`, `wasm` (bindings)
-- `workspace` (cross-crate changes)
+- `workflow`, `agents`, `mcp`
+- `api`, `auth`, `models`
+- `project` (cross-module changes)
 
 **Examples**:
 
 ```
-feat(nexus): add OAuth2 middleware for axum router
-fix(dataflow): resolve sqlx connection pool exhaustion
-docs(core): update Node trait rustdoc examples
-refactor(value): simplify KailashValue serde impl
+feat(nexus): add OAuth2 middleware for API routes
+fix(dataflow): resolve connection pool exhaustion
+docs(workflow): update workflow builder examples
+refactor(kaizen): simplify agent orchestration
 test(dataflow): add integration tests for bulk operations
-perf(core): optimize workflow DAG traversal
-ci(workspace): add cargo-deny to CI pipeline
+perf(workflow): optimize DAG traversal
+ci(project): add linting to CI pipeline
 ```
 
 **Enforced by**: Pre-commit hook (future)
@@ -62,7 +62,7 @@ MUST run security-reviewer before commit.
 
 1. Complete code changes
 2. Delegate to security-reviewer
-3. Address all CRITICAL findings (especially `unsafe` blocks, FFI boundaries)
+3. Address all CRITICAL findings (especially secrets, injection risks, auth bypasses)
 4. Then commit
 
 **Enforced by**: agents.md rule
@@ -77,7 +77,7 @@ Feature branches MUST follow naming convention.
 **Examples**:
 
 - `feat/add-auth-middleware`
-- `fix/sqlx-pool-timeout`
+- `fix/db-pool-timeout`
 - `docs/update-readme`
 - `refactor/workflow-builder`
 - `test/dataflow-integration`
@@ -89,7 +89,7 @@ Pull requests MUST include:
 - Summary of changes (what and why)
 - Test plan (how to verify)
 - Related issues (links)
-- Crates affected
+- Modules affected
 
 **Template**:
 
@@ -98,15 +98,15 @@ Pull requests MUST include:
 
 [1-3 bullet points]
 
-## Crates Affected
+## Modules Affected
 
-- `kailash-core`
-- `kailash-nexus`
+- DataFlow models
+- Nexus API routes
 
 ## Test plan
 
-- [ ] `cargo test --workspace` passes
-- [ ] `cargo clippy --workspace -- -D warnings` clean
+- [ ] `pytest` passes (Python) or `bundle exec rspec` passes (Ruby)
+- [ ] Linting clean (`flake8` / `rubocop`)
 - [ ] Integration tests pass
 - [ ] Manual testing completed
 
@@ -123,7 +123,7 @@ Each commit MUST be self-contained.
 
 - One commit per logical change
 - Tests and implementation together
-- Each commit compiles and passes `cargo test`
+- Each commit passes tests
 
 **Incorrect**:
 
@@ -131,7 +131,7 @@ Each commit MUST be self-contained.
 "WIP"
 "fix stuff"
 "update files"
-Multiple unrelated crate changes
+Multiple unrelated module changes
 ```
 
 ## MUST NOT Rules
@@ -164,7 +164,7 @@ MUST NOT commit secrets, even in history.
 - Tokens
 - Private keys
 - `.env` files
-- `Cargo` registry tokens
+- PyPI tokens / RubyGems credentials
 
 ### 4. No Large Binaries
 
@@ -179,12 +179,13 @@ MUST NOT commit large binary files.
 
 - Git LFS for large files
 - External storage for assets
-- Use `cargo build` artifacts in `target/` (already gitignored)
+- Build artifacts should be in `.gitignore`
 
-### 5. No Cargo.lock for Libraries, Required for Binaries
+### 5. Lock Files
 
-- MUST commit `Cargo.lock` for binary crates and the workspace root
-- MUST NOT commit `Cargo.lock` for library-only crates published to crates.io independently
+- Python: MUST commit `requirements.txt` or `poetry.lock` / `uv.lock` for applications
+- Ruby: MUST commit `Gemfile.lock` for applications
+- MUST NOT commit lock files for libraries published as packages
 
 ### 6. Close Issues After Fix
 
@@ -205,10 +206,9 @@ Before every commit:
 
 - [ ] Code review completed (intermediate-reviewer)
 - [ ] Security review completed (security-reviewer)
-- [ ] `cargo test --workspace` passes
-- [ ] `cargo fmt --check` passes
-- [ ] `cargo clippy --workspace -- -D warnings` passes
-- [ ] `cargo audit` clean
+- [ ] `pytest` passes (Python) or `bundle exec rspec` passes (Ruby)
+- [ ] `flake8` passes (Python) or `rubocop` passes (Ruby)
+- [ ] `pip-audit` or `bundle-audit` clean
 - [ ] No secrets in changes
 - [ ] Commit message follows convention
 
@@ -236,15 +236,15 @@ Before every commit:
 
 ### Version Bumps
 
-- Update `version` in the affected crate's `Cargo.toml`
-- Update workspace `Cargo.toml` if using workspace version inheritance
-- Tag with `v{version}` (e.g., `v0.1.0`)
+- Python: Update `version` in `pyproject.toml` or `setup.cfg`
+- Ruby: Update `version` in the gemspec or `lib/*/version.rb`
+- Tag with `v{version}` (e.g., `v1.0.0`)
 
-### Publishing to crates.io
+### Publishing
 
-- Run `cargo publish --dry-run -p kailash-{crate}` before actual publish
-- Publish dependency crates first (e.g., `kailash-value` before `kailash-core`)
-- Never publish with `--allow-dirty`
+- Python: `pip install build && python -m build && twine upload dist/*`
+- Ruby: `gem build *.gemspec && gem push *.gem`
+- Always run tests before publishing
 
 ## Exceptions
 
