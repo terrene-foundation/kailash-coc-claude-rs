@@ -213,13 +213,14 @@ if "step1" in existing:
 
 | Feature                            | Pure Python SDK    | Rust Binding                       |
 | ---------------------------------- | ------------------ | ---------------------------------- |
-| Auto-generated CRUD nodes          | Yes (11 per model) | No — use SQLQueryNode              |
-| Inspector / DebugAgent             | Yes                | No                                 |
+| Auto-generated CRUD nodes          | Yes (11 per model) | No -- use SQLQueryNode             |
+| DataFlowInspector                  | Yes                | Yes                                |
+| DataFlowExpress                    | Yes                | Yes                                |
+| DebugAgent                         | Yes                | No                                 |
 | CLI commands (`dataflow validate`) | Yes                | No                                 |
 | DF-XXX error codes                 | Yes                | RuntimeError messages              |
 | `DataFlow(url, test_mode=True)`    | Yes                | Yes (also `DataFlowConfig.test()`) |
 | Schema cache metrics               | Yes                | No                                 |
-| DataFlowExpress                    | Yes                | No                                 |
 
 ## Related
 

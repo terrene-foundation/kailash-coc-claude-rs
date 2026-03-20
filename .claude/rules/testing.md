@@ -25,7 +25,6 @@ Every bug fix MUST include a regression test BEFORE the fix is merged or release
 1. When a bug is reported, the FIRST step is writing a test that REPRODUCES the bug
 2. The test MUST fail before the fix and pass after
 3. Regression test location depends on language:
-   - Rust: `tests/regression_*.rs` in the affected crate
    - Python: `tests/regression/test_issue_*.py`
    - Ruby: `spec/regression/issue_*_spec.rb`
 4. The test name includes the issue number (e.g., `issue_42_user_creation_drops_pk`)
