@@ -24,6 +24,10 @@ Confirm that the captured knowledge accurately represents how you want the proje
 - Read `docs/` and `docs/00-authority/` for knowledge base
 - Output goes to `.claude/agents/project/` and `.claude/skills/project/`
 
+## Execution Model
+
+This phase executes under the **autonomous execution model** (see `rules/autonomous-execution.md`). Knowledge extraction and codification are autonomous — agents extract, structure, and validate knowledge without human intervention. The human reviews the codified output at the end (structural gate on what becomes institutional knowledge), but the extraction and synthesis process is fully autonomous.
+
 ## Workflow
 
 ### 1. Deep knowledge extraction
