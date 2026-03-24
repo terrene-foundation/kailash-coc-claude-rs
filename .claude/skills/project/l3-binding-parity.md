@@ -1,8 +1,8 @@
 ---
-description: "L3 Agent Autonomy types available in the Kailash Python and Ruby bindings. Covers envelope tracking, plan DAGs, agent state machines, messaging, and governance gradient."
+description: "L3 Agent Autonomy types available in the Kailash Python and Ruby bindings. Covers envelope tracking, context scoping, plan DAGs, agent state machines, messaging, and governance gradient."
 ---
 
-# L3 Agent Autonomy Types (v3.1.1)
+# L3 Agent Autonomy Types (v3.2.0)
 
 ## Available Types — 25 L3 Types
 
@@ -23,6 +23,7 @@ Plus 2 free functions: `split_envelope`, `validate_split`.
 from kailash import (
     PlanGradient, EnvelopeTracker, CostEntry, BudgetRemaining,
     AllocationRequest, EnvelopeVerdict,
+    ScopeProjection, ContextScope, MergeResult,
     AgentState, PlanState,
     Plan, PlanNode, PlanEdge, PlanNodeOutput,
     Priority, EscalationSeverity, ResourceSnapshot, MessageEnvelope,
@@ -95,6 +96,37 @@ children = split_envelope(parent_envelope, [
     AllocationRequest("child-b", financial_ratio=0.3, temporal_ratio=0.5),
 ], reserve_pct=0.2)
 ```
+
+### Context Scoping (v3.2.0)
+
+Hierarchical key-value scopes with projection and classification-based access control:
+
+```python
+# Create a root scope
+scope = ContextScope.root(str(uuid.uuid4()))
+scope.set("user.name", "Alice")
+scope.set("secret.key", "s3cret")
+
+# Create a child with restricted projection
+child = scope.create_child(
+    str(uuid.uuid4()),
+    ScopeProjection(["user.*"]),        # read: only user.* keys
+    ScopeProjection(["user.*"]),         # write: only user.* keys
+)
+assert child.get("user.name") is not None   # visible
+assert child.get("secret.key") is None      # hidden by projection
+
+# Merge child writes back to parent
+child.set("user.email", "alice@example.com")
+result = scope.merge_child_results(child)
+print(f"Merged: {result.merged_keys}")
+```
+
+### ContextScope Default Values (CRITICAL)
+
+Root scope constructors use these defaults — do NOT override without understanding the implications:
+- `effective_clearance`: `"TopSecret"` — root sees everything
+- `default_classification`: `"Internal"` — new values are Internal by default
 
 ### State Machine Validation
 
