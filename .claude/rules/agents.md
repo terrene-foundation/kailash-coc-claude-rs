@@ -99,6 +99,24 @@ User asks for code change
    -> Agent moves to next task (skipped review!)
 ```
 
+### Rule 8: Polyglot Binding Verification
+
+When using Kailash features that span both Python and Ruby bindings, MUST verify behavior in BOTH languages before marking a task done.
+
+**The binding verification is NON-NEGOTIABLE:**
+
+1. Implement the feature using `import kailash` (Python) or `require 'kailash'` (Ruby)
+2. Test in BOTH languages if the feature touches shared Rust binding code
+3. Verify consistent behavior between Python and Ruby
+
+**BLOCKED responses:**
+
+- "Only tested in Python, Ruby should be the same"
+- "Binding verification deferred"
+
+**Enforced by**: /implement phase checklist, red team checklist
+**Exception**: User explicitly says "skip binding verification for now"
+
 ### Rule 6: Pre-Existing Failures MUST Be Fixed
 
 See `rules/zero-tolerance.md` Rule 1. If you find it, you fix it. "Not introduced in this session" is BLOCKED.
