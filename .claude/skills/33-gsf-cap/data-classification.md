@@ -4,19 +4,40 @@ Field-level data classification, masking strategies, retention policies, and com
 
 ## Key Types
 
-| Type                       | Source                                          | Purpose                                               |
-| -------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
-| `DataClassification`       | `crates/kailash-dataflow/src/classification.rs` | 6-level sensitivity enum (Public..HighlyConfidential) |
-| `MaskingStrategy`          | same                                            | 5 strategies (None, Hash, Redact, LastFour, Encrypt)  |
-| `RetentionPolicy`          | same                                            | Indefinite, Days, Years, UntilConsentRevoked          |
-| `ComplianceTag`            | same                                            | GDPR, CCPA, HIPAA, SOC2                               |
-| `DataClassificationPolicy` | same                                            | Policy engine for masking thresholds                  |
-| `DataRetentionEnforcer`    | same                                            | Evaluates retention deadlines against field age       |
-| `mask_row()`               | same                                            | Row-level masking utility function                    |
+| Type                       | Source                                          | Purpose                                                                  |
+| -------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------ |
+| `DataFlowEngine`           | `crates/kailash-dataflow/src/engine.rs`         | **Unified engine** wrapping DataFlow + validation + classification       |
+| `DataClassification`       | `crates/kailash-dataflow/src/classification.rs` | 6-level sensitivity enum (Public..HighlyConfidential)                    |
+| `MaskingStrategy`          | same                                            | 5 strategies (None, Hash, Redact, LastFour, Encrypt)                     |
+| `RetentionPolicy`          | same                                            | Indefinite, Days, Years, UntilConsentRevoked                             |
+| `ComplianceTag`            | same                                            | GDPR, CCPA, HIPAA, SOC2                                                  |
+| `DataClassificationPolicy` | same                                            | Policy engine for masking thresholds                                     |
+| `DataRetentionEnforcer`    | same                                            | Evaluates retention deadlines against field age                          |
+| `mask_row()`               | same                                            | Row-level masking — **auto-called by ReadNode/ListNode** when policy set |
+
+## DataFlowEngine (Recommended Entry Point)
+
+`DataFlowEngine` bundles DataFlow + ValidationLayer + DataClassificationPolicy + QueryEngine:
+
+```rust
+use kailash_dataflow::engine::DataFlowEngine;
+
+let engine = DataFlowEngine::builder("sqlite::memory:")
+    .validation(validation_layer)
+    .classification_policy(policy)
+    .slow_query_threshold(Duration::from_secs(1))
+    .build()
+    .await?;
+
+// Registers all 11 nodes with validation (writes) + masking (reads)
+engine.register_model(&mut registry, model);
+```
+
+When classification is set, `ReadNode` and `ListNode` automatically call `mask_row()` after fetching data. When `None`, reads return unmasked (backward compatible).
 
 ## DataClassification Levels
 
-```
+```rust
 use kailash_dataflow::classification::DataClassification;
 
 // Ordered by sensitivity_level():
@@ -30,7 +51,7 @@ DataClassification::HighlyConfidential // 5
 
 ## Annotating Model Fields
 
-```
+```rust
 use kailash_dataflow::classification::*;
 use kailash_dataflow::model::{ModelDefinition, FieldType};
 
@@ -65,7 +86,7 @@ let model = ModelDefinition::new("Customer", "customers")
 
 ## DataClassificationPolicy
 
-```
+```rust
 use kailash_dataflow::classification::*;
 
 let policy = DataClassificationPolicy {
@@ -90,7 +111,7 @@ let masked = policy.apply_masking(&field_def, &value);
 
 Applies masking to an entire row based on field classifications:
 
-```
+```rust
 use kailash_dataflow::classification::{mask_row, DataClassificationPolicy, DataClassification};
 
 let policy = DataClassificationPolicy {
@@ -106,7 +127,7 @@ let masked = mask_row(model.fields(), &row, &policy);
 
 ## RetentionPolicy
 
-```
+```rust
 use kailash_dataflow::classification::RetentionPolicy;
 
 RetentionPolicy::Indefinite          // max_days() -> None
@@ -121,7 +142,7 @@ RetentionPolicy::UntilConsentRevoked // max_days() -> None
 
 Evaluates which fields in a model have exceeded their retention deadline:
 
-```
+```rust
 use kailash_dataflow::classification::DataRetentionEnforcer;
 
 let enforcer = DataRetentionEnforcer::new();

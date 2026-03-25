@@ -1,28 +1,51 @@
 # Enterprise Middleware
 
-Nexus enterprise middleware composition, custom router mounting, K8s health probes, and OpenAPI generation.
+Nexus enterprise middleware composition, NexusEngine unified gateway, custom router mounting, K8s health probes, and OpenAPI generation.
 
 ## Key Types
 
-| Type                              | Source                                              | Purpose                                  |
-| --------------------------------- | --------------------------------------------------- | ---------------------------------------- |
-| `EnterpriseMiddlewareConfig`      | `crates/kailash-nexus/src/middleware/enterprise.rs` | Aggregate of all enterprise middleware   |
-| `AuthConfig`                      | same                                                | JWT authentication config                |
-| `CsrfConfig`                      | same                                                | CSRF protection config                   |
-| `AuditMiddlewareConfig`           | same                                                | Request audit logging config             |
-| `MetricsConfig`                   | same                                                | Prometheus-compatible metrics endpoint   |
-| `EnterpriseSecurityHeadersConfig` | same                                                | Configurable security response headers   |
-| `ErrorHandlerConfig`              | same                                                | Structured error response formatting     |
-| `Nexus`                           | `crates/kailash-nexus/src/nexus.rs`                 | Main entry point with `include_router()` |
-| `K8sProbeConfig`                  | `crates/kailash-nexus/src/health/k8s.rs`            | K8s liveness/readiness/startup config    |
-| `K8sProbeState`                   | same                                                | Atomic state for probe endpoints         |
-| `Preset`                          | `crates/kailash-nexus/src/middleware/presets.rs`    | One-line middleware preset selection     |
+| Type                              | Source                                                 | Purpose                                            |
+| --------------------------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| `NexusEngine`                     | `crates/kailash-nexus/src/engine.rs`                   | **Unified gateway** wrapping Nexus + enterprise MW |
+| `EnterpriseMiddlewareConfig`      | `crates/kailash-nexus/src/middleware/enterprise.rs`    | Aggregate of all enterprise middleware             |
+| `CsrfLayer` / `CsrfService`       | `crates/kailash-nexus/src/middleware/csrf.rs`          | Tower Layer — Origin/Referer CSRF validation       |
+| `AuditLayer` / `AuditService`     | `crates/kailash-nexus/src/middleware/audit_mw.rs`      | Tower Layer — structured request audit logging     |
+| `MetricsLayer` / `MetricsStore`   | `crates/kailash-nexus/src/middleware/metrics_mw.rs`    | Tower Layer — per-path request metrics (DashMap)   |
+| `ErrorHandlerLayer`               | `crates/kailash-nexus/src/middleware/error_handler.rs` | Tower Layer — JSON error responses + request IDs   |
+| `AuthConfig`                      | `crates/kailash-nexus/src/middleware/enterprise.rs`    | JWT authentication config                          |
+| `CsrfConfig`                      | same                                                   | CSRF protection config                             |
+| `AuditMiddlewareConfig`           | same                                                   | Request audit logging config                       |
+| `MetricsConfig`                   | same                                                   | Prometheus-compatible metrics endpoint             |
+| `EnterpriseSecurityHeadersConfig` | same                                                   | Configurable security response headers             |
+| `ErrorHandlerConfig`              | same                                                   | Structured error response formatting               |
+| `Nexus`                           | `crates/kailash-nexus/src/nexus.rs`                    | Main entry point with `include_router()`           |
+| `K8sProbeConfig`                  | `crates/kailash-nexus/src/health/k8s.rs`               | K8s liveness/readiness/startup config              |
+| `Preset`                          | `crates/kailash-nexus/src/middleware/presets.rs`       | One-line middleware preset selection               |
+
+## NexusEngine (Recommended Entry Point)
+
+`NexusEngine` is the unified gateway that combines `Nexus` + enterprise middleware + K8s probes:
+
+```rust
+use kailash_nexus::NexusEngine;
+use kailash_nexus::middleware::Preset;
+
+let engine = NexusEngine::builder()
+    .preset(Preset::Enterprise)
+    .bind("0.0.0.0:8080")
+    .build();
+
+// Register handlers on the inner Nexus
+engine.nexus_mut().handler("process", handler);
+```
+
+The `SaaS` and `Enterprise` presets automatically wire CSRF, Audit, Metrics, and ErrorHandler Tower layers into the middleware stack.
 
 ## include_router() Pattern
 
 Mount custom axum routers with prefix and tags:
 
-```
+```rust
 use kailash_nexus::Nexus;
 use axum::Router;
 
@@ -51,7 +74,7 @@ Custom routers are nested under their prefix: a router mounted at `/admin` with 
 
 ## Enterprise Middleware Composition
 
-```
+```rust
 use kailash_nexus::middleware::enterprise::EnterpriseMiddlewareConfig;
 
 // Development: auth disabled, stack traces enabled
@@ -76,33 +99,37 @@ let config = EnterpriseMiddlewareConfig {
 | Config Area      | `development()`           | `production()`                      |
 | ---------------- | ------------------------- | ----------------------------------- |
 | Auth             | `required: false`         | `required: true` (JWT, HS256)       |
-| CSRF             | Disabled                  | Enabled (empty origins = deny all)  |
+| CSRF             | Disabled                  | Disabled (requires user origins)    |
 | Audit            | Disabled                  | Writes-only (POST/PUT/DELETE/PATCH) |
 | Metrics          | Enabled at `/metrics`     | Enabled at `/metrics`               |
 | Security Headers | Permissive                | Strict (HSTS, CSP, frame deny)      |
 | Error Handler    | Request ID + stack traces | Request ID only (no stack traces)   |
 
+**CSRF note**: `production()` does NOT enable CSRF by default because it requires `allowed_origins` to be set for the specific deployment. Enable it explicitly: `CsrfConfig::with_origins(vec!["https://app.example.com".into()])`.
+
 ## Middleware Presets (MiddlewareConfig)
 
 Standard middleware presets (separate from enterprise config):
 
-```
+```rust
 use kailash_nexus::middleware::{Preset, MiddlewareConfig};
 
 let config = MiddlewareConfig::from_preset(Preset::Enterprise);
 ```
 
-| Preset        | CORS       | Rate Limit | Logging | Body Limit | Security Headers |
-| ------------- | ---------- | ---------- | ------- | ---------- | ---------------- |
-| `None`        | --         | --         | --      | --         | --               |
-| `Lightweight` | Permissive | --         | Yes     | --         | --               |
-| `Standard`    | Strict     | Yes        | Yes     | Yes        | --               |
-| `SaaS`        | Strict     | Yes        | Yes     | Yes        | Standard         |
-| `Enterprise`  | Strict     | Stricter   | Yes     | Stricter   | Strict           |
+| Preset        | CORS       | Rate Limit | Logging | Body Limit | Security Headers | Enterprise MW |
+| ------------- | ---------- | ---------- | ------- | ---------- | ---------------- | ------------- |
+| `None`        | --         | --         | --      | --         | --               | --            |
+| `Lightweight` | Permissive | --         | Yes     | --         | --               | --            |
+| `Standard`    | Strict     | Yes        | Yes     | Yes        | --               | --            |
+| `SaaS`        | Strict     | Yes        | Yes     | Yes        | Standard         | development() |
+| `Enterprise`  | Strict     | Stricter   | Yes     | Stricter   | Strict           | production()  |
+
+Enterprise MW column = `EnterpriseMiddlewareConfig` (CSRF, Audit, Metrics, ErrorHandler Tower layers).
 
 ## K8s Health Probes
 
-```
+```rust
 use kailash_nexus::health::k8s::{K8sProbeConfig, K8sProbeState, build_k8s_probe_router};
 
 let config = K8sProbeConfig::default();
@@ -127,7 +154,7 @@ state.set_started(true); // startup probe passes
 
 ## ErrorHandlerConfig
 
-```
+```rust
 use kailash_nexus::middleware::enterprise::ErrorHandlerConfig;
 
 // Production: includes request ID, no stack traces

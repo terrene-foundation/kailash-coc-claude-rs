@@ -4,16 +4,16 @@ Eight governance, security, and framework capabilities implemented across four c
 
 ## Feature Index
 
-| #   | Feature               | Crate              | Key Types                                                        | Source File                                         |
-| --- | --------------------- | ------------------ | ---------------------------------------------------------------- | --------------------------------------------------- |
-| 1   | Audit Chain           | `kailash-core`     | `AuditLog`, `AuditEntry`, `ChainVerificationResult`              | `crates/kailash-core/src/audit_log.rs`              |
-| 2   | Domain Event Bus      | `kailash-core`     | `DomainEventBus`, `InMemoryEventBus`, `DomainEvent`              | `crates/kailash-core/src/event_bus.rs`              |
-| 3   | Event Routing Bridge  | `kailash-core`     | `EventBridge`                                                    | `crates/kailash-core/src/event_routing.rs`          |
-| 4   | Enterprise Middleware | `kailash-nexus`    | `EnterpriseMiddlewareConfig`, `Nexus::include_router`            | `crates/kailash-nexus/src/middleware/enterprise.rs` |
-| 5   | Data Classification   | `kailash-dataflow` | `DataClassification`, `MaskingStrategy`, `DataRetentionEnforcer` | `crates/kailash-dataflow/src/classification.rs`     |
-| 6   | Field Validation      | `kailash-dataflow` | `FieldValidator`, `ValidationLayer`, `ValidationRule`            | `crates/kailash-dataflow/src/validation.rs`         |
-| 7   | Query Telemetry       | `kailash-dataflow` | `QueryEngine`, `QueryStats`, `PoolMonitor`                       | `crates/kailash-dataflow/src/query_engine.rs`       |
-| 8   | Lazy DataFlow         | `kailash-dataflow` | `LazyDataFlow`, `TracingConfig`                                  | `crates/kailash-dataflow/src/connection.rs`         |
+| #   | Feature               | Crate              | Key Types                                                                                   | Source File                                         |
+| --- | --------------------- | ------------------ | ------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | Audit Chain           | `kailash-core`     | `AuditLog`, `AuditEntry`, `ChainVerificationResult`                                         | `crates/kailash-core/src/audit_log.rs`              |
+| 2   | Domain Event Bus      | `kailash-core`     | `DomainEventBus`, `InMemoryEventBus`, `DomainEvent`                                         | `crates/kailash-core/src/event_bus.rs`              |
+| 3   | Event Routing Bridge  | `kailash-core`     | `EventBridge`                                                                               | `crates/kailash-core/src/event_routing.rs`          |
+| 4   | Enterprise Middleware | `kailash-nexus`    | `NexusEngine`, `EnterpriseMiddlewareConfig`, Tower layers (CSRF/Audit/Metrics/ErrorHandler) | `crates/kailash-nexus/src/engine.rs`, `middleware/` |
+| 5   | Data Classification   | `kailash-dataflow` | `DataClassification`, `MaskingStrategy`, `DataRetentionEnforcer`                            | `crates/kailash-dataflow/src/classification.rs`     |
+| 6   | Field Validation      | `kailash-dataflow` | `FieldValidator`, `ValidationLayer`, `ValidationRule`                                       | `crates/kailash-dataflow/src/validation.rs`         |
+| 7   | Query Telemetry       | `kailash-dataflow` | `QueryEngine`, `QueryStats`, `PoolMonitor`                                                  | `crates/kailash-dataflow/src/query_engine.rs`       |
+| 8   | Lazy DataFlow         | `kailash-dataflow` | `LazyDataFlow`, `TracingConfig`                                                             | `crates/kailash-dataflow/src/connection.rs`         |
 
 ## Skill Files
 
