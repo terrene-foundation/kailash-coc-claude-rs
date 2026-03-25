@@ -22,6 +22,10 @@ Review our research findings and confirm we understood your vision. You'll see a
 
 - Output goes into `workspaces/<project>/01-analysis/`, `workspaces/<project>/02-plans/`, and `workspaces/<project>/03-user-flows/`
 
+## Execution Model
+
+This phase executes under the **autonomous execution model** (see `rules/autonomous-execution.md`). All analysis, deliberation, and recommendations MUST assume autonomous AI agent execution — not human team constraints. Do not estimate effort in human-days. Do not constrain recommendations by team size or hiring. Recommend the technically optimal approach; agents scale horizontally.
+
 ## Workflow
 
 ### 1. Be explicit about objectives and expectations

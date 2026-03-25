@@ -24,6 +24,12 @@ Review and approve the roadmap before building starts. This is your most importa
 - Check if `todos/active/` already has files (resuming)
 - All todos go into `workspaces/<project>/todos/active/`
 
+## Execution Model
+
+This phase executes under the **autonomous execution model** (see `rules/autonomous-execution.md`). All effort estimates in todos MUST use autonomous execution cycles, not human-days. When referencing external plans that estimate in human-days, apply the 10x multiplier to translate. Do not phase work based on "team bandwidth" — phase based on dependency order and validation gates.
+
+**The /todos approval gate is a structural gate**: the human approves the plan (what and why), not the execution (how and when). Once approved, /implement executes autonomously.
+
 ## Workflow
 
 ### 1. Review plans with specialists

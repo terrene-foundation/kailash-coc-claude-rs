@@ -70,6 +70,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`           | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
 | Deployment & cloud release rules      | `rules/deployment.md`        | Global                                              |
 | Auto-generated workflow instincts     | `rules/learned-instincts.md` | Global                                              |
+| Autonomous execution model            | `rules/autonomous-execution.md` | Global                                              |
 
 **Note**: Rules with path scoping are loaded only when editing matching files. Global rules load every session.
 
