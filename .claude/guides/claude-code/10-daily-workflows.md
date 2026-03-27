@@ -86,7 +86,9 @@ For each task, Claude:
 Creating model with dataflow-specialist...
 
 ```python
-from kailash.dataflow import db
+from dataflow import DataFlow
+
+db = DataFlow()
 
 @db.model
 class User:
@@ -117,15 +119,15 @@ Writing tests with testing-specialist...
 ```python
 # tests/integration/test_user_registration.py
 import pytest
-from kailash.dataflow import db
+from dataflow import DataFlow
 
 @pytest.fixture
-def dataflow():
-    # Real database - NO MOCKING
-    df = db("sqlite:///:memory:")
-    df.create_tables()
-    yield df
-    df.drop_tables()
+def db():
+    # Real database - Real infrastructure recommended
+    dataflow = DataFlow("sqlite:///:memory:")
+    dataflow.create_tables()
+    yield dataflow
+    dataflow.drop_tables()
 
 def test_user_registration(db):
     # Test with real database
@@ -333,7 +335,7 @@ Test organization:
 tests/
 ├── unit/ # Tier 1 - Mocking allowed
 │ └── test_utils.py
-├── integration/ # Tier 2 - NO MOCKING
+├── integration/ # Tier 2 - Real infrastructure recommended
 │ └── test_user.py
 └── e2e/ # Tier 3 - Full system
 └── test_registration_flow.py
@@ -433,7 +435,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/app
     depends_on:
@@ -521,10 +523,8 @@ class User:
 Correct pattern:
 
 ```python
-import kailash
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 Never use:
@@ -642,7 +642,7 @@ No new components evolved (thresholds not met).
 | Break into tasks | `/todos` | `todos/active/` (stops for human approval) |
 | Build | `/implement` (repeat) | `src/`, `apps/`, move todos to `completed/` |
 | Validate | `/redteam` | `04-validate/` (feeds gaps back to `/implement`) |
-| Capture knowledge | `/codify` | `.claude/agents/project/`, `.claude/skills/project/` |
+| Capture knowledge | `/codify` | Updates existing agents and skills in `.claude/` |
 | Check status | `/ws` | Dashboard with phase, todos, recent activity |
 | End session | `/wrapup` | `.session-notes` in workspace root |
 
@@ -656,7 +656,7 @@ No new components evolved (thresholds not met).
 
 2. **Bugs follow a flow** - Reproduce → Investigate → Fix → Test → Verify
 
-3. **Tests are real** - NO MOCKING in integration and E2E
+3. **Tests are real** - Real infrastructure recommended in integration and E2E
 
 4. **Reviews are automatic** - Claude delegates to reviewers
 

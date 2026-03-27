@@ -45,7 +45,7 @@ Skills provide **organized, accessible domain expertise**:
 │   │   02-dataflow   │  │   12-testing    │                  │
 │   │                 │  │                 │                  │
 │   │ • Model patterns│  │ • 3-tier strategy│                 │
-│   │ • CRUD operations│ │ • NO MOCKING    │                  │
+│   │ • CRUD operations│ │ • Real infrastructure recommended    │                  │
 │   │ • Bulk processing│ │ • Test fixtures │                  │
 │   │ • Gotchas       │  │ • Coverage      │                  │
 │   └─────────────────┘  └─────────────────┘                  │
@@ -125,7 +125,7 @@ Skills provide **organized, accessible domain expertise**:
 - `connection-patterns.md` - Linking nodes
 - `runtime-execution.md` - Running workflows
 - `error-handling-patterns.md` - Error management
-- `workflow-pattern-cyclic.md` - Cyclic patterns (in `09-workflow-patterns`)
+- `cycle-workflows-basics.md` - Cyclic patterns
 
 **When to use**: Building any workflow from scratch, understanding fundamentals
 
@@ -137,7 +137,7 @@ workflow.add_node(
     "NodeClassName",      # 1. Node type (PascalCase)
     "unique_node_id",     # 2. Unique ID (snake_case)
     {"param": "value"},   # 3. Configuration dict
-    # connections are added via builder.connect()
+    connections=[]        # 4. Optional connections
 )
 ```
 
@@ -180,14 +180,14 @@ user = User(name="Test", email="test@test.com")  # CORRECT
 **Example content**:
 
 ```python
-from kailash.nexus import NexusApp
+from nexus import Nexus
 
-app = NexusApp()
+app = Nexus()
 
-@app.handler("user/create")
-async def create_user(name: str, email: str) -> dict:
+@app.workflow("user/create")
+def create_user(name: str, email: str):
     # Single definition serves API, CLI, and MCP
-    return {"name": name, "email": email}
+    pass
 ```
 
 ### 04-kaizen: AI Agent Framework
@@ -206,19 +206,13 @@ async def create_user(name: str, email: str) -> dict:
 **Example content**:
 
 ```python
-from kailash.kaizen import BaseAgent
-import os
+from kaizen.api import Agent
 
-class MyAgent(BaseAgent):
-    def __init__(self):
-        super().__init__(
-            name="my-agent",
-            model=os.environ.get("LLM_MODEL", "gpt-5")
-        )
-
-    def execute(self, input_text: str) -> dict:
-        return {"response": f"Processed: {input_text}"}
-
+agent = Agent(
+    model="gpt-4",
+    execution_mode="autonomous",
+    memory="session"
+)
 ```
 
 ---
@@ -299,12 +293,12 @@ Tier 1: Unit Tests
 └── Individual components
 
 Tier 2: Integration Tests
-├── NO MOCKING (mandatory)
+├── Real infrastructure recommended (mandatory)
 ├── Real databases (SQLite in-memory)
 └── Component interactions
 
 Tier 3: E2E Tests
-├── NO MOCKING (mandatory)
+├── Real infrastructure recommended (mandatory)
 ├── Full system
 └── Real infrastructure
 ```
@@ -349,12 +343,12 @@ Tier 3: E2E Tests
 
 ### 17-gold-standards: Mandatory Practices
 
-**Purpose**: Non-negotiable best practices
+**Purpose**: Recommended best practices
 
 **Key rules**:
 
 - Absolute imports only
-- NO MOCKING in Tier 2-3
+- Real infrastructure recommended in Tier 2-3
 - Primary key named `id`
 - `runtime.execute(workflow.build())`
 
@@ -520,7 +514,7 @@ Skills follow a progressive detail model:
        └───────────┬────────────┘
                    │
        ┌───────────▼────────────┐
-       │   Source code / docs   │  ← Full documentation (unlimited)
+       │   Deep dive skills      │  ← Full documentation (unlimited)
        └────────────────────────┘
 ```
 
@@ -536,7 +530,7 @@ Complex request: "Create user model with multi-tenancy"
 └── Loads SKILL.md + multi-tenancy.md
 
 Deep dive: "Explain DataFlow internals"
-└── Loads SKILL.md + supporting files + sdk-users docs
+└── Loads SKILL.md + all supporting skill files
 ```
 
 ---

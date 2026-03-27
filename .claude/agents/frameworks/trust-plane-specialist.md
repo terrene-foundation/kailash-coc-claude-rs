@@ -1,6 +1,6 @@
 ---
 name: trust-plane-specialist
-description: "Trust-plane specialist for trust project management, constraint enforcement, shadow mode, delegation, verification, CLI, and MCP. Use proactively when working with trust-plane features in Python or Ruby applications."
+description: "Trust-plane specialist for constraint enforcement and delegation. Use for trust project features."
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -161,7 +161,7 @@ The trust-plane exposes an MCP server for AI agent integration via HTTP/SSE tran
 
 ## Related Skills
 
-- `skills/10-governance/SKILL.md` -- EATP/CARE/PACT governance patterns
+- `skills/26-eatp-reference/ -- EATP trust protocol reference
 - `skills/26-eatp-reference/` -- EATP protocol reference
 - `skills/27-care-reference/` -- CARE governance framework
 

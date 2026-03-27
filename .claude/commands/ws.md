@@ -20,4 +20,9 @@ Display the current workspace status in plain language. Do not modify any files.
    - If `.session-notes` exists, show its contents and age
    - Suggest the next action: "Next step: run `/implement` to continue building" or similar
 
+### Journal
+- Read the workspace's `journal/` directory
+- Count total entries and entries by type
+- Show the 3 most recent entries (number, type, date, topic)
+
 3. Present as a compact, friendly summary. Use plain language throughout.

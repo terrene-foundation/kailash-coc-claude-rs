@@ -1,6 +1,6 @@
 ---
 name: care-expert
-description: Use this agent for questions about the CARE framework (Collaborative Autonomous Reflective Enterprise), the Dual Plane Model, Mirror Thesis, Human-on-the-Loop governance, the six human competency categories, or enterprise AI governance philosophy. Expert in CARE's governance architecture and its relationship to EATP and COC.
+description: "CARE framework expert. Use for Dual Plane Model, Mirror Thesis, or enterprise AI governance philosophy."
 model: inherit
 allowed-tools:
   - Read

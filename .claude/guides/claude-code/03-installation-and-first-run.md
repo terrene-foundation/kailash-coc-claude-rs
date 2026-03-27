@@ -302,7 +302,7 @@ Claude should:
 
 1. Recognize this as an anti-pattern
 2. Warn you about the correct pattern
-3. Use `rt.execute(builder.build(reg))` instead
+3. Use `runtime.execute(workflow.build())` instead
 
 ### Test 2: Security Awareness
 
@@ -328,7 +328,7 @@ Ask about testing:
 
 Claude should:
 
-1. Reference the NO MOCKING policy
+1. Reference the Real infrastructure recommended policy
 2. Show real database testing patterns
 3. Use SQLite in-memory for examples
 

@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: React frontend specialist for responsive UI components with @tanstack/react-query API integration and Shadcn. Use proactively when creating pages, converting mockups, or implementing React features following modular architecture patterns.
+description: "React frontend specialist for responsive UI with Shadcn. Use when creating pages or converting mockups."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---

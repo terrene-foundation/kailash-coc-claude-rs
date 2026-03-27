@@ -1,6 +1,6 @@
 ---
 name: co-expert
-description: Use this agent for questions about Cognitive Orchestration (CO), the domain-agnostic base methodology for structuring human-AI collaboration. Expert in CO's seven first principles, five-layer architecture, and how CO relates to domain applications like COC (Codegen), CO for Compliance, and CO for Finance.
+description: "CO methodology expert. Use for seven first principles, five-layer architecture, or CO domain applications."
 model: inherit
 allowed-tools:
   - Read
@@ -84,12 +84,12 @@ CARE, EATP, and CO are peers inheriting from CARE as parent philosophy. They sol
 
 ### Domain Applications
 
-| Application       | Short Name | Status                                                         |
-| ----------------- | ---------- | -------------------------------------------------------------- |
+| Application       | Short Name | Status                                                                        |
+| ----------------- | ---------- | ----------------------------------------------------------------------------- |
 | CO for Codegen    | COC        | Mature, in production (32 agents, 32 skills, 11 rules, 14 hooks, 22 commands) |
-| CO for Compliance | —          | Planned                                                        |
-| CO for Finance    | —          | Planned                                                        |
-| CO for Operations | —          | Future                                                         |
+| CO for Compliance | —          | Planned                                                                       |
+| CO for Finance    | —          | Planned                                                                       |
+| CO for Operations | —          | Future                                                                        |
 
 ## How to Respond
 

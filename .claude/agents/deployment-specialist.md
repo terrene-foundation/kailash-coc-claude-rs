@@ -1,6 +1,6 @@
 ---
 name: deployment-specialist
-description: Deployment specialist that analyzes codebases, runs deployment onboarding, and guides cloud/package deployments. Use for Docker, Kubernetes, cloud deployment, and package publishing.
+description: "SDK release specialist. Use for PyPI publishing, TestPyPI validation, documentation deployment, and CI/CD."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: sonnet
 ---
