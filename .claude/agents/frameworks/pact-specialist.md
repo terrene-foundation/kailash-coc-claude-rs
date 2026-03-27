@@ -1,6 +1,6 @@
 ---
 name: pact-specialist
-description: "PACT governance specialist for organizational AI agent governance — D/T/R addressing, knowledge clearance, operating envelopes, 5-step access enforcement, 4-zone gradient verification, GovernanceEngine, and PactGovernedAgent. Use proactively when working with PACT governance patterns in Python or Ruby."
+description: "PACT governance specialist. Use for D/T/R addressing, operating envelopes, clearance, or MCP tool governance."
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -123,8 +123,8 @@ puts "Allowed: #{decision.allowed?}"
 
 ## Related Skills
 
-- `skills/30-pact/SKILL.md` -- PACT governance patterns and user flows
-- `skills/10-governance/SKILL.md` -- EATP/CARE/PACT governance overview
+- `skills/26-eatp-reference/ -- EATP trust protocol reference
+- `skills/28-coc-reference/ -- COC methodology reference
 
 ## Related Agents
 

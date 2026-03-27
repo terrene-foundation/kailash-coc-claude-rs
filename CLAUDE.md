@@ -39,17 +39,18 @@ See `rules/e2e-god-mode.md` and `rules/no-stubs.md` for enforcement details.
 
 Phase commands replace the manual copy-paste workflow. Each loads the corresponding instruction template and checks workspace state.
 
-| Command      | Phase | Purpose                                            |
-| ------------ | ----- | -------------------------------------------------- |
-| `/start`     | —     | New user orientation; explains the workflow         |
-| `/analyze`   | 01    | Research and validate the project idea              |
-| `/todos`     | 02    | Create project roadmap; stops for your approval     |
-| `/implement` | 03    | Build the project one task at a time; repeat        |
-| `/redteam`   | 04    | Test everything from a real user's perspective      |
-| `/codify`    | 05    | Capture knowledge for future sessions              |
-| `/deploy`    | —     | Get the project live (standalone)                  |
-| `/ws`        | —     | Check project status anytime                       |
-| `/wrapup`    | —     | Save progress before ending a session              |
+| Command      | Phase | Purpose                                         |
+| ------------ | ----- | ----------------------------------------------- |
+| `/start`     | —     | New user orientation; explains the workflow     |
+| `/analyze`   | 01    | Research and validate the project idea          |
+| `/todos`     | 02    | Create project roadmap; stops for your approval |
+| `/implement` | 03    | Build the project one task at a time; repeat    |
+| `/redteam`   | 04    | Test everything from a real user's perspective  |
+| `/codify`    | 05    | Capture knowledge for future sessions           |
+| `/deploy`    | —     | Get the project live (standalone)               |
+| `/ws`        | —     | Check project status anytime                    |
+| `/wrapup`    | —     | Save progress before ending a session           |
+| `/journal`   | —     | View, create, or search project journal entries |
 
 **Workspace detection**: Hooks automatically detect the active workspace and inject context. `session-start.js` shows workspace status on session start (human-facing). `user-prompt-rules-reminder.js` injects a 1-line `[WORKSPACE]` summary into Claude's context every turn (survives context compression).
 
@@ -57,20 +58,34 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 ## Rules Index
 
-| Concern                               | Rule File                    | Scope                                               |
-| ------------------------------------- | ---------------------------- | --------------------------------------------------- |
-| Plain-language communication          | `rules/communication.md`     | Global                                              |
-| Agent orchestration & review mandates | `rules/agents.md`            | Global                                              |
-| E2E god-mode testing                  | `rules/e2e-god-mode.md`      | `tests/e2e/**`, `**/*e2e*`, `**/*playwright*`       |
-| API keys & model names                | `rules/env-models.md`        | `**/*.py`, `**/*.ts`, `**/*.js`, `.env*`            |
-| Git commits, branches, PRs            | `rules/git.md`               | Global                                              |
-| No stubs, TODOs, or placeholders      | `rules/no-stubs.md`          | Global                                              |
-| Kailash SDK execution patterns        | `rules/patterns.md`          | `**/*.py`, `**/*.rb`, `**/*.ts`, `**/*.js`          |
-| Security (secrets, injection)         | `rules/security.md`          | Global                                              |
-| 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`           | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
-| Deployment & cloud release rules      | `rules/deployment.md`        | Global                                              |
-| Auto-generated workflow instincts     | `rules/learned-instincts.md` | Global                                              |
-| Autonomous execution model            | `rules/autonomous-execution.md` | Global                                              |
+| Concern                               | Rule File                       | Scope                                               |
+| ------------------------------------- | ------------------------------- | --------------------------------------------------- |
+| **Foundation independence**           | `rules/independence.md`         | **Global — overrides all**                          |
+| **Autonomous execution model**        | `rules/autonomous-execution.md` | **Global — 10x multiplier**                         |
+| **LLM-first agent reasoning**         | `rules/agent-reasoning.md`      | `**/kaizen/**`, `**/*agent*`                        |
+| Agent orchestration & review mandates | `rules/agents.md`               | Global                                              |
+| Branch protection & PR workflow       | `rules/branch-protection.md`    | Global                                              |
+| CC artifact quality                   | `rules/cc-artifacts.md`         | `.claude/**`, `scripts/hooks/**`                    |
+| Plain-language communication          | `rules/communication.md`        | Global                                              |
+| Connection pool safety                | `rules/connection-pool.md`      | Database connection code                            |
+| DataFlow pool configuration           | `rules/dataflow-pool.md`        | `**/dataflow/**`                                    |
+| Deployment & cloud release            | `rules/deployment.md`           | Global                                              |
+| Documentation standards               | `rules/documentation.md`        | `README.md`, `docs/**`, `CHANGELOG.md`              |
+| E2E god-mode testing                  | `rules/e2e-god-mode.md`         | `tests/e2e/**`, `**/*e2e*`, `**/*playwright*`       |
+| EATP SDK conventions                  | `rules/eatp.md`                 | `**/trust/**`, `**/eatp/**`                         |
+| API keys & model names                | `rules/env-models.md`           | `**/*.py`, `**/*.ts`, `**/*.js`, `.env*`            |
+| Git commits, branches, PRs            | `rules/git.md`                  | Global                                              |
+| Infrastructure SQL safety             | `rules/infrastructure-sql.md`   | `**/db/**`, `**/infrastructure/**`                  |
+| Journal knowledge trail               | `rules/journal.md`              | Global                                              |
+| No stubs, TODOs, or placeholders      | `rules/no-stubs.md`             | Global                                              |
+| PACT governance security              | `rules/pact-governance.md`      | `**/pact/**`, `**/governance/**`                    |
+| Kailash SDK execution patterns        | `rules/patterns.md`             | `**/*.py`, `**/*.rb`, `**/*.ts`, `**/*.js`          |
+| Security (secrets, injection)         | `rules/security.md`             | Global                                              |
+| Terrene naming & terminology          | `rules/terrene-naming.md`       | Global                                              |
+| 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`              | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
+| Trust-plane security                  | `rules/trust-plane-security.md` | `**/trust/**`                                       |
+| Zero-tolerance enforcement            | `rules/zero-tolerance.md`       | **Global — overrides all**                          |
+| Auto-generated workflow instincts     | `rules/learned-instincts.md`    | Global                                              |
 
 **Note**: Rules with path scoping are loaded only when editing matching files. Global rules load every session.
 
@@ -129,7 +144,7 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 ## Skills Navigation
 
-For SDK implementation patterns, see `.claude/skills/` — organized by framework (`01-core-sdk` through `05-kailash-mcp`) and topic (`06-cheatsheets` through `28-coc-reference`). Binding-specific skills: `06-python-bindings` (PyO3 patterns) and `06-ruby-bindings` (Ruby FFI patterns).
+For SDK implementation patterns, see `.claude/skills/` — organized by framework (`01-core-sdk` through `05-kailash-mcp`) and topic (`06-cheatsheets` through `30-claude-code-patterns`).
 
 ## Critical Execution Rules
 
@@ -182,11 +197,11 @@ All frameworks ship in a single package per language. Python: `pip install kaila
 
 The Runtime auto-configures infrastructure from environment variables. Same code at every level -- no replatforming.
 
-| Level | Trigger                                | Behavior                               |
-| ----- | -------------------------------------- | -------------------------------------- |
-| 0     | No env vars (default)                  | In-memory stores                       |
-| 0.5   | `KAILASH_DATABASE_URL=sqlite:...`      | SQLite checkpoint, rest in-memory      |
-| 1     | `KAILASH_DATABASE_URL=postgres://...`  | All PostgreSQL-backed stores           |
+| Level | Trigger                               | Behavior                                 |
+| ----- | ------------------------------------- | ---------------------------------------- |
+| 0     | No env vars (default)                 | In-memory stores                         |
+| 0.5   | `KAILASH_DATABASE_URL=sqlite:...`     | SQLite checkpoint, rest in-memory        |
+| 1     | `KAILASH_DATABASE_URL=postgres://...` | All PostgreSQL-backed stores             |
 | 2     | Level 1 + `KAILASH_WORKERS=4`         | Multi-worker with distributed task queue |
 
 Five internal stores (checkpoint, execution, DLQ, idempotency, saga) scale together. Additional env vars: `KAILASH_CHECKPOINT_POLICY`, `KAILASH_IDEMPOTENCY`, `KAILASH_DB_MAX_CONNECTIONS`. See `skills/01-core-sdk/enterprise-infrastructure.md` for full reference.

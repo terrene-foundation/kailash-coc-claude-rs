@@ -129,21 +129,13 @@ After codification, guide the user to the appropriate next step:
 
 ## Agent Teams
 
-Deploy these agents as a team for codification:
+Deploy specialist agents as needed. See agent definitions for review criteria.
 
-**Knowledge extraction team:**
+### Journal
 
-- **deep-analyst** — Identify core patterns, architectural decisions, and domain knowledge worth capturing
-- **requirements-analyst** — Distill requirements into reusable agent instructions
-- **coc-expert** — Ensure agents and skills follow COC five-layer architecture (codification IS Layer 5 evolution)
+Create journal entries for knowledge captured:
+- **DECISION** entries for what was codified and why
+- **CONNECTION** entries for patterns that connect across the project
+- **TRADE-OFF** entries for trade-offs in knowledge representation choices
 
-**Creation team:**
-
-- **documentation-validator** — Validate that skill examples are correct and runnable
-- **intermediate-reviewer** — Review agent/skill quality before finalizing
-
-**Validation team (red team the agents and skills):**
-
-- **gold-standards-validator** — Ensure agents follow the subagent guide and skills follow the skill system guide
-- **testing-specialist** — Verify any code examples in skills are testable
-- **security-reviewer** — Audit generated agents/skills for prompt injection vectors, insecure patterns, or secrets exposure (codified artifacts persist across all future sessions)
+Use sequential naming: check the highest existing `NNNN-` prefix and increment.

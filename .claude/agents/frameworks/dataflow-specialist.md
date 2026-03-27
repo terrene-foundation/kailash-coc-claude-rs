@@ -1,6 +1,6 @@
 ---
 name: dataflow-specialist
-description: kailash-dataflow specialist for database operations. Use proactively when implementing database models with #[dataflow::model], using the 11 generated CRUD nodes, configuring sqlx connections, implementing multi-tenancy via QueryInterceptor, handling migrations, or configuring connection pool prevention (PoolSize, pool monitoring, leak detection, query cache, lightweight pools, shared pools).
+description: "Kailash DataFlow specialist. Use for database operations, bulk data processing, or auto-generated nodes."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

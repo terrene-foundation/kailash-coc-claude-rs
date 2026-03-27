@@ -3,18 +3,17 @@
  * Hook: validate-workflow
  * Event: PostToolUse
  * Matcher: Edit|Write
- * Purpose: Enforce Kailash SDK patterns, detect hardcoded models/keys in
- *          code files (Python, Ruby, TypeScript, JavaScript).
+ * Purpose: Enforce Kailash Rust SDK patterns, detect hardcoded models/keys in
+ *          code files (Rust, TypeScript, JavaScript).
  *
- *   - Python files: BLOCK (exit 2) for stubs and hardcoded models without key
- *   - Ruby files:   BLOCK (exit 2) for stubs and hardcoded models without key
+ *   - Rust files:   BLOCK (exit 2) when a hardcoded model has no matching key
  *   - JS/TS files:  WARN only (exit 0)
  *
- * Polyglot -- validates Python/Ruby patterns for the Kailash SDK bindings.
+ * Rust-first -- validates cargo/Rust patterns for the Kailash crate workspace.
  *
  * Exit Codes:
  *   0 = success / warn-only
- *   2 = blocking error (hardcoded model without key, stubs in production)
+ *   2 = blocking error (Rust model without key)
  *   other = non-blocking error
  */
 
@@ -67,18 +66,17 @@ function validateFile(data) {
 
   const ext = path.extname(filePath).toLowerCase();
 
+  const rustExts = [".rs"];
   const pyExts = [".py"];
-  const rbExts = [".rb"];
   const jsExts = [".ts", ".tsx", ".js", ".jsx"];
   const configExts = [".yaml", ".yml", ".json", ".env", ".sh", ".toml"];
 
-  const isPython = pyExts.includes(ext);
-  const isRuby = rbExts.includes(ext);
+  const isRust = rustExts.includes(ext);
+  const isPy = pyExts.includes(ext);
   const isJs = jsExts.includes(ext);
   const isConfig = configExts.includes(ext);
-  const isCode = isPython || isRuby || isJs;
 
-  if (!isCode && !isConfig) {
+  if (!isRust && !isPy && !isJs && !isConfig) {
     return {
       continue: true,
       exitCode: 0,
@@ -86,11 +84,20 @@ function validateFile(data) {
     };
   }
 
+  // For Edit operations (old_string → new_string), only validate the NEW
+  // content being introduced — pre-existing violations in untouched lines
+  // must not block unrelated edits.  Write operations still check the full
+  // file because the entire content is new.
+  const isEditOp = Boolean(data.tool_input?.old_string);
   let content;
-  try {
-    content = fs.readFileSync(filePath, "utf8");
-  } catch {
-    return { continue: true, exitCode: 0, messages: ["Could not read file"] };
+  if (isEditOp && data.tool_input?.new_string) {
+    content = data.tool_input.new_string;
+  } else {
+    try {
+      content = fs.readFileSync(filePath, "utf8");
+    } catch {
+      return { continue: true, exitCode: 0, messages: ["Could not read file"] };
+    }
   }
 
   // Load .env once for key-validation
@@ -100,26 +107,22 @@ function validateFile(data) {
   const messages = [];
   let shouldBlock = false;
 
-  // -- Kailash Python-specific checks (.py only) ----------------------------
-  if (isPython) {
-    const pyBlocked = checkPythonPatterns(content, filePath, messages);
-    if (pyBlocked) shouldBlock = true;
+  // -- Kailash Rust-specific checks (.rs only) ----------------------------
+  if (isRust) {
+    checkRustPatterns(content, filePath, messages);
   }
 
-  // -- Kailash Ruby-specific checks (.rb only) ------------------------------
-  if (isRuby) {
-    const rbBlocked = checkRubyPatterns(content, filePath, messages);
-    if (rbBlocked) shouldBlock = true;
+  // -- Python-specific checks (.py only) ----------------------------------
+  if (isPy) {
+    const pyBlocked = checkPythonPatterns(content, filePath, messages);
+    if (pyBlocked) shouldBlock = true;
+    checkPoolPatterns(content, filePath, messages);
+    checkRuntimeLeaks(content, filePath, messages);
   }
 
   // -- Hardcoded model detection (code files only -- configs may list models intentionally)
-  if (isCode) {
-    const modelResult = checkHardcodedModels(
-      content,
-      filePath,
-      env,
-      isPython || isRuby,
-    );
+  if (isRust || isPy || isJs) {
+    const modelResult = checkHardcodedModels(content, filePath, env, isRust);
     messages.push(...modelResult.messages);
     if (modelResult.block) shouldBlock = true;
   }
@@ -128,14 +131,8 @@ function validateFile(data) {
   checkHardcodedKeys(content, filePath, messages);
 
   // -- Stub/TODO/simulation detection (code files only) -------------------
-  if (isCode) {
-    const stubBlocked = checkStubsAndSimulations(
-      content,
-      filePath,
-      messages,
-      isPython,
-      isRuby,
-    );
+  if (isRust || isPy || isJs) {
+    const stubBlocked = checkStubsAndSimulations(content, filePath, messages);
     if (stubBlocked) shouldBlock = true;
   }
 
@@ -156,79 +153,77 @@ function validateFile(data) {
 }
 
 // =====================================================================
-// Kailash SDK pattern checks (Python)
+// Kailash SDK pattern checks (Rust only)
 // =====================================================================
 
-function checkPythonPatterns(content, filePath, messages) {
-  let blocked = false;
-
+function checkRustPatterns(content, filePath, messages) {
   // Anti-pattern: workflow.execute(runtime) -- wrong direction
-  if (/workflow\s*\.\s*execute\s*\(\s*runtime/.test(content)) {
+  if (/workflow\s*\.\s*execute\s*\(\s*(&\s*)?runtime/.test(content)) {
     messages.push(
-      "WARNING: workflow.execute(runtime) found. Use rt.execute(wf) instead.",
+      "WARNING: workflow.execute(runtime) found. Use runtime.execute(workflow).",
     );
   }
 
-  // Anti-pattern: builder.build() without registry
-  if (/builder\.build\s*\(\s*\)/.test(content) && !isTestFile(filePath)) {
-    messages.push(
-      "WARNING: builder.build() called without registry. Use builder.build(reg).",
-    );
-  }
+  // Check for todo!() macro in production code (not tests)
+  // For Rust files with inline #[cfg(test)] modules, only check the
+  // production portion of the file (before #[cfg(test)]).
+  if (!isTestFile(filePath)) {
+    const lines = content.split("\n");
+    const cfgTestLine = findCfgTestLine(lines);
+    const prodContent =
+      cfgTestLine > 0 ? lines.slice(0, cfgTestLine - 1).join("\n") : content;
 
-  // Anti-pattern: deprecated imports
-  const deprecatedImports = [
-    [/from\s+kailash\.runtime\s+import/, "from kailash.runtime import"],
-    [
-      /from\s+kailash\.workflow\.builder\s+import/,
-      "from kailash.workflow.builder import",
-    ],
-    [/from\s+kailash\._kailash\s+import/, "from kailash._kailash import"],
-    [/\bLocalRuntime\b/, "LocalRuntime (use kailash.Runtime instead)"],
-    [/\bAsyncLocalRuntime\b/, "AsyncLocalRuntime (use kailash.Runtime instead)"],
-    [/\bget_runtime\b/, "get_runtime (use kailash.Runtime(reg) instead)"],
-  ];
-
-  for (const [pattern, name] of deprecatedImports) {
-    if (pattern.test(content) && !isTestFile(filePath)) {
+    if (/\btodo!\s*\(/.test(prodContent)) {
       messages.push(
-        `WARNING: Deprecated pattern "${name}" detected. Use current API.`,
+        "WARNING: todo!() macro found in production code. Implement fully.",
+      );
+    }
+    if (/\bunimplemented!\s*\(/.test(prodContent)) {
+      messages.push(
+        "WARNING: unimplemented!() macro found in production code. Implement fully.",
+      );
+    }
+    if (/\bpanic!\s*\(/.test(prodContent)) {
+      messages.push(
+        "WARNING: panic!() macro found. Consider returning Result<> instead.",
       );
     }
   }
 
-  // Anti-pattern: wrong package name
-  if (/pip\s+install\s+kailash(?!\s*-enterprise)/.test(content)) {
+  // Check for unsafe blocks -- flag for review
+  if (/\bunsafe\s*\{/.test(content)) {
     messages.push(
-      'WARNING: "pip install kailash" found. Use "pip install kailash-enterprise".',
+      "REVIEW: unsafe block detected. Ensure this is necessary and document the safety invariant.",
     );
   }
 
-  // Check for os.environ without dotenv loading
+  // Check for raw SQL strings instead of sqlx macros
   if (
-    /os\.environ/.test(content) &&
-    !/dotenv/.test(content) &&
-    !/load_dotenv/.test(content) &&
-    !isTestFile(filePath)
+    /r#?"(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(content) ||
+    /"\s*(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(content)
+  ) {
+    // Only flag if not already using sqlx::query! or sqlx::query_as!
+    if (!/sqlx::query(?:_as)?!/.test(content)) {
+      messages.push(
+        "WARNING: Raw SQL string detected. Prefer sqlx::query!() or sqlx::query_as!() macros for compile-time checked queries.",
+      );
+    }
+  }
+
+  // Check for format!() in SQL context (SQL injection risk)
+  if (
+    /format!\s*\(\s*"(?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(
+      content,
+    )
   ) {
     messages.push(
-      "WARNING: os.environ used without dotenv. Ensure .env is loaded with load_dotenv().",
+      "CRITICAL: format!() with SQL detected -- potential SQL injection. Use sqlx parameterized queries.",
     );
   }
 
-  // Check for hardcoded secret patterns in Python
-  if (
-    /(secret|password|token|api_key)\s*=\s*["'][^"']{8,}["']/.test(content) &&
-    !isTestFile(filePath)
-  ) {
-    messages.push(
-      'CRITICAL: Possible hardcoded secret in Python code. Use os.environ.get() or dotenv.',
-    );
-    blocked = true;
-  }
-
-  // Check for mocking in integration/e2e test files
+  // Mocking in test files -- check for inappropriate mocking in integration/e2e tests
   if (isTestFile(filePath)) {
+    // Check if this looks like an integration or e2e test (tier 2-3)
     const isIntegrationTest =
       filePath.includes("/integration/") ||
       filePath.includes("/e2e/") ||
@@ -237,11 +232,10 @@ function checkPythonPatterns(content, filePath, messages) {
 
     if (isIntegrationTest) {
       const mockPatterns = [
-        [/@patch\s*\(/, "@patch()"],
-        [/MagicMock\s*\(/, "MagicMock()"],
-        [/unittest\.mock/, "unittest.mock"],
-        [/from\s+mock\s+import/, "from mock import"],
-        [/mocker\.patch/, "mocker.patch()"],
+        [/\bmockall\b/, "mockall"],
+        [/\b#\[automock\]/, "#[automock]"],
+        [/\bmock!\s*\(/, "mock!()"],
+        [/MockContext/, "MockContext"],
       ];
       for (const [pat, name] of mockPatterns) {
         if (pat.test(content)) {
@@ -253,128 +247,190 @@ function checkPythonPatterns(content, filePath, messages) {
     }
   }
 
-  // Check for SQL injection patterns
+  // Check for std::env::var without dotenv loading
   if (
-    /f["'](?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s/i.test(content) ||
-    /["'](?:SELECT|INSERT|UPDATE|DELETE|DROP|ALTER)\s.*?\{/.test(content)
+    /std::env::var/.test(content) &&
+    !/dotenv/.test(content) &&
+    !/dotenvy/.test(content) &&
+    !isTestFile(filePath)
   ) {
     messages.push(
-      "CRITICAL: f-string with SQL detected -- potential SQL injection. Use parameterized queries.",
+      "WARNING: std::env::var() used without dotenv/dotenvy. Ensure .env is loaded.",
     );
-    blocked = true;
   }
 
-  return blocked;
+  // Check for hardcoded secret patterns in Rust
+  if (
+    /let\s+\w*(secret|password|token|key)\w*\s*=\s*"[^"]{8,}"/.test(content) &&
+    !isTestFile(filePath)
+  ) {
+    messages.push(
+      "CRITICAL: Possible hardcoded secret in Rust code. Use std::env::var() or dotenvy.",
+    );
+  }
 }
 
 // =====================================================================
-// Kailash SDK pattern checks (Ruby)
+// Python-specific pattern checks
 // =====================================================================
 
-function checkRubyPatterns(content, filePath, messages) {
-  let blocked = false;
+function checkPythonPatterns(content, filePath, messages) {
+  if (isTestFile(filePath)) return false;
 
-  // Anti-pattern: builder.build without registry
-  if (
-    /builder\.build\s*(?:\(\s*\)|[^(])/.test(content) &&
-    !/builder\.build\s*\(\s*\w/.test(content) &&
-    !isTestFile(filePath)
-  ) {
-    messages.push(
-      "WARNING: builder.build called without registry. Use builder.build(registry).",
-    );
-  }
+  let hasBlocking = false;
+  const lines = content.split("\n");
 
-  // Anti-pattern: symbol keys in config hashes (should be string keys)
-  if (
-    /Kailash::.*\.new\s*\(\s*\{[^}]*\w+:\s/.test(content) &&
-    !isTestFile(filePath)
-  ) {
-    messages.push(
-      'WARNING: Symbol keys in Kailash config hash. Use string keys: { "key" => value }.',
-    );
-  }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
 
-  // Anti-pattern: Timeout.timeout around execute
-  if (/Timeout\.timeout.*execute/.test(content) && !isTestFile(filePath)) {
-    messages.push(
-      "WARNING: Timeout.timeout around execute won't interrupt Rust. Use RuntimeConfig#workflow_timeout= instead.",
-    );
-  }
+    // Skip comments
+    if (trimmed.startsWith("#")) continue;
 
-  // Anti-pattern: missing close or block form
-  if (
-    /Kailash::Registry\.new\b/.test(content) &&
-    !/\.close\b/.test(content) &&
-    !/Registry\.open/.test(content) &&
-    !isTestFile(filePath)
-  ) {
-    messages.push(
-      "WARNING: Kailash::Registry.new without .close. Use Kailash::Registry.open { |reg| } block form.",
-    );
-  }
-
-  // Anti-pattern: require "kailash/internal"
-  if (/require\s+["']kailash\/internal["']/.test(content)) {
-    messages.push(
-      'WARNING: require "kailash/internal" is an internal module. Use require "kailash" only.',
-    );
-  }
-
-  // Check for hardcoded secret patterns in Ruby
-  if (
-    /(secret|password|token|api_key)\s*=\s*["'][^"']{8,}["']/.test(content) &&
-    !isTestFile(filePath)
-  ) {
-    messages.push(
-      'CRITICAL: Possible hardcoded secret in Ruby code. Use ENV.fetch() or dotenv.',
-    );
-    blocked = true;
-  }
-
-  // Check for mocking in integration/e2e test files
-  if (isTestFile(filePath)) {
-    const isIntegrationTest =
-      filePath.includes("/integration/") ||
-      filePath.includes("/e2e/") ||
-      filePath.includes("_integration") ||
-      filePath.includes("_e2e");
-
-    if (isIntegrationTest) {
-      const mockPatterns = [
-        [/allow\s*\(.*\)\s*\.to\s+receive/, "allow().to receive()"],
-        [/expect\s*\(.*\)\s*\.to\s+receive/, "expect().to receive()"],
-        [/\bdouble\s*\(/, "double()"],
-        [/\binstance_double\s*\(/, "instance_double()"],
-        [/\bclass_double\s*\(/, "class_double()"],
-      ];
-      for (const [pat, name] of mockPatterns) {
-        if (pat.test(content)) {
-          messages.push(
-            `WARNING: ${name} detected in integration/e2e test. NO MOCKING in Tier 2-3 tests.`,
-          );
-        }
-      }
-    }
-  }
-
-  // Check for unsafe eval patterns
-  const evalPatterns = [
-    [/\beval\s*\(/, "eval()"],
-    [/\binstance_eval\s*\(/, "instance_eval()"],
-    [/\bclass_eval\s*\(/, "class_eval()"],
-    [/\bKernel\.system\s*\(/, "Kernel.system()"],
-    [/Marshal\.load\s*\(/, "Marshal.load()"],
-  ];
-  for (const [pat, name] of evalPatterns) {
-    if (pat.test(content) && !isTestFile(filePath)) {
+    // BLOCKING: raise NotImplementedError in production code
+    if (/\braise\s+NotImplementedError\b/.test(line)) {
       messages.push(
-        `REVIEW: ${name} detected in Ruby code. Verify this is not using user input.`,
+        `BLOCKED: raise NotImplementedError at ${path.basename(filePath)}:${i + 1}. ` +
+          `Implement the method fully or remove it.`,
+      );
+      hasBlocking = true;
+    }
+
+    // BLOCKING: pass as placeholder (pass with stub/placeholder comment)
+    if (
+      /^\s*pass\s*#\s*(placeholder|stub|todo|fixme|not\s*implement)/i.test(line)
+    ) {
+      messages.push(
+        `BLOCKED: stub pass at ${path.basename(filePath)}:${i + 1}. ` +
+          `Implement the logic or remove the function.`,
+      );
+      hasBlocking = true;
+    }
+
+    // WARNING: bare except: pass (silent error swallowing)
+    if (/\bexcept\s*:\s*pass\b/.test(line)) {
+      messages.push(
+        `WARNING: except: pass at ${path.basename(filePath)}:${i + 1}. ` +
+          `Handle the error or propagate it. See rules/zero-tolerance.md.`,
+      );
+    }
+
+    // WARNING: except Exception: return None (naive fallback)
+    if (/\bexcept\s+\w+.*:\s*return\s+None\b/.test(line)) {
+      messages.push(
+        `REVIEW: except...return None at ${path.basename(filePath)}:${i + 1}. ` +
+          `Verify this is not hiding a real error.`,
       );
     }
   }
 
-  return blocked;
+  return hasBlocking;
+}
+
+// =====================================================================
+// Pool configuration pattern detection (DataFlow)
+// =====================================================================
+
+/**
+ * Detect pool configuration anti-patterns in Python files.
+ * WARNING only — never blocks. See rules/patterns.md.
+ */
+function checkPoolPatterns(content, filePath, messages) {
+  if (isTestFile(filePath)) return false;
+
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Skip comments
+    if (trimmed.startsWith("#")) continue;
+
+    // Detect pool_size set to a value > 20
+    const poolSizeMatch = line.match(/pool_size\s*[=:]\s*(\d+)/);
+    if (poolSizeMatch) {
+      const size = parseInt(poolSizeMatch[1], 10);
+      if (size > 20) {
+        messages.push(
+          `WARNING: pool_size=${size} at ${path.basename(filePath)}:${i + 1}. ` +
+            `DataFlow auto-scales pool sizes from max_connections. Consider removing ` +
+            `the explicit override unless you have a specific reason (e.g., PgBouncer).`,
+        );
+      }
+    }
+
+    // Detect max_overflow = pool_size * 2 (triples connection footprint)
+    if (
+      /max_overflow\s*=\s*pool_size\s*\*\s*2/.test(line) ||
+      /max_overflow\s*=\s*\w+\s*\*\s*2/.test(line)
+    ) {
+      messages.push(
+        `WARNING: max_overflow = pool_size * 2 at ${path.basename(filePath)}:${i + 1}. ` +
+          `This triples the connection footprint. Use max(2, pool_size // 2) instead. ` +
+          `See rules/patterns.md.`,
+      );
+    }
+  }
+
+  return false;
+}
+
+// =====================================================================
+// Unmanaged runtime construction detection (Issue #71)
+// =====================================================================
+
+/**
+ * Detect LocalRuntime() or AsyncLocalRuntime() construction without lifecycle
+ * management (close(), release(), context manager, or acquire()).
+ * WARNING only — never blocks. See rules/patterns.md Rule 6.
+ */
+function checkRuntimeLeaks(content, filePath, messages) {
+  if (isTestFile(filePath)) return false;
+
+  const lines = content.split("\n");
+  const RUNTIME_PATTERN = /(?:Local|AsyncLocal)Runtime\(\)/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Skip comments, strings, docstrings
+    if (trimmed.startsWith("#")) continue;
+    if (trimmed.startsWith('"""') || trimmed.startsWith("'''")) continue;
+    if (trimmed.startsWith(">>>")) continue;
+
+    if (RUNTIME_PATTERN.test(line)) {
+      // Check if line has lifecycle management
+      const hasLifecycle =
+        /\bwith\s+/.test(line) ||
+        /\.close\(\)/.test(line) ||
+        /\.release\(\)/.test(line) ||
+        /\.acquire\(\)/.test(line) ||
+        /self\.runtime\s*=/.test(line) ||
+        /self\._runtime\s*=/.test(line) ||
+        /self\._async_runtime\s*=/.test(line);
+
+      // Check surrounding lines (3 lines after) for close/finally
+      let hasNearbyCleanup = false;
+      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+        if (/\.close\(\)|\.release\(\)|finally:/.test(lines[j])) {
+          hasNearbyCleanup = true;
+          break;
+        }
+      }
+
+      if (!hasLifecycle && !hasNearbyCleanup) {
+        messages.push(
+          `WARNING: Unmanaged runtime at ${path.basename(filePath)}:${i + 1}. ` +
+            `Use 'with LocalRuntime() as runtime:' or call runtime.close(). ` +
+            `See rules/patterns.md Rule 6 and issue #71.`,
+        );
+      }
+    }
+  }
+
+  return false;
 }
 
 // =====================================================================
@@ -388,22 +444,30 @@ function checkRubyPatterns(content, filePath, messages) {
 const MODEL_PREFIXES =
   "gpt|claude|gemini|deepseek|mistral|mixtral|command|o[134]|chatgpt|dall-e|whisper|tts|text-embedding|embed|rerank|hume|sonar|pplx|codestral|pixtral|palm";
 const MODEL_PATTERNS = [
-  // Python/Ruby/JS: model = "gpt-4" or model: "gpt-4"
+  // Rust/JS: model = "gpt-4" or model: "gpt-4" -- hyphen+suffix optional for standalone models
   new RegExp(
     `model\\s*[=:]\\s*["'\`]((?:${MODEL_PREFIXES})(?:-[^"'\`]+)?)["'\`]`,
     "gi",
   ),
-  // Dict/Hash/JSON: "model": "gpt-4" or 'model': 'gpt-4'
+  // Struct/JSON: "model": "gpt-4" or 'model': 'gpt-4'
   new RegExp(
-    `["'\`]model(?:_name)?["'\`]\\s*[=:]\\s*["'\`]((?:${MODEL_PREFIXES})(?:-[^"'\`]+)?)["'\`]`,
+    `["'\`]model(?:_name)?["'\`]\\s*:\\s*["'\`]((?:${MODEL_PREFIXES})(?:-[^"'\`]+)?)["'\`]`,
     "gi",
   ),
 ];
 
-function checkHardcodedModels(content, filePath, env, shouldBlock) {
+function checkHardcodedModels(content, filePath, env, isRust) {
   const messages = [];
   let block = false;
   const lines = content.split("\n");
+
+  // For Rust files: find the line where #[cfg(test)] starts.
+  // Everything after that line is test code and should only warn, never block.
+  const cfgTestLine = isRust ? findCfgTestLine(lines) : -1;
+
+  // For Rust files: build a set of lines that are inside doc comments
+  // (/// or //! blocks, including their code examples).
+  const docCommentLines = isRust ? buildDocCommentLines(lines) : new Set();
 
   for (const pattern of MODEL_PATTERNS) {
     // Reset lastIndex for global regex
@@ -415,15 +479,24 @@ function checkHardcodedModels(content, filePath, env, shouldBlock) {
       const lineNum = content.substring(0, match.index).split("\n").length;
       const line = lines[lineNum - 1]?.trim() || "";
 
-      // Skip comments (Python #, Ruby #, JS //)
+      // Skip comments (Rust // and /* */, JS //)
       if (
-        line.startsWith("#") ||
         line.startsWith("//") ||
         line.startsWith("*") ||
-        line.startsWith("/*")
+        line.startsWith("/*") ||
+        line.startsWith("///") ||
+        line.startsWith("//!")
       ) {
         continue;
       }
+
+      // Skip lines inside doc comment blocks (Rust only)
+      if (docCommentLines.has(lineNum)) {
+        continue;
+      }
+
+      // Skip or downgrade matches inside #[cfg(test)] regions (Rust only)
+      const inTestRegion = isRust && cfgTestLine > 0 && lineNum >= cfgTestLine;
 
       // Check if the model has a corresponding API key
       const info = getModelProvider(modelName);
@@ -431,17 +504,17 @@ function checkHardcodedModels(content, filePath, env, shouldBlock) {
         ? info.keys.some((k) => env[k] && env[k].length > 5)
         : true; // unknown provider = don't block
 
-      if (isTestFile(filePath)) {
+      if (inTestRegion || isTestFile(filePath)) {
         // Test code: warn only, never block
         messages.push(
           `WARNING: Hardcoded model "${modelName}" in test code at ${path.basename(filePath)}:${lineNum}. ` +
             `Consider reading from env in integration tests.`,
         );
-      } else if (shouldBlock && !hasKey && info) {
+      } else if (isRust && !hasKey && info) {
         messages.push(
           `BLOCKED: Hardcoded model "${modelName}" at line ${lineNum} -- ` +
             `${info.keys.join(" or ")} not found in .env. ` +
-            `Use os.environ["OPENAI_PROD_MODEL"] (Python) or ENV.fetch("OPENAI_PROD_MODEL") (Ruby).`,
+            `Use std::env::var("OPENAI_PROD_MODEL") or dotenvy equivalent.`,
         );
         block = true;
       } else {
@@ -479,17 +552,26 @@ function checkHardcodedKeys(content, filePath, messages) {
     [/["'`]?xoxb-[a-zA-Z0-9-]{20,}["'`]?/, "Slack Bot Token"],
   ];
 
-  // Skip key detection for test files
-  if (isTestFile(filePath || "")) {
-    return;
+  // For Rust files: skip #[cfg(test)] regions -- test keys are not real secrets
+  const isRust = filePath && filePath.endsWith(".rs");
+  let prodContent = content;
+  if (isRust || isTestFile(filePath || "")) {
+    const lines = content.split("\n");
+    const cfgTestLine = isRust ? findCfgTestLine(lines) : -1;
+    if (isTestFile(filePath || "")) {
+      return; // Skip key detection entirely for test files
+    }
+    if (cfgTestLine > 0) {
+      prodContent = lines.slice(0, cfgTestLine - 1).join("\n");
+    }
   }
 
   const seen = new Set();
   for (const [pattern, name] of keyPatterns) {
-    if (pattern.test(content) && !seen.has(name)) {
+    if (pattern.test(prodContent) && !seen.has(name)) {
       seen.add(name);
       messages.push(
-        `CRITICAL: Hardcoded ${name} detected! Use os.environ (Python) or ENV.fetch (Ruby).`,
+        `CRITICAL: Hardcoded ${name} detected! Use std::env::var() or process.env.`,
       );
     }
   }
@@ -502,87 +584,54 @@ function checkHardcodedKeys(content, filePath, messages) {
 /**
  * Detect stubs, TODOs, placeholders, naive fallbacks, and simulated services.
  *
- * BLOCKING (exit 2) for Python/Ruby production code -- stubs are NOT warnings.
+ * BLOCKING for production code — stubs are NOT warnings.
  * See rules/zero-tolerance.md (Absolute Rule 2).
  *
  * Returns true if any blocking violation was found.
  */
-function checkStubsAndSimulations(
-  content,
-  filePath,
-  messages,
-  isPython,
-  isRuby,
-) {
-  // Skip test files -- stubs in tests are intentional fixture data
-  if (isTestFile(filePath)) {
-    return false;
-  }
+function checkStubsAndSimulations(content, filePath, messages) {
+  if (isTestFile(filePath)) return false;
 
+  const isPy = filePath.endsWith(".py");
+  const isRust = filePath.endsWith(".rs");
   const lines = content.split("\n");
-  const isProductionLang = isPython || isRuby;
+  const cfgTestLine = isRust ? findCfgTestLine(lines) : -1;
 
-  // Blocking patterns -- these STOP the operation for Python/Ruby production code
-  const blockingPatterns = [];
+  // Blocking patterns per language
+  const blockingPatterns = isRust
+    ? [
+        [/\btodo!\s*\(/, "todo!() macro — IMPLEMENT fully"],
+        [/\bunimplemented!\s*\(/, "unimplemented!() — IMPLEMENT fully"],
+        [
+          /\bpanic!\s*\(\s*"not\s+(yet\s+)?implement/i,
+          "panic!(not implemented) — IMPLEMENT fully",
+        ],
+      ]
+    : isPy
+      ? [
+          [
+            /\braise\s+NotImplementedError\b/,
+            "raise NotImplementedError — IMPLEMENT fully",
+          ],
+          [
+            /^\s*pass\s*#\s*(placeholder|stub|todo|fixme|not\s*implement)/i,
+            "stub pass — IMPLEMENT fully",
+          ],
+        ]
+      : [];
 
-  if (isPython) {
-    blockingPatterns.push(
-      [
-        /\braise\s+NotImplementedError\b/,
-        "raise NotImplementedError -- IMPLEMENT the function fully",
-      ],
-      [
-        /^\s*pass\s*$/,
-        "bare pass statement -- IMPLEMENT the function body (verify context)",
-      ],
-    );
-  }
-
-  if (isRuby) {
-    blockingPatterns.push(
-      [
-        /\braise\s+NotImplementedError\b/,
-        "raise NotImplementedError -- IMPLEMENT the method fully",
-      ],
-      [
-        /\braise\s+["']Not\s+(?:yet\s+)?implemented/i,
-        'raise "Not implemented" -- IMPLEMENT the method fully',
-      ],
-    );
-  }
-
-  // Warning patterns -- flagged but not blocking (need human judgment)
   const warningPatterns = [
-    [/\bTODO\b/, "TODO marker -- do it now, don't defer"],
-    [/\bFIXME\b/, "FIXME marker -- fix it now, don't defer"],
-    [/\bHACK\b/, "HACK marker -- implement properly"],
-    [/\bSTUB\b/, "STUB marker -- implement the real logic"],
-    [/\bXXX\b/, "XXX marker -- resolve this immediately"],
+    [/\bTODO\b/, "TODO marker — do it now"],
+    [/\bFIXME\b/, "FIXME marker — fix it now"],
+    [/\bHACK\b/, "HACK marker — implement properly"],
+    [/\bSTUB\b/, "STUB marker — implement real logic"],
+    [/\bXXX\b/, "XXX marker — resolve immediately"],
     [
       /\b(simulated?|fake|dummy|placeholder)\s*(data|response|result|value)/i,
-      "simulated/fake data in production code",
+      "simulated/fake data",
     ],
+    [/catch\s*\([^)]*\)\s*\{\s*\}/, "empty catch block — handle the error"],
   ];
-
-  // Language-specific empty error handling
-  if (isPython) {
-    warningPatterns.push([
-      /except\s*(?:\w+\s*)?:\s*\n\s*pass/,
-      "empty except/pass block -- handle the error or propagate it",
-    ]);
-  }
-  if (isRuby) {
-    warningPatterns.push([
-      /rescue\s*(?:=>?\s*\w+)?\s*\n\s*end/,
-      "empty rescue block -- handle the error or propagate it",
-    ]);
-  }
-
-  // JS empty catch
-  warningPatterns.push([
-    /catch\s*\([^)]*\)\s*\{\s*\}/,
-    "empty catch block -- handle the error or propagate it",
-  ]);
 
   const found = new Set();
   let hasBlocking = false;
@@ -591,57 +640,36 @@ function checkStubsAndSimulations(
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Skip comments
-    const isComment =
-      trimmed.startsWith("#") ||
-      trimmed.startsWith("//") ||
-      trimmed.startsWith("/*") ||
-      trimmed.startsWith("*");
+    if (cfgTestLine > 0 && i + 1 >= cfgTestLine) break;
 
-    // For blocking patterns: only check non-comment code lines
+    const isComment =
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("///") ||
+      trimmed.startsWith("//!") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*") ||
+      trimmed.startsWith("#");
+
     if (!isComment) {
       for (const [pattern, label] of blockingPatterns) {
         if (pattern.test(line) && !found.has(label)) {
-          // For "bare pass", verify it's actually a function body placeholder
-          // not a valid pass in a loop or conditional
-          if (label.includes("bare pass")) {
-            // Look backwards for a def/class line to confirm it's a stub
-            let isStub = false;
-            for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
-              if (/^\s*(def|class)\s/.test(lines[j])) {
-                isStub = true;
-                break;
-              }
-            }
-            if (!isStub) continue;
-          }
-
           found.add(label);
-          if (isProductionLang) {
-            messages.push(
-              `BLOCKED: ${label} at ${path.basename(filePath)}:${i + 1}. ` +
-                `Stubs are NOT allowed. Implement fully or remove the function.`,
-            );
-            hasBlocking = true;
-          } else {
-            messages.push(
-              `WARNING: ${label} at ${path.basename(filePath)}:${i + 1}.`,
-            );
-          }
+          messages.push(
+            `BLOCKED: ${label} at ${path.basename(filePath)}:${i + 1}. ` +
+              `Stubs are NOT allowed. Implement fully or remove.`,
+          );
+          hasBlocking = true;
         }
       }
     }
 
-    // Check for TODO/FIXME/HACK/STUB/XXX -- these are violations even in comments
     for (const [pattern, label] of warningPatterns) {
       if (pattern.test(line) && !found.has(label)) {
-        // Skip if the line is a rule file reference or documentation about the pattern
         if (
           trimmed.includes("rules/") ||
           trimmed.includes("Detection Patterns")
-        ) {
+        )
           continue;
-        }
         found.add(label);
         messages.push(
           `WARNING: ${label} at ${path.basename(filePath)}:${i + 1}.`,
@@ -664,11 +692,10 @@ function checkStubsAndSimulations(
 function logFileObservations(content, filePath, cwd, messages) {
   const basename = path.basename(filePath);
 
-  // WorkflowBuilder / runtime.execute() -> workflow_pattern
+  // WorkflowBuilder / runtime.execute() → workflow_pattern
   if (
     /WorkflowBuilder/.test(content) ||
-    /runtime\s*\.\s*execute/.test(content) ||
-    /rt\.execute/.test(content)
+    /runtime\s*\.\s*execute/.test(content)
   ) {
     logLearningObservation(cwd, "workflow_pattern", {
       pattern_type: /WorkflowBuilder/.test(content)
@@ -678,7 +705,7 @@ function logFileObservations(content, filePath, cwd, messages) {
     });
   }
 
-  // add_node() calls -> node_usage
+  // add_node() calls → node_usage
   const nodeMatches = content.match(/add_node\s*\(\s*["'](\w+)["']/g);
   if (nodeMatches && nodeMatches.length > 0) {
     const nodeTypes = [
@@ -697,7 +724,7 @@ function logFileObservations(content, filePath, cwd, messages) {
     });
   }
 
-  // @db.model -> dataflow_model (Python)
+  // @db.model → dataflow_model
   const modelMatches = content.match(/@db\.model[\s\S]*?class\s+(\w+)/g);
   if (modelMatches) {
     for (const m of modelMatches) {
@@ -711,10 +738,12 @@ function logFileObservations(content, filePath, cwd, messages) {
     }
   }
 
-  // Stubs/TODOs detected -> error_occurrence (stub_detected)
+  // Stubs/TODOs detected → error_occurrence (stub_detected)
   if (
     messages.some((m) =>
-      /TODO marker|FIXME marker|STUB marker|NotImplementedError/.test(m),
+      /TODO marker|FIXME marker|STUB marker|todo!\(\)|unimplemented!\(\)/.test(
+        m,
+      ),
     )
   ) {
     logLearningObservation(cwd, "error_occurrence", {
@@ -723,7 +752,7 @@ function logFileObservations(content, filePath, cwd, messages) {
     });
   }
 
-  // Hardcoded model name detected -> error_occurrence (hardcoded_model)
+  // Hardcoded model name detected → error_occurrence (hardcoded_model)
   if (messages.some((m) => /Hardcoded model/.test(m))) {
     logLearningObservation(cwd, "error_occurrence", {
       error_type: "hardcoded_model",
@@ -736,23 +765,43 @@ function logFileObservations(content, filePath, cwd, messages) {
 // Helpers
 // =====================================================================
 
+/**
+ * Find the 1-based line number where `#[cfg(test)]` appears in a Rust file.
+ * Returns -1 if not found. Everything after this line is considered test code.
+ */
+function findCfgTestLine(lines) {
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*#\[cfg\(test\)\]/.test(lines[i])) {
+      return i + 1; // 1-based
+    }
+  }
+  return -1;
+}
+
+/**
+ * Build a set of 1-based line numbers that fall inside Rust doc comment blocks
+ * (lines prefixed with `///` or `//!`). This catches code examples inside docs
+ * that might contain model names as illustrative content.
+ */
+function buildDocCommentLines(lines) {
+  const docLines = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("///") || trimmed.startsWith("//!")) {
+      docLines.add(i + 1); // 1-based
+    }
+  }
+  return docLines;
+}
+
 function isTestFile(filePath) {
   const basename = path.basename(filePath).toLowerCase();
   return (
-    // Python test patterns
-    /^test_|_test\.py$|\.test\.|__tests__/.test(basename) ||
-    basename === "conftest.py" ||
-    // Ruby test patterns
-    /_spec\.rb$/.test(basename) ||
-    basename === "spec_helper.rb" ||
-    basename === "rails_helper.rb" ||
-    // JS test patterns
-    /\.spec\.|\.test\./.test(basename) ||
-    // Directory-based patterns
+    /^test_|_test\.|\.test\.|\.spec\.|__tests__/.test(basename) ||
     filePath.includes("__tests__") ||
     filePath.includes("/tests/") ||
     filePath.includes("/test/") ||
-    filePath.includes("/spec/") ||
-    filePath.includes("/fixtures/")
+    // Rust test convention: files in tests/ directory or #[cfg(test)] modules
+    (filePath.endsWith(".rs") && basename.startsWith("test_"))
   );
 }

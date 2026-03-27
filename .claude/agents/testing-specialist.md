@@ -1,6 +1,6 @@
 ---
 name: testing-specialist
-description: 3-tier testing specialist with NO MOCKING in Tiers 2-3. Use for test architecture across Python (pytest) and Ruby (rspec) projects.
+description: "3-tier testing specialist, real infrastructure in Tiers 2-3. Use for test architecture and strategy."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---

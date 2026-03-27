@@ -401,25 +401,20 @@ node scripts/learning/checkpoint-manager.js --restore checkpoint_1706720400000
 workflow.execute(runtime)
 
 # Correct
-import kailash
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime.execute(workflow.build())
 ```
 
 ### "Relative import detected"
 
-**Problem**: Using relative or submodule imports.
+**Problem**: Using relative imports.
 
 **Fix**:
 ```python
 # Wrong
 from ..workflow import builder
-from kailash.workflow.builder import WorkflowBuilder
 
 # Correct
-import kailash
-builder = kailash.WorkflowBuilder()
+from kailash.workflow.builder import WorkflowBuilder
 ```
 
 ### "Primary key must be named 'id'"
@@ -434,7 +429,7 @@ class User:
     # NOT: user_id: int
 ```
 
-### "NO MOCKING violation"
+### "Real infrastructure recommended violation"
 
 **Problem**: Using mocks in Tier 2-3 tests.
 

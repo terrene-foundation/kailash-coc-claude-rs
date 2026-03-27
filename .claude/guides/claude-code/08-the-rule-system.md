@@ -38,7 +38,7 @@ Rules are Markdown files that Claude reads and follows:
 │   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐   │
 │   │  agents.md    │  │  testing.md   │  │  security.md  │   │
 │   │               │  │               │  │               │   │
-│   │ MUST delegate │  │ NO MOCKING    │  │ OWASP checks  │   │
+│   │ Should delegate │  │ Real infrastructure recommended    │  │ OWASP checks  │   │
 │   │ MUST review   │  │ Test-first    │  │ Secret mgmt   │   │
 │   └───────────────┘  └───────────────┘  └───────────────┘   │
 │                                                               │
@@ -79,7 +79,7 @@ Rules are Markdown files that Claude reads and follows:
 | `no-stubs.md`          | No stubs/TODOs        | No placeholders in production code         |
 | `patterns.md`          | SDK patterns          | Correct API usage, imports                 |
 | `security.md`          | Security requirements | OWASP, secrets, input validation           |
-| `testing.md`           | Testing policies      | NO MOCKING, test-first, coverage           |
+| `testing.md`           | Testing policies      | Real infrastructure recommended, test-first, coverage           |
 
 ---
 
@@ -146,7 +146,7 @@ For features requiring design decisions:
 
 ### Purpose
 
-Defines testing requirements, especially the NO MOCKING policy.
+Defines testing requirements, especially the Real infrastructure recommended policy.
 
 ### MUST Rules
 
@@ -183,19 +183,19 @@ Tier 1 (Unit Tests):
 - Fast execution (<1s per test)
 
 Tier 2 (Integration Tests):
-- NO MOCKING - use real database
+- Real infrastructure recommended - use real database
 - Test component interactions
 - Real API calls (use test server)
 
 Tier 3 (E2E Tests):
-- NO MOCKING - real everything
+- Real infrastructure recommended - real everything
 - Test full user journeys
 - Real browser, real database
 ```
 
 ### MUST NOT Rules (CRITICAL)
 
-#### NO MOCKING in Tier 2-3
+#### Real infrastructure recommended in Tier 2-3
 
 ```
 MUST NOT use mocking in integration or E2E tests.
@@ -278,10 +278,7 @@ Defines correct Kailash SDK usage patterns.
 
 ```python
 # MUST use this pattern
-import kailash
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime.execute(workflow.build())
 
 # NEVER use this pattern
 workflow.execute(runtime)  # WRONG
@@ -290,16 +287,11 @@ workflow.execute(runtime)  # WRONG
 #### Absolute Imports
 
 ```python
-# MUST use top-level import
-import kailash
-
-builder = kailash.WorkflowBuilder()
+# MUST use absolute imports
+from kailash.workflow.builder import WorkflowBuilder
 
 # NEVER use relative imports
 from ..workflow import builder  # WRONG
-
-# NEVER use submodule imports
-from kailash.workflow.builder import WorkflowBuilder  # WRONG
 ```
 
 #### Node Definition
@@ -521,7 +513,7 @@ MUST NOT [prohibited action].
 | Domain       | Key Rules                                           |
 | ------------ | --------------------------------------------------- |
 | **Agents**   | Review after changes, security review before commit |
-| **Testing**  | NO MOCKING in Tier 2-3, test-first                  |
+| **Testing**  | Real infrastructure recommended in Tier 2-3, test-first                  |
 | **Security** | Validate input, manage secrets, OWASP               |
 | **Patterns** | runtime.execute(), absolute imports                 |
 | **Git**      | Branch strategy, pre-commit checks                  |

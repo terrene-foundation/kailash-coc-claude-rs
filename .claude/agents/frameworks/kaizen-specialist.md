@@ -1,6 +1,6 @@
 ---
 name: kaizen-specialist
-description: AI agent framework specialist for kailash-kaizen (SDK primitives) and kaizen-agents (LLM orchestration). Use proactively when building agents, configuring LLM providers, setting up tool registries, orchestrating multi-agent systems, implementing MCP clients, tracking costs, using checkpoint/resume, A2A protocol, or LLM-driven plan decomposition/monitoring/recomposition.
+description: "Kaizen AI framework specialist. Use for BaseAgent, signatures, multi-agent coordination, or orchestration."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -363,6 +363,6 @@ Two crates serve different roles in the agent stack:
 
 **Gradient classification**: `kaizen-agents` defines G1-G9 gradient levels that map objectives to complexity tiers, determining how much LLM intelligence vs simple rule-based logic is needed.
 
-**Skills reference**: `.claude/skills/32-kaizen-agents/` for orchestration patterns and PlanMonitor documentation.
+**Skills reference**: `.claude/skills/04-kaizen/` for agent patterns and orchestration documentation.
 
 **Core Principle**: Kaizen is the AI agent framework for Kailash. The LLM does ALL reasoning -- tools are dumb data endpoints. No if-else routing, no keyword matching, no regex classification. Use the TAOD loop for autonomous reasoning, validate with real models.

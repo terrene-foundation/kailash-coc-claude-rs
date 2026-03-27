@@ -1,6 +1,6 @@
 ---
 name: uiux-designer
-description: Expert UI/UX designer specializing in enterprise SaaS applications with deep knowledge of Flutter/Material Design, information architecture, visual hierarchy, and user-centered design principles.
+description: "Enterprise UI/UX designer for SaaS apps. Use for information architecture, visual hierarchy, and layout."
 tools: Read, Write, Edit, Grep, Glob, Task
 model: opus
 ---

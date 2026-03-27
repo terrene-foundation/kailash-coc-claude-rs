@@ -1,6 +1,6 @@
 ---
 name: deep-analyst
-description: Deep analysis for failure points, risks, and requirements. Use for complex governance decisions, constitutional analysis, or strategy evaluation.
+description: "Deep analysis for failure points and risks. Use for governance decisions, constitutional analysis, or strategy."
 tools: Read, Write, Edit, Grep, Glob, Task
 model: opus
 ---

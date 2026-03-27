@@ -104,16 +104,16 @@ These are the commands you'll use most often:
 
 ```python
 # Claude will use patterns like:
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("APICall", "fetch", {"url": endpoint})
-builder.add_node("Transform", "transform", {})
-builder.connect("fetch", "data", "transform", "input")
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
+workflow = WorkflowBuilder()
+workflow.add_node("APICall", "fetch", {"url": endpoint})
+workflow.add_node("Transform", "transform", {})
+workflow.connect("fetch", "transform", {"data": "input"})
+
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 #### `/db` - DataFlow Quick Reference
@@ -138,7 +138,9 @@ result = rt.execute(wf)
 
 ```python
 # Claude will use patterns like:
-from kailash.dataflow import db
+from dataflow import DataFlow
+
+db = DataFlow()
 
 @db.model
 class User:
@@ -148,9 +150,9 @@ class User:
     # created_at, updated_at auto-managed
 
 # This automatically generates 11 nodes:
-# - UserCreateNode, UserReadNode, UserUpdateNode, UserDeleteNode
-# - UserListNode, UserUpsertNode, UserCountNode
-# - UserBulkCreateNode, UserBulkUpdateNode, UserBulkDeleteNode, UserBulkUpsertNode
+# - UserCREATE, UserREAD, UserUPDATE, UserDELETE
+# - UserLIST, UserUPSERT, UserCOUNT
+# - UserBULK_CREATE, UserBULK_UPDATE, UserBULK_DELETE, UserBULK_UPSERT
 ```
 
 #### `/api` - Nexus Quick Reference
@@ -175,14 +177,14 @@ class User:
 
 ```python
 # Claude will use patterns like:
-from kailash.nexus import NexusApp
+from nexus import Nexus
 
-app = NexusApp()
+app = Nexus()
 
-@app.handler("user/create")
-async def create_user(name: str, email: str) -> dict:
-    # Handler implementation
-    return {"name": name, "email": email}
+@app.workflow("user/create")
+def create_user(name: str, email: str):
+    # Workflow implementation
+    pass
 
 # This automatically provides:
 # - REST API at /api/user/create
@@ -212,17 +214,15 @@ async def create_user(name: str, email: str) -> dict:
 
 ```python
 # Claude will use patterns like:
-from kailash.kaizen import BaseAgent
+from kaizen.api import Agent
 
-class DocAnalyzer(BaseAgent):
-    def __init__(self):
-        super().__init__(config={"llm_provider": "openai"})
+agent = Agent(
+    model="gpt-4",
+    execution_mode="autonomous",
+    memory="session"
+)
 
-    def process(self, query: str) -> dict:
-        return self.run(input_field=query)
-
-agent = DocAnalyzer()
-result = agent.process("Analyze this document: ...")
+result = await agent.run("Analyze this document: ...")
 ```
 
 ### Quality and Validation Commands
@@ -236,7 +236,7 @@ result = agent.process("Analyze this document: ...")
 - Writing unit tests (Tier 1)
 - Writing integration tests (Tier 2)
 - Writing end-to-end tests (Tier 3)
-- Understanding the NO MOCKING policy
+- Understanding the Real infrastructure recommended policy
 
 **Example usage**:
 
@@ -250,12 +250,12 @@ result = agent.process("Analyze this document: ...")
 ```python
 # Claude will use patterns like:
 import pytest
-from kailash.dataflow import DataFlow
+from dataflow import DataFlow
 
 @pytest.fixture
 def db():
     # REAL database, not mocked
-    dataflow = DataFlow("sqlite::memory:")
+    dataflow = DataFlow(database_url="sqlite:///:memory:")
     dataflow.create_tables()
     yield dataflow
     dataflow.drop_tables()
@@ -274,7 +274,7 @@ def test_create_user(db):
 
 - Pre-commit compliance checking
 - Security audit (secrets, injection, input validation)
-- Testing policy enforcement (NO MOCKING in Tier 2-3)
+- Testing policy enforcement (Real infrastructure recommended in Tier 2-3)
 - Stubs/TODOs/placeholder detection
 
 **Example usage**:
@@ -291,7 +291,7 @@ def test_create_user(db):
 - Kailash-specific (when detected): import validation, workflow patterns
 - Pattern validation (correct runtime execution)
 - Security validation (no hardcoded secrets)
-- Testing validation (NO MOCKING in Tier 2-3)
+- Testing validation (Real infrastructure recommended in Tier 2-3)
 
 ### Workspace Phase Commands
 

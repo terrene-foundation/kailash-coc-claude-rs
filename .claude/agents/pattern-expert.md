@@ -1,6 +1,6 @@
 ---
 name: pattern-expert
-description: Core SDK pattern specialist for workflows, nodes, and execution patterns. Use for debugging workflow issues, resolving execution errors, and advising on correct API usage across Python and Ruby bindings.
+description: "Core SDK pattern specialist for workflows and nodes. Use for debugging execution or parameter issues."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---

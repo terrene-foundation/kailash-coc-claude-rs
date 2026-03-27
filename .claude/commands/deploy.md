@@ -117,10 +117,7 @@ Also verify COC sync is current — check `.claude/.coc-sync-marker` if it exist
 
 ## Agent Teams
 
-- **deployment-specialist** — Analyze codebase, run onboarding, guide deployment
-- **git-release-specialist** — Git workflow, PR creation, version management
-- **security-reviewer** — Pre-deployment security audit (MANDATORY)
-- **testing-specialist** — Verify test coverage before deploy
+Deploy specialist agents as needed. See agent definitions for review criteria.
 
 ## Critical Rules
 

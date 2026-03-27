@@ -1,6 +1,6 @@
 ---
 name: eatp-expert
-description: Use this agent for questions about the Enterprise Agent Trust Protocol (EATP), trust lineage, agent attestation, delegation chains, verification gradient, trust postures, cascade revocation, or governance integration. Expert in EATP specification, trust operations, and implementation patterns.
+description: "EATP trust protocol expert. Use for trust lineage, attestation, delegation chains, or verification gradient."
 model: inherit
 allowed-tools:
   - Read
@@ -149,6 +149,50 @@ Invoke these skills when needed:
 - `/eatp-reference` - Quick reference for EATP concepts and terminology
 - `/care-reference` - When explaining EATP's relationship to CARE governance
 
+## Rust SDK Implementation (crates/eatp/ + kailash-kaizen trust module)
+
+The EATP specification is implemented across two crates:
+
+### Standalone EATP SDK (`crates/eatp/`, proprietary)
+
+Zero Kailash dependencies. Contains all protocol primitives:
+
+- **Keys**: Ed25519 `TrustKeyPair` with `ZeroizeOnDrop` (`keys.rs`)
+- **Chain**: `CareChain` — append-only genesis + trust blocks (`chain.rs`)
+- **Delegation**: `DelegationChain` — constraint tightening, cascade revocation, Ed25519 signed (`delegation.rs`)
+- **Verification**: 4-level gradient (`AutoApproved/Flagged/Held/Blocked`) with configurable thresholds (`verification.rs`)
+- **Governed**: `GovernedTaodRunner` — pipeline: capability → verification → evidence → resource tracking (`governed.rs`)
+- **Human**: `PseudoAgent` (sole human entry), `HoldQueue` with signed approval/rejection (`human.rs`)
+- **Multi-Sig**: `MultiSigPolicy` (M-of-N threshold), `MultiSigBundle`, domain-separated signatures (`multi_sig.rs`)
+- **Constraints**: 5-dimensional (`Financial/Operational/Temporal/DataAccess/Communication`) + 6 templates (`constraints/`)
+- **Reasoning**: `ReasoningTrace` with structured evidence, confidence, separate Ed25519 signing (`types.rs`)
+- **Stores**: `MemoryStore`, `FilesystemStore` (age-encrypted), `SqlxStore` (PostgreSQL) (`store/`)
+- **CLI**: 16 commands including `multi-sig` subgroup (`cli/`)
+- **MCP**: 6 tools + 4 resources, stdio/SSE transports (`mcp/`)
+- **Scoring**: 5-component composite trust score (`scoring.rs`)
+- **Compliance**: EU AI Act + OWASP Agentic Top 10 mappings (`compliance.rs`)
+
+### Kaizen Trust Module (`kailash-kaizen`, behind `trust` feature flag)
+
+Orchestration-level trust enforcement, re-exports EATP primitives:
+
+- **GovernedAgent**: Wraps `BaseAgent` with trust checks, composes CB + shadow + hooks (`agent.rs`)
+- **Circuit Breaker**: All-atomic FSM (Closed→Open→HalfOpen), per-agent via `CircuitBreakerRegistry` (`circuit_breaker.rs`)
+- **Shadow Enforcer**: Dual-config evaluation, bounded `VecDeque`, divergence tracking (`shadow.rs`)
+- **Lifecycle Hooks**: `TrustEventHook` trait, `TrustEventDispatcher` with `tokio::task::spawn` panic isolation (`hooks.rs`)
+- **Posture System**: 5 EATP postures with state machine and transition hooks (`posture.rs`)
+
+### Key Implementation Patterns
+
+- **Serde invariant enforcement**: `#[serde(try_from = "RawType")]` routes deserialization through `new()` validation (e.g., `MultiSigPolicy`)
+- **Panic isolation**: `tokio::task::spawn()` wraps hooks — panics produce `JoinError` instead of unwinding the caller
+- **Key material safety**: `ZeroizeOnDrop` on `TrustKeyPair`, `fill(0)` for temporary buffers in FFI boundaries
+- **Constraint tightening invariant**: Child delegation ⊆ parent — enforced at delegation time, not at verification time
+
+### Python Bindings (`bindings/kailash-python/src/kaizen/trust.rs`)
+
+19+ PyO3 types exposing trust features: `TrustLevel`, `EatpPosture`, `VerificationConfig`, `VerificationResult`, `DelegationChain`, `DelegationScope`, `PseudoAgent`, `MultiSigPolicy`, `MultiSigBundle`, `CircuitBreakerConfig`, `CircuitBreakerRegistry`, `ShadowEnforcer`, `ShadowReport`, `GovernedTaodConfig`, `GovernedTaodResult`, `HumanCompetency`, `ComplianceReport`.
+
 ## EATP vs Execution Tools (Governance Layer Thesis, March 2026)
 
 Claude Code CLI implements approximately 5% of EATP:
@@ -164,68 +208,6 @@ Claude Code CLI implements approximately 5% of EATP:
 - Cascade Revocation: 0% (no mechanism)
 
 EATP and Claude Code solve different problems at different layers. Claude Code controls tool access. EATP governs organizational trust. Position EATP as the governance layer ABOVE identity/authorization — complementary to execution tools, not competitive.
-
-## EATP SDK Implementation
-
-The EATP specification is implemented as part of the Kailash RS SDK. Key capabilities exposed through the Kailash binding:
-
-### Standalone EATP SDK (proprietary)
-
-Zero Kailash dependencies. Contains all protocol primitives:
-
-- **Keys**: Ed25519 `TrustKeyPair` with `ZeroizeOnDrop`
-- **Chain**: `CareChain` — append-only genesis + trust blocks
-- **Delegation**: `DelegationChain` — constraint tightening, cascade revocation, Ed25519 signed
-- **Verification**: 4-level gradient (`AutoApproved/Flagged/Held/Blocked`) with configurable thresholds
-- **Governed**: `GovernedTaodRunner` — pipeline: capability check -> verification -> evidence -> resource tracking
-- **Human**: `PseudoAgent` (sole human entry), `HoldQueue` with signed approval/rejection
-- **Multi-Sig**: `MultiSigPolicy` (M-of-N threshold), `MultiSigBundle`, domain-separated signatures
-- **Constraints**: 5-dimensional (`Financial/Operational/Temporal/DataAccess/Communication`) + 6 templates
-- **Reasoning**: `ReasoningTrace` with structured evidence, confidence, separate Ed25519 signing
-- **Stores**: `MemoryStore`, `FilesystemStore` (age-encrypted), `SqlxStore` (PostgreSQL)
-- **CLI**: 16 commands including `multi-sig` subgroup
-- **MCP**: 6 tools + 4 resources, stdio/SSE transports
-- **Scoring**: 5-component composite trust score
-- **Compliance**: EU AI Act + OWASP Agentic Top 10 mappings
-
-### Kaizen Trust Module (behind `trust` feature flag)
-
-Orchestration-level trust enforcement, composes with the standalone EATP SDK:
-
-- **GovernedAgent**: Wraps `BaseAgent` with trust checks, composes circuit breaker + shadow enforcer + hooks
-- **Circuit Breaker**: All-atomic FSM (Closed -> Open -> HalfOpen), per-agent via `CircuitBreakerRegistry`
-- **Shadow Enforcer**: Dual-config evaluation, bounded memory, divergence tracking
-- **Lifecycle Hooks**: `TrustEventHook` trait, `TrustEventDispatcher` with panic isolation
-- **Posture System**: 5 EATP postures with state machine and transition hooks
-
-### Trust-Integrated Durability (behind `durability-trust` feature)
-
-EATP applied to the workflow checkpoint and resume layer:
-
-- **TrustedCheckpointStore**: Wraps any checkpoint store with Ed25519 signing -- tamper-evident checkpoint logs
-- **GovernedResumePolicy**: Verifies EATP delegation authority before allowing workflow resume, enforces monotonic constraint tightening
-- **ConstraintAwareRetryPolicy**: Checks financial and temporal constraints before retrying failed executions
-- **SignatureStore**: Pluggable signature persistence (in-memory or SQLite) for process restart survival
-
-### Key Implementation Patterns
-
-- **Serde invariant enforcement**: Deserialization routes through validation constructors
-- **Panic isolation**: Hooks run in isolated tasks — panics produce errors instead of unwinding the caller
-- **Key material safety**: `ZeroizeOnDrop` on key pairs, zeroed temporary buffers
-- **Constraint tightening invariant**: Child delegation is always a subset of parent — enforced at delegation time, not at verification time
-
-### Python Bindings
-
-19+ types exposing trust features: `TrustLevel`, `EatpPosture`, `VerificationConfig`, `VerificationResult`, `DelegationChain`, `DelegationScope`, `PseudoAgent`, `MultiSigPolicy`, `MultiSigBundle`, `CircuitBreakerConfig`, `CircuitBreakerRegistry`, `ShadowEnforcer`, `ShadowReport`, `GovernedTaodConfig`, `GovernedTaodResult`, `HumanCompetency`, `ComplianceReport`.
-
-```python
-import kailash
-
-# Access trust types through the binding
-posture = kailash.EatpPosture.supervised()
-config = kailash.VerificationConfig()
-result = kailash.VerificationResult(...)
-```
 
 ## Before Answering
 

@@ -100,16 +100,7 @@ Rate each dimension 1-5 (1=critical issues, 5=excellent):
 
 ## Priority Issues (3-5, ordered by impact)
 For each:
-- **What**: The specific problem
-- **Why**: Impact on user experience
-- **Fix**: Concrete fix with code direction
-- **Command**: Which command addresses this (e.g., `/i-harden`, `/design`)
-
-## Minor Observations
-- ...
-
-## Provocative Questions
-Questions that challenge assumptions about the design decisions.
+# ... (see skill reference for full example)
 ```
 
 ## Scoring Guide
@@ -140,11 +131,7 @@ When auditing AI-facing interfaces, also evaluate:
 
 ## Agent Teams
 
-Deploy these agents for design audits:
-
-- **uiux-designer** — Deep design analysis and recommendations
-- **ai-ux-designer** — AI-specific interaction pattern evaluation
-- **value-auditor** — Enterprise demo value assessment (via Playwright)
+Deploy specialist agents as needed. See agent definitions for review criteria.
 
 ## Skill References
 
