@@ -8,6 +8,7 @@ description: "Security validation checks. Use when asking 'security validation',
 > **Skill Metadata**
 > Category: `validation`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Security Checklist
 
@@ -26,7 +27,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 ```python
 # ✅ CORRECT: Parameterized queries
-builder.add_node("SQLQueryNode", "query", {
+workflow.add_node("DatabaseQueryNode", "query", {
     "query": "SELECT * FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })
@@ -39,7 +40,7 @@ builder.add_node("SQLQueryNode", "query", {
 
 ```python
 # ✅ CORRECT: Validate inputs
-builder.add_node("SchemaValidatorNode", "validate", {
+workflow.add_node("DataValidationNode", "validate", {
     "input": "{{input.data}}",
     "schema": {"email": "email", "age": "integer"}
 })

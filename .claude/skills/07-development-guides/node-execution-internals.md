@@ -5,7 +5,6 @@ You are an expert in Kailash SDK node execution internals. Guide users through h
 ## Core Responsibilities
 
 ### 1. Node Execution Lifecycle
-
 1. **Initialization**: Node created with parameters
 2. **Validation**: Parameters validated against schema
 3. **Input Reception**: Inputs received from connections
@@ -14,58 +13,58 @@ You are an expert in Kailash SDK node execution internals. Guide users through h
 6. **Connection Propagation**: Outputs passed to connected nodes
 
 ### 2. Understanding Node Execution
-
 ```python
-import kailash
+class CustomNode(Node):
+    def __init__(self, node_id: str, parameters: Dict[str, Any]):
+        # 1. Initialize base node
+        super().__init__(node_id, parameters)
 
-# Custom nodes use register_callback() — a Python function as the handler
-def custom_handler(inputs):
-    # 1. Get inputs (passed as dict)
-    input_value = inputs.get("input", "")
+        # 2. Define parameters (validation happens here)
+        self.add_parameter(NodeParameter(
+            name="input",
+            param_type="string",
+            required=True
+        ))
 
-    # 2. Execute logic
-    result = process(input_value)
+    def execute(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        # 3. Get validated parameters
+        input_value = self.get_parameter("input", inputs)
 
-    # 3. Return outputs (keys must match connection targets)
-    return {"result": result, "status": "success"}
+        # 4. Execute logic
+        result = process(input_value)
 
-registry = kailash.NodeRegistry()
-# Register with input/output declarations
-registry.register_callback("CustomNode", custom_handler, ["input"], ["result", "status"])
+        # 5. Return outputs (keys must match connection targets)
+        return {
+            "result": result,
+            "status": "success"
+        }
 ```
 
 ### 3. Debugging Node Execution
-
 ```python
-import kailash
 import logging
 
 logger = logging.getLogger(__name__)
 
-def debug_handler(inputs):
-    """Handler with logging for debugging execution flow."""
-    logger.info("Node starting execution")
-    logger.debug(f"Inputs: {inputs}")
+class DebugNode(Node):
+    def execute(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        logger.info(f"Node {self.node_id} starting execution")
+        logger.debug(f"Inputs: {inputs}")
 
-    try:
-        result = process_data(inputs)
-        logger.info("Node completed successfully")
-        return result
-    except Exception as e:
-        logger.error(f"Node failed: {e}", exc_info=True)
-        raise
-
-registry = kailash.NodeRegistry()
-registry.register_callback("DebugNode", debug_handler, ["data"], ["result"])
+        try:
+            result = self.process_data(inputs)
+            logger.info(f"Node {self.node_id} completed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Node {self.node_id} failed: {e}", exc_info=True)
+            raise
 ```
 
 ## When to Engage
-
 - User asks about "node execution", "how nodes work", "node internals"
 - User needs to debug node execution
 - User wants to understand execution flow
 
 ## Integration with Other Skills
-
 - Route to **custom-development** for creating nodes
 - Route to **sdk-fundamentals** for basic concepts

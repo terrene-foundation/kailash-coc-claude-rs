@@ -10,23 +10,24 @@ Complete guide for installing the Kailash SDK using pip, poetry, virtual environ
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **Basic Install**: `pip install kailash-enterprise`
-- **Poetry**: `poetry add kailash-enterprise`
-- **With All Dependencies**: `pip install kailash-enterprise`
-- **Python Requirement**: 3.10+
-- **Verify**: Import `WorkflowBuilder` and `kailash.Runtime`
+- **Basic Install**: `pip install kailash`
+- **Poetry**: `poetry add kailash`
+- **With All Dependencies**: `pip install kailash[all]`
+- **Python Requirement**: 3.8+
+- **Verify**: Import `WorkflowBuilder` and `LocalRuntime`
 
 ## Core Pattern
 
 ```bash
 # Install Kailash SDK
-pip install kailash-enterprise
+pip install kailash
 
 # Verify installation
-python -c "import kailash; print('Kailash installed successfully!')"
+python -c "from kailash.workflow.builder import WorkflowBuilder; print('✅ Kailash installed successfully!')"
 ```
 
 ## Common Use Cases
@@ -42,21 +43,24 @@ python -c "import kailash; print('Kailash installed successfully!')"
 ### Option 1: Pip Installation (Simplest)
 ```bash
 # Install latest version
-pip install kailash-enterprise>=2.0.0
+pip install kailash
 
-# All frameworks included (DataFlow, Nexus, Kaizen)
-# No separate packages or extras needed
+# Install specific version
+pip install kailash==0.9.25
+
+# Install with all optional dependencies
+pip install kailash[all]
 ```
 
 ### Option 2: Poetry Installation (Recommended)
 ```bash
 # Add to existing project
-poetry add kailash-enterprise
+poetry add kailash
 
 # Or create new project
 poetry new my-kailash-project
 cd my-kailash-project
-poetry add kailash-enterprise
+poetry add kailash
 poetry shell
 ```
 
@@ -68,13 +72,13 @@ source kailash-env/bin/activate  # Linux/Mac
 # kailash-env\Scripts\activate  # Windows
 
 # Install in virtual environment
-pip install kailash-enterprise
+pip install kailash
 ```
 
 ### Option 4: Requirements.txt
 ```bash
 # Add to requirements.txt
-echo "kailash-enterprise>=2.0.0" >> requirements.txt
+echo "kailash>=0.9.25" >> requirements.txt
 
 # Install from requirements
 pip install -r requirements.txt
@@ -84,32 +88,32 @@ pip install -r requirements.txt
 
 | Installation Method | Use Case | Command |
 |---------------------|----------|---------|
-| **Basic pip** | Quick start, simple projects | `pip install kailash-enterprise` |
-| **Poetry** | Team projects, dependency management | `poetry add kailash-enterprise` |
-| **Virtual env** | Isolated development | `python -m venv env && pip install kailash-enterprise` |
+| **Basic pip** | Quick start, simple projects | `pip install kailash` |
+| **Poetry** | Team projects, dependency management | `poetry add kailash` |
+| **Virtual env** | Isolated development | `python -m venv env && pip install kailash` |
 | **Docker** | Production, infrastructure | `docker-compose up -d` |
-| **With extras** | Full feature set | `pip install kailash-enterprise` |
+| **With extras** | Full feature set | `pip install kailash[all]` |
 
 ## Common Mistakes
 
 ### ❌ Mistake 1: Missing Python Version
 ```bash
-# Wrong - Python 3.9 or earlier
-python --version  # Python 3.9.x (unsupported)
-pip install kailash-enterprise  # May fail
+# Wrong - Python 3.7 or earlier
+python --version  # Python 3.7.x (unsupported)
+pip install kailash  # May fail
 ```
 
-### ✅ Fix: Use Python 3.10+
+### ✅ Fix: Use Python 3.8+
 ```bash
-# Correct - Python 3.10 or later
-python3.10 --version  # Python 3.10.x or higher
-python3.10 -m pip install kailash-enterprise
+# Correct - Python 3.8 or later
+python3.8 --version  # Python 3.8.x or higher
+python3.8 -m pip install kailash
 ```
 
 ### ❌ Mistake 2: ImportError After Installation
 ```bash
 # Wrong - Installing in one environment, running in another
-pip install kailash-enterprise  # System Python
+pip install kailash  # System Python
 python my_script.py  # Different Python interpreter
 ```
 
@@ -121,38 +125,36 @@ pip list | grep kailash  # Verify installation
 python my_script.py  # Now works
 ```
 
-### ❌ Mistake 3: Wrong Package Name
-```bash
-# Wrong -- old package name
-pip install kailash  # ERROR: package not found
+### ❌ Mistake 3: Missing Dependencies
+```python
+# Wrong - Missing optional dependencies
+from kailash.nodes.ai import LLMAgentNode  # ImportError: No module named 'openai'
 ```
 
-### ✅ Fix: Install Correct Package
+### ✅ Fix: Install With Dependencies
 ```bash
-# Correct -- Rust-backed enterprise package
-pip install kailash-enterprise
+# Correct - Install all optional dependencies
+pip install kailash[all]
 ```
 
 ## Verification Test
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Test basic functionality
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {
-    "code": "result = {'status': 'installed', 'version': '2.1.0'}",
-    "output_vars": ["result"]
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "test", {
+    "code": "result = {'status': 'installed', 'version': '0.9.25'}"
 })
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 
 print("✅ Kailash SDK installed successfully!")
-print(f"Test result: {result['results']['test']['outputs']['result']}")
-print(f"Run ID: {result['run_id']}")
+print(f"Test result: {results['test']['result']}")
+print(f"Run ID: {run_id}")
 ```
 
 ## Related Patterns
@@ -176,27 +178,34 @@ Use `deployment-specialist` subagent when:
 - Setting up Docker/Kubernetes infrastructure
 - Configuring multi-environment deployments
 
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
+
 ## Troubleshooting
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | `ImportError: No module named 'kailash'` | Wrong Python environment | Verify: `pip list \| grep kailash`, reinstall if needed |
-| `ModuleNotFoundError: pydantic` | Missing dependencies | Install: `pip install kailash-enterprise` |
-| `Python version incompatible` | Python < 3.10 | Upgrade to Python 3.10+ |
+| `ModuleNotFoundError: pydantic` | Missing dependencies | Install with extras: `pip install kailash[all]` |
+| `Python version incompatible` | Python < 3.8 | Upgrade to Python 3.8+ |
 | Docker services not starting | Port conflicts or Docker issues | Run: `docker-compose down -v && docker-compose up -d` |
 
 ## Quick Tips
 
 - 💡 **Use virtual environments**: Isolate project dependencies to avoid conflicts
-- 💡 **Check Python version first**: Ensure Python 3.10+ before installation
+- 💡 **Check Python version first**: Ensure Python 3.8+ before installation
 - 💡 **Install with [all] for development**: Get all optional dependencies upfront
 - 💡 **Verify installation immediately**: Run test workflow to confirm setup
 - 💡 **Use poetry for teams**: Better dependency management and reproducibility
 
 ## Version Notes
 
-- String-based nodes are the recommended pattern
-- Python 3.10+ required
+- **v0.9.25+**: AsyncLocalRuntime now default for Docker/FastAPI
+- **v0.9.20+**: String-based nodes became recommended pattern
+- **v0.8.0+**: Python 3.8+ required
 
 ## Keywords for Auto-Trigger
 

@@ -10,6 +10,7 @@ Production Patterns for production-ready workflows.
 > **Skill Metadata**
 > Category: `quick-reference`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,17 +22,18 @@ Production Patterns for production-ready workflows.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Production Patterns implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -54,9 +56,13 @@ Use specialized subagents when:
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
-- 💡 **Use kailash.Runtime for Docker**: WorkflowAPI defaults to kailash.Runtime - 10-100x faster, no thread hanging issues
+- 💡 **Use AsyncLocalRuntime for Docker**: WorkflowAPI defaults to AsyncLocalRuntime - 10-100x faster, no thread hanging issues
 - 💡 **Implement Health Checks**: Add HealthCheckNode with database/API connectivity checks for load balancer monitoring
 - 💡 **Enable Circuit Breakers**: Protect external dependencies with circuit breaker pattern to prevent cascade failures
 - 💡 **Configure Retry Policies**: Set max_retries, exponential_backoff, jitter for transient failures

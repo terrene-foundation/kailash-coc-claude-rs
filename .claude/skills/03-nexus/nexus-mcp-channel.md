@@ -16,24 +16,20 @@ MCP (Model Context Protocol) exposes workflows as discoverable tools for AI agen
 ## Basic MCP Integration
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
 # Enable MCP channel
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus(mcp_port=3001)
 
 # Workflows automatically become MCP tools
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "fetch", {
     "url": "https://api.github.com/users/{{username}}",
     "method": "GET"
 })
 
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("github-lookup", lambda **inputs: rt.execute(workflow, inputs))
+app.register("github-lookup", workflow.build())
 app.start()
 
 # Now discoverable by AI agents on localhost:3001
@@ -41,23 +37,32 @@ app.start()
 
 ## Tool Metadata for AI Discovery
 
-`workflow.add_metadata()` does not exist. Use `@app.handler()` with descriptions
-for AI tool discovery instead:
-
 ```python
-# Use handler descriptions for MCP tool metadata
-@app.handler("github_user_lookup", description="Look up GitHub user information by username")
-async def github_user_lookup(username: str) -> dict:
-    """Look up GitHub user profile including name, bio, repos, followers."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("HTTPRequestNode", "fetch", {
-        "url": f"https://api.github.com/users/{username}",
-        "method": "GET"
-    })
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["fetch"]
+# Add metadata for better AI understanding
+workflow = WorkflowBuilder()
+
+workflow.add_metadata({
+    "name": "github_user_lookup",
+    "description": "Look up GitHub user information by username",
+    "parameters": {
+        "username": {
+            "type": "string",
+            "description": "GitHub username to look up",
+            "required": True
+        }
+    },
+    "returns": {
+        "type": "object",
+        "description": "GitHub user profile information including name, bio, repos, followers"
+    }
+})
+
+workflow.add_node("HTTPRequestNode", "fetch", {
+    "url": "https://api.github.com/users/{{username}}",
+    "method": "GET"
+})
+
+app.register("github-lookup", workflow.build())
 ```
 
 ## MCP Client Usage
@@ -82,21 +87,24 @@ print(result)
 
 ## MCP Configuration
 
-NexusApp does not have `app.mcp.*` attributes. MCP behavior is configured
-server-side via the Rust Nexus engine.
-
 ```python
-from kailash.nexus import NexusApp, NexusConfig
+app = Nexus(
+    mcp_port=3001,
+    mcp_host="0.0.0.0"
+)
 
-app = NexusApp(config=NexusConfig(port=3001))
-# MCP configuration is handled by the Rust Nexus engine
+# Fine-tune MCP behavior
+app.mcp.tool_caching = True        # Cache tool results
+app.mcp.batch_operations = True    # Batch tool calls
+app.mcp.async_execution = True     # Async execution
+app.mcp.timeout = 30               # Execution timeout
 ```
 
 ## AI Agent Structured Output
 
 ```python
 # Format output for AI agents
-builder.add_node("EmbeddedPythonNode", "format_for_ai", {
+workflow.add_node("PythonCodeNode", "format_for_ai", {
     "code": """
 def format_for_agents(data):
     user = data.get('user', {})
@@ -123,8 +131,7 @@ def format_for_agents(data):
     }
 
 result = format_for_agents(user_data)
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 

@@ -10,14 +10,9 @@ Define MCP tools with JSON Schema validation for reliable parameter handling.
 > **Skill Metadata**
 > Category: `mcp`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md), [`mcp-resources`](mcp-resources.md)
 > Related Subagents: `mcp-specialist` (complex schemas, validation logic)
-
-## Architecture Note
-
-MCP tool schemas are defined on MCP servers (built with `McpApplication` or `McpServer`). MCP client connections for tool discovery and execution are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes.
-
-For workflow-level tool calling, `LLMNode` supports the `tools` parameter with standard function-calling tool definitions. Provider is auto-detected from the model name.
 
 ## Quick Reference
 
@@ -26,27 +21,29 @@ For workflow-level tool calling, `LLMNode` supports the `tools` parameter with s
 - **Type Safety**: Strongly-typed tool parameters
 - **Documentation**: Self-documenting tool interfaces
 
-## LLMNode with Tool Definitions
+## Basic Structured Tool
 
 ```python
-import kailash
-import os
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
+workflow = WorkflowBuilder()
 
-builder = kailash.WorkflowBuilder()
-
-# LLMNode with tool definitions for function calling
-builder.add_node("LLMNode", "agent", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
+# MCP server with structured tools
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
     "messages": [{"role": "user", "content": "Get weather for NYC and London"}],
-    "tools": [
-        {
-            "type": "function",
-            "function": {
+    "mcp_servers": [{
+        "name": "weather",
+        "transport": "stdio",
+        "command": "python",
+        "args": ["-m", "weather_mcp_server"],
+        "tools": [
+            {
                 "name": "get_weather",
                 "description": "Get current weather for a city",
-                "parameters": {
+                "input_schema": {
                     "type": "object",
                     "properties": {
                         "city": {
@@ -62,53 +59,86 @@ builder.add_node("LLMNode", "agent", {
                     "required": ["city"]
                 }
             }
-        }
-    ]
+        ]
+    }],
+    "auto_discover_tools": True,
+    "auto_execute_tools": True
 })
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-
-# The LLM returns tool_calls in the response for your code to handle
-tool_calls = result["results"]["agent"].get("tool_calls", [])
-```
-
-## MCP Server Tool Schemas
-
-When building MCP servers, define tool schemas for structured input validation:
-
-```python
-from kailash.mcp import McpApplication
-from kailash import ToolParam
-
-app = McpApplication("weather-server", "1.0")
-
-@app.tool("get_weather", "Get current weather for a city", params=[
-    ToolParam("city", "string", description="City name", required=True),
-    ToolParam("units", "string", description="Temperature units"),
-])
-def get_weather(params):
-    """Get weather data with validated parameters."""
-    city = params.get("city", "")
-    units = params.get("units", "celsius")
-    return f'{{"city": "{city}", "temp": 22, "units": "{units}"}}'
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ## Advanced Schema Patterns
 
-### Nested Objects and Arrays (Tool Definitions for LLMNode)
+### Complex Type Validation
 
 ```python
-builder.add_node("LLMNode", "agent", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
-    "messages": [{"role": "user", "content": "Create a new contact"}],
-    "tools": [
-        {
-            "type": "function",
-            "function": {
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Search documents"}],
+    "mcp_servers": [{
+        "name": "search",
+        "transport": "http",
+        "url": "https://api.company.com/mcp",
+        "tools": [
+            {
+                "name": "search_documents",
+                "description": "Search documents with filters",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                        },
+                        "filters": {
+                            "type": "object",
+                            "properties": {
+                                "date_range": {
+                                    "type": "object",
+                                    "properties": {
+                                        "start": {"type": "string", "format": "date"},
+                                        "end": {"type": "string", "format": "date"}
+                                    }
+                                },
+                                "categories": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "minItems": 1
+                                }
+                            }
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 10
+                        }
+                    },
+                    "required": ["query"]
+                }
+            }
+        ]
+    }]
+})
+```
+
+### Nested Objects and Arrays
+
+```python
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "crm",
+        "transport": "http",
+        "url": "https://crm-api.com/mcp",
+        "tools": [
+            {
                 "name": "create_contact",
                 "description": "Create a new contact",
-                "parameters": {
+                "input_schema": {
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
@@ -142,24 +172,69 @@ builder.add_node("LLMNode", "agent", {
                     "required": ["name", "email"]
                 }
             }
-        }
-    ]
+        ]
+    }]
 })
 ```
 
-### Conditional Schemas
+## Output Schema Validation
 
 ```python
-builder.add_node("LLMNode", "agent", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
-    "messages": [{"role": "user", "content": "Process payment"}],
-    "tools": [
-        {
-            "type": "function",
-            "function": {
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "analytics",
+        "transport": "http",
+        "url": "https://analytics-api.com/mcp",
+        "tools": [
+            {
+                "name": "get_report",
+                "description": "Generate analytics report",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "report_type": {
+                            "type": "string",
+                            "enum": ["sales", "traffic", "conversion"]
+                        },
+                        "period": {"type": "string"}
+                    },
+                    "required": ["report_type"]
+                },
+                "output_schema": {
+                    "type": "object",
+                    "properties": {
+                        "metrics": {
+                            "type": "object",
+                            "properties": {
+                                "total": {"type": "number"},
+                                "average": {"type": "number"},
+                                "trend": {"type": "string", "enum": ["up", "down", "stable"]}
+                            },
+                            "required": ["total", "average"]
+                        },
+                        "timestamp": {"type": "string", "format": "date-time"}
+                    },
+                    "required": ["metrics", "timestamp"]
+                }
+            }
+        ]
+    }]
+})
+```
+
+## Conditional Schemas
+
+```python
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "payment",
+        "transport": "http",
+        "url": "https://payment-api.com/mcp",
+        "tools": [
+            {
                 "name": "process_payment",
                 "description": "Process payment with different methods",
-                "parameters": {
+                "input_schema": {
                     "type": "object",
                     "properties": {
                         "amount": {"type": "number", "minimum": 0.01},
@@ -194,8 +269,54 @@ builder.add_node("LLMNode", "agent", {
                     ]
                 }
             }
-        }
-    ]
+        ]
+    }]
+})
+```
+
+## Schema Reuse with Definitions
+
+```python
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "inventory",
+        "transport": "http",
+        "url": "https://inventory-api.com/mcp",
+        "schema_definitions": {
+            "address": {
+                "type": "object",
+                "properties": {
+                    "street": {"type": "string"},
+                    "city": {"type": "string"},
+                    "zip": {"type": "string"}
+                },
+                "required": ["street", "city", "zip"]
+            }
+        },
+        "tools": [
+            {
+                "name": "create_warehouse",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "address": {"$ref": "#/definitions/address"}
+                    }
+                }
+            },
+            {
+                "name": "update_supplier",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "supplier_id": {"type": "string"},
+                        "billing_address": {"$ref": "#/definitions/address"},
+                        "shipping_address": {"$ref": "#/definitions/address"}
+                    }
+                }
+            }
+        ]
+    }]
 })
 ```
 
@@ -206,7 +327,7 @@ builder.add_node("LLMNode", "agent", {
 ```python
 {
     "name": "search_products",
-    "parameters": {
+    "input_schema": {
         "type": "object",
         "properties": {
             "query": {
@@ -233,7 +354,7 @@ builder.add_node("LLMNode", "agent", {
 ```python
 {
     "name": "get_data",
-    "parameters": {
+    "input_schema": {
         "type": "object",
         "properties": {
             "page": {"type": "integer", "default": 1, "minimum": 1},
@@ -249,7 +370,7 @@ builder.add_node("LLMNode", "agent", {
 ```python
 {
     "name": "create_user",
-    "parameters": {
+    "input_schema": {
         "type": "object",
         "properties": {
             "username": {
@@ -273,6 +394,38 @@ builder.add_node("LLMNode", "agent", {
 }
 ```
 
+## Error Handling
+
+```python
+# IterativeLLMAgentNode automatically validates inputs
+# If validation fails, it includes error in response
+
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Search with invalid params"}],
+    "mcp_servers": [{
+        "name": "search",
+        "transport": "http",
+        "url": "https://api.com/mcp",
+        "tools": [
+            {
+                "name": "search",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "minLength": 1}
+                    },
+                    "required": ["query"]
+                }
+            }
+        ]
+    }]
+})
+
+# Agent will report: "Validation failed: 'query' is required"
+```
+
 ## Related Patterns
 
 - **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
@@ -281,7 +434,6 @@ builder.add_node("LLMNode", "agent", {
 ## When to Escalate to Subagent
 
 Use `mcp-specialist` subagent when:
-
 - Implementing complex conditional schemas (oneOf, anyOf, allOf)
 - Creating reusable schema libraries
 - Building schema validation middleware

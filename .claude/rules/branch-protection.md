@@ -11,7 +11,7 @@ These rules apply to ALL git operations across ALL repositories in the Kailash e
 | `terrene-foundation/kailash-py`            | `main` | Full (admin bypass) |
 | `terrene-foundation/kailash-coc-claude-py` | `main` | Full (admin bypass) |
 | `terrene-foundation/kailash-coc-claude-rs` | `main` | Full (admin bypass) |
-| `esperie-enterprise/kailash-rs`            | `main` | Full (admin bypass) |
+| `esperie/kailash-rs`                       | `main` | Full (admin bypass) |
 
 ## Protection Settings
 

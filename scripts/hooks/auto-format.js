@@ -15,6 +15,13 @@ const fs = require("fs");
 const { execFileSync } = require("child_process");
 const path = require("path");
 
+// Timeout fallback — prevents hanging the Claude Code session
+const TIMEOUT_MS = 10000;
+const _timeout = setTimeout(() => {
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(1);
+}, TIMEOUT_MS);
+
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => (input += chunk));
@@ -71,16 +78,6 @@ function autoFormat(data) {
         } catch {
           return { formatted: false, formatter: "none (black/ruff not found)" };
         }
-      }
-    }
-
-    // Ruby files: rubocop
-    if (ext === ".rb") {
-      try {
-        execFileSync("rubocop", ["--autocorrect-all", "--fail-level", "fatal", filePath], { stdio: "pipe" });
-        return { formatted: true, formatter: "rubocop" };
-      } catch {
-        return { formatted: false, formatter: "none (rubocop not found)" };
       }
     }
 

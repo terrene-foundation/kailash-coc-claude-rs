@@ -1,6 +1,6 @@
 ---
 name: coc-expert
-description: "COC methodology expert. Use for five-layer architecture, anti-amnesia patterns, or Human-on-the-Loop codegen."
+description: "COC methodology expert. Use for five-layer architecture, vibe coding critique, or anti-amnesia patterns."
 model: inherit
 allowed-tools:
   - Read

@@ -3,14 +3,6 @@ name: redteam
 description: "Load phase 04 (validate) for the current workspace. Red team testing."
 ---
 
-## What This Phase Does (present to user)
-
-Test everything from a real user's perspective — walking through the application, trying edge cases, and looking for anything that doesn't work as expected. Think of it as a dress rehearsal: we use the product the way your users would and report what works and what doesn't.
-
-## Your Role (communicate to user)
-
-Review the test results and confirm they match your expectations. Results will be presented as user stories: "A user tried to do X, and the result was Y." You decide whether Y is acceptable.
-
 ## Workspace Resolution
 
 1. If `$ARGUMENTS` specifies a project name, use `workspaces/$ARGUMENTS/`
@@ -63,7 +55,7 @@ The `/implement` phase already ran the full test suite and wrote `.test-results`
 **When to re-run existing tests (exceptions):**
 
 - Red team suspects a specific test is wrong (tests the wrong thing) — re-run THAT test only
-- Infrastructure-dependent tests that need real database verification
+- Infrastructure-dependent tests that /implement ran against SQLite but production uses PostgreSQL
 - Red team made code changes during convergence — re-run affected tests only, then update `.test-results`
 
 **Iterate until convergence** on gaps found through:
@@ -73,15 +65,9 @@ The `/implement` phase already ran the full test suite and wrote `.test-results`
 - Security audit findings that require fixes
 - After each fix, run only the affected tests + the new regression test for the fix
 
-### 4. Report results (in plain language)
+### 4. Report results
 
-Report results as user stories the user can evaluate:
-
-- **What was tested**: Describe each flow in narrative form ("A new user visits the site, clicks Sign Up, enters their email and password...")
-- **What worked**: Confirm which user journeys succeed end-to-end
-- **What didn't work**: Describe failures as user experiences ("When a user enters an invalid email, the error message is unclear — it says 'validation error' instead of 'please enter a valid email address'")
-- **What was fixed**: Describe fixes in terms of improved user experience
-- **Overall confidence**: Summarize as "X out of Y user flows work perfectly. The remaining issues are: [plain description]"
+Report all detailed steps and results taken in validation and testing tasks.
 
 ### 5. Parity check (if required)
 
@@ -101,7 +87,7 @@ Deploy these agents as a red team for validation:
 
 **Core red team (always):**
 
-- **testing-specialist** — Verify 3-tier test coverage, NO MOCKING compliance
+- **testing-specialist** — Verify 3-tier test coverage, Real infrastructure recommended compliance
 - **e2e-runner** — Generate and run Playwright E2E tests (web) or Marionette tests (Flutter)
 - **value-auditor** — Evaluate every page/flow from skeptical enterprise buyer perspective
 - **security-reviewer** — Full security audit across the codebase

@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: "React frontend specialist for responsive UI with Shadcn. Use when creating pages or converting mockups."
+description: "React frontend specialist. Use for responsive UI components, React Query integration, or Shadcn patterns."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---
@@ -21,6 +21,7 @@ Skills provide backend patterns and SDK usage. This subagent provides:
 - Frontend architecture and project structure
 
 **When to use Skills instead**: For Kailash backend patterns (workflow execution, DataFlow queries, Nexus APIs), use appropriate Skills. For React UI implementation, component design, and frontend architecture, use this subagent.
+
 
 ## Primary Responsibilities
 
@@ -156,15 +157,7 @@ Always ensure the UI is intuitive, responsive, and follows the established archi
 ## Reference Documentation
 
 ### Essential Guides (Start Here)
-- `.claude/guides/enterprise-ai-hub-uiux-design.md` - Overall UX/UI design principles
-- `.claude/guides/interactive-widget-implementation-guide.md` - Interactive widget patterns
-- `.claude/guides/widget-system-overview.md` - Widget architecture and organization
-- `.claude/guides/widget-response-technical-spec.md` - Widget technical specifications
-- `.claude/guides/multi-conversation-ux-lark-style.md` - Conversation UI patterns
 - `.claude/skills/23-uiux-design-principles/SKILL.md` - Design principles and patterns (CRITICAL)
-
-### Additional Resources
-- `docs/guides/fe-guidance.md` - Complete frontend development guidelines (if exists)
 
 ## Related Agents
 
@@ -177,6 +170,5 @@ Always ensure the UI is intuitive, responsive, and follows the established archi
 ## Full Documentation
 
 When this guidance is insufficient, consult:
-- `.claude/guides/enterprise-ai-hub-uiux-design.md` - Design principles
-- `.claude/skills/03-nexus/` — Nexus API patterns and deployment
+- `.claude/skills/23-uiux-design-principles/` - Design principles and patterns
 - React docs: https://react.dev/

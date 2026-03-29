@@ -8,42 +8,43 @@ description: "Project management workflow patterns (tasks, approvals, notificati
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Task Approval Workflow
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Create task
-builder.add_node("SQLQueryNode", "create_task", {
+workflow.add_node("DatabaseExecuteNode", "create_task", {
     "query": "INSERT INTO tasks (title, description, status) VALUES (?, ?, 'pending')",
-    "params": ["{{input.title}}", "{{input.description}}"]
+    "parameters": ["{{input.title}}", "{{input.description}}"]
 })
 
 # 2. Notify approver
-builder.add_node("HTTPRequestNode", "notify_approver", {
+workflow.add_node("APICallNode", "notify_approver", {
     "url": "https://api.slack.com/messages",
     "method": "POST",
     "body": {"text": "New task needs approval: {{input.title}}"}
 })
 
-# 3. Wait for approval — use WebhookNode to receive callback
-builder.add_node("WebhookNode", "wait_approval", {
-    "path": "/tasks/approval",
-    "method": "POST"
+# 3. Wait for approval
+workflow.add_node("WaitForEventNode", "wait_approval", {
+    "event_type": "task_approved",
+    "timeout": 86400  # 24 hours
 })
 
 # 4. Update status
-builder.add_node("SQLQueryNode", "update_status", {
+workflow.add_node("DatabaseExecuteNode", "update_status", {
     "query": "UPDATE tasks SET status = 'approved' WHERE id = ?",
-    "params": ["{{create_task.rows}}"]
+    "parameters": ["{{create_task.task_id}}"]
 })
 
-builder.connect("create_task", "rows", "notify_approver", "body")
-builder.connect("notify_approver", "body", "wait_approval", "data")
-builder.connect("wait_approval", "body", "update_status", "body")
+workflow.add_connection("create_task", "task_id", "notify_approver", "task_id")
+workflow.add_connection("notify_approver", "result", "wait_approval", "trigger")
+workflow.add_connection("wait_approval", "event_data", "update_status", "parameters")
 ```
 
 <!-- Trigger Keywords: project workflow, task automation, approval workflow, project management -->

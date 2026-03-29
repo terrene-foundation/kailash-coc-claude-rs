@@ -1,70 +1,97 @@
 ---
 name: switchnode-patterns
-description: "Conditional data routing with SwitchNode (multi-case) and ConditionalNode (value selection). Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
+description: "Conditional data routing with SwitchNode using conditions and operators. Use when asking 'SwitchNode', 'conditional routing', 'if else workflow', 'route data', 'conditional logic', 'switch patterns', 'branch workflow', 'conditional flow', or 'routing patterns'."
 ---
 
-# SwitchNode & ConditionalNode Routing
+# SwitchNode Conditional Routing
 
-Guide to conditional routing with SwitchNode (multi-case matching) and ConditionalNode (boolean value selection).
+SwitchNode Conditional Routing guide with patterns, examples, and best practices.
 
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **SwitchNode**: Multi-case routing. Config: `cases` (Object mapping values to branch names), `default_branch` (optional). Input: `condition` (value to match). Outputs: `matched` (branch name), `data` (forwarded).
-- **ConditionalNode**: Value selection based on boolean condition. No config. Inputs: `condition` (boolean), `if_value`, `else_value`. Output: `result` (the selected value).
+- **Primary Use**: SwitchNode Conditional Routing
 - **Category**: core-sdk
 - **Priority**: HIGH
+- **Trigger Keywords**: SwitchNode, conditional routing, if else workflow, route data, conditional logic
 
-## SwitchNode Pattern (Multi-Case Routing)
+## Core Pattern
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+# Basic SwitchNode conditional routing
+workflow = WorkflowBuilder()
 
-# SwitchNode matches the "condition" input against case keys
-builder.add_node("SwitchNode", "switch", {
-    "cases": {"active": "active_handler", "inactive": "inactive_handler"},
-    "default_branch": "inactive_handler"
+workflow.add_node("SwitchNode", "switch", {
+    "condition_field": "status",
+    "operator": "==",
+    "value": "active"
 })
 
-# SwitchNode outputs: "matched" (branch name string) and "data" (forwarded input)
-builder.connect("source", "status", "switch", "condition")
-builder.connect("switch", "data", "active_processor", "input")
+# Connect both branches
+workflow.add_connection("switch", "true_output", "active_processor", "input")
+workflow.add_connection("switch", "false_output", "inactive_processor", "input")
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+# Use skip_branches mode for best performance
+runtime = LocalRuntime(conditional_execution="skip_branches")
+results, run_id = runtime.execute(workflow.build())
 ```
 
-## ConditionalNode Pattern (Value Selection)
+## ⚠️ Dot Notation: Execution Mode Dependent
 
-ConditionalNode selects between two values based on a boolean condition. It takes THREE inputs (`condition`, `if_value`, `else_value`) and outputs ONE value (`result`). There is no expression parser -- `condition` is evaluated for truthiness at runtime.
+SwitchNode outputs are **mutually exclusive** - when `true_output` has data, `false_output` is `None`, and vice versa.
+
+### ✅ skip_branches Mode (Recommended)
+**Dot notation works perfectly** - inactive branches are automatically skipped:
 
 ```python
-# No config needed for ConditionalNode
-builder.add_node("ConditionalNode", "check", {})
+# Dot notation on SwitchNode outputs
+workflow.add_connection("switch", "true_output.name", "processor", "name")
+workflow.add_connection("switch", "false_output.name", "alt_processor", "name")
 
-# Connect the whole outputs from an EmbeddedPythonNode -- port names are flat, no dot-path resolution
-builder.connect("evaluator", "outputs", "check", "condition")
-builder.connect("evaluator", "outputs", "check", "if_value")
-builder.connect("evaluator", "outputs", "check", "else_value")
-
-# ConditionalNode outputs "result" (the selected value)
-builder.connect("check", "result", "handler", "data")
+# Use skip_branches mode (default for new code)
+runtime = LocalRuntime(conditional_execution="skip_branches")
+# Only the active branch executes - inactive is skipped intelligently
 ```
 
-**Note**: ConditionalNode does NOT route to different downstream nodes. It selects a value. For routing to different handlers, use **SwitchNode** above.
+**Why it works**: Runtime detects `None` values and skips nodes automatically.
+
+### ⚠️ route_data Mode
+**Avoid dot notation** - connect full output and extract fields in node code:
+
+```python
+# Connect full output (no dot notation)
+workflow.add_connection("switch", "true_output", "processor", "data")
+
+# Extract field INSIDE node code
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": """
+if data is not None:
+    name = data.get('name', 'Unknown')
+    result = f'Processing: {name}'
+else:
+    result = 'No data (inactive branch)'
+"""
+})
+
+runtime = LocalRuntime(conditional_execution="route_data")
+```
+
+**Why avoid**: Accessing `None.field_name` fails navigation. Node receives empty input and raises NameError.
+
 
 ## Common Use Cases
 
-- **Multi-case routing**: Route by status, type, or category using SwitchNode `cases`
-- **Value selection**: Choose between two values based on a boolean using ConditionalNode
-- **Default handling**: Always set `default_branch` on SwitchNode for unmatched cases
-- **Error Handling**: Route errors to dedicated handlers
+- **Switchnode-Patterns Workflows**: Pre-built patterns for common use cases with best practices built-in
+- **Composition Patterns**: Combine multiple workflows, create reusable sub-workflows, build complex orchestrations
+- **Error Handling**: Built-in retry logic, fallback paths, compensation actions for resilient workflows
+- **Performance Optimization**: Parallel execution, batch operations, async patterns for high-throughput processing
 - **Production Readiness**: Health checks, monitoring, logging, metrics collection for enterprise deployments
 
 ## Related Patterns
@@ -76,19 +103,20 @@ builder.connect("check", "result", "handler", "data")
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - Complex implementation needed
 - Production deployment required
 - Deep analysis necessary
 - Enterprise patterns needed
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
-- SwitchNode `cases` maps condition values to branch names -- the `condition` input is matched against case keys
-- SwitchNode outputs are `matched` (branch name) and `data` (forwarded input)
-- ConditionalNode selects a value (output: `result`), it does NOT route to different handlers
-- For multi-branch routing, use SwitchNode. For value selection, use ConditionalNode
-- Always set `default_branch` on SwitchNode to handle unmatched conditions
+- 💡 **Tip 1**: Always follow SwitchNode Conditional Routing best practices
+- 💡 **Tip 2**: Test patterns incrementally
+- 💡 **Tip 3**: Reference documentation for details
 
 ## Keywords for Auto-Trigger
 

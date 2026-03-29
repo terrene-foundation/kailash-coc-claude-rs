@@ -8,7 +8,6 @@
 ---
 
 ## Table of Contents
-
 1. [Quick Start](#quick-start)
 2. [Backend Implementation Walkthrough](#backend-implementation-walkthrough)
 3. [Frontend Implementation Walkthrough](#frontend-implementation-walkthrough)
@@ -32,7 +31,8 @@
 
 ```python
 # backend/agents/simple_widget_agent.py
-import kailash
+from kaizen.agents import BaseAgent, Signature
+from kaizen.signatures import InputField, OutputField
 from typing import Dict, Any
 import uuid
 from datetime import datetime
@@ -81,12 +81,13 @@ class SimpleWidgetAgent(BaseAgent):
         }
 
 # backend/api/endpoints.py
+from nexus import Nexus
+from kailash.runtime import AsyncLocalRuntime
 import json
-from kailash.nexus import NexusApp
 
-app = NexusApp()
+nexus = Nexus()
 
-@app.handler(name="chat_stream", description="Simple streaming endpoint")
+@nexus.stream_endpoint("/ai/chat")
 async def chat_stream(message: str):
     """Simple streaming endpoint"""
     agent = SimpleWidgetAgent()
@@ -104,7 +105,7 @@ async def chat_stream(message: str):
         "content": widget
     }) + "\n"
 
-@app.handler()
+@nexus.endpoint("/api/widget/hello", methods=["POST"])
 async def handle_hello_action():
     """Handle widget button click"""
     return {"message": "Hello from backend!"}
@@ -174,7 +175,6 @@ class HelloCardWidget extends StatelessWidget {
 ```
 
 **Run it**:
-
 ```bash
 # Backend
 cd backend && python -m nexus run
@@ -193,6 +193,9 @@ cd frontend && flutter run -d chrome
 
 ```python
 # backend/agents/widget_generator.py
+from kaizen.agents import BaseAgent, Signature
+from kaizen.signatures import InputField, OutputField
+from dataflow import DataFlow
 from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
@@ -227,7 +230,7 @@ class WidgetGeneratorAgent(BaseAgent):
     5. Apply RBAC to actions
     """
 
-    def __init__(self, db: kailash.DataFlow):
+    def __init__(self, db: DataFlow):
         super().__init__(
             signature=WidgetGeneratorSignature,
             instructions="""
@@ -443,19 +446,23 @@ class WidgetGeneratorAgent(BaseAgent):
 
     async def _generate_table_widget(self, query, data, user_context):
         """Generate table widget - implementation similar to chart"""
-        return {"type": "table", "headers": data.get("headers", []), "rows": data.get("rows", [])}
+        # TODO: Implement table generation
+        pass
 
     async def _generate_form_widget(self, query, data, user_context):
         """Generate form widget - implementation similar to chart"""
-        return {"type": "form", "fields": data.get("fields", [])}
+        # TODO: Implement form generation
+        pass
 
     async def _generate_card_widget(self, query, data, user_context):
         """Generate card widget - implementation similar to chart"""
-        return {"type": "card", "title": data.get("title", ""), "content": data.get("content", "")}
+        # TODO: Implement card generation
+        pass
 
     async def _generate_navigation_widget(self, query, data, user_context):
         """Generate navigation card widget"""
-        return {"type": "nav", "items": data.get("items", [])}
+        # TODO: Implement navigation generation
+        pass
 ```
 
 ### Step 2: Integrate with Nexus Streaming API
@@ -464,16 +471,17 @@ class WidgetGeneratorAgent(BaseAgent):
 
 ```python
 # backend/api/chat_endpoint.py
+from nexus import Nexus
+from kailash.runtime import AsyncLocalRuntime
+from dataflow import DataFlow
 from agents.widget_generator import WidgetGeneratorAgent
 from typing import Dict, Any, AsyncGenerator
 import json
 
-from kailash.nexus import NexusApp
+nexus = Nexus()
+db = DataFlow()  # Initialize DataFlow
 
-app = NexusApp()
-df = kailash.DataFlow(os.environ["DATABASE_URL"])  # Initialize kailash.DataFlow
-
-@app.handler(name="chat_stream", description="Main chat streaming endpoint")
+@nexus.stream_endpoint("/ai/chat")
 async def chat_stream(
     session_id: str,
     message: str,
@@ -484,7 +492,7 @@ async def chat_stream(
 
     Flow:
     1. Analyze query → determine if widget needed
-    2. Fetch data from kailash.DataFlow sources
+    2. Fetch data from DataFlow sources
     3. Stream text response
     4. Stream widget descriptor (if needed)
     5. Stream citations
@@ -561,6 +569,7 @@ async def chat_stream(
         "type": "done"
     }) + "\n"
 
+
 async def _generate_text_response(
     message: str,
     user_context: Dict[str, Any]
@@ -576,13 +585,14 @@ async def _generate_text_response(
         yield word + " "
         await asyncio.sleep(0.05)  # Simulate streaming
 
+
 async def _fetch_data(
     query: str,
     sources: List[str],
     permissions: List[str]
 ) -> Dict[str, Any]:
     """
-    Fetch data from kailash.DataFlow sources.
+    Fetch data from DataFlow sources.
 
     Args:
         query: User's query
@@ -599,7 +609,7 @@ async def _fetch_data(
             'data_key': str  # For future drill-down
         }
     """
-    # This is where you'd integrate with kailash.DataFlow
+    # This is where you'd integrate with DataFlow
     # Example: Query sales data
 
     # Placeholder data
@@ -607,7 +617,7 @@ async def _fetch_data(
         'records': [
             {'label': 'Q1', 'value': 45000},
             {'label': 'Q2', 'value': 52000},
-            {'label': 'Q3', 'value': 43000},
+            {'label': 'Q3', 'value': 48000},
             {'label': 'Q4', 'value': 61000},
         ],
         'sources': [
@@ -624,6 +634,7 @@ async def _fetch_data(
         'data_key': 'sales_quarterly_2024',
         'metric_name': 'Revenue'
     }
+
 
 async def _generate_citations(
     message: str,
@@ -648,13 +659,14 @@ async def _generate_citations(
 
 ```python
 # backend/api/widget_actions.py
+from nexus import Nexus
+from kailash.rbac import check_permissions
 from typing import Dict, Any
-from kailash.nexus import NexusApp
 import uuid
 
-app = NexusApp()
+nexus = Nexus()
 
-@app.handler()
+@nexus.endpoint("/api/widget/action", methods=["POST"])
 async def handle_widget_action(
     widget_id: str,
     action_id: str,
@@ -716,7 +728,8 @@ async def handle_widget_action(
     elif action_type == 'submit':
         return await _handle_form_submit(action, params, user_context)
     else:
-        raise ValueError(f"Unsupported action type: {action_type}")
+        raise NotImplementedError(f"Action type {action_type} not supported")
+
 
 async def _handle_api_call(
     action: Dict[str, Any],
@@ -742,7 +755,8 @@ async def _handle_api_call(
         }
 
     else:
-        raise ValueError(f"Unsupported endpoint: {endpoint}")
+        raise NotImplementedError(f"Endpoint {endpoint} not supported")
+
 
 async def _handle_download(
     action: Dict[str, Any],
@@ -777,6 +791,7 @@ async def _handle_download(
         "content_type": content_type
     }
 
+
 async def _handle_navigation(action, params, user_context):
     """Handle navigation actions"""
     route = action['params']['route']
@@ -784,6 +799,7 @@ async def _handle_navigation(action, params, user_context):
         "type": "navigate",
         "route": route
     }
+
 
 async def _handle_form_submit(action, params, user_context):
     """Handle form submissions"""
@@ -797,22 +813,22 @@ async def _handle_form_submit(action, params, user_context):
         "message": "Form submitted successfully"
     }
 
+
 # Helper functions
-_widget_cache: Dict[str, Dict[str, Any]] = {}
-
 async def get_widget_by_id(widget_id: str) -> Dict[str, Any]:
-    """Retrieve widget from in-memory cache"""
-    return _widget_cache.get(widget_id, {})
-
-_data_store: Dict[str, Any] = {}
+    """Retrieve widget from cache or DB"""
+    # TODO: Implement widget storage/retrieval
+    pass
 
 async def fetch_drilldown_data(data_key: str, params: Dict) -> Dict:
-    """Fetch detailed drill-down data from in-memory store"""
-    return _data_store.get(data_key, {"key": data_key, "params": params, "rows": []})
+    """Fetch detailed drill-down data"""
+    # TODO: Implement
+    pass
 
 async def fetch_data_by_key(data_key: str) -> List[Dict]:
-    """Fetch data by key for export from in-memory store"""
-    return _data_store.get(data_key, {}).get("rows", [])
+    """Fetch data by key for export"""
+    # TODO: Implement
+    pass
 
 def generate_csv(data: List[Dict]) -> bytes:
     """Generate CSV file from data"""
@@ -827,24 +843,14 @@ def generate_csv(data: List[Dict]) -> bytes:
     return output.getvalue().encode('utf-8')
 
 def generate_pdf(data: List[Dict]) -> bytes:
-    """Generate PDF file from data as a simple text-based representation"""
-    lines = []
-    if data:
-        lines.append(" | ".join(data[0].keys()))
-        lines.append("-" * 40)
-        for row in data:
-            lines.append(" | ".join(str(v) for v in row.values()))
-    return "\n".join(lines).encode("utf-8")
+    """Generate PDF file from data"""
+    # TODO: Implement with reportlab or similar
+    pass
 
 async def upload_file(content: bytes, filename: str) -> str:
-    """Store file locally and return a file path as the URL"""
-    import os, tempfile
-    upload_dir = os.path.join(tempfile.gettempdir(), "widget_exports")
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, filename)
-    with open(file_path, "wb") as f:
-        f.write(content)
-    return f"file://{file_path}"
+    """Upload file to S3 and return URL"""
+    # TODO: Implement S3 upload
+    pass
 ```
 
 ---
@@ -1418,7 +1424,6 @@ class _ErrorWidget extends StatelessWidget {
 **Use Case**: User clicks on a bar chart → Show detailed table.
 
 **Backend**:
-
 ```python
 # Add drill-down action to chart widget
 actions.append({
@@ -1434,7 +1439,7 @@ actions.append({
 })
 
 # Handle drill-down
-@app.handler()
+@nexus.endpoint("/api/data/drilldown", methods=["POST"])
 async def drilldown(
     data_key: str,
     selected_item: str,  # e.g., "North Region"
@@ -1461,7 +1466,6 @@ async def drilldown(
 ```
 
 **Frontend**:
-
 ```dart
 // Handle bar tap in ChartWidget
 void _handleBarTap(int index) {
@@ -1497,9 +1501,8 @@ void _handleBarTap(int index) {
 **Use Case**: User submits filter form → AI generates filtered chart.
 
 **Backend**:
-
 ```python
-@app.handler(name="filter_and_visualize", description="Filter and visualize data")
+@nexus.stream_endpoint("/ai/chat/filter")
 async def filter_and_visualize(
     form_data: Dict[str, Any],
     user_context: Dict[str, Any]
@@ -1537,7 +1540,6 @@ async def filter_and_visualize(
 ```
 
 **Frontend**:
-
 ```dart
 // FormWidget handles submission
 Future<void> _handleSubmit() async {
@@ -1569,7 +1571,6 @@ Future<void> _handleSubmit() async {
 **Use Case**: AI suggests related pages/reports with clickable cards.
 
 **Backend**:
-
 ```python
 navigation_widget = {
     "widget_type": "navigation",
@@ -1596,7 +1597,6 @@ navigation_widget = {
 ```
 
 **Frontend**:
-
 ```dart
 // NavigationWidget
 class NavigationWidget extends StatelessWidget {
@@ -1643,20 +1643,17 @@ class NavigationWidget extends StatelessWidget {
 ### Three-Tier State Architecture
 
 **Tier 1: Widget-Local State (Ephemeral)**
-
 - User interactions within widget (hover, focus, selection)
 - Does NOT persist across widget rebuilds
 - Use `StatefulWidget` + `setState`
 
 **Tier 2: Conversation State (Session-Scoped)**
-
 - Active data sources
 - Uploaded documents
 - Widget states that affect other widgets
 - Use `Provider` or `Riverpod`
 
 **Tier 3: Backend-Synced State (Persistent)**
-
 - Form submissions
 - User preferences
 - Action triggers that need server validation
@@ -1724,7 +1721,6 @@ class ConversationProvider extends ChangeNotifier {
 ```
 
 **Usage in Widgets**:
-
 ```dart
 // FormWidget updates global filters
 class _FormWidgetState extends State<FormWidget> {
@@ -2020,11 +2016,12 @@ class MyApp extends StatelessWidget {
 # tests/test_widget_generator.py
 import pytest
 from agents.widget_generator import WidgetGeneratorAgent, QueryIntent
+from dataflow import DataFlow
 
 @pytest.mark.asyncio
 async def test_chart_widget_generation():
     """Test that chart widget is correctly generated"""
-    df = kailash.DataFlow(os.environ["DATABASE_URL"])
+    db = DataFlow()
     agent = WidgetGeneratorAgent(db)
 
     data = {
@@ -2057,7 +2054,7 @@ async def test_chart_widget_generation():
 @pytest.mark.asyncio
 async def test_rbac_action_filtering():
     """Test that actions are filtered by user permissions"""
-    df = kailash.DataFlow(os.environ["DATABASE_URL"])
+    db = DataFlow()
     agent = WidgetGeneratorAgent(db)
 
     data = {...}  # Same as above
@@ -2287,14 +2284,12 @@ void main() {
 **Symptoms**: Widget descriptors arrive but nothing shows in UI.
 
 **Checks**:
-
 1. Verify `widget_type` is supported in `WidgetRenderer.build()`
 2. Check console for parsing errors in `WidgetDescriptor.fromJson()`
 3. Verify `widget_id` is valid UUID v4
 4. Check if widget is marked as visible (if using lazy rendering)
 
 **Fix**:
-
 ```dart
 // Add debug logging in WidgetRenderer
 @override
@@ -2312,14 +2307,12 @@ Widget build(BuildContext context) {
 **Symptoms**: User clicks button but nothing happens.
 
 **Checks**:
-
 1. Verify action has correct `endpoint` in params
 2. Check RBAC permissions (user may lack permission)
 3. Check network console for API call errors
 4. Verify `action_id` exists in widget descriptor
 
 **Fix**:
-
 ```dart
 Future<void> _handleAction(WidgetAction action) async {
   debugPrint('Triggering action: ${action.label} (${action.actionId})');
@@ -2342,14 +2335,12 @@ Future<void> _handleAction(WidgetAction action) async {
 **Symptoms**: Frequent disconnects, reconnection loops.
 
 **Checks**:
-
 1. Verify WebSocket URL is correct (`wss://` not `ws://` for SSL)
 2. Check backend logs for connection errors
 3. Verify authentication payload is correct
 4. Check network stability (mobile data vs WiFi)
 
 **Fix**:
-
 ```dart
 // Add more robust reconnection logic
 void _scheduleReconnect() {
@@ -2373,14 +2364,12 @@ void _scheduleReconnect() {
 **Symptoms**: Lag when scrolling through conversation.
 
 **Checks**:
-
 1. Verify lazy rendering is enabled
 2. Check if widget caching is working
 3. Profile with Flutter DevTools (CPU, memory)
 4. Check if heavy computation is on UI thread
 
 **Fix**:
-
 ```dart
 // Use Isolate.run for heavy processing
 Future<void> _processChartData() async {
@@ -2404,7 +2393,6 @@ Future<void> _processChartData() async {
 **User Query**: "Show me Q2 sales by region with drill-down"
 
 **Backend Response**:
-
 ```python
 {
     "type": "widget",
@@ -2414,7 +2402,7 @@ Future<void> _processChartData() async {
         "chart_type": "bar",
         "series": [{
             "name": "Q2 Sales",
-            "values": [450000, 330000, 290000, 520000],
+            "values": [450000, 380000, 290000, 520000],
             "labels": ["North", "South", "East", "West"]
         }],
         "x_axis_label": "Region",
@@ -2466,7 +2454,6 @@ Future<void> _processChartData() async {
 ```
 
 **Flutter Widget** (simplified):
-
 ```dart
 AppCard(
   child: Column(
@@ -2506,7 +2493,6 @@ AppCard(
 **User Query**: "Help me find customers in New York"
 
 **Backend Response**:
-
 ```python
 {
     "type": "widget",
@@ -2563,7 +2549,6 @@ AppCard(
 ```
 
 **Flutter Widget** (simplified):
-
 ```dart
 Form(
   key: _formKey,
@@ -2588,7 +2573,6 @@ Form(
 **User Query**: "What can I do with sales data?"
 
 **Backend Response**:
-
 ```python
 {
     "type": "widget",
@@ -2622,7 +2606,6 @@ Form(
 ```
 
 **Flutter Widget** (simplified):
-
 ```dart
 Wrap(
   spacing: 16,

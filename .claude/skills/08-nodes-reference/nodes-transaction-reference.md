@@ -10,30 +10,31 @@ Complete reference for distributed transaction management nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (transaction patterns)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available transaction nodes: DistributedTransactionManagerNode (auto-select pattern),
-#   SagaCoordinatorNode (high availability), SagaStepNode,
-#   TwoPhaseCommitCoordinatorNode (strong consistency)
+from kailash.nodes.transaction import (
+    DistributedTransactionManagerNode,  # Auto-select pattern
+    SagaCoordinatorNode,  # High availability
+    SagaStepNode,
+    TwoPhaseCommitCoordinatorNode  # Strong consistency
+)
 ```
 
 ## Automatic Pattern Selection
 
 ### DistributedTransactionManagerNode ⭐
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Auto-select Saga or 2PC based on requirements
-builder.add_node("DistributedTransactionManagerNode", "dtm", {
+workflow.add_node("DistributedTransactionManagerNode", "dtm", {
     "transaction_id": "txn_123",
     "participants": [
         {"service": "order_service", "supports_2pc": True},
@@ -48,7 +49,7 @@ builder.add_node("DistributedTransactionManagerNode", "dtm", {
 
 ### SagaCoordinatorNode
 ```python
-builder.add_node("SagaCoordinatorNode", "saga", {
+workflow.add_node("SagaCoordinatorNode", "saga", {
     "saga_id": "saga_123",
     "steps": [
         {"service": "order", "action": "create_order", "compensation": "cancel_order"},
@@ -60,7 +61,7 @@ builder.add_node("SagaCoordinatorNode", "saga", {
 
 ### SagaStepNode
 ```python
-builder.add_node("SagaStepNode", "step", {
+workflow.add_node("SagaStepNode", "step", {
     "saga_id": "saga_123",
     "step_name": "create_order",
     "action": "execute",
@@ -72,7 +73,7 @@ builder.add_node("SagaStepNode", "step", {
 
 ### TwoPhaseCommitCoordinatorNode
 ```python
-builder.add_node("TwoPhaseCommitCoordinatorNode", "2pc", {
+workflow.add_node("TwoPhaseCommitCoordinatorNode", "2pc", {
     "transaction_id": "txn_123",
     "participants": [
         {"service": "order_db", "endpoint": "/prepare"},
@@ -94,5 +95,8 @@ builder.add_node("TwoPhaseCommitCoordinatorNode", "2pc", {
 ## Related Skills
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
+
+## Documentation
+
 
 <!-- Trigger Keywords: transaction node, Saga, 2PC, distributed transaction, transaction coordinator, SagaCoordinatorNode, TwoPhaseCommitCoordinatorNode -->

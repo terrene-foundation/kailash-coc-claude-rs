@@ -20,15 +20,15 @@ Level 2:   Level 1 + KAILASH_WORKERS=4          -> Multi-worker with task queue
 
 ## Environment Variables
 
-| Variable                         | Values                                    | Default          | Purpose                                     |
-| -------------------------------- | ----------------------------------------- | ---------------- | ------------------------------------------- |
-| `KAILASH_DATABASE_URL`           | `sqlite:...` or `postgres://...`          | (none)           | Database connection for durable stores      |
-| `KAILASH_CHECKPOINT_POLICY`      | `never`, `per_level`, `per_node`          | `never`          | When to checkpoint workflow state            |
-| `KAILASH_IDEMPOTENCY`           | `none`, `execution_scoped`                | `none`           | Node execution deduplication strategy        |
-| `KAILASH_WORKERS`               | Integer (>1 triggers Level 2)             | `1`              | Number of worker processes                   |
-| `KAILASH_WORKER_ID`             | String                                    | hostname-pid     | Unique worker identifier                     |
-| `KAILASH_DB_MAX_CONNECTIONS`    | Integer                                   | `10`             | Database connection pool size                |
-| `KAILASH_VISIBILITY_TIMEOUT_SECS` | Integer                                 | `1800`           | Task visibility timeout (seconds)            |
+| Variable                          | Values                           | Default      | Purpose                                |
+| --------------------------------- | -------------------------------- | ------------ | -------------------------------------- |
+| `KAILASH_DATABASE_URL`            | `sqlite:...` or `postgres://...` | (none)       | Database connection for durable stores |
+| `KAILASH_CHECKPOINT_POLICY`       | `never`, `per_level`, `per_node` | `never`      | When to checkpoint workflow state      |
+| `KAILASH_IDEMPOTENCY`             | `none`, `execution_scoped`       | `none`       | Node execution deduplication strategy  |
+| `KAILASH_WORKERS`                 | Integer (>1 triggers Level 2)    | `1`          | Number of worker processes             |
+| `KAILASH_WORKER_ID`               | String                           | hostname-pid | Unique worker identifier               |
+| `KAILASH_DB_MAX_CONNECTIONS`      | Integer                          | `10`         | Database connection pool size          |
+| `KAILASH_VISIBILITY_TIMEOUT_SECS` | Integer                          | `1800`       | Task visibility timeout (seconds)      |
 
 ## Quick Start
 
@@ -133,17 +133,17 @@ end
 
 These types are returned by `configure_from_env_full()` and are available for direct use:
 
-| Type (Python)                 | Type (Ruby)                        | Purpose                                    |
-| ----------------------------- | ---------------------------------- | ------------------------------------------ |
-| `kailash.ConfiguredInfra`     | `Kailash::ConfiguredInfra`         | Auto-configuration result with runtime     |
-| `kailash.InfraLevel`          | `Kailash::InfraLevel`              | Infrastructure level enum (4 variants)     |
-| `kailash.ShutdownToken`       | `Kailash::ShutdownToken`           | Cancellation token for graceful shutdown   |
-| `kailash.InMemorySagaStore`   | `Kailash::InMemorySagaStore`       | In-memory saga coordination store          |
-| `kailash.InProcessTaskQueue`  | `Kailash::InProcessTaskQueue`      | In-process task queue                      |
-| `kailash.IdempotencyKeyStrategy` | `Kailash::IdempotencyKeyStrategy` | Idempotency key strategy (4 variants)   |
-| `kailash.WorkflowTask`        | `Kailash::WorkflowTask`            | Task queue entry                           |
-| `kailash.SagaDefinition`      | `Kailash::SagaDefinition`          | Saga with ordered steps                    |
-| `kailash.SagaStepDef`         | `Kailash::SagaStepDef`             | Single saga step definition                |
+| Type (Python)                    | Type (Ruby)                       | Purpose                                  |
+| -------------------------------- | --------------------------------- | ---------------------------------------- |
+| `kailash.ConfiguredInfra`        | `Kailash::ConfiguredInfra`        | Auto-configuration result with runtime   |
+| `kailash.InfraLevel`             | `Kailash::InfraLevel`             | Infrastructure level enum (4 variants)   |
+| `kailash.ShutdownToken`          | `Kailash::ShutdownToken`          | Cancellation token for graceful shutdown |
+| `kailash.InMemorySagaStore`      | `Kailash::InMemorySagaStore`      | In-memory saga coordination store        |
+| `kailash.InProcessTaskQueue`     | `Kailash::InProcessTaskQueue`     | In-process task queue                    |
+| `kailash.IdempotencyKeyStrategy` | `Kailash::IdempotencyKeyStrategy` | Idempotency key strategy (4 variants)    |
+| `kailash.WorkflowTask`           | `Kailash::WorkflowTask`           | Task queue entry                         |
+| `kailash.SagaDefinition`         | `Kailash::SagaDefinition`         | Saga with ordered steps                  |
+| `kailash.SagaStepDef`            | `Kailash::SagaStepDef`            | Single saga step definition              |
 
 ### InfraLevel Variants
 
@@ -193,13 +193,13 @@ puts strategy.input_key  # nil or "payment_id" (for from_input)
 
 The Runtime manages five infrastructure stores internally. At Level 0, all are in-memory. At Level 1+, all switch to PostgreSQL automatically.
 
-| Store           | Purpose                                 | Level 0       | Level 1+          |
-| --------------- | --------------------------------------- | ------------- | ----------------- |
-| **Checkpoint**  | Workflow state for crash-resume         | In-memory     | PostgreSQL        |
-| **Execution**   | Execution history and audit             | In-memory     | PostgreSQL        |
-| **DLQ**         | Failed workflow metadata                | In-memory     | PostgreSQL        |
-| **Idempotency** | Exactly-once node execution             | In-memory     | PostgreSQL        |
-| **Saga**        | Compensating transaction state          | In-memory     | PostgreSQL        |
+| Store           | Purpose                         | Level 0   | Level 1+   |
+| --------------- | ------------------------------- | --------- | ---------- |
+| **Checkpoint**  | Workflow state for crash-resume | In-memory | PostgreSQL |
+| **Execution**   | Execution history and audit     | In-memory | PostgreSQL |
+| **DLQ**         | Failed workflow metadata        | In-memory | PostgreSQL |
+| **Idempotency** | Exactly-once node execution     | In-memory | PostgreSQL |
+| **Saga**        | Compensating transaction state  | In-memory | PostgreSQL |
 
 > **Note**: These stores are managed internally by the Runtime. You do not interact with them directly from Python or Ruby. You configure them via environment variables.
 
@@ -207,17 +207,17 @@ The Runtime manages five infrastructure stores internally. At Level 0, all are i
 
 When using PostgreSQL, the Runtime auto-creates these tables on first use:
 
-| Table                      | Purpose                               |
-| -------------------------- | ------------------------------------- |
-| `_kailash_checkpoints`     | Workflow checkpoint data              |
-| `_kailash_executions`      | Execution history records             |
-| `_kailash_dlq`             | Dead letter queue entries             |
-| `_kailash_sagas`           | Saga state with JSON steps            |
-| `_kailash_idempotency`     | Idempotency cache records             |
-| `_kailash_tasks`           | Task queue entries (Level 2)          |
-| `_kailash_workers`         | Worker registration + heartbeat       |
-| `_kailash_signatures`      | Checkpoint signatures (trust feature) |
-| `_kailash_infra_version`   | Schema version tracking               |
+| Table                    | Purpose                               |
+| ------------------------ | ------------------------------------- |
+| `_kailash_checkpoints`   | Workflow checkpoint data              |
+| `_kailash_executions`    | Execution history records             |
+| `_kailash_dlq`           | Dead letter queue entries             |
+| `_kailash_sagas`         | Saga state with JSON steps            |
+| `_kailash_idempotency`   | Idempotency cache records             |
+| `_kailash_tasks`         | Task queue entries (Level 2)          |
+| `_kailash_workers`       | Worker registration + heartbeat       |
+| `_kailash_signatures`    | Checkpoint signatures (trust feature) |
+| `_kailash_infra_version` | Schema version tracking               |
 
 ## Saga Coordination (Workflow-Level)
 
@@ -291,13 +291,13 @@ end
 
 The `SagaCoordinatorNode` supports these operations via the `saga.operation` input:
 
-| Operation        | Description                                    | Required Inputs                     |
-| ---------------- | ---------------------------------------------- | ----------------------------------- |
-| `start`          | Begin a new saga with ordered steps            | `saga.steps` (array)               |
-| `step_complete`  | Mark a step as successfully completed          | `saga.saga_id`, `saga.step_id`     |
-| `step_failed`    | Mark a step as failed (triggers compensation)  | `saga.saga_id`, `saga.step_id`     |
-| `abort`          | Abort the saga and compensate completed steps  | `saga.saga_id`                     |
-| `get_status`     | Query current saga state                       | `saga.saga_id`                     |
+| Operation       | Description                                   | Required Inputs                |
+| --------------- | --------------------------------------------- | ------------------------------ |
+| `start`         | Begin a new saga with ordered steps           | `saga.steps` (array)           |
+| `step_complete` | Mark a step as successfully completed         | `saga.saga_id`, `saga.step_id` |
+| `step_failed`   | Mark a step as failed (triggers compensation) | `saga.saga_id`, `saga.step_id` |
+| `abort`         | Abort the saga and compensate completed steps | `saga.saga_id`                 |
+| `get_status`    | Query current saga state                      | `saga.saga_id`                 |
 
 ## Idempotency Configuration
 

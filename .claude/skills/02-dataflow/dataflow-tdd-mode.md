@@ -5,13 +5,12 @@ description: "DataFlow TDD mode for fast isolated tests. Use when DataFlow TDD, 
 
 # DataFlow TDD Mode
 
-> **Rust Binding Caveat**: `tdd_mode` is a pure Python SDK feature. The Rust-backed binding (`kailash-enterprise`) does not support this parameter. For testing with the Rust binding, use separate test databases or SQLite in-memory databases (`:memory:`).
-
 Lightning-fast isolated tests (<100ms) using savepoint-based rollback for DataFlow.
 
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+ / DataFlow 0.6.0`
 > Related Skills: [`test-3tier-strategy`](#), [`dataflow-models`](#)
 > Related Subagents: `dataflow-specialist`, `testing-specialist`
 
@@ -26,17 +25,15 @@ Lightning-fast isolated tests (<100ms) using savepoint-based rollback for DataFl
 
 ```python
 import pytest
-import kailash
-from kailash.dataflow import db
-
-reg = kailash.NodeRegistry()
+from dataflow import DataFlow
 
 @pytest.fixture
-def dataflow():
+def db():
     """TDD mode - savepoint isolation."""
-    df = kailash.DataFlow(
-        ":memory:",  # In-memory for speed; provides natural isolation
+    db = DataFlow(
+        database_url=":memory:",  # In-memory for speed
         auto_migrate=True,
+        tdd_mode=True  # Enable savepoint isolation
     )
 
     @db.model
@@ -44,21 +41,21 @@ def dataflow():
         name: str
         email: str
 
-    yield df
+    yield db
     # Automatic rollback via savepoint
 
-def test_user_creation(dataflow):
+def test_user_creation(db):
     """Test runs in <100ms with isolation."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateUser", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("UserCreateNode", "create", {
         "name": "Test User",
         "email": "test@example.com"
     })
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["create"]["record"]["name"] == "Test User"
+    assert results["create"]["result"]["name"] == "Test User"
     # Automatic rollback - no cleanup needed
 ```
 
@@ -67,19 +64,17 @@ def test_user_creation(dataflow):
 ### Savepoint Isolation
 
 ```python
-from kailash.dataflow import db
-
 @pytest.fixture
 def isolated_db():
-    df = kailash.DataFlow(":memory:")  # In-memory DB provides per-fixture isolation
+    db = DataFlow(":memory:", tdd_mode=True)
 
     @db.model
     class Product:
         name: str
         price: float
 
-    yield df
-    # In-memory DB is discarded when fixture tears down
+    yield db
+    # Changes rolled back automatically
 
 def test_product_1(isolated_db):
     # Create product
@@ -94,57 +89,58 @@ def test_product_2(isolated_db):
 ### Fast Test Execution
 
 ```python
-def test_suite_performance(dataflow):
+def test_suite_performance(db):
     """100 tests in <10 seconds."""
     for i in range(100):
-        builder = kailash.WorkflowBuilder()
-        builder.add_node("CreateUser", f"create_{i}", {
+        workflow = WorkflowBuilder()
+        workflow.add_node("UserCreateNode", f"create_{i}", {
             "name": f"User {i}",
             "email": f"user{i}@test.com"
         })
-        rt = kailash.Runtime(reg)
-        result = rt.execute(builder.build(reg))
+        runtime = LocalRuntime()
+        results, run_id = runtime.execute(workflow.build())
         # Each test <100ms with rollback
 ```
 
 ## Common Mistakes
 
-### Mistake 1: Manual Cleanup Instead of In-Memory DB
+### Mistake 1: Not Using TDD Mode
 
 ```python
 # SLOW - Full cleanup needed
 @pytest.fixture
-def dataflow():
-    df = kailash.DataFlow("sqlite:///test.db")
-    yield df
+def db():
+    db = DataFlow(":memory:")
+    yield db
     # Manual cleanup - slow!
-    df.drop_all_tables()
+    db.drop_all_tables()
 ```
 
-**Fix: Use In-Memory SQLite**
+**Fix: Enable TDD Mode**
 
 ```python
 @pytest.fixture
-def dataflow():
-    df = kailash.DataFlow(":memory:")  # Fresh DB per fixture invocation
-    yield df
-    # No cleanup needed - in-memory DB is discarded automatically
+def db():
+    db = DataFlow(":memory:", tdd_mode=True)
+    yield db
+    # Automatic savepoint rollback - fast!
 ```
 
 ## Documentation References
 
-### Related Documentation
+### Primary Sources
 
+### Related Documentation
 - **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L893-L940)
 - **Test Strategy**: [`test-3tier-strategy`](#)
 
 ## Quick Tips
 
-- Use `:memory:` SQLite for maximum speed and natural isolation
-- Each test <100ms with in-memory DB
-- No manual cleanup needed (in-memory DB is discarded per fixture)
+- Use `:memory:` SQLite for maximum speed
+- tdd_mode=True enables savepoint isolation
+- Each test <100ms with rollback
+- No manual cleanup needed
 - Perfect for unit tests (Tier 1)
-- `tdd_mode` is NOT available in the Rust binding; use `:memory:` instead
 
 ## Keywords for Auto-Trigger
 

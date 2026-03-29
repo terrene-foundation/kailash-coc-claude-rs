@@ -1,6 +1,6 @@
 ---
 name: eatp-expert
-description: "EATP trust protocol expert. Use for trust lineage, attestation, delegation chains, or verification gradient."
+description: "EATP protocol expert. Use for trust lineage, attestation, delegation chains, or verification gradient questions."
 model: inherit
 allowed-tools:
   - Read
@@ -148,50 +148,161 @@ Invoke these skills when needed:
 
 - `/eatp-reference` - Quick reference for EATP concepts and terminology
 - `/care-reference` - When explaining EATP's relationship to CARE governance
+- `/trust-plane-security-patterns` — TrustPlane's 11 hardened security patterns
+- `/trust-plane-enterprise-features` — Enterprise feature reference
+- `/eatp-budget-tracking` — BudgetTracker API, SQLiteBudgetStore, reserve/record lifecycle
+- `/eatp-posture-stores` — PostureStore protocol, SQLitePostureStore, posture persistence
+- `/eatp-security-patterns` — EATP security patterns from red team: lock ordering, integer arithmetic, symlink rejection
 
-## Rust SDK Implementation (crates/eatp/ + kailash-kaizen trust module)
+## TrustPlane Reference Implementation
 
-The EATP specification is implemented across two crates:
+TrustPlane for the Kailash Python SDK is the EATP reference implementation — a production-grade Python library implementing the full trust chain.
 
-### Standalone EATP SDK (`crates/eatp/`, proprietary)
+### Trust Chain Coverage
 
-Zero Kailash dependencies. Contains all protocol primitives:
+All five EATP elements implemented end-to-end:
 
-- **Keys**: Ed25519 `TrustKeyPair` with `ZeroizeOnDrop` (`keys.rs`)
-- **Chain**: `CareChain` — append-only genesis + trust blocks (`chain.rs`)
-- **Delegation**: `DelegationChain` — constraint tightening, cascade revocation, Ed25519 signed (`delegation.rs`)
-- **Verification**: 4-level gradient (`AutoApproved/Flagged/Held/Blocked`) with configurable thresholds (`verification.rs`)
-- **Governed**: `GovernedTaodRunner` — pipeline: capability → verification → evidence → resource tracking (`governed.rs`)
-- **Human**: `PseudoAgent` (sole human entry), `HoldQueue` with signed approval/rejection (`human.rs`)
-- **Multi-Sig**: `MultiSigPolicy` (M-of-N threshold), `MultiSigBundle`, domain-separated signatures (`multi_sig.rs`)
-- **Constraints**: 5-dimensional (`Financial/Operational/Temporal/DataAccess/Communication`) + 6 templates (`constraints/`)
-- **Reasoning**: `ReasoningTrace` with structured evidence, confidence, separate Ed25519 signing (`types.rs`)
-- **Stores**: `MemoryStore`, `FilesystemStore` (age-encrypted), `SqlxStore` (PostgreSQL) (`store/`)
-- **CLI**: 16 commands including `multi-sig` subgroup (`cli/`)
-- **MCP**: 6 tools + 4 resources, stdio/SSE transports (`mcp/`)
-- **Scoring**: 5-component composite trust score (`scoring.rs`)
-- **Compliance**: EU AI Act + OWASP Agentic Top 10 mappings (`compliance.rs`)
+1. **Genesis** — Cryptographic root of trust created by human authority
+2. **Delegation** — Authority transfer with monotonic constraint tightening
+3. **Constraint** — Five-dimension constraint envelopes
+4. **Attestation** — Signed capability declarations with verification gradient
+5. **Audit** — Tamper-evident audit anchors with hash chaining
 
-### Kaizen Trust Module (`kailash-kaizen`, behind `trust` feature flag)
+### Architecture
 
-Orchestration-level trust enforcement, re-exports EATP primitives:
+- **3 store backends**: SQLite (default), Filesystem, PostgreSQL
+- **Key managers**: LocalFileKeyManager (Ed25519), AWS KMS (ECDSA P-256), Azure Key Vault (ECDSA P-256), HashiCorp Vault (ECDSA P-256)
+- **11 hardened security patterns** validated through 14 rounds of red teaming
+- **22-class exception hierarchy**, all tracing to `TrustPlaneError`
 
-- **GovernedAgent**: Wraps `BaseAgent` with trust checks, composes CB + shadow + hooks (`agent.rs`)
-- **Circuit Breaker**: All-atomic FSM (Closed→Open→HalfOpen), per-agent via `CircuitBreakerRegistry` (`circuit_breaker.rs`)
-- **Shadow Enforcer**: Dual-config evaluation, bounded `VecDeque`, divergence tracking (`shadow.rs`)
-- **Lifecycle Hooks**: `TrustEventHook` trait, `TrustEventDispatcher` with `tokio::task::spawn` panic isolation (`hooks.rs`)
-- **Posture System**: 5 EATP postures with state machine and transition hooks (`posture.rs`)
+### Enterprise Features
 
-### Key Implementation Patterns
+RBAC (4 roles), OIDC (JWKS auto-discovery), SIEM (CEF/OCSF/TLS syslog), Dashboard (bearer token auth), Archive (ZIP + SHA-256), Shadow mode (non-blocking evaluation)
 
-- **Serde invariant enforcement**: `#[serde(try_from = "RawType")]` routes deserialization through `new()` validation (e.g., `MultiSigPolicy`)
-- **Panic isolation**: `tokio::task::spawn()` wraps hooks — panics produce `JoinError` instead of unwinding the caller
-- **Key material safety**: `ZeroizeOnDrop` on `TrustKeyPair`, `fill(0)` for temporary buffers in FFI boundaries
-- **Constraint tightening invariant**: Child delegation ⊆ parent — enforced at delegation time, not at verification time
+### Entry Points
 
-### Python Bindings (`bindings/kailash-python/src/kaizen/trust.rs`)
+- **CLI**: `attest` command (Click-based)
+- **MCP Server**: `trustplane-mcp` via FastMCP
+- **Python API**: `from kailash.trust.plane.project import TrustProject`
 
-19+ PyO3 types exposing trust features: `TrustLevel`, `EatpPosture`, `VerificationConfig`, `VerificationResult`, `DelegationChain`, `DelegationScope`, `PseudoAgent`, `MultiSigPolicy`, `MultiSigBundle`, `CircuitBreakerConfig`, `CircuitBreakerRegistry`, `ShadowEnforcer`, `ShadowReport`, `GovernedTaodConfig`, `GovernedTaodResult`, `HumanCompetency`, `ComplianceReport`.
+### Quality
+
+14 rounds of red teaming, 1473 tests, zero CRITICAL/HIGH findings. Store conformance test suite ensures all backends behave identically.
+
+## Budget Persistence (P6)
+
+Thread-safe, fail-closed budget tracking with integer microdollars arithmetic, two-phase reserve/record semantics, and crash-safe SQLite persistence.
+
+### BudgetTracker (`eatp.constraints.budget_tracker`)
+
+Atomic budget accounting primitive using integer microdollars (1 USD = 1,000,000 microdollars). All operations are guarded by `threading.Lock` and use saturating arithmetic — remaining balance never goes negative.
+
+**Two-phase lifecycle**:
+
+1. `reserve(microdollars)` — Atomically reserve estimated cost (returns `False` if insufficient budget — fail-closed)
+2. `record(reserved_microdollars, actual_microdollars)` — Release reservation, commit actual cost
+
+**Key classes**:
+
+- `BudgetTracker` — Core tracker with `reserve()`, `record()`, `check()`, `remaining_microdollars()`, `snapshot()`, `from_snapshot()`
+- `BudgetSnapshot` — Serializable `(allocated, committed)` pair for persistence (reservations intentionally excluded — they are transient)
+- `BudgetCheckResult` — Non-mutating budget check result with `allowed`, `remaining_microdollars`, etc.
+- `BudgetEvent` — Threshold crossing event (`threshold_80`, `threshold_95`, `exhausted`)
+
+**Callbacks**:
+
+- `on_threshold(callback)` — Fires when committed reaches 80%, 95%, or 100% of allocated. Each threshold fires at most once.
+- `on_record(callback)` — Fires after every `record()` call. Useful for custom utilization checks at arbitrary percentages.
+
+**Persistence integration**:
+
+```python
+store = SQLiteBudgetStore("/tmp/eatp/budget.db")
+store.initialize()
+tracker = BudgetTracker(
+    allocated_microdollars=usd_to_microdollars(100.0),
+    store=store,
+    tracker_id="agent-001",
+)
+# Auto-restores committed state from store on construction
+# Auto-saves after each record() call
+```
+
+### SQLiteBudgetStore (`eatp.constraints.budget_store`)
+
+Crash-safe SQLite persistence for budget snapshots and transaction logs.
+
+**Security properties**:
+
+- Path validation: rejects `..`, null bytes, and symlinks
+- File permissions: 0o600 on POSIX (owner read/write only)
+- Parameterized SQL: all queries use `?` placeholders
+- WAL mode: concurrent readers without blocking writers
+- Tracker ID validation: `^[a-zA-Z0-9_-]+$` prevents injection
+- Thread safety via `threading.local()` per-thread connections
+
+**BudgetStore protocol** (3 methods):
+
+- `get_snapshot(tracker_id)` — Load previously saved snapshot, or `None`
+- `save_snapshot(tracker_id, snapshot)` — Persist via upsert
+- `get_transaction_log(tracker_id, limit=100)` — Recent transaction log entries
+
+### Security Patterns (Red Team Validated)
+
+- **C1**: Callbacks fire OUTSIDE the lock — prevents deadlock when callbacks re-enter `remaining_microdollars()`, `check()`, or `snapshot()`
+- **C3**: Snapshot captured INSIDE the lock before save — prevents race where save sees inconsistent state
+- **M1**: Integer arithmetic for threshold checks — `committed * 100 >= allocated * threshold_pct` avoids float precision issues
+- **H2**: Input validation on `record()` — both arguments must be non-negative integers; raises `BudgetTrackerError` on invalid input
+
+## Posture Persistence (P5)
+
+SQLite-backed persistence for agent posture state with thread safety, migration support, and CARE spec compliance.
+
+### SQLitePostureStore (`eatp.posture_store`)
+
+Thread-safe (via `threading.local()`) SQLite persistence for agent postures and transition history.
+
+**Security properties** (same hardening as BudgetStore):
+
+- Path traversal protection, symlink rejection, 0o600 permissions
+- WAL journal mode, parameterized SQL, bounded history queries (max 10,000 rows)
+
+**Key methods**:
+
+- `get_posture(agent_id)` — Returns current posture, defaults to `SUPERVISED` if unknown
+- `set_posture(agent_id, posture)` — Upsert current posture
+- `record_transition(result)` — Persist a `TransitionResult` with full metadata
+- `get_history(agent_id, limit=100)` — Reverse-chronological transition history
+
+**Migration support**: Automatically adds the `transition_type` column to databases created before RT-06, preserving `EMERGENCY_DOWNGRADE` type that would otherwise be lost (inferred as plain `DOWNGRADE`).
+
+**Context manager**: Supports `with SQLitePostureStore(path) as store:` for automatic cleanup.
+
+### PostureEvidence (`eatp.postures`)
+
+Structured evidence supporting posture transition evaluations. Validated in `__post_init__`:
+
+- `success_rate` — Bounded `[0.0, 1.0]`, must be `math.isfinite()`
+- `time_at_current_posture_hours` — Non-negative, must be `math.isfinite()`
+- `observation_count`, `anomaly_count` — Non-negative integers
+- Full `to_dict()` / `from_dict()` round-trip serialization
+
+### PostureEvaluationResult (`eatp.postures`)
+
+Structured evaluation result with validated decision (`approved` / `denied` / `deferred`), rationale, optional suggested posture, and evidence summary.
+
+### PostureStore Protocol (`eatp.postures`)
+
+Runtime-checkable protocol (`@runtime_checkable`) defining the 4-method contract:
+
+- `get_posture(agent_id)` — Raises `KeyError` for unregistered agents
+- `set_posture(agent_id, posture)` — Persist posture
+- `get_history(agent_id, limit)` — Recent transitions
+- `record_transition(result)` — Persist transition result
+
+### Default Posture: SUPERVISED (CARE Spec Compliance)
+
+Per RT-17, `PostureStateMachine` defaults to `TrustPosture.SUPERVISED` (autonomy_level=2). Tool agents start supervised; callers may override to any posture.
 
 ## EATP vs Execution Tools (Governance Layer Thesis, March 2026)
 

@@ -5,11 +5,12 @@ description: "Generate Kailash custom node template. Use when requesting 'custom
 
 # Custom Node Template
 
-Template for creating custom Kailash SDK nodes with `register_callback()` and proper workflow integration.
+Template for creating custom Kailash SDK nodes with proper parameter declaration and execution patterns.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
 > Related Subagents: `pattern-expert` (advanced node development)
 
@@ -18,88 +19,107 @@ Template for creating custom Kailash SDK nodes with `register_callback()` and pr
 ```python
 """Custom Node Implementation"""
 
-import kailash
-from typing import Dict, Any
+from kailash.nodes.base import Node, NodeParameter
+from typing import Dict, Any, Optional
 
-# --- Define handler function ---
+class CustomProcessingNode(Node):
+    """Custom node for [specific purpose]."""
 
-def custom_processing_handler(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    """Custom node for [specific purpose].
+    def __init__(self, node_id: Optional[str] = None):
+        """Initialize custom node."""
+        super().__init__(node_id=node_id)
 
-    Args:
-        inputs: Dict containing input_data, operation, and options
+    def get_parameters(self) -> Dict[str, NodeParameter]:
+        """Declare all expected parameters."""
+        return {
+            "input_data": NodeParameter(
+                name="input_data",
+                type=dict,
+                required=True,
+                description="Input data to process"
+            ),
+            "operation": NodeParameter(
+                name="operation",
+                type=str,
+                required=False,
+                default="transform",
+                description="Operation to perform"
+            ),
+            "options": NodeParameter(
+                name="options",
+                type=dict,
+                required=False,
+                default={},
+                description="Additional options"
+            )
+        }
 
-    Returns:
-        Dict with processing results
-    """
-    # Extract parameters from inputs dict
-    input_data = inputs.get("input_data", {})
-    operation = inputs.get("operation", "transform")
-    options = inputs.get("options", {})
+    def run(self, **kwargs) -> Dict[str, Any]:
+        """Execute node logic."""
+        # Extract parameters (guaranteed by get_parameters())
+        input_data = kwargs["input_data"]
+        operation = kwargs.get("operation", "transform")
+        options = kwargs.get("options", {})
 
-    # Implement your custom logic
-    if operation == "transform":
-        result = _transform_data(input_data, options)
-    elif operation == "validate":
-        result = _validate_data(input_data, options)
-    else:
-        raise ValueError(f"Unknown operation: {operation}")
+        # Implement your custom logic
+        if operation == "transform":
+            result = self._transform_data(input_data, options)
+        elif operation == "validate":
+            result = self._validate_data(input_data, options)
+        else:
+            raise ValueError(f"Unknown operation: {operation}")
 
-    return result
+        return result
 
+    def _transform_data(self, data: dict, options: dict) -> dict:
+        """Transform data logic."""
+        # Implement transformation
+        transformed = {k.upper(): v for k, v in data.items()}
+        return {
+            "transformed": transformed,
+            "status": "success",
+            "operation": "transform"
+        }
 
-def _transform_data(data: dict, options: dict) -> dict:
-    """Transform data logic."""
-    transformed = {k.upper(): v for k, v in data.items()}
-    return {
-        "transformed": transformed,
-        "status": "success",
-        "operation": "transform"
-    }
-
-
-def _validate_data(data: dict, options: dict) -> dict:
-    """Validate data logic."""
-    valid = all(k and v for k, v in data.items())
-    return {
-        "valid": valid,
-        "status": "success",
-        "operation": "validate"
-    }
-
-
-# --- Register custom node ---
-
-reg = kailash.NodeRegistry()
-
-reg.register_callback(
-    "CustomProcessingNode",          # node type name
-    custom_processing_handler,       # handler function
-    ["input_data", "operation", "options"],  # input parameter names
-    ["transformed", "status", "operation", "valid"]  # output parameter names
-)
+    def _validate_data(self, data: dict, options: dict) -> dict:
+        """Validate data logic."""
+        # Implement validation
+        valid = all(k and v for k, v in data.items())
+        return {
+            "valid": valid,
+            "status": "success",
+            "operation": "validate"
+        }
 ```
 
 ## Usage in Workflow
 
 ```python
-# Use in workflow (registry already has the custom node registered)
-builder = kailash.WorkflowBuilder()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder.add_node("CustomProcessingNode", "custom", {
+# Register custom node (if needed for discovery)
+from kailash.nodes.registry import NodeRegistry
+NodeRegistry.register("CustomProcessingNode", CustomProcessingNode)
+
+# Use in workflow
+workflow = WorkflowBuilder()
+
+workflow.add_node("CustomProcessingNode", "custom", {
     "input_data": {"name": "test", "value": 123},
     "operation": "transform"
 })
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 
-print(result["results"]["custom"])  # Custom node output
+print(results["custom"])  # Custom node output
 ```
 
 ## Advanced Template with Validation
 
 ```python
+from kailash.nodes.base import Node, NodeParameter
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 
@@ -109,35 +129,30 @@ class CustomNodeContract(BaseModel):
     threshold: float = Field(ge=0.0, le=1.0, default=0.5)
     operation: str = Field(pattern="^(filter|transform|aggregate)$")
 
-
-def advanced_handler(inputs: Dict[str, Any]) -> Dict[str, Any]:
+class AdvancedCustomNode(Node):
     """Custom node with Pydantic validation."""
-    # Validate with Pydantic
-    validated = CustomNodeContract(**inputs)
 
-    # Execute logic
-    if validated.operation == "filter":
-        return _filter(validated.input_data, validated.threshold)
-    elif validated.operation == "transform":
-        return {"transformed": validated.input_data}
-    elif validated.operation == "aggregate":
-        return {"aggregated": validated.input_data}
-    else:
-        raise ValueError(f"Unknown operation: {validated.operation}")
+    def get_parameters(self) -> Dict[str, NodeParameter]:
+        """Declare parameters matching contract."""
+        return {
+            "input_data": NodeParameter(type=dict, required=True),
+            "threshold": NodeParameter(type=float, required=False, default=0.5),
+            "operation": NodeParameter(type=str, required=False, default="filter")
+        }
 
+    def run(self, **kwargs) -> Dict[str, Any]:
+        """Execute with validation."""
+        # Validate with Pydantic
+        validated = CustomNodeContract(**kwargs)
 
-def _filter(data: dict, threshold: float) -> dict:
-    """Filter implementation."""
-    return {"filtered": data, "threshold": threshold}
+        # Execute logic
+        if validated.operation == "filter":
+            return self._filter(validated.input_data, validated.threshold)
+        # ... more operations
 
-
-reg = kailash.NodeRegistry()
-reg.register_callback(
-    "AdvancedCustomNode",
-    advanced_handler,
-    ["input_data", "threshold", "operation"],
-    ["filtered", "threshold", "transformed", "aggregated"]
-)
+    def _filter(self, data: dict, threshold: float) -> dict:
+        """Filter implementation."""
+        return {"filtered": data, "threshold": threshold}
 ```
 
 ## Related Patterns
@@ -148,71 +163,19 @@ reg.register_callback(
 ## When to Escalate
 
 Use `pattern-expert` when:
-
 - Complex custom node architecture
 - Performance optimization
 - Advanced parameter handling
 
-## Resource-Aware Node Pattern
+## Documentation References
 
-For custom nodes that need to work with database connections or other shared resources, use workflow connections to receive data from resource-providing nodes:
-
-```python
-import kailash
-
-reg = kailash.NodeRegistry()
-
-def resource_aware_handler(inputs):
-    """Custom node that processes data from database queries.
-
-    Receives data through workflow connections from SQLQueryNode
-    or other resource-providing nodes.
-    """
-    records = inputs.get("records", [])
-    operation = inputs.get("operation", "count")
-
-    if operation == "count":
-        return {"result": len(records)}
-    elif operation == "summarize":
-        return {"result": {"total": len(records), "records": records}}
-    else:
-        raise ValueError(f"Unknown operation: {operation}")
-
-reg.register_callback(
-    "ResourceAwareNode",
-    resource_aware_handler,
-    ["records", "operation"],
-    ["result"]
-)
-
-# Wire it up: DatabaseConnectionNode -> SQLQueryNode -> Custom Node
-builder = kailash.WorkflowBuilder()
-builder.add_node("DatabaseConnectionNode", "connect", {
-    "connection_string": os.environ["DATABASE_URL"]
-})
-builder.add_node("SQLQueryNode", "query", {
-    "query": "SELECT * FROM users",
-    "operation": "select"
-})
-builder.add_node("ResourceAwareNode", "process", {
-    "operation": "summarize"
-})
-
-builder.connect("connect", "pool_key", "query", "pool_key")
-builder.connect("query", "data", "process", "records")
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-```
-
-**Key points**: Custom nodes receive data through workflow connections, not direct resource access. Database pools are managed by the Runtime and shared across SQL nodes via `DatabaseConnectionNode`. Resources are cleaned up in LIFO order when the Runtime is garbage collected.
+### Primary Sources
 
 ## Quick Tips
 
-- Always register custom nodes via `reg.register_callback(name, handler, inputs, outputs)`
-- Use Pydantic for complex input validation inside the handler
-- Handler receives a single `inputs` dict and returns a single output dict
-- Declare all input/output parameter names in the registration call
-- Database resources flow through workflow connections, not direct pool access
+- 💡 **Declare parameters**: Always implement `get_parameters()`
+- 💡 **Type validation**: Use Pydantic for complex validation
+- 💡 **Error handling**: Implement proper error handling
+- 💡 **Documentation**: Add docstrings for all methods
 
 <!-- Trigger Keywords: custom node template, create custom node, extend node, node development, custom node boilerplate, custom node example, develop node -->

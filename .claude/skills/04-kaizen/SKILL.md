@@ -4,31 +4,31 @@ AI agent framework for building intelligent agents with kailash-enterprise.
 
 ## Quick Links
 
-| Skill                                                       | Description                                        |
-| ----------------------------------------------------------- | -------------------------------------------------- |
-| [kaizen-agent-patterns](kaizen-agent-patterns.md)           | Agent building blocks, tools, memory, known issues |
-| [kaizen-signatures](kaizen-signatures.md)                   | Input/output contracts (Signature, InputField)     |
-| [kaizen-hooks-lifecycle](kaizen-hooks-lifecycle.md)         | Lifecycle hooks (9 events via HookManager)         |
-| [kaizen-checkpoint-resume](kaizen-checkpoint-resume.md)     | Save/restore agent state                           |
-| [kaizen-interrupt-mechanism](kaizen-interrupt-mechanism.md) | Timeouts, budgets, manual interrupts               |
-| [kaizen-pipelines](kaizen-pipelines.md)                     | Sequential, Parallel, Ensemble agent composition   |
-| [kaizen-control-protocol](kaizen-control-protocol.md)       | Human-in-the-loop approval workflows               |
-| [kaizen-chain-of-thought](kaizen-chain-of-thought.md)       | Chain-of-thought agent implementation              |
-| [kaizen-react-pattern](kaizen-react-pattern.md)             | ReAct (Reasoning + Acting) agent pattern           |
-| [kaizen-rag-agent](kaizen-rag-agent.md)                     | RAG agent implementation                           |
-| [kaizen-cost-tracking](kaizen-cost-tracking.md)             | LLM cost tracking and budget management            |
-| [kaizen-budget-tracking](kaizen-budget-tracking.md)         | Two-phase budget enforcement for tool agents       |
+| Skill                                                       | Description                                           |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| [kaizen-agent-patterns](kaizen-agent-patterns.md)           | Agent building blocks, tools, memory, known issues    |
+| [kaizen-signatures](kaizen-signatures.md)                   | Input/output contracts (Signature, InputField)        |
+| [kaizen-hooks-lifecycle](kaizen-hooks-lifecycle.md)         | Lifecycle hooks (9 events via HookManager)            |
+| [kaizen-checkpoint-resume](kaizen-checkpoint-resume.md)     | Save/restore agent state                              |
+| [kaizen-interrupt-mechanism](kaizen-interrupt-mechanism.md) | Timeouts, budgets, manual interrupts                  |
+| [kaizen-pipelines](kaizen-pipelines.md)                     | Sequential, Parallel, Ensemble agent composition      |
+| [kaizen-control-protocol](kaizen-control-protocol.md)       | Human-in-the-loop approval workflows                  |
+| [kaizen-chain-of-thought](kaizen-chain-of-thought.md)       | Chain-of-thought agent implementation                 |
+| [kaizen-react-pattern](kaizen-react-pattern.md)             | ReAct (Reasoning + Acting) agent pattern              |
+| [kaizen-rag-agent](kaizen-rag-agent.md)                     | RAG agent implementation                              |
+| [kaizen-cost-tracking](kaizen-cost-tracking.md)             | LLM cost tracking and budget management               |
+| [kaizen-budget-tracking](kaizen-budget-tracking.md)         | Two-phase budget enforcement for tool agents          |
 | [kaizen-trust-architecture](kaizen-trust-architecture.md)   | Three-layer trust stack map (EATP/Trust-Plane/Kaizen) |
-| [kaizen-streaming](kaizen-streaming.md)                     | Streaming agent responses                          |
-| [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol (cards & registry)         |
-| [kaizen-a2a](kaizen-a2a.md)                                 | A2A messaging, discovery, and delegation           |
-| [kaizen-checkpoint](kaizen-checkpoint.md)                   | Checkpoint/resume with known issues & interrupts   |
-| [kaizen-quickstart](kaizen-quickstart.md)                   | First agent in 5 minutes                           |
-| [kaizen-llm-providers](kaizen-llm-providers.md)             | LlmClient, provider detection, mock testing        |
-| [kaizen-memory](kaizen-memory.md)                           | SessionMemory, SharedMemory, PersistentMemory      |
-| [kaizen-tools](kaizen-tools.md)                             | ToolDef, ToolRegistry, ToolParam, handler pattern  |
-| [kaizen-orchestration](kaizen-orchestration.md)             | OrchestrationRuntime, strategies, AgentExecutor    |
-| [create-agent](create-agent.md)                             | Scaffold a new agent (template skill)              |
+| [kaizen-streaming](kaizen-streaming.md)                     | Streaming agent responses                             |
+| [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol (cards & registry)            |
+| [kaizen-a2a](kaizen-a2a.md)                                 | A2A messaging, discovery, and delegation              |
+| [kaizen-checkpoint](kaizen-checkpoint.md)                   | Checkpoint/resume with known issues & interrupts      |
+| [kaizen-quickstart](kaizen-quickstart.md)                   | First agent in 5 minutes                              |
+| [kaizen-llm-providers](kaizen-llm-providers.md)             | LlmClient, provider detection, mock testing           |
+| [kaizen-memory](kaizen-memory.md)                           | SessionMemory, SharedMemory, PersistentMemory         |
+| [kaizen-tools](kaizen-tools.md)                             | ToolDef, ToolRegistry, ToolParam, handler pattern     |
+| [kaizen-orchestration](kaizen-orchestration.md)             | OrchestrationRuntime, strategies, AgentExecutor       |
+| [create-agent](create-agent.md)                             | Scaffold a new agent (template skill)                 |
 
 ## Core API
 

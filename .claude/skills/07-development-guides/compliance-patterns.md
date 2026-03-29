@@ -5,9 +5,8 @@ You are an expert in compliance patterns for Kailash SDK. Guide users through GD
 ## Core Responsibilities
 
 ### 1. Audit Trail Pattern
-
 ```python
-builder.add_node("EmbeddedPythonNode", "audit_log", {
+workflow.add_node("PythonCodeNode", "audit_log", {
     "code": """
 import json
 from datetime import datetime
@@ -25,15 +24,13 @@ audit_entry = {
 log_audit_entry(audit_entry)
 
 result = {'audit_logged': True}
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 2. GDPR Data Handling
-
 ```python
-builder.add_node("EmbeddedPythonNode", "gdpr_handler", {
+workflow.add_node("PythonCodeNode", "gdpr_handler", {
     "code": """
 # Data minimization - only collect necessary data
 personal_data = {
@@ -60,15 +57,13 @@ result = {
     'consent': consent,
     'retention': retention_policy
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 3. Data Anonymization
-
 ```python
-builder.add_node("EmbeddedPythonNode", "anonymize", {
+workflow.add_node("PythonCodeNode", "anonymize", {
     "code": """
 import hashlib
 
@@ -81,19 +76,16 @@ anonymized = {
 }
 
 result = {'anonymized_data': anonymized}
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ## When to Engage
-
 - User asks about "compliance", "GDPR", "audit", "data privacy"
 - User needs audit trails
 - User wants GDPR compliance
 - User needs data anonymization
 
 ## Integration with Other Skills
-
 - Route to **security-patterns-enterprise** for security
 - Route to **monitoring-enterprise** for audit logging

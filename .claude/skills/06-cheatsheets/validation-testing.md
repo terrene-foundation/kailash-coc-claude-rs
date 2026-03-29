@@ -10,6 +10,7 @@ Validation Testing guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `production`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,22 +22,23 @@ Validation Testing guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Validation Testing implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
 - **3-Tier Testing Strategy**: Unit tests (node logic), Integration tests (multi-node flows), End-to-end (full workflows)
-- **Real Infrastructure Testing**: NO MOCKING policy - test against actual databases, APIs, LLMs for production confidence
+- **Real Infrastructure Testing**: Real infrastructure recommended policy - test against actual databases, APIs, LLMs for production confidence
 - **Cyclic Workflow Testing**: Validate cycle limits, state persistence, termination conditions, memory leaks
 - **Error Scenario Testing**: Test retry logic, fallback paths, compensation actions, timeout handling
 - **Performance Testing**: Load testing, stress testing, benchmark key workflows under production-like conditions
@@ -53,6 +55,10 @@ Use specialized subagents when:
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

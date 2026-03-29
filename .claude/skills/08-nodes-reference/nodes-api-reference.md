@@ -10,28 +10,31 @@ Complete reference for HTTP, REST, and GraphQL API operations.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (API workflows)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available API nodes: HTTPRequestNode, GraphQLNode, WebSocketNode
+from kailash.nodes.api import (
+    HTTPRequestNode,
+    AsyncHTTPRequestNode,
+    RESTClientNode,
+    AsyncRESTClientNode,
+    GraphQLClientNode
+)
 ```
 
 ## HTTP Nodes
 
 ### HTTPRequestNode
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("HTTPRequestNode", "api_call", {
+workflow.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/data",
     "method": "GET",
     "headers": {
@@ -42,23 +45,33 @@ builder.add_node("HTTPRequestNode", "api_call", {
 })
 ```
 
-### HTTPRequestNode (POST)
-
+### AsyncHTTPRequestNode
 ```python
-builder.add_node("HTTPRequestNode", "post_api", {
+workflow.add_node("AsyncHTTPRequestNode", "async_api", {
     "url": "https://api.example.com/users",
     "method": "POST",
     "json": {"name": "John", "email": "john@example.com"},
-    "timeout_ms": 30000
+    "timeout": 30
+})
+```
+
+## REST Nodes
+
+### RESTClientNode
+```python
+workflow.add_node("RESTClientNode", "rest_api", {
+    "base_url": "https://api.example.com",
+    "endpoint": "/users/123",
+    "method": "GET",
+    "auth": {"type": "bearer", "token": "${API_TOKEN}"}
 })
 ```
 
 ## GraphQL Nodes
 
-### GraphQLNode
-
+### GraphQLClientNode
 ```python
-builder.add_node("GraphQLNode", "graphql", {
+workflow.add_node("GraphQLClientNode", "graphql", {
     "url": "https://api.example.com/graphql",
     "query": """
         query GetUser($id: ID!) {
@@ -77,4 +90,7 @@ builder.add_node("GraphQLNode", "graphql", {
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: API node, HTTP, REST, GraphQL, API request, HTTPRequestNode, GraphQLNode -->
+## Documentation
+
+
+<!-- Trigger Keywords: API node, HTTP, REST, GraphQL, API request, HTTPRequestNode, RESTClientNode, GraphQLClientNode -->

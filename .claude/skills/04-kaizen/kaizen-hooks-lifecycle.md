@@ -63,11 +63,11 @@ print(results)  # ["logged: {'agent': 'my_agent', 'input': 'hello'}"]
 
 ## Methods
 
-| Method                           | Description                           |
-| -------------------------------- | ------------------------------------- |
-| `on(event_name)`                 | Decorator to register callback        |
-| `register(event_name, callback)` | Register callback manually            |
-| `trigger(event_name, data)`      | Fire event, returns list of results   |
-| `callback_count(event_name)`     | Number of callbacks for event         |
-| `clear(event_name)`              | Remove all callbacks for event        |
+| Method                           | Description                            |
+| -------------------------------- | -------------------------------------- |
+| `on(event_name)`                 | Decorator to register callback         |
+| `register(event_name, callback)` | Register callback manually             |
+| `trigger(event_name, data)`      | Fire event, returns list of results    |
+| `callback_count(event_name)`     | Number of callbacks for event          |
+| `clear(event_name)`              | Remove all callbacks for event         |
 | `EVENTS`                         | Class attribute: tuple of valid events |

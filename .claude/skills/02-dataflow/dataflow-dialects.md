@@ -8,13 +8,15 @@ description: "SQL database support in DataFlow - PostgreSQL, MySQL, and SQLite w
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
+> DataFlow Version: `0.6.0+`
 > **Note**: This guide covers SQL databases. For MongoDB (document database) or pgvector (vector search), see SKILL.md Multi-Database Support Matrix.
 
 ## 100% SQL Feature Parity
 
 **All three SQL databases support identical operations:**
 
-- ✅ Same 11 nodes per model (Create, Read, Update, Delete, List, Count, Upsert, BulkCreate, BulkUpdate, BulkDelete, BulkUpsert)
+- ✅ Same 11 nodes per model (Create, Read, Update, Delete, List, Upsert, Count, BulkCreate, BulkUpdate, BulkDelete, BulkUpsert)
 - ✅ Identical workflows work across all databases
 - ✅ Same query syntax and filtering
 - ✅ Full async operations with connection pooling
@@ -23,9 +25,9 @@ description: "SQL database support in DataFlow - PostgreSQL, MySQL, and SQLite w
 ## PostgreSQL (Production Enterprise)
 
 ```python
-import kailash
+from dataflow import DataFlow
 
-df = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
+db = DataFlow("postgresql://user:pass@localhost:5432/mydb")
 
 # Pros:
 # - Advanced features (PostGIS, JSONB, arrays)
@@ -43,10 +45,10 @@ df = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
 ## MySQL (Web Hosting)
 
 ```python
-db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb")
+db = DataFlow("mysql://user:pass@localhost:3306/mydb")
 
 # With charset configuration
-db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4&collation=utf8mb4_unicode_ci")
+db = DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4&collation=utf8mb4_unicode_ci")
 
 # Pros:
 # - Widely available on web hosting
@@ -65,14 +67,13 @@ db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4&col
 
 ```python
 # In-memory (fast testing)
-db = kailash.DataFlow(":memory:")
+db = DataFlow(":memory:")
 
 # File-based
-db = kailash.DataFlow("sqlite:///app.db")
+db = DataFlow("sqlite:///app.db")
 
-# WAL mode for better concurrency is configured at the database level
-# e.g., PRAGMA journal_mode=WAL; (not a DataFlow constructor parameter)
-db = kailash.DataFlow("sqlite:///app.db")
+# With WAL mode for better concurrency
+db = DataFlow("sqlite:///app.db", enable_wal=True)
 
 # Pros:
 # - Zero config, no server needed
@@ -91,7 +92,7 @@ db = kailash.DataFlow("sqlite:///app.db")
 
 | Feature                | PostgreSQL      | MySQL                 | SQLite                       |
 | ---------------------- | --------------- | --------------------- | ---------------------------- |
-| **Driver**             | sqlx (Any)      | sqlx (Any)            | sqlx (Any)                   |
+| **Driver**             | asyncpg         | aiomysql              | aiosqlite + AsyncSQLitePool  |
 | **Concurrency**        | Multi-writer    | Multi-writer (InnoDB) | Single-writer (WAL improves) |
 | **Multi-Instance**     | ✅ Safe         | ✅ Safe               | ⚠️ Not for concurrent writes |
 | **Setup**              | Requires server | Requires server       | Zero config                  |
@@ -106,22 +107,22 @@ db = kailash.DataFlow("sqlite:///app.db")
 
 ```python
 import os
-import kailash
+from dataflow import DataFlow
 
 # Environment-based selection
 env = os.getenv("ENV", "development")
 
 if env == "development":
     # Fast local development
-    df = kailash.DataFlow(":memory:")
+    db = DataFlow(":memory:")
 
 elif env == "staging":
     # MySQL for web hosting compatibility
-    df = kailash.DataFlow(os.getenv("MYSQL_URL"))
+    db = DataFlow(os.getenv("MYSQL_URL"))
 
 else:
     # PostgreSQL for production
-    df = kailash.DataFlow(os.getenv("DATABASE_URL"))
+    db = DataFlow(os.getenv("DATABASE_URL"))
 
 # Same model works everywhere
 @db.model
@@ -136,17 +137,16 @@ class User:
 ## Multi-Database Workflows
 
 ```python
-from kailash.dataflow import db
-
 # Use different databases for different purposes
-df_dev = kailash.DataFlow(":memory:")  # SQLite for testing
-df_web = kailash.DataFlow("mysql://...")  # MySQL for web app
-df_prod = kailash.DataFlow("postgresql://...")  # PostgreSQL for analytics
+dev_db = DataFlow(":memory:")  # SQLite for testing
+web_db = DataFlow("mysql://...")  # MySQL for web app
+prod_db = DataFlow("postgresql://...")  # PostgreSQL for analytics
 
-# Models use @db.model (module-level singleton decorator)
-@db.model
+# Same models work across all
+@dev_db.model
+@web_db.model
+@prod_db.model
 class Order:
-    id: str
     customer_id: int
     total: float
 ```
@@ -157,43 +157,47 @@ class Order:
 
 ```python
 # Basic
-db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
+db = DataFlow("postgresql://user:pass@localhost:5432/mydb")
 
 # With SSL
-db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb?sslmode=require")
+db = DataFlow("postgresql://user:pass@localhost:5432/mydb?sslmode=require")
 
 # With pool config
-config = kailash.DataFlowConfig(
+db = DataFlow(
     "postgresql://user:pass@localhost:5432/mydb",
-    max_connections=20,
+    pool_size=20,
+    max_overflow=30
 )
-db = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb", config=config)
 ```
 
 ### MySQL
 
 ```python
 # Basic
-db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb")
+db = DataFlow("mysql://user:pass@localhost:3306/mydb")
 
 # With charset
-db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4")
+db = DataFlow("mysql://user:pass@localhost:3306/mydb?charset=utf8mb4")
 
-# With SSL (via connection string params)
-db = kailash.DataFlow("mysql://user:pass@localhost:3306/mydb?ssl-mode=required")
+# With SSL
+db = DataFlow(
+    "mysql://user:pass@localhost:3306/mydb",
+    ssl_ca="/path/to/ca.pem",
+    charset="utf8mb4"
+)
 ```
 
 ### SQLite
 
 ```python
 # In-memory
-db = kailash.DataFlow(":memory:")
+db = DataFlow(":memory:")
 
 # File-based
-db = kailash.DataFlow("sqlite:///path/to/database.db")
+db = DataFlow("sqlite:///path/to/database.db")
 
-# File-based with auto_migrate
-db = kailash.DataFlow("sqlite:///db.db", auto_migrate=True)
+# With WAL mode
+db = DataFlow("sqlite:///db.db", enable_wal=True, pool_size=5)
 ```
 
 ## Database Selection Guide

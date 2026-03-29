@@ -8,28 +8,28 @@ description: "Gold standard for testing. Use when asking 'testing standard', 'te
 > **Skill Metadata**
 > Category: `gold-standards`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Testing Principles
 
 ### 1. Test-First Development
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 # ✅ Write test FIRST
 def test_user_workflow():
     """Test user creation workflow."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "create", {
-        "code": "email = 'test@example.com'\ncreated = True",
-        "output_vars": ["email", "created"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "create", {
+        "code": "result = {'email': 'test@example.com', 'created': True}"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["create"]["outputs"]["email"] == "test@example.com"
-    assert result["results"]["create"]["outputs"]["created"] is True
+    assert results["create"]["result"]["email"] == "test@example.com"
+    assert results["create"]["result"]["created"] is True
 
 # Then implement the actual workflow
 ```
@@ -40,29 +40,27 @@ def test_user_workflow():
 # Tier 1: Unit (fast, in-memory)
 def test_workflow_build():
     """Test workflow construction."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "process", {"code": "result = 42", "output_vars": ["result"]})
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "process", {"code": "result = 42"})
 
-    reg = kailash.NodeRegistry()
-    assert builder.build(reg) is not None
+    assert workflow.build() is not None
 
-# Tier 2: Integration (real infrastructure)
+# Tier 2: Integration (real infrastructure with LocalRuntime/AsyncLocalRuntime)
 def test_database_integration():
-    """Test with real PostgreSQL - NO MOCKING."""
+    """Test with real PostgreSQL - Real infrastructure recommended."""
     from tests.utils.docker_config import get_postgres_connection_string
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": get_postgres_connection_string(),
         "query": "SELECT 1 as value",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["db"]["success"]
+    assert results["db"]["success"]
 
 # Tier 3: E2E (full system)
 import pytest
@@ -70,19 +68,19 @@ import pytest
 @pytest.mark.e2e
 @pytest.mark.requires_docker
 async def test_full_pipeline():
-    """Test complete pipeline."""
+    """Test complete pipeline with AsyncLocalRuntime."""
+    from kailash.runtime import AsyncLocalRuntime
 
     workflow = build_complete_pipeline()
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(workflow)
+    runtime = AsyncLocalRuntime()
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 
-    assert result["results"]["extract"]["status"] == "success"
-    assert result["results"]["load"]["rows_inserted"] > 0
+    assert results["extract"]["status"] == "success"
+    assert results["load"]["rows_inserted"] > 0
 ```
 
-### 3. NO MOCKING (Tiers 2-3)
+### 3. Real infrastructure recommended (Tiers 2-3)
 
 ```python
 # ✅ GOOD: Real infrastructure in integration tests
@@ -90,24 +88,23 @@ def test_database_operations():
     """Use real Docker PostgreSQL."""
     from tests.utils.docker_config import get_postgres_connection_string
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": get_postgres_connection_string(),
         "query": "SELECT * FROM users",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["db"]["success"]
+    assert results["db"]["success"]
 
 # ❌ BAD: Mocking in integration tests
 # from unittest.mock import patch
-# @patch("sqlalchemy.create_engine")  # DON'T DO THIS
-# def test_database(mock_engine):
-#     mock_engine.return_value = {...}
+# @patch("psycopg2.connect")  # DON'T DO THIS
+# def test_database(mock_connect):
+#     mock_connect.return_value = {...}
 ```
 
 ### 4. Clear Test Names
@@ -120,7 +117,7 @@ def test_user_creation_with_valid_email_succeeds():
 def test_user_creation_with_invalid_email_fails():
     pass
 
-def test_workflow_execution_with_runtime_returns_result_dict():
+def test_workflow_execution_with_localruntime_returns_results_and_run_id():
     pass
 
 # ❌ BAD: Generic names
@@ -137,97 +134,74 @@ def test_workflow():
 import pytest
 
 @pytest.fixture
-def clean_builder():
+def clean_workflow():
     """Each test gets fresh workflow builder."""
-    builder = kailash.WorkflowBuilder()
-    yield builder
+    workflow = WorkflowBuilder()
+    yield workflow
     # Cleanup if needed
 
 @pytest.fixture
-def runtime():
-    """Runtime instance with registry."""
-    reg = kailash.NodeRegistry()
-    return kailash.Runtime(reg)
+def sync_runtime():
+    """LocalRuntime instance."""
+    from kailash.runtime import LocalRuntime
+    return LocalRuntime()
 
-def test_one(clean_builder, runtime):
+def test_one(clean_workflow, sync_runtime):
     """Isolated test with clean workflow."""
-    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 1", "output_vars": ["result"]})
-    reg = kailash.NodeRegistry()
-    result = runtime.execute(clean_builder.build(reg))
-    assert result["results"]["node"]["outputs"]["result"] == 1
+    clean_workflow.add_node("PythonCodeNode", "node", {"code": "result = 1"})
+    results, run_id = sync_runtime.execute(clean_workflow.build())
+    assert results["node"]["result"] == 1
 
-def test_two(clean_builder, runtime):
+def test_two(clean_workflow, sync_runtime):
     """Another isolated test with fresh workflow."""
-    clean_builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 2", "output_vars": ["result"]})
-    reg = kailash.NodeRegistry()
-    result = runtime.execute(clean_builder.build(reg))
-    assert result["results"]["node"]["outputs"]["result"] == 2
+    clean_workflow.add_node("PythonCodeNode", "node", {"code": "result = 2"})
+    results, run_id = sync_runtime.execute(clean_workflow.build())
+    assert results["node"]["result"] == 2
 ```
 
-### 6. Testing with Runtime
-
-```python
-def test_workflow_execution():
-    """Test workflow executes correctly."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "status = 'completed'",
-        "output_vars": ["status"]
-    })
-
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-
-    assert result["results"]["node"]["outputs"]["status"] == "completed"
-    assert result["run_id"] is not None
-```
-
-### 7. Resource Cleanup
+### 6. Testing Both Runtimes
 
 ```python
 import pytest
+import asyncio
+from kailash.runtime import LocalRuntime, AsyncLocalRuntime
 
-@pytest.fixture
-def runtime():
-    """Runtime with fresh registry -- cleaned up after each test."""
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    yield rt
-    # Runtime cleanup happens on garbage collection
-
-def test_workflow_with_resources(runtime):
-    """Test that uses database resources."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
-        "connection_string": "postgresql://test:test@localhost:5433/testdb",
-        "query": "SELECT 1 as value",
-        "operation": "select"
+@pytest.mark.parametrize("runtime_class", [LocalRuntime, AsyncLocalRuntime])
+def test_workflow_with_both_runtimes(runtime_class):
+    """Test workflow works with both sync and async runtimes."""
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node", {
+        "code": "result = {'status': 'completed'}"
     })
 
-    reg = kailash.NodeRegistry()
-    result = runtime.execute(builder.build(reg))
-    assert result["results"]["db"]["success"]
+    runtime = runtime_class()
 
-# Resources (database pools, etc.) are cleaned up in LIFO order
-# when the Runtime is garbage collected
+    if isinstance(runtime, AsyncLocalRuntime):
+        results = asyncio.run(runtime.execute_workflow_async(workflow.build(), inputs={}))
+    else:
+        results, run_id = runtime.execute(workflow.build())
+
+    assert results["node"]["result"]["status"] == "completed"
 ```
 
 ## Testing Checklist
 
 - [ ] Test written before implementation (TDD)
 - [ ] All 3 tiers covered (unit, integration, E2E)
-- [ ] NO MOCKING in Tiers 2-3 (use real Docker services)
+- [ ] Real infrastructure recommended in Tiers 2-3 (use real Docker services)
 - [ ] Clear, descriptive test names
 - [ ] Test isolation with fixtures
-- [ ] Resource cleanup via pytest fixtures for Runtime lifecycle
 - [ ] Tests run in CI/CD
 - [ ] 80%+ code coverage
 - [ ] Error cases tested
 - [ ] Edge cases tested
-- [ ] Runtime tested with NodeRegistry
+- [ ] Both LocalRuntime and AsyncLocalRuntime tested (where applicable)
 - [ ] Real infrastructure via Docker (PostgreSQL, Redis, Ollama)
 - [ ] Tests organized in correct tier (unit/, integration/, e2e/)
+
+## Documentation References
+
+### Primary Sources
 
 ## Related Patterns
 

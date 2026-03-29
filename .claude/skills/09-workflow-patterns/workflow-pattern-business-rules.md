@@ -8,23 +8,25 @@ description: "Business rule engine patterns. Use when asking 'business rules', '
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Discount Calculation Rules
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Load customer data
-builder.add_node("SQLQueryNode", "load_customer", {
+workflow.add_node("DatabaseQueryNode", "load_customer", {
     "query": "SELECT * FROM customers WHERE id = ?",
-    "params": ["{{input.customer_id}}"]
+    "parameters": ["{{input.customer_id}}"]
 })
 
-# 2. Check membership tier — use SwitchNode for multi-branch routing
-builder.add_node("SwitchNode", "check_tier", {
-    "cases": {
+# 2. Check membership tier
+workflow.add_node("ConditionalNode", "check_tier", {
+    "condition": "{{load_customer.tier}}",
+    "branches": {
         "gold": "gold_discount",
         "silver": "silver_discount",
         "bronze": "bronze_discount"
@@ -32,26 +34,30 @@ builder.add_node("SwitchNode", "check_tier", {
 })
 
 # 3. Calculate discounts
-builder.add_node("EmbeddedPythonNode", "gold_discount", {
-    "code": "result = value * 0.80",  # 20% off
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "gold_discount", {
+    "input": "{{input.amount}}",
+    "transformation": "value * 0.80"  # 20% off
 })
 
-builder.add_node("EmbeddedPythonNode", "silver_discount", {
-    "code": "result = value * 0.90",  # 10% off
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "silver_discount", {
+    "input": "{{input.amount}}",
+    "transformation": "value * 0.90"  # 10% off
 })
 
-builder.add_node("EmbeddedPythonNode", "bronze_discount", {
-    "code": "result = value * 0.95",  # 5% off
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "bronze_discount", {
+    "input": "{{input.amount}}",
+    "transformation": "value * 0.95"  # 5% off
 })
 
-# 4. Apply additional rules — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_bulk", {})
+# 4. Apply additional rules
+workflow.add_node("ConditionalNode", "check_bulk", {
+    "condition": "{{input.quantity}} > 10",
+    "true_branch": "bulk_discount",
+    "false_branch": "final_price"
+})
 
-builder.connect("load_customer", "rows", "check_tier", "input")
-builder.connect("check_tier", "matched", "check_bulk", "condition")
+workflow.add_connection("load_customer", "tier", "check_tier", "condition")
+workflow.add_connection("check_tier", "result", "check_bulk", "input")
 ```
 
 <!-- Trigger Keywords: business rules, rule engine, conditional logic, decision workflow -->

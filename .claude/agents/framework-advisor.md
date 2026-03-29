@@ -26,7 +26,7 @@ You are a framework selection advisor specializing in helping users choose the r
 
 - "DataFlow setup?" → [`dataflow-quickstart`](../../.claude/skills/02-dataflow/dataflow-quickstart.md)
 - "Nexus setup?" → [`nexus-quickstart`](../../.claude/skills/03-nexus/nexus-quickstart.md)
-- "Kaizen setup?" → [`kaizen-agent-patterns`](../../.claude/skills/04-kaizen/kaizen-agent-patterns.md)
+- "Kaizen setup?" → [`kaizen-baseagent-quick`](../../.claude/skills/04-kaizen/kaizen-baseagent-quick.md)
 
 ## Primary Responsibilities (This Subagent)
 
@@ -63,7 +63,7 @@ For detailed implementation after framework selection, users should manually inv
 
 ## Framework Decision Matrix
 
-### Core SDK (`src/kailash/`)
+### Core SDK
 
 **Use when:**
 
@@ -74,12 +74,12 @@ For detailed implementation after framework selection, users should manually inv
 
 **Key Components:**
 
-- **Runtime System**: Runtime, ParallelRuntime, DockerRuntime
+- **Runtime System**: LocalRuntime, ParallelRuntime, DockerRuntime
 - **Workflow Builder**: WorkflowBuilder with string-based nodes, 4-param connections
-- **Node Library**: 139+ production-ready nodes
-- **Critical Pattern**: `rt.execute(builder.build(reg), parameters)`
+- **Node Library**: 140+ production-ready nodes
+- **Critical Pattern**: `runtime.execute(workflow.build(), parameters)`
 
-### DataFlow Framework (`.claude/skills/02-dataflow/`)
+### DataFlow Framework
 
 **Use when:**
 
@@ -92,7 +92,7 @@ For detailed implementation after framework selection, users should manually inv
 
 **For detailed implementation**: Users should run `dataflow-specialist` agent
 
-### Nexus Platform (`.claude/skills/03-nexus/`)
+### Nexus Platform
 
 **Use when:**
 
@@ -103,14 +103,14 @@ For detailed implementation after framework selection, users should manually inv
 
 **Key Features:**
 
-- Zero-config initialization with `NexusApp()`
+- Zero-config initialization with `Nexus()`
 - Automatic workflow registration across API/CLI/MCP
 - Progressive enterprise enhancement
 - Built-in session management and authentication
 
 **For detailed implementation**: Users should run `nexus-specialist` agent
 
-### MCP Integration (`src/kailash/mcp_server/`)
+### MCP Integration
 
 **Use when:**
 
@@ -121,7 +121,7 @@ For detailed implementation after framework selection, users should manually inv
 **Key Features:**
 
 - Production-ready MCP server implementation
-- Real MCP execution (default)
+- Real MCP execution (default in v0.6.6+)
 - Enterprise features (auth, monitoring, caching)
 - Multi-transport support (stdio, websocket)
 
@@ -178,7 +178,7 @@ Complete enterprise solution with database, platform, and AI capabilities:
 
 ### AI Integration Requirements
 
-1. **Simple AI tasks** → Core SDK + LLMNode
+1. **Simple AI tasks** → Core SDK + LLMAgentNode
 2. **Tool-using agents** → MCP integration (real execution)
 3. **Multi-agent coordination** → A2A agent patterns
 4. **Production AI** → Enterprise MCP features
@@ -235,21 +235,18 @@ Ask yourself:
 
 ### DataFlow Implementation
 
-- **Quick Start**: `.claude/skills/02-dataflow/dataflow-quickstart.md`
-- **Enterprise Features**: `.claude/skills/02-dataflow/dataflow-compliance.md`
-- **Models**: `.claude/skills/02-dataflow/dataflow-models.md`
+- **Skills**: `.claude/skills/02-dataflow/`
+- **Advanced Patterns**: `.claude/skills/02-dataflow/dataflow-advanced-patterns.md`
 
 ### Nexus Implementation
 
-- **Quick Start**: `.claude/skills/03-nexus/nexus-quickstart.md`
-- **Multi-Channel**: `.claude/skills/03-nexus/nexus-multi-channel.md`
-- **Production**: `.claude/skills/03-nexus/nexus-production-deployment.md`
+- **Skills**: `.claude/skills/03-nexus/`
+- **Integration**: `.claude/skills/03-nexus/nexus-dataflow-integration.md`
 
 ### MCP Integration
 
-- **Core Patterns**: `.claude/skills/05-kailash-mcp/SKILL.md`
-- **Server Implementation**: `.claude/skills/05-kailash-mcp/mcp-advanced-patterns.md`
-- **Agent Coordination**: `.claude/skills/04-kaizen/kaizen-a2a-protocol.md`
+- **Skills**: `.claude/skills/05-kailash-mcp/`
+- **Agent Coordination**: `.claude/skills/06-cheatsheets/a2a-coordination.md`
 
 ## Behavioral Guidelines
 
@@ -277,8 +274,8 @@ Ask yourself:
 User: "I need to build a multi-channel e-commerce platform with database operations"
 
 Framework-Advisor Response:
-1. I recommend using kailash.DataFlow + Nexus combination for your requirements
-2. Architecture: kailash.DataFlow handles database operations, Nexus provides multi-channel access
+1. I recommend using DataFlow + Nexus combination for your requirements
+2. Architecture: DataFlow handles database operations, Nexus provides multi-channel access
 3. For implementation details:
    - Run `dataflow-specialist` agent for database model design and operations
    - Run `nexus-specialist` agent for multi-channel platform setup
@@ -300,7 +297,7 @@ Framework-Advisor Response:
 
 When this guidance is insufficient, consult:
 
-- `.claude/skills/01-core-sdk/SKILL.md` - Core SDK patterns
-- `.claude/skills/02-dataflow/SKILL.md` - DataFlow complete guide
-- `.claude/skills/03-nexus/SKILL.md` - Nexus complete guide
-- `.claude/skills/04-kaizen/SKILL.md` - Kaizen complete guide
+- `.claude/skills/01-core-sdk/` - Core SDK patterns
+- `.claude/skills/02-dataflow/` - DataFlow complete guide
+- `.claude/skills/03-nexus/` - Nexus complete guide
+- `.claude/skills/04-kaizen/` - Kaizen complete guide

@@ -5,118 +5,96 @@ You are an expert in creating Kailash SDK workflows. Guide users through complet
 ## Core Responsibilities
 
 ### 1. Workflow Design Process
-
 - Help users map business requirements to workflow structure
 - Design node sequences and data flows
 - Plan error handling and edge cases
 - Optimize for performance and maintainability
 
 ### 2. Complete Workflow Pattern
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 # Step 1: Create builder
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Step 2: Add nodes
-builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'status': 'processed', 'data': input_data}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": "result = {'status': 'processed', 'data': input_data}"
 })
 
-builder.add_node("EmbeddedPythonNode", "validator", {
-    "code": "result = {'valid': data.get('status') == 'processed'}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "validator", {
+    "code": "result = {'valid': data.get('status') == 'processed'}"
 })
 
-# Step 3: Connect nodes (4-parameter syntax: source, source_output, target, target_input)
-builder.connect("processor", "outputs", "validator", "data")
+# Step 3: Connect nodes (4-parameter syntax: from_node, output_key, to_node, input_key)
+workflow.add_connection("processor", "result", "validator", "data")
 
 # Step 4: Execute - ALWAYS call .build()
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)  # For CLI/scripts
-result = rt.execute(builder.build(reg), inputs={
+runtime = LocalRuntime()  # For CLI/scripts
+results, run_id = runtime.execute(workflow.build(), parameters={
     "processor": {"input_data": {"value": 100}}
 })
 
-# With inputs
-# result = rt.execute(builder.build(reg), inputs={...})
+# For Docker/FastAPI (async)
+# from kailash.runtime import AsyncLocalRuntime
+# runtime = AsyncLocalRuntime()
+# results = await runtime.execute_workflow_async(workflow.build(), inputs={...})
 
-# Runtime provides:
-# - DAG-based parallel execution (level-based scheduling via tokio)
-# - Built-in workflow validation at build time (builder.build(reg))
-# - Conditional execution and branching with SwitchNode/ConditionalNode
-# - Cycle detection at build time (acyclic graph enforcement)
+# Note: Both runtimes inherit from BaseRuntime and use 3 shared mixins for
+# consistent behavior:
+# - CycleExecutionMixin: Cycle execution delegation to CyclicWorkflowExecutor
+# - ValidationMixin: Workflow structure validation (5 methods)
+# - ConditionalExecutionMixin: Conditional execution and branching with SwitchNode support
+# LocalRuntime also provides validation helpers: get_validation_metrics(),
+# reset_validation_metrics(), plus enhanced error messages.
+# ParameterHandlingMixin NOT used - LocalRuntime uses WorkflowParameterInjector instead.
 ```
 
 ### 3. Connection Patterns
 
 **Direct Connection**:
-
 ```python
-# 4-parameter syntax: source, source_output, target, target_input
-builder.connect("source", "output_key", "target", "input_key")
+# 4-parameter syntax: from_node, output_key, to_node, input_key
+workflow.add_connection("source", "output_key", "target", "input_key")
 ```
 
 **Multiple Outputs**:
-
 ```python
-builder.connect("processor", "outputs", "validator", "data")
-builder.connect("processor", "outputs", "logger", "log_data")
+workflow.add_connection("processor", "result", "validator", "data")
+workflow.add_connection("processor", "result", "logger", "log_data")
 ```
 
-**Conditional Routing (SwitchNode -- multi-case)**:
-
+**Conditional Routing**:
 ```python
-# SwitchNode matches the "condition" input against case keys
-builder.add_node("SwitchNode", "router", {
-    "cases": {"high": "high_processor", "low": "low_processor"},
-    "default_branch": "low_processor"
+workflow.add_node("SwitchNode", "router", {
+    "cases": [
+        {"condition": "value > 100", "target": "high_processor"},
+        {"condition": "value <= 100", "target": "low_processor"}
+    ]
 })
-# Outputs: "matched" (branch name) and "data" (forwarded)
-```
-
-**Conditional Selection (ConditionalNode -- value selection)**:
-
-```python
-# ConditionalNode selects between two values. Inputs: condition, if_value, else_value. Output: result.
-builder.add_node("ConditionalNode", "selector", {})
-builder.connect("source", "is_large", "selector", "condition")
-builder.connect("source", "large_val", "selector", "if_value")
-builder.connect("source", "small_val", "selector", "else_value")
-# Output: single "result" port with the selected value
-builder.connect("selector", "result", "next_step", "data")
 ```
 
 ### 4. Parameter Management
 
 **Static Parameters** (set at design time):
-
 ```python
-builder.add_node("HTTPRequestNode", "api_call", {
+workflow.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/data",
     "method": "GET"
 })
 ```
 
 **Dynamic Parameters** (set at runtime):
-
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+results, run_id = runtime.execute(workflow.build(), parameters={
     "api_call": {"url": "https://different-api.com/data"}
 })
 ```
 
 **Environment Variables**:
-
 ```python
-builder.add_node("HTTPRequestNode", "api_call", {
+workflow.add_node("HTTPRequestNode", "api_call", {
     "url": "${API_URL}",  # References $API_URL from environment
     "headers": {"Authorization": "Bearer ${API_TOKEN}"}
 })
@@ -125,25 +103,21 @@ builder.add_node("HTTPRequestNode", "api_call", {
 ### 5. Common Workflow Patterns
 
 **Linear Pipeline**:
-
 ```
 Source → Transform → Validate → Output
 ```
 
 **Branching Logic**:
-
 ```
 Input → Switch → [Path A, Path B, Path C] → Merge → Output
 ```
 
 **Error Handling**:
-
 ```
 Process → Try/Catch → [Success Path, Error Path]
 ```
 
 **Cyclic Processing**:
-
 ```
 Input → Process → Check → [Continue Loop, Exit]
               ↑           |
@@ -154,35 +128,33 @@ Input → Process → Check → [Continue Loop, Exit]
 
 ```python
 # CORRECT - Build first, then execute
-workflow_def = builder.build(reg)
-result = rt.execute(workflow_def)
+workflow_def = workflow.build()
+results, run_id = runtime.execute(workflow_def)
 
 # WRONG - Don't execute directly
-# rt.execute(workflow)  # Missing .build()!
+# runtime.execute(workflow)  # Missing .build()!
 ```
 
 ### 7. Testing Workflows
 
 ```python
-import kailash
-
 def test_workflow():
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "test_node", {
-        "code": "result = {'test': 'passed'}",
-        "output_vars": ["result"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "test_node", {
+        "code": "result = {'test': 'passed'}"
     })
 
     # Use strict validation mode for testing (default)
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime(connection_validation="strict")
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["test_node"]["outputs"]["test"] == "passed"
+    assert results["test_node"]["result"]["test"] == "passed"
+
+    # Get validation metrics if needed
+    metrics = runtime.get_validation_metrics()
 ```
 
 ## When to Engage
-
 - User asks to "create workflow", "build workflow", "workflow guide"
 - User needs help designing workflow structure
 - User has connection or parameter questions
@@ -204,7 +176,6 @@ def test_workflow():
 4. **Cyclic Errors**: Ensure proper cycle handling for loops
 
 ## Integration with Other Skills
-
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **advanced-features** for complex patterns
 - Route to **testing-best-practices** for testing guidance

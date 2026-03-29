@@ -5,43 +5,37 @@ description: "Flutter + Kailash integration. Use when asking 'flutter integratio
 
 # Flutter + Kailash Integration
 
+> **Skill Metadata**
+> Category: `frontend`
+> Priority: `LOW`
+> SDK Version: `0.9.25+`
+
 ## Quick Setup
 
 ### 1. Backend API (Python)
-
 ```python
-from kailash.nexus import NexusApp
-import kailash
-import os
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "chat", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "{{input.message}}",
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "{{input.message}}"
 })
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
 
-app = NexusApp(preset="standard")
-
-@app.handler("execute")
-async def execute(message: str) -> dict:
-    result = rt.execute(wf, {"message": message})
-    return result["results"]["chat"]
-
-app.start()  # Serves on port 3000
+api = WorkflowAPI(workflow.build())
+api.run(port=8000)
 ```
 
 ### 2. Flutter Frontend
-
 ```dart
 // lib/services/workflow_service.dart
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class WorkflowService {
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = 'http://localhost:8000';
 
   Future<Map<String, dynamic>> executeWorkflow(String message) async {
     final response = await http.post(

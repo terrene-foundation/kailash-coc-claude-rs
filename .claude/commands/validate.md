@@ -8,8 +8,8 @@ Run compliance checks against the project's applicable standards. Automatically 
 
 Before validating, determine what frameworks the project uses:
 
-1. **Check for Kailash SDK (Python)**: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, or `import kailash` in Python files
-2. **Check for Kailash SDK (Ruby)**: Look for `kailash` in `Gemfile` or `*.gemspec`, or `require "kailash"` / `Kailash::` in Ruby files
+1. **Check for Kailash SDK (Python)**: Look for `kailash` in `requirements.txt`, `pyproject.toml`, `setup.py`, `setup.cfg`, or `from kailash` / `import kailash` in Python files
+2. **Check for Kailash SDK (Rust with Python bindings)**: Look for `kailash` in `Cargo.toml` dependencies alongside Python project markers
 3. **Generic project**: If neither detected, apply universal standards only
 
 Report what you detected before proceeding.
@@ -23,7 +23,7 @@ These always apply regardless of project type:
 | Security       | `rules/security.md`   | No hardcoded secrets, parameterized queries, input validation, output encoding |
 | No Stubs       | `rules/no-stubs.md`   | No TODOs, placeholders, NotImplementedError, simulated data in production code |
 | Env Variables  | `rules/env-models.md` | API keys and model names from `.env` only, never hardcoded                     |
-| Testing Policy | `rules/testing.md`    | NO MOCKING in Tier 2-3 tests, real infrastructure required                     |
+| Testing Policy | `rules/testing.md`    | Real infrastructure recommended in Tier 2-3 tests, real infrastructure required                     |
 | Git Hygiene    | `rules/git.md`        | Conventional commits, no secrets in history, atomic commits                    |
 
 ### Universal Validation Checklist
@@ -46,8 +46,8 @@ If Step 1 detected Kailash SDK usage, ALSO run these checks by loading the Kaila
 
 | Check            | What It Validates                                                                   |
 | ---------------- | ----------------------------------------------------------------------------------- |
-| Absolute Imports | `import kailash` — no relative or submodule imports                                 |
-| Runtime Pattern  | `rt.execute(builder.build(reg))` — never skip `.build(reg)`                         |
+| Absolute Imports | `from kailash.x.y import Z` — no relative imports                                   |
+| Runtime Pattern  | `runtime.execute(workflow.build())` — never skip `.build()`                         |
 | Connections      | 4-parameter format: `(source_id, source_param, target_id, target_param)`            |
 | Result Access    | `results["node_id"]["result"]` — not `.result` attribute                            |
 | Custom Nodes     | `@register_node()`, `run()` not `execute()`, attributes before `super().__init__()` |
@@ -63,7 +63,7 @@ If Step 1 detected Kailash SDK usage, ALSO run these checks by loading the Kaila
 /validate env            → Hardcoded API keys, model names (universal)
 /validate imports        → Absolute import compliance (Kailash only)
 /validate patterns       → Runtime execution patterns (Kailash only)
-/validate dataflow       → kailash.DataFlow result access patterns (Kailash only)
+/validate dataflow       → DataFlow result access patterns (Kailash only)
 ```
 
 ## Agent Teams
@@ -72,7 +72,7 @@ Deploy these agents for validation:
 
 - **security-reviewer** — Security audit (MANDATORY)
 - **gold-standards-validator** — Compliance check against project standards
-- **testing-specialist** — Verify NO MOCKING policy, test organization
+- **testing-specialist** — Verify Real infrastructure recommended policy, test organization
 
 ## Related Commands
 

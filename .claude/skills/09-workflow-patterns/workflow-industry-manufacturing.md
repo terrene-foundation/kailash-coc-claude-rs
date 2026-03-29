@@ -8,45 +8,50 @@ description: "Manufacturing workflows (production, quality, inventory). Use when
 > **Skill Metadata**
 > Category: `industry-workflows`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Quality Control Workflow
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Production item check
-builder.add_node("SQLQueryNode", "get_item", {
+workflow.add_node("DatabaseQueryNode", "get_item", {
     "query": "SELECT * FROM production_items WHERE batch_id = ?",
-    "params": ["{{input.batch_id}}"]
+    "parameters": ["{{input.batch_id}}"]
 })
 
 # 2. Run quality tests
-builder.add_node("HTTPRequestNode", "quality_test", {
+workflow.add_node("APICallNode", "quality_test", {
     "url": "{{sensors.quality_api}}",
     "method": "POST",
-    "body": {"batch_id": "{{input.batch_id}}"}
+    "body": {"item_id": "{{get_item.id}}"}
 })
 
-# 3. Evaluate results — ConditionalNode takes no config; condition via connections
-builder.add_node("ConditionalNode", "check_quality", {})
+# 3. Evaluate results
+workflow.add_node("ConditionalNode", "check_quality", {
+    "condition": "{{quality_test.score}} >= 95",
+    "true_branch": "approve",
+    "false_branch": "reject"
+})
 
 # 4. Update inventory
-builder.add_node("SQLQueryNode", "approve", {
-    "query": "UPDATE production_items SET status = 'approved', quality_score = ? WHERE batch_id = ?",
-    "params": ["{{quality_test.body}}", "{{input.batch_id}}"]
+workflow.add_node("DatabaseExecuteNode", "approve", {
+    "query": "UPDATE production_items SET status = 'approved', quality_score = ? WHERE id = ?",
+    "parameters": ["{{quality_test.score}}", "{{get_item.id}}"]
 })
 
-builder.add_node("SQLQueryNode", "reject", {
-    "query": "UPDATE production_items SET status = 'rejected', rejection_reason = ? WHERE batch_id = ?",
-    "params": ["{{quality_test.body}}", "{{input.batch_id}}"]
+workflow.add_node("DatabaseExecuteNode", "reject", {
+    "query": "UPDATE production_items SET status = 'rejected', rejection_reason = ? WHERE id = ?",
+    "parameters": ["{{quality_test.failure_reason}}", "{{get_item.id}}"]
 })
 
-builder.connect("get_item", "rows", "quality_test", "body")
-builder.connect("quality_test", "body", "check_quality", "condition")
-builder.connect("check_quality", "result", "approve", "body")
-builder.connect("check_quality", "result", "reject", "body")
+workflow.add_connection("get_item", "id", "quality_test", "item_id")
+workflow.add_connection("quality_test", "score", "check_quality", "condition")
+workflow.add_connection("check_quality", "output_true", "approve", "trigger")
+workflow.add_connection("check_quality", "output_false", "reject", "trigger")
 ```
 
 <!-- Trigger Keywords: manufacturing workflow, production line, quality control, inventory management -->

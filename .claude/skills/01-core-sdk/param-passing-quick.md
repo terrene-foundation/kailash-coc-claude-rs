@@ -10,13 +10,13 @@ Three methods to pass parameters to nodes in Kailash SDK workflows.
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `CRITICAL`
-> Related Skills: [`workflow-quickstart`](workflow-quickstart.md), [`connection-patterns`](connection-patterns.md), [`error-parameter-validation`](../ 15-error-troubleshooting/error-parameter-validation.md)
+> SDK Version: `0.9.31+`
+> Related Skills: [`workflow-quickstart`](workflow-quickstart.md), [`connection-patterns`](connection-patterns.md), [`error-parameter-validation`](../ 31-error-troubleshooting/error-parameter-validation.md)
 > Related Subagents: `pattern-expert` (complex parameter patterns)
 
 ## Quick Reference
 
 **Three Methods:**
-
 1. **Node Configuration** (Static) - Most reliable ⭐⭐⭐⭐⭐
 2. **Workflow Connections** (Dynamic) - Most reliable ⭐⭐⭐⭐⭐
 3. **Runtime Parameters** (Override) - Reliable (unwrapped automatically) ⭐⭐⭐⭐⭐
@@ -25,36 +25,30 @@ Three methods to pass parameters to nodes in Kailash SDK workflows.
 
 ## Core Pattern
 
-> **Note**: Some node names below (e.g., EmailNode, UserLookupNode) are hypothetical examples to illustrate parameter passing patterns. For real node names, see `node-patterns-common` or query `NodeRegistry().list_types()`. Real equivalents include `EmailAlertNode`, `EmbeddedPythonNode`, etc.
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Method 1: Node Configuration (static values)
-builder.add_node("EmailAlertNode", "send", {
+workflow.add_node("EmailNode", "send", {
     "to": "user@example.com",
     "subject": "Welcome"
 })
 
 # Method 2: Workflow Connection (dynamic from another node)
-builder.add_node("EmbeddedPythonNode", "lookup", {
-    "code": "result = {'email': 'user@example.com'}",
-    "output_vars": ["result"]
-})
-builder.connect("lookup", "outputs", "send", "to")
+workflow.add_node("UserLookupNode", "lookup", {"user_id": 123})
+workflow.add_connection("lookup", "email", "send", "to")
 
 # Method 3: Runtime Parameter (override at execution)
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build(), parameters={
     "send": {"to": "override@example.com"}
 })
 ```
 
-## Parameter Scoping
+## Parameter Scoping (v0.9.31+)
 
 **Node-specific parameters are automatically unwrapped:**
 
@@ -66,7 +60,7 @@ parameters = {
     "node2": {"value": 20}         # Node-specific for node2
 }
 
-rt.execute(builder.build(reg), inputs=parameters)
+runtime.execute(workflow.build(), parameters=parameters)
 
 # What node1 receives (unwrapped automatically):
 {
@@ -77,7 +71,6 @@ rt.execute(builder.build(reg), inputs=parameters)
 ```
 
 **Scoping rules:**
-
 - **Node-specific params**: Nested under node ID → unwrapped automatically
 - **Global params**: Top-level (not node IDs) → go to all nodes
 - **Parameter isolation**: Each node receives only its params + globals
@@ -86,68 +79,52 @@ rt.execute(builder.build(reg), inputs=parameters)
 ## The Three Methods
 
 ### Method 1: Node Configuration (Static)
-
 **Use when**: Values known at design time
 
 ```python
-# Example: configure a node with all values known at design time
-builder.add_node("EmbeddedPythonNode", "create", {
-    "code": """
-result = {
-    'name': name,
-    'email': email,
-    'active': active
-}
-""",
-    "output_vars": ["result"]
+workflow.add_node("UserCreateNode", "create", {
+    "name": "Alice",
+    "email": "alice@example.com",
+    "active": True
 })
 ```
 
 **Advantages:**
-
 - Most reliable
 - Clear and explicit
 - Easy to debug
 - Ideal for testing
 
 ### Method 2: Workflow Connections (Dynamic)
-
 **Use when**: Values come from other nodes
 
 ```python
-builder.add_node("EmbeddedPythonNode", "form", {
-    "code": "result = {'email_field': 'alice@example.com'}",
-    "output_vars": ["result"]
-})
-builder.add_node("EmbeddedPythonNode", "create", {
-    "code": "result = {'name': 'Alice', 'email': email}"
-    # 'email' comes from connection,
-    "output_vars": ["result"]
+workflow.add_node("FormDataNode", "form", {})
+workflow.add_node("UserCreateNode", "create", {
+    "name": "Alice"
+    # 'email' comes from connection
 })
 
-# 4-parameter syntax: source, source_output, target, target_input
-builder.connect("form", "outputs", "create", "email")
+# 4-parameter syntax: from_node, output_key, to_node, input_key
+workflow.add_connection("form", "email_field", "create", "email")
 ```
 
 **Advantages:**
-
 - Dynamic data flow
 - Loose coupling
 - Enables pipelines
 - Natural for transformations
 
 ### Method 3: Runtime Parameters (Override)
-
 **Use when**: Values determined at execution time
 
 ```python
-builder.add_node("EmbeddedPythonNode", "generate", {
-    "code": "result = {'report': f'Report from {start_date} to {end_date}'}"
-    # 'start_date' and 'end_date' from runtime,
-    "output_vars": ["result"]
+workflow.add_node("ReportNode", "generate", {
+    "template": "monthly"
+    # 'start_date' and 'end_date' from runtime
 })
 
-rt.execute(builder.build(reg), inputs={
+runtime.execute(workflow.build(), parameters={
     "generate": {
         "start_date": "2025-01-01",
         "end_date": "2025-01-31"
@@ -158,29 +135,27 @@ rt.execute(builder.build(reg), inputs={
 ## Common Mistakes
 
 ### ❌ Mistake: Missing Required Parameter
-
 ```python
-builder.add_node("HTTPRequestNode", "fetch", {
-    "method": "GET"
-    # ERROR: Missing required 'url'!
+workflow.add_node("UserCreateNode", "create", {
+    "name": "Alice"
+    # ERROR: Missing required 'email'!
 })
 ```
 
 ### ✅ Fix: Use One of Three Methods
-
 ```python
 # Method 1: Add to config
-builder.add_node("HTTPRequestNode", "fetch", {
-    "url": "https://api.example.com/data",
-    "method": "GET"
+workflow.add_node("UserCreateNode", "create", {
+    "name": "Alice",
+    "email": "alice@example.com"
 })
 
 # OR Method 2: Connect from another node
-builder.connect("source", "api_url", "fetch", "url")
+workflow.add_connection("form", "email", "create", "email")
 
 # OR Method 3: Provide at runtime
-rt.execute(builder.build(reg), inputs={
-    "fetch": {"url": "https://api.example.com/data"}
+runtime.execute(workflow.build(), parameters={
+    "create": {"email": "alice@example.com"}
 })
 ```
 
@@ -188,17 +163,22 @@ rt.execute(builder.build(reg), inputs={
 
 - **For connections**: [`connection-patterns`](connection-patterns.md)
 - **For workflow creation**: [`workflow-quickstart`](workflow-quickstart.md)
-- **For parameter errors**: [`error-parameter-validation`](../15-error-troubleshooting/error-parameter-validation.md)
+- **For parameter errors**: [`error-parameter-validation`](../31-error-troubleshooting/error-parameter-validation.md)
 - **Gold standard**: [`gold-parameter-passing`](../17-gold-standards/gold-parameter-passing.md)
 
 ## When to Escalate to Subagent
 
 Use `pattern-expert` when:
-
 - Complex parameter flow across many nodes
 - Custom node parameter validation
 - Enterprise parameter governance
 - Advanced parameter patterns
+
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
 
 ## Quick Tips
 
@@ -210,8 +190,8 @@ Use `pattern-expert` when:
 
 ## Version Notes
 
-- Parameter scoping with automatic unwrapping is the standard behavior
-- Strict parameter validation is enforced (security feature)
-- Three parameter methods are the established standard pattern
+- **v0.9.31+**: Parameter scoping with automatic unwrapping
+- **v0.7.0+**: Strict parameter validation enforced (security feature)
+- **v0.6.0+**: Three methods established as standard pattern
 
 <!-- Trigger Keywords: parameter passing, pass parameters, runtime parameters, node config, how to pass data, 3 methods, parameter methods, node parameters, workflow parameters, parameter flow, provide parameters, parameter scoping, unwrap parameters -->

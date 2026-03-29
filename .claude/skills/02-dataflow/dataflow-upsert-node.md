@@ -27,7 +27,7 @@ Use `conflict_on` to specify custom fields for conflict detection beyond the def
 
 ```python
 # ✅ CORRECT - Custom conflict field
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"email": "alice@example.com"},
     "conflict_on": ["email"],  # ← Detect conflicts on email
     "update": {"name": "Alice Updated"},
@@ -39,7 +39,7 @@ builder.add_node("UpsertUser", "upsert", {
 })
 
 # ❌ WRONG - Missing conflict_on when using non-id field
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"id": "user-123"},  # ← Must use id
     "update": {"name": "Alice Updated"},
     "create": {
@@ -54,7 +54,7 @@ builder.add_node("UpsertUser", "upsert", {
 ### Email-Based Upsert
 ```python
 # Upsert user by email (natural key)
-builder.add_node("UpsertUser", "upsert_alice", {
+workflow.add_node("UserUpsertNode", "upsert_alice", {
     "where": {"email": "alice@example.com"},
     "conflict_on": ["email"],
     "update": {"name": "Alice Updated", "last_login": "2024-01-15"},
@@ -73,7 +73,7 @@ builder.add_node("UpsertUser", "upsert_alice", {
 
 ### Username-Based Upsert
 ```python
-builder.add_node("UpsertUser", "upsert_user", {
+workflow.add_node("UserUpsertNode", "upsert_user", {
     "where": {"username": "alice"},
     "conflict_on": ["username"],
     "update": {"profile_updated_at": "2024-01-15"},
@@ -87,7 +87,7 @@ builder.add_node("UpsertUser", "upsert_user", {
 
 ### SKU-Based Upsert (Inventory)
 ```python
-builder.add_node("UpsertProduct", "upsert_product", {
+workflow.add_node("ProductUpsertNode", "upsert_product", {
     "where": {"sku": "WIDGET-001"},
     "conflict_on": ["sku"],
     "update": {"stock_quantity": 100, "price": 29.99},
@@ -105,7 +105,7 @@ builder.add_node("UpsertProduct", "upsert_product", {
 
 ### Order Line Items (order_id + product_id)
 ```python
-builder.add_node("UpsertOrderItem", "upsert_item", {
+workflow.add_node("OrderItemUpsertNode", "upsert_item", {
     "where": {
         "order_id": "order-123",
         "product_id": "prod-456"
@@ -124,7 +124,7 @@ builder.add_node("UpsertOrderItem", "upsert_item", {
 
 ### User Roles (user_id + role_id)
 ```python
-builder.add_node("UpsertUserRole", "assign_role", {
+workflow.add_node("UserRoleUpsertNode", "assign_role", {
     "where": {
         "user_id": "user-123",
         "role_id": "role-admin"
@@ -142,7 +142,7 @@ builder.add_node("UpsertUserRole", "assign_role", {
 
 ### Time Series Data (sensor_id + timestamp)
 ```python
-builder.add_node("UpsertSensorReading", "record_reading", {
+workflow.add_node("SensorReadingUpsertNode", "record_reading", {
     "where": {
         "sensor_id": "sensor-A1",
         "timestamp": "2024-01-15T10:00:00Z"
@@ -163,7 +163,7 @@ builder.add_node("UpsertSensorReading", "record_reading", {
 ### 1. Idempotent API Requests
 ```python
 # Handle duplicate API calls gracefully
-builder.add_node("UpsertOrder", "create_order", {
+workflow.add_node("OrderUpsertNode", "create_order", {
     "where": {"external_id": api_request_id},
     "conflict_on": ["external_id"],
     "update": {},  # No updates - just skip if exists
@@ -180,7 +180,7 @@ builder.add_node("UpsertOrder", "create_order", {
 ### 2. Email-Based User Registration
 ```python
 # Register or update user by email
-builder.add_node("UpsertUser", "register", {
+workflow.add_node("UserUpsertNode", "register", {
     "where": {"email": user_email},
     "conflict_on": ["email"],
     "update": {"last_login": datetime.now()},
@@ -197,7 +197,7 @@ builder.add_node("UpsertUser", "register", {
 ### 3. Inventory Stock Updates
 ```python
 # Update stock by SKU
-builder.add_node("UpsertProduct", "update_stock", {
+workflow.add_node("ProductUpsertNode", "update_stock", {
     "where": {"sku": product_sku},
     "conflict_on": ["sku"],
     "update": {"stock_quantity": new_quantity},
@@ -213,7 +213,7 @@ builder.add_node("UpsertProduct", "update_stock", {
 ### 4. Configuration Settings
 ```python
 # Upsert configuration by key
-builder.add_node("UpsertConfig", "set_config", {
+workflow.add_node("ConfigUpsertNode", "set_config", {
     "where": {"key": "feature_flag_x"},
     "conflict_on": ["key"],
     "update": {"value": "enabled", "updated_at": datetime.now()},
@@ -229,7 +229,7 @@ builder.add_node("UpsertConfig", "set_config", {
 ### 5. Multi-Tenant Data
 ```python
 # Upsert with tenant isolation
-builder.add_node("TenantUpsertConfig", "set_tenant_config", {
+workflow.add_node("TenantConfigUpsertNode", "set_tenant_config", {
     "where": {
         "tenant_id": current_tenant_id,
         "key": "api_quota"
@@ -283,14 +283,14 @@ DO UPDATE SET
 ### 1. Use Natural Keys
 ```python
 # ✅ CORRECT - Natural key (email)
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"email": "alice@example.com"},
     "conflict_on": ["email"],
     ...
 })
 
 # ❌ WRONG - Technical ID (defeats purpose of custom conflict_on)
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"id": "user-123"},
     "conflict_on": ["id"],  # ← Just use id-based upsert
     ...
@@ -306,9 +306,11 @@ class User:
     email: str
     name: str
 
-    # Unique constraint on email -- must match conflict_on in upsert
+    __dataflow__ = {
+        'unique_constraints': [['email']]  # ← Must match conflict_on
+    }
 
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"email": "alice@example.com"},
     "conflict_on": ["email"],  # ← Matches unique constraint
     ...
@@ -318,14 +320,14 @@ builder.add_node("UpsertUser", "upsert", {
 ### 3. Composite Keys for Associations
 ```python
 # ✅ CORRECT - Composite key for many-to-many
-builder.add_node("UpsertUserRole", "assign", {
+workflow.add_node("UserRoleUpsertNode", "assign", {
     "where": {"user_id": "user-123", "role_id": "role-admin"},
     "conflict_on": ["user_id", "role_id"],
     ...
 })
 
 # ❌ WRONG - Single field doesn't prevent duplicates
-builder.add_node("UpsertUserRole", "assign", {
+workflow.add_node("UserRoleUpsertNode", "assign", {
     "where": {"user_id": "user-123"},
     "conflict_on": ["user_id"],  # ← Can create duplicate roles!
     ...
@@ -340,7 +342,7 @@ builder.add_node("UpsertUserRole", "assign", {
 **Solution:**
 ```python
 # ✅ Add conflict_on matching your unique constraint
-builder.add_node("UpsertUser", "upsert", {
+workflow.add_node("UserUpsertNode", "upsert", {
     "where": {"email": "alice@example.com"},
     "conflict_on": ["email"],  # ← Required
     ...
@@ -353,7 +355,7 @@ builder.add_node("UpsertUser", "upsert", {
 **Solution:**
 ```python
 # ✅ CORRECT - All conflict_on fields in where
-builder.add_node("UpsertOrderItem", "upsert", {
+workflow.add_node("OrderItemUpsertNode", "upsert", {
     "where": {
         "order_id": "order-123",
         "product_id": "prod-456"
@@ -363,7 +365,7 @@ builder.add_node("UpsertOrderItem", "upsert", {
 })
 
 # ❌ WRONG - Missing fields in where
-builder.add_node("UpsertOrderItem", "upsert", {
+workflow.add_node("OrderItemUpsertNode", "upsert", {
     "where": {"order_id": "order-123"},  # ← Missing product_id
     "conflict_on": ["order_id", "product_id"],
     ...
@@ -373,7 +375,7 @@ builder.add_node("UpsertOrderItem", "upsert", {
 ## Related Resources
 
 - **[dataflow-crud-operations](dataflow-crud-operations.md)** - CRUD operation patterns
-- **[dataflow-bulk-operations](dataflow-bulk-operations.md)** - BulkUpsert{Model} patterns
+- **[dataflow-bulk-operations](dataflow-bulk-operations.md)** - BulkUpsertNode patterns
 
 ## When to Use This Skill
 

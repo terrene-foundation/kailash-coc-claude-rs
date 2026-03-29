@@ -1,6 +1,6 @@
 ---
 name: decide-node-for-task
-description: "Select appropriate nodes from 139+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
+description: "Select appropriate nodes from 110+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
 ---
 
 # Decision: Node Selection
@@ -10,6 +10,7 @@ Decision: Node Selection guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `cross-cutting`
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,18 +22,18 @@ Decision: Node Selection guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Decide Node For Task implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
-# Reference: decide-node-for-task
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -51,11 +52,14 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - Complex implementation needed
 - Production deployment required
 - Deep analysis necessary
 - Enterprise patterns needed
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

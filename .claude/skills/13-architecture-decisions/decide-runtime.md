@@ -1,6 +1,6 @@
 ---
 name: decide-runtime
-description: "Choose between Runtime and Runtime based on deployment context. Use when asking 'which runtime', 'Runtime vs Async', 'runtime choice', 'sync vs async', 'runtime selection', or 'choose runtime'."
+description: "Choose between LocalRuntime and AsyncLocalRuntime based on deployment context. Use when asking 'which runtime', 'LocalRuntime vs Async', 'runtime choice', 'sync vs async', 'runtime selection', or 'choose runtime'."
 ---
 
 # Decision: Runtime Selection
@@ -10,91 +10,126 @@ Decision: Runtime Selection guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `cross-cutting`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
 - **Primary Use**: Decision: Runtime Selection
 - **Category**: cross-cutting
 - **Priority**: HIGH
-- **Trigger Keywords**: which runtime, Runtime vs Async, runtime choice, sync vs async, runtime selection
+- **Trigger Keywords**: which runtime, LocalRuntime vs Async, runtime choice, sync vs async, runtime selection
 
 ## Decision Matrix
 
-### Use Runtime When:
+### Use LocalRuntime When:
 
 - CLI applications and scripts
 - Synchronous execution contexts
 - Testing in pytest (without async fixtures)
 - Simple sequential workflows
-- Existing code integration
+- Legacy code integration
 
 ```python
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+from kailash.runtime.local import LocalRuntime
+
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-### Use Runtime in Production When:
+### Use AsyncLocalRuntime When:
 
 - Docker deployments
-- NexusApp deployments
+- FastAPI applications
 - High-concurrency scenarios
-- Production APIs
+- Async execution contexts
+- Production APIs (10-100x faster)
 
 ```python
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+from kailash.runtime import AsyncLocalRuntime
+
+runtime = AsyncLocalRuntime()
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 ```
 
-### Standard Pattern (Recommended):
+### Auto-Detection (Recommended):
 
 ```python
-import kailash
+from kailash.runtime import get_runtime
 
-# Single runtime for all contexts
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+# Automatically selects appropriate runtime based on context
+runtime = get_runtime()  # Defaults to "async"
+runtime = get_runtime("sync")  # Force synchronous
+runtime = get_runtime("async")  # Force asynchronous
 ```
 
-## Runtime Details
 
-| Feature             | Value                                       |
-| ------------------- | ------------------------------------------- | --- |
-| **Execution Model** | Handles both sync and async                 |
-| **Best For**        | All contexts (CLI, Docker, NexusApp, APIs)  |
-| **Return Value**    | `dict` with `results`, `run_id`, `metadata` |
-| **Method**          | `rt.execute(builder.build(reg))`            |
-| **Context**         | Any                                         | Any |
+## Comparison Table
+
+| Feature | LocalRuntime | AsyncLocalRuntime |
+|---------|--------------|-------------------|
+| **Execution Model** | Synchronous | Asynchronous |
+| **Best For** | CLI, Scripts, Tests | Docker, FastAPI, APIs |
+| **Performance** | Standard | 10-100x faster |
+| **Threading** | ThreadPoolExecutor | No threads (async/await) |
+| **Return Value** | `(results, run_id)` | `results` |
+| **Method** | `execute(workflow.build())` | `await execute_workflow_async(workflow.build(), inputs={})` |
+| **Context** | Sync contexts | Async contexts |
 
 ## Shared Architecture
 
-`kailash.Runtime` is a single unified Rust-backed runtime:
+Both runtimes inherit from BaseRuntime and use shared mixins, ensuring identical behavior:
 
-**Core Capabilities**:
+**BaseRuntime Foundation**:
+- 29 configuration parameters: `debug`, `enable_cycles`, `conditional_execution`, `connection_validation`, `max_iterations`, etc.
+- Execution metadata: Run ID generation, workflow caching, metadata management
+- Common initialization and validation modes (strict, warn, off)
 
-- Workflow execution via `rt.execute(wf)` and `rt.execute(wf, inputs={...})`
-- Level-based parallelism: nodes at the same DAG level execute concurrently
-- Result type: dict with keys `"results"`, `"run_id"`, `"metadata"`
-- Workflow validation happens at `builder.build(reg)` time (not at runtime)
+**Shared Mixins**:
+- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
+- **ValidationMixin**: Workflow structure validation (5 methods)
+  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
+  - _validate_connection_contracts(): Validates connection parameter contracts
+  - _validate_conditional_execution_prerequisites(): Validates conditional execution setup
+  - _validate_switch_results(): Validates switch node results
+  - _validate_conditional_execution_results(): Validates conditional execution results
+- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
+  - Pattern detection and cycle detection
+  - Node skipping and hierarchical execution
+  - Conditional workflow orchestration
 
-**Key Features**:
+**LocalRuntime-Specific Features**:
+- _generate_enhanced_validation_error(): Enhanced error messages
+- _build_connection_context(): Connection context for errors
+- get_validation_metrics(): Public API for validation metrics
+- reset_validation_metrics(): Public API for metrics reset
 
-- Cycle detection and execution support
-- Conditional execution and branching (SwitchNode)
-- Connection validation between node inputs/outputs
-- Run ID generation and execution metadata
+**ParameterHandlingMixin Not Used**:
+LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
 
-The unified runtime ensures consistent behavior across all deployment contexts.
+The shared architecture ensures consistent behavior, with the only differences being execution model and async-specific optimizations.
 
-## Parallelism
+## AsyncLocalRuntime-Specific Features
 
-The single `kailash.Runtime` handles parallelism automatically:
+AsyncLocalRuntime extends LocalRuntime with async-optimized capabilities:
 
-- No separate "AsyncNode" class — all nodes implement the same async `Node` trait
-- Nodes at the same DAG level execute concurrently (via tokio::spawn)
-- The Runtime chooses the optimal execution strategy based on the DAG structure
+### Automatic Strategy Selection
+
+AsyncLocalRuntime automatically chooses the optimal execution strategy:
+
+**Pure Async Strategy**:
+- When: All nodes are AsyncNode subclasses
+- Benefit: Maximum concurrency, fastest execution
+- Example: Workflows with AsyncPythonCodeNode, async HTTP calls
+
+**Mixed Strategy**:
+- When: Combination of sync and async nodes
+- Benefit: Balanced performance, wide compatibility
+- Example: Most real-world workflows
+
+**Sync-Only Strategy**:
+- When: All sync nodes
+- Benefit: Compatibility with existing workflows
+- Example: Legacy workflows without async nodes
 
 ### Level-Based Parallelism
 
@@ -111,25 +146,28 @@ Executes independent nodes concurrently within dependency levels:
 # Level 1: [D, E]    → Execute concurrently
 # Level 2: [F]       → Execute alone
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = AsyncLocalRuntime(max_concurrent_nodes=10)
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 ```
 
 ### Concurrency Control
 
 ```python
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+runtime = AsyncLocalRuntime(
+    max_concurrent_nodes=20,   # Limit concurrent executions
+    thread_pool_size=8,        # Threads for sync nodes
+    enable_analysis=True,      # Enable WorkflowAnalyzer
+    enable_profiling=True      # Track performance metrics
+)
 ```
 
 ### Resource Integration
 
 ```python
-import kailash
+from kailash.resources import ResourceRegistry
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+registry = ResourceRegistry()
+runtime = AsyncLocalRuntime(resource_registry=registry)
 
 # Nodes can access: context.resource_registry.get_resource("db")
 ```
@@ -139,63 +177,62 @@ rt = kailash.Runtime(reg)
 ### Pattern 1: CLI Script
 
 ```python
-# CLI script
-import kailash
+# CLI script - use LocalRuntime
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-print(f"Workflow {result['run_id']} completed: {result['results']}")
+runtime = LocalRuntime(debug=True)
+results, run_id = runtime.execute(workflow.build())
+print(f"Workflow {run_id} completed: {results}")
 ```
 
-### Pattern 2: NexusApp Deployment
+### Pattern 2: FastAPI Deployment
 
 ```python
-# NexusApp deployment
-from kailash.nexus import NexusApp
+# FastAPI app - use AsyncLocalRuntime
+from fastapi import FastAPI
+from kailash.runtime import AsyncLocalRuntime
 
-app = NexusApp()
+app = FastAPI()
+runtime = AsyncLocalRuntime()
 
-@app.handler("execute_workflow", description="Execute a workflow")
-def execute_workflow(data: str) -> dict:
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    # ... build workflow ...
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg))
+@app.post("/execute")
+async def execute_workflow():
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+    return results
 ```
 
 ### Pattern 3: Testing
 
 ```python
-# Testing
+# Testing - typically LocalRuntime
 import pytest
-import kailash
+from kailash.runtime.local import LocalRuntime
 
 def test_workflow():
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    assert result["results"]["node"]["output"] == expected
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
+    assert results["node"]["output"] == expected
 ```
 
 ## Migration Between Runtimes
 
-Configuration via `RuntimeConfig` (keyword arguments, not a dict):
+Both runtimes share the same configuration parameters:
 
 ```python
-import kailash
+# Configuration works identically for both
+config = {
+    "debug": True,
+    "enable_cycles": True,
+    "conditional_execution": True,
+    "connection_validation": "strict",  # or "warn" or "off"
+    "content_aware_success_detection": True
+}
 
-config = kailash.RuntimeConfig(
-    debug=True,
-    enable_cycles=True,
-    conditional_execution="skip",         # "skip" or "evaluate_all"
-    connection_validation="strict",       # "strict", "warn", or "off"
-    max_concurrent_nodes=4,
-)
+# LocalRuntime
+sync_runtime = LocalRuntime(**config)
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg, config)
+# AsyncLocalRuntime
+async_runtime = AsyncLocalRuntime(**config)
 ```
 
 ## Related Patterns
@@ -207,20 +244,17 @@ rt = kailash.Runtime(reg, config)
 ## Documentation References
 
 ### Primary Sources
-
 - [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
 
 ### Internal Architecture
 
-- `kailash.Runtime` is a single Rust-backed runtime (PyO3 binding)
-- No separate sync/async split -- one unified runtime handles both
-
 ## Quick Tips
 
-- Use `kailash.Runtime(reg)` for all contexts -- it handles both sync and async
-- Always pass `reg` (NodeRegistry) to both Runtime and builder.build()
-- Result is a dict with keys `results`, `run_id`, and `metadata`
+- Default to AsyncLocalRuntime for production deployments (faster, Docker-optimized)
+- Use LocalRuntime for CLI tools and simple scripts
+- Both runtimes share identical configuration and validation logic
+- Migration between runtimes only requires changing import and execution method
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: which runtime, Runtime vs Async, runtime choice, sync vs async, runtime selection -->
+<!-- Trigger Keywords: which runtime, LocalRuntime vs Async, runtime choice, sync vs async, runtime selection -->

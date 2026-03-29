@@ -26,11 +26,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose ports
-EXPOSE 3000 3001
+EXPOSE 8000 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Run application
 CMD ["python", "app.py"]
@@ -39,26 +39,50 @@ CMD ["python", "app.py"]
 ### requirements.txt
 
 ```
-kailash-enterprise  # All frameworks included
+kailash-nexus>=1.0.0
+kailash-dataflow>=0.5.0  # If using DataFlow
+uvicorn[standard]>=0.24.0
+gunicorn>=21.2.0
 redis>=5.0.0
+psycopg2-binary>=2.9.9  # If using PostgreSQL
 ```
 
 ### app.py
 
 ```python
 import os
-import kailash
-from kailash.nexus import NexusApp, NexusConfig
+from nexus import Nexus
 
 # Production configuration
-app = NexusApp(config=NexusConfig(
-    port=int(os.getenv("PORT", "3000")),
-    host="0.0.0.0",
-))
+app = Nexus(
+    api_port=int(os.getenv("PORT", "8000")),
+    mcp_port=int(os.getenv("MCP_PORT", "3001")),
+    api_host="0.0.0.0",
 
-# Security: Rate limiting and auth
-app.add_rate_limit(5000)
-# Auth configured via NexusAuthPlugin (see nexus-auth-plugin.md)
+    # Security
+    enable_auth=True,
+    enable_rate_limiting=True,
+    rate_limit=5000,
+
+    # Performance
+    max_concurrent_workflows=200,
+    enable_caching=True,
+
+    # Monitoring
+    enable_monitoring=True,
+    monitoring_backend="prometheus",
+
+    # Sessions (Redis for distributed)
+    session_backend="redis",
+    redis_url=os.getenv("REDIS_URL"),
+
+    # Logging
+    log_level=os.getenv("LOG_LEVEL", "INFO"),
+    log_format="json",
+
+    # Discovery
+    auto_discovery=False  # Manual registration
+)
 
 # Register workflows
 from workflows import register_workflows
@@ -77,7 +101,7 @@ docker build -t nexus-app:latest .
 # Run container
 docker run -d \
   --name nexus \
-  -p 3000:3000 \
+  -p 8000:8000 \
   -p 3001:3001 \
   -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
   -e REDIS_URL="redis://redis:6379" \
@@ -88,20 +112,20 @@ docker run -d \
 docker logs -f nexus
 
 # Check health
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 ### Docker Compose
 
 ```yaml
 # docker-compose.yml
-version: "3.8"
+version: '3.8'
 
 services:
   nexus:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
       - "3001:3001"
     environment:
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
@@ -111,7 +135,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -156,95 +180,110 @@ docker-compose logs -f nexus
 docker-compose down
 ```
 
-## Production Security Configuration
+## Production Security Configuration (v1.1.1+)
 
-### Security Defaults
+### Critical Security Fixes
 
-Nexus includes production-safe security defaults.
+Nexus v1.1.1 includes P0 security and reliability fixes for production environments.
+
+### Environment Variables
+
+Set `NEXUS_ENV=production` to enable production security features:
+
+```bash
+export NEXUS_ENV=production
+```
+
+**What this does**:
+- ✅ Auto-enables authentication (unless explicitly disabled)
+- ✅ Ensures rate limiting is active (100 req/min default)
+- ✅ Adds security warnings if auth disabled
 
 ### Authentication in Production
 
-> **Important**: `NEXUS_ENV` is NOT a supported environment variable. Auth must be configured explicitly via `NexusAuthPlugin`.
-
-**Recommended (Explicit Auth)**:
-
+**Recommended (Auto-Enable)**:
 ```python
-from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
 import os
+from nexus import Nexus
 
-# Configure auth explicitly — there is no auto-enable via env vars
-auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]))
-app = NexusApp()
+# Set environment variable
+os.environ["NEXUS_ENV"] = "production"
+
+# In production (NEXUS_ENV=production), this auto-enables auth
+app = Nexus()  # enable_auth auto-set to True
 ```
 
-**Rate Limiting**:
-
+**Explicit Override**:
 ```python
-app.add_rate_limit(max_requests=100, window_secs=60)
+# Force enable in development
+app = Nexus(enable_auth=True)
+
+# Disable in production (NOT RECOMMENDED - logs critical warning)
+app = Nexus(enable_auth=False)
+# ⚠️  SECURITY WARNING: Authentication is DISABLED in production environment!
+#    Set enable_auth=True to secure your API endpoints.
 ```
 
 **Docker Environment**:
-
 ```yaml
 # docker-compose.yml
 services:
   nexus:
     environment:
+      - NEXUS_ENV=production  # Auto-enables auth
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
-      - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://redis:6379
 ```
 
 ### Rate Limiting
 
-**Default Configuration**:
-
+**Default Configuration (v1.1.1+)**:
 ```python
-app = NexusApp()  # rate_limit defaults to 100 req/min
+app = Nexus()  # rate_limit defaults to 100 req/min
 ```
 
 **Custom Rate Limits**:
-
 ```python
 # Higher limit for high-traffic APIs
-app = NexusApp()
-app.add_rate_limit(1000)
+app = Nexus(rate_limit=1000)
 
 # Disable (NOT RECOMMENDED - logs security warning)
-app = NexusApp()  # No rate limit
+app = Nexus(rate_limit=None)
 # ⚠️  SECURITY WARNING: Rate limiting is DISABLED!
 #    This allows unlimited requests and may lead to DoS attacks.
 ```
 
 **Per-Endpoint Rate Limiting**:
-
 ```python
-import kailash
+from nexus import Nexus
 
-from kailash.nexus import NexusApp
-app = NexusApp()
-app.add_rate_limit(50)  # Global rate limit
+app = Nexus()
 
-# Use @app.handler() (NOT @app.endpoint())
-@app.handler("search", description="Search endpoint")
-async def search_endpoint(q: str) -> dict:
-    """Search endpoint."""
-    return {"query": q, "results": []}
+# Custom endpoint with specific rate limit
+@app.endpoint("/api/search", rate_limit=50)
+async def search_endpoint(q: str):
+    """Search endpoint with lower rate limit."""
+    return await app._execute_workflow("search", {"query": q})
 ```
 
-### Input Validation
+### Input Validation (v1.1.1+)
 
 All channels (API, MCP, CLI) now validate inputs automatically:
 
 **Protections Enabled**:
-
 - ✅ **Dangerous Keys Blocked**: `__import__`, `eval`, `exec`, `compile`, `globals`, `locals`, etc.
 - ✅ **Input Size Limits**: 10MB default (configurable)
 - ✅ **Path Traversal Prevention**: Blocks `../`, `..\\`, absolute paths
 - ✅ **Key Length Limits**: 256 characters max
 
-Input size limits (default 10MB) are configured server-side by the Rust Nexus engine.
-NexusApp does not expose `_max_input_size` as a settable attribute.
+**Configuration**:
+```python
+# Default (10MB input limit)
+app = Nexus()
+
+# Custom input size limit
+app._max_input_size = 20 * 1024 * 1024  # 20MB
+```
 
 **No configuration needed** - automatically applied across all channels.
 
@@ -254,28 +293,45 @@ Complete production-ready configuration:
 
 ```python
 import os
-import kailash
-from kailash.nexus import NexusApp, NexusConfig
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
 
 # Production configuration with all security features
-app = NexusApp(config=NexusConfig(
-    port=int(os.getenv("PORT", "3000")),
-    host="0.0.0.0",
-))
+app = Nexus(
+    # Environment
+    # Set NEXUS_ENV=production to auto-enable auth
 
-# Security: Rate limiting and auth
-app.add_rate_limit(1000)  # P0-2: DoS protection (default 100)
-# Auth configured via NexusAuthPlugin (see nexus-auth-plugin.md)
+    # Server
+    api_port=int(os.getenv("PORT", "8000")),
+    api_host="0.0.0.0",
 
-# Register workflows explicitly (manual registration)
+    # Security (P0 fixes)
+    enable_auth=True,          # P0-1: Explicit enable (or use NEXUS_ENV=production)
+    rate_limit=1000,           # P0-2: DoS protection (default 100)
+    auto_discovery=False,      # P0-3: No blocking (manual registration)
+
+    # Performance
+    max_concurrent_workflows=200,
+    enable_caching=True,
+    request_timeout=60,
+
+    # Monitoring
+    enable_monitoring=True,
+    monitoring_interval=30,
+
+    # Sessions
+    session_backend="redis",
+    redis_url=os.getenv("REDIS_URL"),
+
+    # Logging
+    log_level="INFO",
+    log_format="json",
+    log_file="/var/log/nexus/app.log"
+)
+
+# Register workflows explicitly (no auto-discovery)
 from workflows import user_workflow, order_workflow
-rt = kailash.Runtime(reg)
-users_wf = user_builder.build(reg)
-orders_wf = order_builder.build(reg)
-app.register("users", lambda **inputs: rt.execute(users_wf, inputs))
-app.register("orders", lambda **inputs: rt.execute(orders_wf, inputs))
+app.register("users", user_workflow.build())
+app.register("orders", order_workflow.build())
 
 if __name__ == "__main__":
     app.start()
@@ -284,7 +340,6 @@ if __name__ == "__main__":
 ### Docker Production Deployment
 
 **Dockerfile** (with security):
-
 ```dockerfile
 FROM python:3.11-slim
 
@@ -297,34 +352,34 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# NOTE: NEXUS_ENV is not a supported env var — configure auth in code
+# Set production environment
+ENV NEXUS_ENV=production
 
 # Expose ports
-EXPOSE 3000 3001
+EXPOSE 8000 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Run with production settings
 CMD ["python", "app.py"]
 ```
 
 **docker-compose.yml** (with security):
-
 ```yaml
-version: "3.8"
+version: '3.8'
 
 services:
   nexus:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
       - "3001:3001"
     environment:
-      # Database and auth secrets
+      # Security
+      - NEXUS_ENV=production              # Auto-enable auth
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
-      - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://redis:6379
 
       # Logging
@@ -333,7 +388,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -370,43 +425,40 @@ volumes:
 ### Security Monitoring
 
 **Monitor security events**:
-
 ```python
-# Check health status
+# Check auth status
 health = app.health_check()
-print(f"Health: {health}")
+print(f"Auth Enabled: {health.get('auth_enabled', False)}")
 
-# NOTE: NexusApp does not expose _rate_limit as a private attribute.
-# Verify your rate limiting setup at the application level.
+# Monitor rate limiting
+print(f"Rate Limit: {app._rate_limit} req/min")
+
+# Get security logs
+# Security warnings logged at CRITICAL level
 ```
 
 ### Common Security Mistakes
 
 ❌ **DON'T**:
-
 ```python
 # Disable auth in production
-app = NexusApp()  # WARNING: No auth plugin  # CRITICAL WARNING
+app = Nexus(enable_auth=False)  # CRITICAL WARNING
 
 # Disable rate limiting
-app = NexusApp()  # No rate limit    # SECURITY WARNING
+app = Nexus(rate_limit=None)    # SECURITY WARNING
 
-# NexusApp has no auto_discovery param — workflows always registered manually
+# Enable auto-discovery in production
+app = Nexus(auto_discovery=True)  # 5-10s blocking delay
 ```
 
 ✅ **DO**:
-
 ```python
-from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
+# Use environment variable
+export NEXUS_ENV=production
+app = Nexus()  # Auth auto-enabled
 
-# Configure auth via NexusAuthPlugin (NEXUS_ENV does not exist)
-auth = NexusAuthPlugin(jwt=JwtConfig(secret_key=os.environ.get("JWT_SECRET", "dev-secret-key-at-least-32-bytes-long!")))
-app = NexusApp()
-
-# Add rate limiting
-app.add_rate_limit(max_requests=1000, window_secs=60)
-
-# Register workflows manually (NexusApp has no auto_discovery param)
+# Or explicit enable
+app = Nexus(enable_auth=True, rate_limit=1000, auto_discovery=False)
 ```
 
 ## Kubernetes Deployment
@@ -432,45 +484,45 @@ spec:
         app: nexus
     spec:
       containers:
-        - name: nexus
-          image: nexus-app:latest
-          ports:
-            - containerPort: 3000
-              name: api
-            - containerPort: 3001
-              name: mcp
-          env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: nexus-secrets
-                  key: database-url
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: nexus-secrets
-                  key: redis-url
-            - name: LOG_LEVEL
-              value: "INFO"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "500m"
-            limits:
-              memory: "2Gi"
-              cpu: "2000m"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+      - name: nexus
+        image: nexus-app:latest
+        ports:
+        - containerPort: 8000
+          name: api
+        - containerPort: 3001
+          name: mcp
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: nexus-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: nexus-secrets
+              key: redis-url
+        - name: LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ```
 
 ### Service
@@ -485,12 +537,12 @@ spec:
   selector:
     app: nexus
   ports:
-    - name: api
-      port: 3000
-      targetPort: 3000
-    - name: mcp
-      port: 3001
-      targetPort: 3001
+  - name: api
+    port: 8000
+    targetPort: 8000
+  - name: mcp
+    port: 3001
+    targetPort: 3001
   type: LoadBalancer
 ```
 
@@ -507,20 +559,20 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
-    - hosts:
-        - nexus.example.com
-      secretName: nexus-tls
+  - hosts:
+    - nexus.example.com
+    secretName: nexus-tls
   rules:
-    - host: nexus.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: nexus
-                port:
-                  number: 3000
+  - host: nexus.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nexus
+            port:
+              number: 8000
 ```
 
 ### ConfigMap
@@ -595,18 +647,18 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
 ```
 
 ### Vertical Scaling
@@ -628,70 +680,87 @@ resources:
 ### 1. Use Redis for Sessions
 
 ```python
-app = NexusApp()
-# Session backend and timeout configured separately via environment or session manager
+app = Nexus(
+    session_backend="redis",
+    redis_url=os.getenv("REDIS_URL"),
+    session_timeout=3600
+)
 ```
 
 ### 2. Enable Monitoring
 
 ```python
-app = NexusApp()
-# Monitoring configured separately
+app = Nexus(
+    enable_monitoring=True,
+    monitoring_backend="prometheus",
+    monitoring_interval=30
+)
 ```
 
 ### 3. Configure Logging
 
 ```python
-app = NexusApp()
-# Logging configured separately
+app = Nexus(
+    log_level="INFO",
+    log_format="json",
+    log_file="/var/log/nexus/app.log"
+)
 ```
 
 ### 4. Disable Auto-Discovery
 
 ```python
-app = NexusApp()
-# Register workflows manually (no auto_discovery param)
+app = Nexus(
+    auto_discovery=False  # Manual registration only
+)
 
 # Register workflows explicitly
 from workflows import workflow1, workflow2
-rt = kailash.Runtime(reg)
-wf1 = workflow1.build(reg)
-wf2 = workflow2.build(reg)
-app.register("workflow1", lambda **inputs: rt.execute(wf1, inputs))
-app.register("workflow2", lambda **inputs: rt.execute(wf2, inputs))
+app.register("workflow1", workflow1.build())
+app.register("workflow2", workflow2.build())
 ```
 
 ### 5. Enable Security Features
 
 ```python
-app = NexusApp()
-app.add_rate_limit(5000)
-# Auth configured via NexusAuthPlugin
-# Rate limiting via app.add_rate_limit()
-# Use reverse proxy for HTTPS
+app = Nexus(
+    enable_auth=True,
+    enable_rate_limiting=True,
+    rate_limit=5000,
+    force_https=True,
+    ssl_cert="/path/to/cert.pem",
+    ssl_key="/path/to/key.pem"
+)
 ```
 
 ### 6. Health Checks
 
-NexusApp does not have a `@app.health_check_handler()` decorator. Health checks
-are built into the platform at `/health`. For custom health logic, use a handler:
-
 ```python
-@app.handler("custom_health", description="Custom health check")
-async def custom_health() -> dict:
-    # Verify database and cache connectivity
-    return {"database": "healthy", "cache": "healthy"}
+# Configure health check endpoints
+@app.health_check_handler("database")
+def check_database():
+    # Verify database connectivity
+    return {"status": "healthy"}
+
+@app.health_check_handler("cache")
+def check_cache():
+    # Verify Redis connectivity
+    return {"status": "healthy"}
 ```
 
 ### 7. Graceful Shutdown
 
-NexusApp does not have an `app.stop()` method. Graceful shutdown is handled
-by the Rust Nexus engine when the process receives SIGTERM/SIGINT. For Docker
-and Kubernetes, the default signal handling works correctly.
-
 ```python
-# The Rust runtime handles SIGTERM/SIGINT gracefully.
-# No explicit shutdown code needed in Python.
+import signal
+import sys
+
+def graceful_shutdown(signum, frame):
+    print("Shutting down gracefully...")
+    app.stop()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, graceful_shutdown)
+signal.signal(signal.SIGINT, graceful_shutdown)
 ```
 
 ## Monitoring in Production
@@ -700,13 +769,13 @@ and Kubernetes, the default signal handling works correctly.
 
 ```bash
 # Metrics endpoint
-curl http://nexus:3000/metrics
+curl http://nexus:8000/metrics
 
 # Add to Prometheus config
 scrape_configs:
   - job_name: 'nexus'
     static_configs:
-      - targets: ['nexus:3000']
+      - targets: ['nexus:8000']
 ```
 
 ### Grafana Dashboard

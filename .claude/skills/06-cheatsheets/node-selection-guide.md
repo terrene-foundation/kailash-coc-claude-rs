@@ -1,6 +1,6 @@
 ---
 name: node-selection-guide
-description: "Decision guide for choosing the right node instead of EmbeddedPythonNode. Use when asking 'choose node', 'which node', 'node selection', 'right node type', or 'specialized nodes'."
+description: "Decision guide for choosing the right node instead of PythonCodeNode. Use when asking 'choose node', 'which node', 'node selection', 'right node type', or 'specialized nodes'."
 ---
 
 # Node Selection Guide
@@ -10,6 +10,7 @@ Node Selection Guide guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `core-patterns`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,17 +22,18 @@ Node Selection Guide guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Node Selection Guide implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -50,10 +52,13 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

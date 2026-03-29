@@ -1,6 +1,6 @@
 ---
 name: git-release-specialist
-description: "Git release and CI specialist. Use before commits, for PR workflows, or when preparing releases."
+description: "Git release and CI specialist. Use for pre-commit validation, PR workflows, or version management."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: sonnet
 ---
@@ -80,7 +80,6 @@ Check these locations — they vary per project:
 - `pyproject.toml` (primary — version field)
 - README.md (version badge, if present)
 - Any `__init__.py` with `__version__`
-- Any `Cargo.toml` (if Rust-backed)
 
 ## CI Monitoring
 

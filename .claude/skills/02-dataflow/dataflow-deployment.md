@@ -1,6 +1,6 @@
 ---
 name: dataflow-deployment
-description: "DataFlow production deployment patterns. Use when asking 'deploy dataflow', 'dataflow production', 'dataflow docker', or 'dataflow nexus'."
+description: "DataFlow production deployment patterns. Use when asking 'deploy dataflow', 'dataflow production', 'dataflow docker', or 'dataflow fastapi'."
 ---
 
 # DataFlow Production Deployment
@@ -8,21 +8,22 @@ description: "DataFlow production deployment patterns. Use when asking 'deploy d
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `HIGH`
+> SDK Version: `0.10.15+`
 
-## Docker/Nexus Deployment
+## Docker/FastAPI Deployment (current version FIX)
 
-✅ **`auto_migrate=True` works in Docker!**
+✅ **`auto_migrate=True` NOW WORKS in Docker/FastAPI!**
 
-DataFlow handles table creation internally using synchronous DDL, completely bypassing event loop boundary issues.
+DataFlow uses synchronous database drivers (psycopg2, sqlite3) for table creation, avoiding event loop boundary issues.
 
 ### Zero-Config Pattern (Recommended)
 
 ```python
-import kailash
-from kailash.nexus import NexusApp
+from dataflow import DataFlow
+from fastapi import FastAPI
 
 # Zero-config: auto_migrate=True (default) now works!
-df = kailash.DataFlow("postgresql://user:pass@localhost:5432/mydb")
+db = DataFlow("postgresql://user:pass@localhost:5432/mydb")
 
 @db.model  # Tables created immediately via sync DDL
 class User:
@@ -30,39 +31,27 @@ class User:
     name: str
     email: str
 
-reg = kailash.NodeRegistry()
-app = NexusApp()
+app = FastAPI()
 
-@app.handler()
-def create_user(name: str, email: str):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateUser", "create", {
-        "name": name, "email": email
-    })
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg))
+@app.post("/users")
+async def create_user(data: dict):
+    return await db.express.create("User", data)
 
-@app.handler()
-def get_user(id: str):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ReadUser", "read", {"id": id})
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg))
+@app.get("/users/{id}")
+async def get_user(id: str):
+    return await db.express.read("User", id)
 
-@app.handler()
-def list_users(limit: int = 100):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ListUser", "list", {"limit": limit})
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg))
+@app.get("/users")
+async def list_users(limit: int = 100):
+    return await db.express.list("User", limit=limit)
 ```
 
 ### How It Works
 
-- Table creation is handled synchronously by the Rust engine - no asyncio conflicts
-- Tables are created at model registration time
-- CRUD operations use async execution as before
-- No event loop conflicts because DDL and CRUD use separate execution paths
+- Uses psycopg2 (PostgreSQL) or sqlite3 (SQLite) for DDL - no asyncio
+- Tables are created synchronously at model registration time
+- CRUD operations use async drivers (asyncpg, aiosqlite) as before
+- No event loop conflicts because DDL and CRUD use separate connection types
 
 ### Dockerfile
 
@@ -72,24 +61,24 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install DataFlow with PostgreSQL support
-RUN pip install kailash-enterprise  # DataFlow included
+RUN pip install kailash-dataflow[postgresql]
 
 COPY . /app
 
 # No special setup needed - auto_migrate=True works!
-CMD ["python", "app.py"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Docker Compose
 
 ```yaml
-version: "3.8"
+version: '3.8'
 
 services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/mydb
     depends_on:
@@ -113,18 +102,30 @@ volumes:
 For explicit control over table creation timing:
 
 ```python
-import kailash
+from dataflow import DataFlow
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 
 # Use auto_migrate=False for manual control
-df = kailash.DataFlow("postgresql://...", auto_migrate=False)
+db = DataFlow("postgresql://...", auto_migrate=False)
 
 @db.model
 class User:
     id: str
     name: str
 
-# Explicitly create tables when ready
-df.create_tables()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Option 1: Sync table creation
+    db.create_tables_sync()
+
+    # Option 2: Async table creation
+    # await db.create_tables_async()
+
+    yield
+    await db.close_async()
+
+app = FastAPI(lifespan=lifespan)
 ```
 
 ## ⚠️ In-Memory SQLite Limitation
@@ -133,27 +134,31 @@ In-memory databases (`:memory:`) **cannot** use sync DDL because each connection
 
 ```python
 # In-memory SQLite: Uses lazy creation (still works, just deferred)
-db = kailash.DataFlow(":memory:", auto_migrate=True)  # Tables created on first access
+db = DataFlow(":memory:", auto_migrate=True)  # Tables created on first access
 ```
 
 ## Environment Configuration
 
 ```python
 import os
-import kailash
+from dataflow import DataFlow, LoggingConfig
 
 # Use environment variables for production
-df = kailash.DataFlow(
+db = DataFlow(
     os.getenv("DATABASE_URL"),
+    log_config=LoggingConfig.production()  # Clean logs
 )
 ```
 
 ## Production Settings
 
-| Setting           | Development                   | Production                   |
-| ----------------- | ----------------------------- | ---------------------------- |
-| `auto_migrate`    | `True` (default)              | `True` or `False`            |
-| `log_config`      | `LoggingConfig.development()` | `LoggingConfig.production()` |
-| `max_connections` | 10                            | Via DataFlowConfig           |
+| Setting | Development | Production |
+|---------|-------------|------------|
+| `auto_migrate` | `True` (default) | `True` or `False` |
+| `log_config` | `LoggingConfig.development()` | `LoggingConfig.production()` |
+| `pool_size` | Default | Configure via database URL |
 
-<!-- Trigger Keywords: deploy dataflow, dataflow production, dataflow docker, dataflow kubernetes, dataflow nexus -->
+## Documentation
+
+
+<!-- Trigger Keywords: deploy dataflow, dataflow production, dataflow docker, dataflow kubernetes, dataflow fastapi -->

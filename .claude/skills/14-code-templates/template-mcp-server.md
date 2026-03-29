@@ -5,11 +5,12 @@ description: "Generate Kailash MCP server template. Use when requesting 'MCP ser
 
 # MCP Server Template
 
-Production-ready MCP server template using Kailash SDK's `McpApplication` decorator API.
+Production-ready MCP server template using Kailash SDK's built-in MCP implementation.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+` (MCP v0.6.6+)
 > Related Skills: [`mcp-integration-guide`](../../06-cheatsheets/mcp-integration-guide.md)
 > Related Subagents: `mcp-specialist` (enterprise MCP), `pattern-expert`
 
@@ -18,20 +19,15 @@ Production-ready MCP server template using Kailash SDK's `McpApplication` decora
 ```python
 """Basic MCP Server using Kailash SDK"""
 
-from kailash.mcp import McpApplication, ToolParam
+from kailash.mcp_server import MCPServer
 
-# McpApplication wraps the Rust-backed McpServer with a decorator API
-app = McpApplication("my-server", version="1.0.0")
+# Create server
+server = MCPServer("my-server")
 
-# @app.tool(name, description) -- handler receives a params dict
-@app.tool("process_data", "Process data with specified operation", params=[
-    ToolParam("data", "string", description="Input data", required=True),
-    ToolParam("operation", "string", description="Operation to apply"),
-])
-def process_data(params):
-    data = params.get("data", "")
-    operation = params.get("operation", "uppercase")
-
+# Register tools
+@server.tool()
+async def process_data(data: str, operation: str = "uppercase") -> dict:
+    """Process data with specified operation."""
     if operation == "uppercase":
         result = data.upper()
     elif operation == "lowercase":
@@ -45,14 +41,10 @@ def process_data(params):
         "input_length": len(data)
     }
 
-@app.tool("search_database", "Search database and return results", params=[
-    ToolParam("query", "string", description="Search query", required=True),
-    ToolParam("limit", "integer", description="Max results to return"),
-])
-def search_database(params):
-    query = params.get("query", "")
-    limit = params.get("limit", 10)
-
+@server.tool()
+async def search_database(query: str, limit: int = 10) -> dict:
+    """Search database and return results."""
+    # Implement your database search logic
     results = [
         {"id": 1, "title": f"Result for: {query}"},
         {"id": 2, "title": f"Another result for: {query}"}
@@ -64,91 +56,69 @@ def search_database(params):
         "query": query
     }
 
-# Access underlying McpServer
-print(app)  # McpApplication(name='my-server', tools=2)
-print(app.tool_count)  # 2
-```
-
-**Note**: `McpApplication.run()` is not yet available (standalone MCP transport pending). To serve MCP tools, use the Nexus multi-channel platform:
-
-```python
-from kailash.nexus import NexusApp
-
-nexus = NexusApp()
-nexus.start()
+# Run server
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(server.run())
 ```
 
 ## Production MCP Server Template
 
 ```python
-"""Production MCP Server with Authentication and Resources"""
+"""Production MCP Server with Authentication and Monitoring"""
 
-import os
+from kailash.mcp_server import MCPServer, APIKeyAuth
 import logging
-
-from kailash.mcp import McpApplication, ToolParam
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create server
-app = McpApplication("production-server", version="1.0.0")
+# Setup authentication
+auth = APIKeyAuth({
+    "admin_key": {
+        "permissions": ["admin", "tools", "resources"],
+        "rate_limit": 1000
+    },
+    "user_key": {
+        "permissions": ["tools"],
+        "rate_limit": 100
+    }
+})
 
-# Configure authentication -- api_keys or jwt_secret (not a separate class)
-app.require_auth(
-    api_keys=[os.environ["MCP_API_KEY"]],
+# Create server with enterprise features
+server = MCPServer(
+    "production-server",
+    auth_provider=auth,
+    enable_metrics=True,
+    enable_cache=True,
+    cache_ttl=600
 )
 
-# Register tools -- @app.tool(name, description, params=[...])
-@app.tool("process_data", "Process data with caching", params=[
-    ToolParam("data", "string", description="Input data", required=True),
-])
-def process_data(params):
-    data = params.get("data", "")
+# Register tools with permissions
+@server.tool(required_permission="tools", cache_key="process_data", cache_ttl=300)
+async def process_data(data: str) -> dict:
+    """Process data with caching."""
     logger.info(f"Processing data: {data[:50]}...")
-    return {"result": data.upper()}
+    return {"result": data.upper(), "cached": True}
 
-@app.tool("admin_operation", "Admin-only operation", params=[
-    ToolParam("action", "string", description="Admin action", required=True),
-])
-def admin_operation(params):
-    action = params.get("action", "")
+@server.tool(required_permission="admin")
+async def admin_operation(action: str) -> dict:
+    """Admin-only operation."""
     logger.info(f"Admin action: {action}")
     return {"action": action, "status": "completed"}
 
-# Register resources -- handler receives uri: str
-@app.resource(uri="status://health", name="Health Status")
-def get_health(uri: str) -> str:
-    return '{"status": "healthy"}'
-
-logger.info(f"Server ready: {app.tool_count} tools, {app.resource_count} resources")
+# Run server
+if __name__ == "__main__":
+    import asyncio
+    logger.info("Starting production MCP server...")
+    asyncio.run(server.run())
 ```
-
-## Authentication Options
-
-`McpApplication` provides `require_auth()` for authentication:
-
-```python
-# API key authentication
-app.require_auth(api_keys=["my-secret-key-1", "my-secret-key-2"])
-
-# JWT authentication
-app.require_auth(jwt_secret=os.environ["JWT_SECRET"], jwt_issuer="https://my-domain.com")
-
-# Both methods simultaneously
-app.require_auth(
-    api_keys=[os.environ["MCP_API_KEY"]],
-    jwt_secret=os.environ["JWT_SECRET"],
-)
-```
-
-**Note**: There is no `APIKeyAuth` class. Authentication is configured via `app.require_auth()`.
 
 ## Related Patterns
 
 - **MCP integration**: [`mcp-integration-guide`](../../06-cheatsheets/mcp-integration-guide.md)
-- **MCP resources**: [`mcp-resources`](../../05-kailash-mcp/mcp-resources.md)
+- **MCP in workflows**: Use with LLMAgentNode
 - **Advanced MCP**: [`mcp-advanced-features`](../../05-kailash-mcp/mcp-advanced-features.md)
 
 ## When to Escalate
@@ -160,15 +130,17 @@ Use `mcp-specialist` subagent when:
 - Advanced features (structured tools, resources, progress)
 - Production deployment
 
-## API Quick Reference
+## Documentation References
 
-| Method | Signature | Notes |
-|--------|-----------|-------|
-| Constructor | `McpApplication(name, version="1.0.0", transport=None, host=None, port=None)` | |
-| Tool decorator | `@app.tool(name, description, params=None)` | Handler receives `params` dict |
-| Resource decorator | `@app.resource(uri, name, description="", mime_type="text/plain")` | Handler receives `uri: str` |
-| Prompt decorator | `@app.prompt(name, description="", arguments=None)` | Handler receives `arguments` dict |
-| Auth | `app.require_auth(api_keys=None, jwt_secret=None, jwt_issuer=None)` | At least one method required |
-| Properties | `app.tool_count`, `app.resource_count`, `app.prompt_count`, `app.server` | |
+### Primary Sources
+
+- **MCP Specialist**: [`.claude/agents/frameworks/mcp-specialist.md` (lines 39-59)](../../../../.claude/agents/frameworks/mcp-specialist.md#L39-L59)
+
+## Quick Tips
+
+- 💡 **Start simple**: Use basic template first, add features progressively
+- 💡 **Authentication**: Enable in production
+- 💡 **Caching**: Use for expensive operations
+- 💡 **Logging**: Add comprehensive logging
 
 <!-- Trigger Keywords: MCP server template, create MCP server, MCP server boilerplate, Model Context Protocol server, MCP server example, MCP template, production MCP server -->

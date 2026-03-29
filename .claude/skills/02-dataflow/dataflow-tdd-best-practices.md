@@ -8,6 +8,7 @@ description: "DataFlow TDD best practices. Use when asking 'dataflow test practi
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## 3-Tier Testing Strategy
 
@@ -16,15 +17,15 @@ description: "DataFlow TDD best practices. Use when asking 'dataflow test practi
 ```python
 def test_user_create(test_db):
     """Test single node operation"""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateUser", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("UserCreateNode", "create", {
         "id": "user_001",
         "email": "test@example.com"
     })
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    assert result["results"]["create"]["id"] == "user_001"
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
+    assert results["create"]["id"] == "user_001"
 ```
 
 ### Tier 2: Integration Tests (Real SQLite)
@@ -32,8 +33,8 @@ def test_user_create(test_db):
 ```python
 def test_user_workflow():
     """Test full workflow with real SQLite database"""
-    db = kailash.DataFlow("sqlite:///test.db")
-    db.create_tables()
+    db = DataFlow("sqlite:///test.db")
+    db.initialize_schema()
 
     # Run full CRUD workflow
     # Cleanup after
@@ -46,7 +47,7 @@ def test_user_workflow():
 @pytest.mark.e2e
 def test_production_workflow():
     """Test with production-like PostgreSQL"""
-    db = kailash.DataFlow(os.getenv("TEST_POSTGRES_URL"))
+    db = DataFlow(os.getenv("TEST_POSTGRES_URL"))
     # Test full system
 ```
 
@@ -57,5 +58,8 @@ def test_production_workflow():
 3. **Clean up after tests** - Remove test databases
 4. **Test error cases** - Invalid data, constraints
 5. **Test concurrent access** - For PostgreSQL
+
+## Documentation
+
 
 <!-- Trigger Keywords: dataflow test practices, dataflow testing strategy, test dataflow workflows -->

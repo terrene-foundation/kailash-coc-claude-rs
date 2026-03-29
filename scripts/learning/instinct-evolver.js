@@ -227,15 +227,14 @@ function generateWorkflowSkill(instinct) {
 
 \`\`\`python
 # Workflow pattern learned from usage
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 ${JSON.stringify(pattern, null, 2)}
 
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 \`\`\`
 
 ## When to Use

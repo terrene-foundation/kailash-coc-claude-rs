@@ -5,171 +5,205 @@ description: "Generate Kailash cyclic workflow template. Use when requesting 'cy
 
 # Cyclic Workflow Template
 
-Template for creating iterative/looping workflows in the Rust-backed binding.
+Template for creating cyclic/iterative workflows with convergence criteria.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `MEDIUM`
-> Related Skills: [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md), [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
+> SDK Version: `0.9.0+`
+> Related Skills: [`cycle-workflows-basics`](../../06-cheatsheets/cycle-workflows-basics.md), [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
 > Related Subagents: `pattern-expert` (complex cycles)
 
-> **Known Limitation**: The Rust binding's `WorkflowBuilder.build(registry)` rejects self-referencing connections (`cycle detected involving nodes: X`). The `Workflow` object has no `create_cycle()`, `mapping=`, `converge_when()`, or `max_iterations()` methods. `RuntimeConfig(enable_cycles=True)` exists but cycles are blocked at build validation. Use the LoopNode-based patterns below instead.
-
-## LoopNode Iterative Template (Recommended)
+## WorkflowBuilder Cyclic Template (Recommended)
 
 ```python
-"""Iterative workflow using LoopNode (Rust-backed)"""
+"""Cyclic Workflow Template using WorkflowBuilder"""
 
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+# 1. Create workflow
+workflow = WorkflowBuilder()
 
-# 1. Setup initial data
-builder.add_node("EmbeddedPythonNode", "setup", {
+# 2. Add cycle node with try/except for first iteration
+workflow.add_node("PythonCodeNode", "counter", {
     "code": """
-result = {'items': [1, 2, 3, 4, 5], 'processed': []}
-""",
-    "output_vars": ["result"]
+# Handle first iteration
+try:
+    count = x
+except NameError:
+    count = 0
+
+count += 1
+done = count >= 10
+
+result = {'count': count, 'done': done}
+"""
 })
 
-# 2. LoopNode handles iteration
-builder.add_node("LoopNode", "loop", {
-    "max_iterations": 5
-})
+# 3. CRITICAL: Build workflow FIRST (WorkflowBuilder doesn't have create_cycle)
+built_workflow = workflow.build()
 
-# 3. Processing node inside loop body
-builder.add_node("EmbeddedPythonNode", "process", {
-    "code": """
-item = items.pop(0)
-processed.append(item * 2)
-result = {'items': items, 'processed': processed}
-""",
-    "output_vars": ["result"]
-})
+# 4. Create cycle on BUILT workflow
+# CRITICAL: mapping needs "result." prefix for PythonCodeNode outputs
+cycle_builder = built_workflow.create_cycle("count_cycle")
+cycle_builder.connect("counter", "counter", mapping={"result.count": "x"}) \
+             .max_iterations(20) \
+             .converge_when("done == True") \
+             .build()
 
-# Connect pipeline
-builder.connect("setup", "outputs", "loop", "items")
-builder.connect("loop", "results", "process", "data")
+# 5. Execute
+runtime = LocalRuntime()
+results, run_id = runtime.execute(built_workflow)
 
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
+print(f"Final count: {results['counter']['result']['count']}")
 ```
 
-## Callback-Based Iteration Pattern
-
-For iteration logic that doesn't fit LoopNode, use a callback node with internal state:
+## Simple Counter Template
 
 ```python
-"""Callback-based iteration pattern"""
+"""Simple counter cyclic workflow"""
 
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
+workflow = WorkflowBuilder()
 
-# Stateful callback that tracks iterations
-def iterative_counter(inputs):
-    count = inputs.get("count", 0) + 1
-    target = inputs.get("target", 10)
-    done = count >= target
-    return {
-        "count": count,
-        "done": done,
-        "result": f"Iteration {count}/{target}"
-    }
+# Counter node with try/except for first iteration
+workflow.add_node("PythonCodeNode", "counter", {
+    "code": """
+# Handle first iteration
+try:
+    count = x
+    max_val = max_count
+except NameError:
+    count = 0
+    max_val = 10
 
-reg.register_callback(
-    "IterativeCounterNode",
-    iterative_counter,
-    ["count", "target"],
-    ["count", "done", "result"]
-)
+count += 1
+done = count >= max_val
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("IterativeCounterNode", "counter", {})
+result = {'count': count, 'done': done}
+"""
+})
 
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf, {"count": 0, "target": 5})
-print(f"Result: {result['results']['counter']}")
+# CRITICAL: Build workflow FIRST
+built_workflow = workflow.build()
+
+# Create cycle on BUILT workflow
+# CRITICAL: Use "result." prefix in mapping for PythonCodeNode
+cycle_builder = built_workflow.create_cycle("count_cycle")
+cycle_builder.connect("counter", "counter", mapping={"result.count": "x"}) \
+             .max_iterations(100) \
+             .converge_when("done == True") \
+             .build()
+
+# Execute
+runtime = LocalRuntime()
+results, run_id = runtime.execute(built_workflow)
+
+print(f"Final count: {results['counter']['result']['count']}")
 ```
 
-## Multi-Step Pipeline (No Cycles Needed)
-
-For many use cases, a linear pipeline with conditional logic replaces cycles:
+## SwitchNode + Cycle Template
 
 ```python
-"""Linear pipeline with ConditionalNode instead of cycle"""
+"""Conditional cycle with SwitchNode"""
 
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-# Step 1: Extract
-builder.add_node("EmbeddedPythonNode", "extract", {
-    "code": "result = {'data': [1, 2, 3, 4, 5]}",
-    "output_vars": ["result"]
-})
-
-# Step 2: Transform
-builder.add_node("EmbeddedPythonNode", "transform", {
+# Optimizer node
+workflow.add_node("PythonCodeNode", "optimizer", {
     "code": """
-data = input_data.get('data', [])
-result = {'transformed': [x * 2 for x in data], 'count': len(data)}
-""",
-    "output_vars": ["result"]
+optimized_value = current_value * 1.1
+result = {'optimized': optimized_value}
+"""
 })
 
-# Step 3: Validate (ConditionalNode takes NO config params; inputs via connections only)
-builder.add_node("ConditionalNode", "validate", {})
-
-# Step 4: Load
-builder.add_node("EmbeddedPythonNode", "load", {
-    "code": "result = {'status': 'loaded', 'items': len(transformed)}",
-    "output_vars": ["result"]
+# Condition checker (SwitchNode)
+workflow.add_node("SwitchNode", "check_quality", {
+    "condition": "optimized >= target",
+    "condition_type": "expression"
 })
 
-# Connect pipeline
-builder.connect("extract", "outputs", "transform", "input_data")
-builder.connect("transform", "outputs", "validate", "condition")
-builder.connect("validate", "result", "load", "data")
+# Packager for switch input
+workflow.add_node("PythonCodeNode", "packager", {
+    "code": "result = {'optimized': optimized, 'target': target}"
+})
 
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
-print(f"Status: {result['results']['load']}")
+# Final result node
+workflow.add_node("PythonCodeNode", "final", {
+    "code": "result = {'final_value': optimized, 'iterations': 'completed'}"
+})
+
+# CRITICAL: Setup forward connections FIRST
+workflow.add_connection("check_quality", "output_false", "optimizer", "current_value")
+workflow.add_connection("check_quality", "output_true", "final", "optimized")
+
+# Build and create cycle
+built_workflow = workflow.build()
+cycle_builder = built_workflow.create_cycle("optimization_cycle")
+cycle_builder.connect("optimizer", "packager", mapping={"optimized": "optimized"}) \
+             .connect("packager", "check_quality", mapping={"package": "input"}) \
+             .max_iterations(20) \
+             .converge_when("converged == True") \
+             .build()
+
+# Execute
+runtime = LocalRuntime()
+results, run_id = runtime.execute(built_workflow, parameters={
+    "optimizer": {"current_value": 1.0, "target": 10.0}
+})
 ```
 
 ## Key Patterns
 
-### Iteration Approaches (Rust Binding)
+### Critical Steps
+1. **Build workflow** FIRST with `workflow.build()`
+2. **Create cycle** on built workflow
+3. **Use mapping** for parameter flow
+4. **Set max_iterations** to prevent infinite loops
+5. **Define convergence** criteria
+6. **Provide initial** parameters at runtime
 
-1. **LoopNode** -- LoopNode iterates over an array with optional max_iterations limit
-2. **Callback nodes** -- Register Python functions that handle iteration internally
-3. **Linear pipelines** -- Replace cycles with sequential steps + ConditionalNode
-4. **RetryNode** -- For retry-on-failure patterns (built-in backoff)
+### Convergence Criteria
+```python
+# ✅ Flattened fields (no 'result.' prefix)
+.converge_when("done == True")
+.converge_when("quality >= 0.95")
+.converge_when("count > max_count")
 
-### What Does NOT Work
-
-- `workflow.create_cycle()` -- does not exist on Workflow
-- `connect(..., mapping={...})` -- `mapping=` kwarg not supported
-- `.converge_when()` -- does not exist
-- `.max_iterations()` on cycle builder -- does not exist
-- Self-referencing `connect("a", "out", "a", "in")` -- blocked by build validation
+# ❌ Don't use nested paths
+.converge_when("result.done == True")  # ERROR!
+```
 
 ## Related Patterns
 
-- **Cyclic patterns**: [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md)
-- **Cycle errors**: [`error-cycle-convergence`](../15-error-troubleshooting/error-cycle-convergence.md)
+- **Cyclic basics**: [`cycle-workflows-basics`](../../06-cheatsheets/cycle-workflows-basics.md)
+- **Cycle debugging**: [`cycle-debugging`](../../06-cheatsheets/cycle-debugging.md)
+- **Cycle errors**: [`error-cycle-convergence`](../31-error-troubleshooting/error-cycle-convergence.md)
 
 ## When to Escalate
 
 Use `pattern-expert` when:
+- Complex multi-cycle workflows
+- Advanced convergence logic
+- Performance optimization
+- Nested cycles
 
-- Complex iteration logic that doesn't fit LoopNode
-- Need to simulate cycles with linear pipelines
-- Performance optimization of iterative workflows
+## Documentation References
+
+### Primary Sources
+- **Pattern Expert**: [`.claude/agents/pattern-expert.md` (lines 103-158)](../../../../.claude/agents/pattern-expert.md#L103-L158)
+
+## Quick Tips
+
+- 💡 **Build first**: Always `.build()` before creating cycle
+- 💡 **Max iterations**: Prevent infinite loops
+- 💡 **Initial values**: Provide starting parameters
+- 💡 **Flat convergence**: No `result.` in `converge_when()`
 
 <!-- Trigger Keywords: cyclic workflow template, loop workflow template, iterative workflow, cycle template, convergence workflow, cyclic template, loop template, iterative template -->

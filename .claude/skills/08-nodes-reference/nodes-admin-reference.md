@@ -10,28 +10,30 @@ Complete reference for administrative and access control nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `LOW`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (admin workflows)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available admin nodes: UserManagementNode, RoleManagementNode,
-#   PermissionCheckNode, AccessControlNode
+from kailash.nodes.admin import (
+    UserManagementNode,
+    RoleManagementNode,
+    PermissionCheckNode,
+    AccessControlNode
+)
 ```
 
 ## User Management
 
 ### UserManagementNode
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("UserManagementNode", "user_mgmt", {
+workflow.add_node("UserManagementNode", "user_mgmt", {
     "operation": "create",
     "user_data": {
         "username": "john_doe",
@@ -45,7 +47,7 @@ builder.add_node("UserManagementNode", "user_mgmt", {
 
 ### RoleManagementNode
 ```python
-builder.add_node("RoleManagementNode", "role_mgmt", {
+workflow.add_node("RoleManagementNode", "role_mgmt", {
     "operation": "assign",
     "user_id": "user_123",
     "role": "admin"
@@ -56,7 +58,7 @@ builder.add_node("RoleManagementNode", "role_mgmt", {
 
 ### PermissionCheckNode
 ```python
-builder.add_node("PermissionCheckNode", "perm_check", {
+workflow.add_node("PermissionCheckNode", "perm_check", {
     "user_id": "user_123",
     "resource": "documents",
     "action": "write"
@@ -67,7 +69,7 @@ builder.add_node("PermissionCheckNode", "perm_check", {
 
 ### AccessControlNode
 ```python
-builder.add_node("AccessControlNode", "access_control", {
+workflow.add_node("AccessControlNode", "access_control", {
     "operation": "verify",
     "user_id": "user_123",
     "resource_id": "doc_456",
@@ -78,5 +80,8 @@ builder.add_node("AccessControlNode", "access_control", {
 ## Related Skills
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
+
+## Documentation
+
 
 <!-- Trigger Keywords: admin node, AdminUser, AdminDB, role management, permission check, UserManagementNode, RoleManagementNode -->

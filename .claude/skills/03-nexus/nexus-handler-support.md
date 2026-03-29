@@ -7,7 +7,7 @@ tags: [nexus, handler, workflow, decorator, function]
 
 # Nexus Handler Support
 
-Register Python functions directly as multi-channel workflows, bypassing EmbeddedPythonNode sandbox restrictions.
+Register Python functions directly as multi-channel workflows, bypassing PythonCodeNode sandbox restrictions.
 
 ## When to Use
 
@@ -21,10 +21,9 @@ Register Python functions directly as multi-channel workflows, bypassing Embedde
 ### Decorator Pattern
 
 ```python
-import kailash
+from nexus import Nexus
 
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
 @app.handler("greet")
 async def greet(name: str, greeting: str = "Hello") -> dict:
@@ -36,10 +35,9 @@ app.start()
 ### Non-Decorator Pattern
 
 ```python
-import kailash
 from my_app.handlers import process_order
 
-app = NexusApp()
+app = Nexus()
 app.register_handler("process_order", process_order)
 app.start()
 ```
@@ -50,9 +48,9 @@ app.start()
 
 ```python
 @app.handler(
-    name: Optional[str] = None,     # Optional: workflow name (defaults to function name)
-    description: Optional[str] = None,  # Optional: documentation
-    params: Optional[List] = None   # Optional: explicit parameter definitions
+    name: str,                      # Required: workflow name
+    description: str = "",          # Optional: documentation
+    tags: Optional[List[str]] = None  # Optional: categorization
 )
 ```
 
@@ -61,10 +59,10 @@ app.start()
 ```python
 app.register_handler(
     name: str,                      # Required: workflow name
-    func: Callable,                 # Required: function to register
-    params: Optional[List] = None,  # Optional: explicit parameter definitions
-    description: Optional[str] = None,  # Optional: documentation
-    auto_params: bool = False       # Optional: auto-derive params from signature
+    handler_func: Callable,         # Required: function to register
+    description: str = "",          # Optional: documentation
+    tags: Optional[List[str]] = None,  # Optional: categorization
+    input_mapping: Optional[Dict[str, str]] = None  # Optional: param mapping
 )
 ```
 
@@ -82,20 +80,41 @@ app.register_handler(
 | Parameter with default | Any           | No               |
 | No annotation          | `str`         | Varies           |
 
-## Sandbox Mode Configuration
+## Core SDK: HandlerNode
 
-For EmbeddedPythonNode with blocked imports:
+For direct Core SDK usage without Nexus:
 
 ```python
-import kailash
+from kailash.nodes.handler import HandlerNode, make_handler_workflow
+from kailash.runtime import AsyncLocalRuntime
 
-# Bypass sandbox restrictions via node config
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "trusted_node", {
-    "code": "import subprocess\nresult = subprocess.run(['ls'])",
-    "sandbox_mode": "trusted"  # Default: "restricted",
-    "output_vars": ["result"]
-})
+async def my_function(x: int) -> dict:
+    return {"doubled": x * 2}
+
+# Option 1: Use HandlerNode directly
+node = HandlerNode(handler=my_function)
+
+# Option 2: Build a complete workflow
+workflow = make_handler_workflow(my_function, "handler")
+runtime = AsyncLocalRuntime()
+results, run_id = await runtime.execute_workflow_async(
+    workflow, inputs={"x": 5}
+)
+```
+
+## Sandbox Mode Configuration
+
+For PythonCodeNode with blocked imports:
+
+```python
+from kailash.nodes.code.python import PythonCodeNode
+
+# Bypass sandbox restrictions
+node = PythonCodeNode(
+    name="trusted_node",
+    code="import subprocess\nresult = subprocess.run(['ls'])",
+    sandbox_mode="trusted"  # Default: "restricted"
+)
 ```
 
 | Mode           | Behavior                            |
@@ -136,18 +155,15 @@ def sync_operation(data: str) -> dict:
     return {"processed": data.upper()}
 ```
 
-## Migration: EmbeddedPythonNode to Handler
+## Migration: PythonCodeNode to Handler
 
 ### Before (fails at runtime)
 
 ```python
-builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "import asyncio\nfrom my_app import Service\n...",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "process", {
+    "code": "import asyncio\nfrom my_app import Service\n..."
 })
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("process", lambda **inputs: rt.execute(wf, inputs))
+app.register("process", workflow.build())
 ```
 
 ### After (works)
@@ -170,7 +186,7 @@ print(app._handler_registry)
 #     "greet": {
 #         "handler": <function>,
 #         "description": "...",
-#         "params": [...],
+#         "tags": [...],
 #         "workflow": <Workflow>
 #     }
 # }
@@ -178,10 +194,10 @@ print(app._handler_registry)
 
 ## Registration-Time Validation
 
-Nexus warns at registration time if EmbeddedPythonNode uses blocked imports:
+Nexus warns at registration time if PythonCodeNode uses blocked imports:
 
 ```
-WARNING: Workflow 'my_workflow': EmbeddedPythonNode node 'code_node' imports
+WARNING: Workflow 'my_workflow': PythonCodeNode node 'code_node' imports
          'asyncio' which is not in the sandbox allowlist.
          Consider using @app.handler() to bypass the sandbox.
 ```
@@ -202,11 +218,12 @@ WARNING: Workflow 'my_workflow': EmbeddedPythonNode node 'code_node' imports
 
 ## Migration Documentation
 
-For comprehensive migration from legacy EmbeddedPythonNode workflows to handlers, see the handler migration patterns (5 migration patterns, 6-phase checklist, "When NOT to Migrate" guidance) and real-world project patterns (8 patterns from 3 production projects).
+For comprehensive migration from legacy PythonCodeNode workflows to handlers:
+
 
 ### Key Migration Insight
 
-The handler system's parameter derivation maps complex generic types (e.g., `List[dict]`) to `str`. Use plain `list` annotation instead:
+HandlerNode's `_derive_params_from_signature()` maps complex generic types (e.g., `List[dict]`) to `str`. Use plain `list` annotation instead:
 
 ```python
 # ❌ WRONG: List[dict] maps to str
@@ -218,5 +235,3 @@ async def create_order(items: list) -> dict: ...
 
 ## Full Documentation
 
-- `.claude/skills/03-nexus/nexus-quickstart.md` - Basic Nexus setup
-- `.claude/agents/frameworks/nexus-specialist.md` - Nexus specialist agent (handler details, auth, migration)

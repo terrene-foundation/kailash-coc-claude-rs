@@ -1,6 +1,6 @@
 ---
 name: mcp-advanced-patterns
-description: "Advanced MCP patterns including multi-server config, authentication, tool execution, and progress reporting. Use for 'advanced MCP', 'MCP authentication', 'multi-server MCP'."
+description: "Advanced MCP patterns including multi-server config, JWT auth, service discovery, structured tools, and progress reporting. Use for 'advanced MCP', 'MCP discovery', 'MCP authentication', 'MCP registry'."
 ---
 
 # Advanced MCP Patterns
@@ -8,7 +8,8 @@ description: "Advanced MCP patterns including multi-server config, authenticatio
 > **Skill Metadata**
 > Category: `mcp`
 > Priority: `HIGH`
-> Note: Real MCP execution is the default behavior
+> SDK Version: `0.6.6+`
+> Note: Real MCP execution is default since v0.6.6
 
 ## Multi-Server Configuration
 
@@ -38,129 +39,137 @@ mcp_servers = [
 ]
 ```
 
-## MCP Server Authentication
-
-Use NexusAuthPlugin to secure your MCP server endpoint:
+## JWT Authentication
 
 ```python
-import os
-import kailash
-from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash import JwtConfig
+from kailash.mcp_server.auth import JWTAuth
 
-app = NexusApp()
-
-# Secure MCP endpoint with JWT auth
-auth = NexusAuthPlugin(
-    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"])
+jwt_auth = JWTAuth(
+    secret_key="your-secret-key",
+    algorithm="HS256"
 )
 
-# Register MCP tools -- auth applies to all channels including MCP
-@app.handler(name="admin_operation", description="Admin-only operation")
+server = MCPServer("jwt-server", auth_provider=jwt_auth)
+
+@server.tool(required_permission="admin")
 async def admin_operation(action: str) -> dict:
     return {"action": action, "status": "completed"}
 ```
 
-## LLMNode with Tool Calling
+## Service Discovery Patterns
 
-`LLMNode` supports tool calling via the `tools` parameter. Provider is auto-detected from the model name. For full MCP server connectivity (tool discovery, iterative execution), use the **Kaizen agent framework** (`kailash.kaizen`).
+### Registry-Based Discovery
 
 ```python
-import kailash
-import os
+from kailash.mcp_server.discovery import ServiceRegistry
 
-builder = kailash.WorkflowBuilder()
+registry = ServiceRegistry()
 
-# LLMNode with tool definitions for function calling
-builder.add_node("LLMNode", "agent", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),
-    "prompt": "Search for Python tutorials",
-    "tools": [
-        {
-            "type": "function",
-            "function": {
-                "name": "search",
-                "description": "Search for tutorials",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string"}
-                    },
-                    "required": ["query"]
-                }
-            }
-        }
-    ]
+# Register server with capabilities
+await registry.register_server({
+    "id": "data-processor-001",
+    "name": "data-processor",
+    "transport": "stdio",
+    "endpoint": "python -m data_processor",
+    "capabilities": ["tools", "data_processing"],
+    "metadata": {"version": "1.0", "priority": 10}
 })
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-
-# The LLM may return tool_calls in its response for your code to handle
-tool_calls = result["results"]["agent"].get("tool_calls", [])
+# Discover by capability
+tools_servers = await registry.discover_servers(capability="tools")
 ```
 
-## Structured Tool Output
-
-Define tools with structured output schemas via Nexus handler parameters:
+### Convenience Functions
 
 ```python
-import kailash
-from kailash.nexus import NexusApp, HandlerParam
+from kailash.mcp_server import discover_mcp_servers, get_mcp_client
 
-app = NexusApp()
+# Auto-discover servers
+servers = await discover_mcp_servers(capability="tools")
 
-# Define handler function first
-async def search_handler(query: str, limit: int = 10) -> dict:
+# Get client for specific capability
+client = await get_mcp_client("database")
+```
+
+## Structured Tools with Validation
+
+```python
+from kailash.mcp_server.advanced_features import structured_tool
+
+@structured_tool(
+    output_schema={
+        "type": "object",
+        "properties": {
+            "results": {"type": "array"},
+            "count": {"type": "integer"}
+        },
+        "required": ["results", "count"]
+    }
+)
+def search_tool(query: str) -> dict:
     return {"results": ["item1", "item2"], "count": 2}
+```
 
-# Register with explicit parameters
-app.register(
-    "search",
-    search_handler,
-    params=[
-        HandlerParam("query", required=True),
-        HandlerParam("limit", required=False),
-    ],
-    description="Search for items"
+## Resource Templates and Subscriptions
+
+```python
+from kailash.mcp_server.advanced_features import ResourceTemplate
+
+template = ResourceTemplate(
+    uri_template="files://{path}",
+    name="File Access",
+    description="Access files by path"
+)
+
+# Subscribe to resource changes
+subscription = await template.subscribe(
+    uri="files://documents/report.pdf",
+    callback=lambda change: print(f"File changed: {change}")
 )
 ```
 
 ## Progress Reporting
 
-Track long-running operations through EventBus:
-
 ```python
-import kailash
-from kailash.nexus import NexusApp
+from kailash.mcp_server.protocol import ProgressManager
 
-app = NexusApp()
-bus = app._nexus.event_bus()
+progress = ProgressManager()
 
-@app.handler(name="long_process", description="Long-running process")
-async def long_process(steps: int = 10) -> dict:
-    for i in range(steps):
-        bus.publish("progress", {
-            "step": i + 1,
-            "total": steps,
-            "percentage": (i + 1) * 100 // steps
-        })
-    return {"completed": True, "steps": steps}
-
-# Client subscribes to progress events
-bus.subscribe(lambda e: print(f"Progress: {e}") if e.get("type") == "progress" else None)
+# Long-running operation with progress
+token = progress.start_progress("processing", total=100)
+for i in range(100):
+    await progress.update_progress(token, progress=i, status=f"Step {i}")
+await progress.complete_progress(token)
 ```
 
-## MCP Client Integration
+## v0.6.6+ Breaking Changes
 
-MCP client connections (connecting to external MCP servers, discovering tools, and executing them iteratively) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes like `LLMNode`. See the `kaizen-specialist` for Kaizen agent MCP client patterns.
+### Migration Pattern
+
+```python
+# OLD: Mock was default
+workflow.add_node("LLMAgentNode", "agent", {
+    "mcp_servers": [config]  # Was mocked by default
+})
+
+# NEW: Real is default, explicit mock needed
+workflow.add_node("LLMAgentNode", "agent", {
+    "mcp_servers": [config],
+    "use_real_mcp": False  # Only for testing
+})
+```
+
+- **Real MCP execution is now the default** (`use_real_mcp=True`)
+- Previous mock behavior now requires explicit `use_real_mcp=False`
+- Set `KAILASH_USE_REAL_MCP=false` for global mock behavior
 
 ## Production Readiness Checklist
 
-- [ ] Authentication configured via NexusAuthPlugin
-- [ ] Error handling implemented in handlers
-- [ ] Monitoring via EventBus subscriptions
+- [ ] Real MCP execution enabled (default)
+- [ ] Proper authentication configured
+- [ ] Tool discovery enabled
+- [ ] Error handling implemented
+- [ ] Monitoring and metrics enabled
 - [ ] Transport configuration complete
 
-<!-- Trigger Keywords: advanced MCP, MCP authentication, multi-server MCP, structured tools, progress reporting, MCP tool execution -->
+<!-- Trigger Keywords: advanced MCP, MCP discovery, MCP authentication, MCP registry, JWT MCP, multi-server MCP, structured tools, progress reporting, MCP subscription -->

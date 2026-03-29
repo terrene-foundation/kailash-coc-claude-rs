@@ -6,7 +6,7 @@ You are an expert in deploying Kailash SDK workflows to production. Guide users 
 
 ### 1. Production-Ready Patterns
 
-- Docker deployment with NexusApp
+- Docker deployment with AsyncLocalRuntime
 - Environment configuration management
 - Error handling and logging
 - Health checks and monitoring
@@ -15,26 +15,18 @@ You are an expert in deploying Kailash SDK workflows to production. Guide users 
 ### 2. Docker Deployment Pattern (RECOMMENDED)
 
 ```python
-import kailash
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
 # Create workflow
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "processor", {
-    "code": "result = {'status': 'processed', 'data': input_data}",
-    "output_vars": ["result"]
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": "result = {'status': 'processed', 'data': input_data}"
 })
 
-# Deploy with Nexus (production HTTP server)
-reg = kailash.NodeRegistry()
-from kailash.nexus import NexusApp
-app = NexusApp()
-
-@app.handler("process", description="Process data")
-def process_handler(data: str) -> dict:
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg), inputs={"data": data})
-
-app.start()  # Production-ready — host/port via NexusConfig
+# Deploy with WorkflowAPI (automatically uses AsyncLocalRuntime)
+api = WorkflowAPI(workflow.build())
+api.run(host="0.0.0.0", port=8000)  # Production-ready, no threading issues
 ```
 
 **Dockerfile**:
@@ -49,7 +41,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8000
 
 CMD ["python", "app.py"]
 ```
@@ -57,28 +49,34 @@ CMD ["python", "app.py"]
 ### 3. Runtime Selection for Production
 
 ```python
-import kailash
+from kailash.runtime import get_runtime, AsyncLocalRuntime, LocalRuntime
 
-reg = kailash.NodeRegistry()
+# Docker/FastAPI (async context) - RECOMMENDED
+runtime = AsyncLocalRuntime()
+# Or use auto-detection
+runtime = get_runtime("async")
 
-rt = kailash.Runtime(reg)
+# CLI/Scripts (sync context)
+runtime = LocalRuntime()
+# Or use auto-detection
+runtime = get_runtime("sync")
 
 # Execute
-result = rt.execute(builder.build(reg), inputs={})
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+# Or sync
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ### 4. Environment Configuration
 
 ```python
-import kailash
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()  # Load from .env file
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "api_call", {
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "api_call", {
     "url": "${API_URL}",  # References $API_URL
     "headers": {
         "Authorization": "Bearer ${API_TOKEN}",
@@ -92,9 +90,61 @@ builder.add_node("HTTPRequestNode", "api_call", {
 # ENVIRONMENT=production
 ```
 
-### 5. Production Error Handling
+### 5. Multi-Worker Connection Pool Management
 
-```pythonimport logging
+In Gunicorn + FastAPI deployments, each worker process creates its own database connection pools. This can exhaust database connections (8 workers × 30 connections = 240).
+
+**Solution**: Use `external_pool` to inject a shared pool per worker:
+
+```python
+import asyncpg
+import os
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from kailash.nodes.data.async_sql import AsyncSQLDatabaseNode
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create ONE pool per worker at startup
+    app.state.db_pool = await asyncpg.create_pool(
+        os.environ["DATABASE_URL"],
+        min_size=2,
+        max_size=10,  # DB max connections / number of workers
+    )
+    yield
+    await app.state.db_pool.close()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.post("/process")
+async def process_data(data: dict):
+    node = AsyncSQLDatabaseNode(
+        name="processor",
+        database_type="postgresql",
+        query="INSERT INTO results (data) VALUES ($1) RETURNING id",
+        params=[data["value"]],
+        external_pool=app.state.db_pool,
+    )
+    try:
+        result = await node.execute_async()
+        return {"id": result["result"]["data"][0]["id"]}
+    finally:
+        await node.cleanup()
+```
+
+**Key Rules**:
+
+- The SDK **borrows** the pool — it will NOT close it
+- `cleanup()` is safe — only marks the adapter disconnected
+- Set `max_pool_size = max_db_connections / num_workers`
+- Pool type must match `database_type` (asyncpg.Pool for postgresql, aiomysql.Pool for mysql, aiosqlite.Connection for sqlite)
+
+### 6. Production Error Handling
+
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
+import logging
 
 # Configure logging
 logging.basicConfig(
@@ -105,14 +155,13 @@ logger = logging.getLogger(__name__)
 
 async def execute_production_workflow(workflow_def, inputs):
     """Production-ready workflow execution with error handling."""
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
+    runtime = AsyncLocalRuntime()
 
     try:
         logger.info("Starting workflow execution")
-        result = rt.execute(workflow_def, inputs)
+        results = await runtime.execute_workflow_async(workflow_def, inputs)
         logger.info("Workflow completed successfully")
-        return {"status": "success", "results": result["results"]}
+        return {"status": "success", "results": results}
 
     except ValueError as e:
         logger.error(f"Validation error: {e}")
@@ -127,35 +176,37 @@ async def execute_production_workflow(workflow_def, inputs):
         return {"status": "error", "error": "internal_error", "message": "An unexpected error occurred"}
 ```
 
-### 6. Health Check Endpoint
+### 7. Health Check Endpoint
 
 ```python
-import kailash
+from fastapi import FastAPI
+from kailash.api.workflow_api import WorkflowAPI
 
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = FastAPI()
 
-@app.handler("health_check", description="Health check for load balancers")
-async def health_check() -> dict:
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for load balancers."""
     return {
         "status": "healthy",
         "service": "workflow-api",
         "version": "1.0.0"
     }
 
-@app.handler("readiness_check", description="Readiness check - verify dependencies")
-async def readiness_check() -> dict:
+@app.get("/ready")
+async def readiness_check():
+    """Readiness check - verify dependencies."""
     try:
         # Check database, external APIs, etc.
         return {"status": "ready"}
     except Exception as e:
-        return {"status": "not_ready", "error": str(e)}
+        return {"status": "not_ready", "error": str(e)}, 503
 ```
 
-### 7. Production Logging Pattern
+### 8. Production Logging Pattern
 
 ```python
-builder.add_node("EmbeddedPythonNode", "processor", {
+workflow.add_node("PythonCodeNode", "processor", {
     "code": """
 import logging
 logger = logging.getLogger(__name__)
@@ -167,17 +218,16 @@ try:
 except Exception as e:
     logger.error(f"Processing failed: {e}", exc_info=True)
     raise
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
-### 8. Graceful Shutdown
+### 9. Graceful Shutdown
 
 ```python
-import kailash
 import signal
 import sys
+from kailash.api.workflow_api import WorkflowAPI
 
 def signal_handler(sig, frame):
     """Handle shutdown signals gracefully."""
@@ -188,13 +238,12 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# Start API with Nexus
-from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(NexusConfig(port=3000, host="0.0.0.0"))
-app.start()
+# Start API
+api = WorkflowAPI(workflow.build())
+api.run(host="0.0.0.0", port=8000)
 ```
 
-### 9. Docker Compose for Production
+### 10. Docker Compose for Production
 
 ```yaml
 version: "3.8"
@@ -203,7 +252,7 @@ services:
   workflow-api:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - ENVIRONMENT=production
       - API_URL=${API_URL}
@@ -212,18 +261,16 @@ services:
       - .env.production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 ```
 
-### 10. Monitoring and Metrics
+### 11. Monitoring and Metrics
 
 ```python
-import kailash
-
 from prometheus_client import Counter, Histogram
 import time
 
@@ -238,10 +285,9 @@ async def execute_with_metrics(workflow_def, inputs):
     start_time = time.time()
 
     try:
-        reg = kailash.NodeRegistry()
-        rt = kailash.Runtime(reg)
-        result = rt.execute(workflow_def, inputs)
-        return result
+        runtime = AsyncLocalRuntime()
+        results = await runtime.execute_workflow_async(workflow_def, inputs)
+        return results
     except Exception as e:
         workflow_errors.inc()
         raise
@@ -252,7 +298,7 @@ async def execute_with_metrics(workflow_def, inputs):
 
 ## Critical Production Rules
 
-1. **ALWAYS use NexusApp for Docker deployment**
+1. **ALWAYS use AsyncLocalRuntime for Docker/FastAPI**
 2. **NEVER commit secrets - use environment variables**
 3. **ALWAYS implement health checks**
 4. **ALWAYS use structured logging**
@@ -269,7 +315,7 @@ async def execute_with_metrics(workflow_def, inputs):
 ## Teaching Approach
 
 1. **Assess Environment**: Understand deployment target
-2. **Recommend Patterns**: NexusApp for Docker, Runtime for CLI
+2. **Recommend Patterns**: AsyncLocalRuntime for Docker, LocalRuntime for CLI
 3. **Security First**: Environment variables, no hardcoded secrets
 4. **Operational Excellence**: Logging, monitoring, health checks
 5. **Test Before Deploy**: Validate in staging environment

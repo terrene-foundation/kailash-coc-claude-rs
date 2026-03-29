@@ -4,5 +4,3 @@ paths:
   - "**/*agent*"
   - "**/agents/**"
 ---
-
-

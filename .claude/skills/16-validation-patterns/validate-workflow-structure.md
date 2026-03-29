@@ -10,7 +10,8 @@ Quick validation checklist for Kailash workflow patterns to ensure compliance wi
 > **Skill Metadata**
 > Category: `cross-cutting` (validation)
 > Priority: `HIGH`
-> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`error-missing-build`](../15-error-troubleshooting/error-missing-build.md), [`gold-parameter-passing`](../../17-gold-standards/gold-parameter-passing.md)
+> SDK Version: `0.9.25+`
+> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`error-missing-build`](../31-error-troubleshooting/error-missing-build.md), [`gold-parameter-passing`](../../17-gold-standards/gold-parameter-passing.md)
 > Related Subagents: `gold-standards-validator` (comprehensive validation), `pattern-expert` (complex pattern debugging)
 
 ## Quick Validation Checklist
@@ -18,19 +19,17 @@ Quick validation checklist for Kailash workflow patterns to ensure compliance wi
 Run through this checklist for any Kailash workflow code:
 
 ### ✅ Critical Patterns (Must Pass)
-
-- [ ] **Imports**: Using `import kailash` (direct API)
-- [ ] **.build(reg) call**: Always `rt.execute(builder.build(reg))`
-- [ ] **String-based nodes**: `"CSVProcessorNode"` not `CSVProcessorNode()`
-- [ ] **4-parameter connections**: `connect(source, source_output, target, target_input)`
-- [ ] **Execution pattern**: `rt.execute(builder.build(reg))` NOT `workflow.execute(runtime)`
+- [ ] **Imports**: Using absolute imports (`from kailash.workflow.builder import...`)
+- [ ] **.build() call**: Always `runtime.execute(workflow.build())`
+- [ ] **String-based nodes**: `"CSVReaderNode"` not `CSVReaderNode()`
+- [ ] **4-parameter connections**: `add_connection(from_node, from_output, to_node, to_input)`
+- [ ] **Execution pattern**: `runtime.execute(workflow.build())` NOT `workflow.execute(runtime)`
 
 ### ✅ Common Mistakes (Check These)
-
 - [ ] **Node suffix**: All nodes end with "Node" (CSVReader**Node**, LLMAgent**Node**)
 - [ ] **Snake_case methods**: `add_node()` NOT `addNode()`
 - [ ] **Snake_case config**: `file_path` NOT `filePath`
-- [ ] **Parameter name**: `inputs={}` NOT `parameters={}` or `config={}`
+- [ ] **Parameter name**: `parameters={}` NOT `inputs={}` or `config={}`
 - [ ] **Node ID uniqueness**: Each node has unique ID in workflow
 
 ## Validation Examples
@@ -39,20 +38,19 @@ Run through this checklist for any Kailash workflow code:
 
 ```python
 # Code to validate:
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)", "output_vars": ["result"]})
-builder.connect("reader", "rows", "process", "data")
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+workflow.add_node("PythonCodeNode", "process", {"code": "result = len(data)"})
+workflow.add_connection("reader", "data", "process", "data")
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 **Validation Result**: ✅ PASS
-
 - ✅ Absolute imports
 - ✅ String-based nodes
 - ✅ 4-parameter connections
@@ -63,87 +61,81 @@ result = rt.execute(builder.build(reg))
 
 ```python
 # Code to validate:
-from kailash.nodes.data import CSVReader  # ❌ Wrong: don't import nodes, use strings
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
+from kailash.nodes.data import CSVReader  # ❌ Wrong class name
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 workflow.addNode("reader", CSVReader())  # ❌ camelCase, instance-based
-builder.connect("reader", "processor", "data")  # ❌ Only 3 parameters
+workflow.add_connection("reader", "processor", "data")  # ❌ Only 3 parameters
 
-rt = kailash.Runtime()  # ❌ Missing NodeRegistry
-result = rt.execute(workflow)  # ❌ Missing .build(reg)
+runtime = LocalRuntime()
+results = runtime.execute(workflow)  # ❌ Missing .build()
 ```
 
-**Validation Result**: ❌ FAIL - 6 violations found
-
-1. ❌ **Import**: Don't import nodes -- use string-based API: `builder.add_node("CSVProcessorNode", ...)`
+**Validation Result**: ❌ FAIL - 4 violations found
+1. ❌ **Import**: Missing "Node" suffix - use `CSVReaderNode` not `CSVReader`
 2. ❌ **Method**: camelCase - use `add_node()` not `addNode()`
-3. ❌ **Node API**: Instance-based - use string `"CSVProcessorNode"` not `CSVReader()`
-4. ❌ **Connection**: Only 3 params - use `(source, source_output, target, target_input)`
-5. ❌ **Runtime**: Missing NodeRegistry - use `kailash.Runtime(kailash.NodeRegistry())`
-6. ❌ **Build**: Missing `.build(reg)` - use `rt.execute(builder.build(reg))`
+3. ❌ **Node API**: Instance-based - use string `"CSVReaderNode"` not `CSVReader()`
+4. ❌ **Connection**: Only 3 params - use `(from_node, from_output, to_node, to_input)`
+5. ❌ **Build**: Missing `.build()` - use `runtime.execute(workflow.build())`
 
 ## Pattern Validation Rules
 
 ### Rule 1: Execution Pattern (CRITICAL)
-
 ```python
 # ✅ VALID
-rt.execute(builder.build(reg))
-rt.execute(builder.build(reg), inputs={...})
+runtime.execute(workflow.build())
+runtime.execute(workflow.build(), parameters={...})
+await runtime.execute_workflow_async(workflow.build(), inputs={})
 
 # ❌ INVALID
 workflow.execute(runtime)
-rt.execute(workflow)
-rt.execute(builder.build(reg), runtime)
+runtime.execute(workflow)
+runtime.execute(workflow.build(), runtime)
 workflow.run()
 ```
 
 ### Rule 2: Node API (CRITICAL)
-
 ```python
 # ✅ VALID - String-based
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "..."})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "...", "output_vars": ["result"]})
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "..."})
+workflow.add_node("PythonCodeNode", "process", {"code": "..."})
 
 # ❌ INVALID - Instance-based (deprecated)
-builder.add_node("reader", CSVProcessorNode(source_path="..."))
-builder.add_node("process", EmbeddedPythonNode(code="..."))
+workflow.add_node("reader", CSVReaderNode(file_path="..."))
+workflow.add_node("process", PythonCodeNode(code="..."))
 ```
 
 ### Rule 3: Connection Pattern (CRITICAL)
-
 ```python
 # ✅ VALID - 4 parameters
-builder.connect("source", "output", "target", "input")
-builder.connect("reader", "rows", "processor", "data")
+workflow.add_connection("source", "output", "target", "input")
+workflow.add_connection("reader", "data", "processor", "data")
 
 # ❌ INVALID - 3 parameters (deprecated)
-builder.connect("source", "target", "data")
-builder.connect("reader", "processor")
+workflow.add_connection("source", "target", "data")
+workflow.add_connection("reader", "processor")
 ```
 
 ### Rule 4: Import Pattern (HIGH)
-
 ```python
-# ✅ VALID
-import kailash
+# ✅ VALID - Absolute imports
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
+from kailash.nodes.data import CSVReaderNode
 
 # ❌ INVALID - Relative imports
 from ..workflow.builder import WorkflowBuilder
-from .runtime import Runtime
-
-# ❌ INVALID - Internal module imports
-from kailash.workflow.builder import WorkflowBuilder  # No such module
-from kailash.nodes.data import CSVProcessorNode  # No such module
+from .runtime import LocalRuntime
 ```
 
 ### Rule 5: Naming Conventions (HIGH)
-
 ```python
 # ✅ VALID
-CSVProcessorNode, LLMNode, HTTPRequestNode, EmbeddedPythonNode
-builder.add_node(), builder.connect(), builder.build(reg)
-source_path="...", has_headers=True, connection_string="..."
+CSVReaderNode, LLMAgentNode, HTTPRequestNode, PythonCodeNode
+workflow.add_node(), workflow.add_connection(), workflow.build()
+file_path="...", has_header=True, connection_string="..."
 
 # ❌ INVALID
 CSVReader, LLMAgent, HTTPRequest, PythonCode
@@ -159,11 +151,11 @@ def validate_workflow_code(code: str) -> dict:
     violations = []
 
     # Check 1: .build() usage
-    if ".execute(workflow)" in code and ".execute(builder.build(reg))" not in code:
+    if ".execute(workflow)" in code and ".execute(workflow.build())" not in code:
         violations.append({
             "rule": "Execution Pattern",
-            "issue": "Missing .build(reg) call",
-            "fix": "Use rt.execute(builder.build(reg))"
+            "issue": "Missing .build() call",
+            "fix": "Use runtime.execute(workflow.build())"
         })
 
     # Check 2: Wrong execution direction
@@ -171,7 +163,7 @@ def validate_workflow_code(code: str) -> dict:
         violations.append({
             "rule": "Execution Pattern",
             "issue": "Wrong execution direction",
-            "fix": "Use rt.execute(builder.build(reg)) not workflow.execute(runtime)"
+            "fix": "Use runtime.execute(workflow.build()) not workflow.execute(runtime)"
         })
 
     # Check 3: camelCase methods
@@ -179,7 +171,7 @@ def validate_workflow_code(code: str) -> dict:
         violations.append({
             "rule": "Naming Convention",
             "issue": "camelCase methods",
-            "fix": "Use snake_case: add_node(), connect()"
+            "fix": "Use snake_case: add_node(), add_connection()"
         })
 
     # Check 4: Missing Node suffix in imports
@@ -221,9 +213,7 @@ def validate_workflow_code(code: str) -> dict:
 ## Common Validation Scenarios
 
 ### Scenario 1: Pre-Commit Review
-
 Run validation before committing code:
-
 ```python
 validation_result = validate_workflow_code(my_workflow_code)
 if not validation_result["valid"]:
@@ -234,22 +224,18 @@ if not validation_result["valid"]:
 ```
 
 ### Scenario 2: Code Review Checklist
-
 Use this during PR reviews:
-
 - [ ] All imports are absolute (no relative imports)
 - [ ] All nodes use string-based API
 - [ ] All connections use 4-parameter pattern
 - [ ] `.build()` called before execution
-- [ ] Execution pattern is `rt.execute(builder.build(reg))`
+- [ ] Execution pattern is `runtime.execute(workflow.build())`
 - [ ] All method names are snake_case
 - [ ] All config keys are snake_case
 - [ ] All node classes have "Node" suffix
 
-### Scenario 3: Refactoring Code
-
-When updating code to correct patterns:
-
+### Scenario 3: Refactoring Legacy Code
+When updating old code to new patterns:
 1. Check imports - update to absolute
 2. Check node API - convert instance-based to string-based
 3. Check connections - update to 4 parameters
@@ -259,21 +245,19 @@ When updating code to correct patterns:
 ## Related Patterns
 
 - **Workflow basics**: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
-- **Error fixes**: [`error-missing-build`](../15-error-troubleshooting/error-missing-build.md), [`error-connection-params`](../15-error-troubleshooting/error-connection-params.md)
+- **Error fixes**: [`error-missing-build`](../31-error-troubleshooting/error-missing-build.md), [`error-connection-params`](../31-error-troubleshooting/error-connection-params.md)
 - **Gold standards**: [`gold-parameter-passing`](../../17-gold-standards/gold-parameter-passing.md), [`gold-absolute-imports`](../../17-gold-standards/gold-absolute-imports.md)
 - **Common mistakes**: [`common-mistakes-catalog`](../../06-cheatsheets/common-mistakes-catalog.md)
 
 ## When to Escalate to Subagent
 
 Use `gold-standards-validator` subagent when:
-
 - Need comprehensive compliance check across entire codebase
 - Validating against all gold standards (not just workflow structure)
 - Generating compliance report for audit
 - Automated CI/CD validation
 
 Use `pattern-expert` subagent when:
-
 - Debugging complex pattern violations
 - Understanding why certain patterns are required
 - Optimizing workflow structure for performance
@@ -283,6 +267,7 @@ Use `pattern-expert` subagent when:
 
 ### Primary Sources
 
+### Related Documentation
 - **Pattern Expert**: [`.claude/agents/pattern-expert.md`](../../../../.claude/agents/pattern-expert.md)
 - **Essential Pattern**: [`CLAUDE.md` (lines 139-145)](../../../../CLAUDE.md#L139-L145)
 

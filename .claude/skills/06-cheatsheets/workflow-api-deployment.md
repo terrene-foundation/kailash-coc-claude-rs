@@ -1,6 +1,6 @@
 ---
 name: workflow-api-deployment
-description: "Deploy workflows as REST APIs using NexusApp. Use when asking 'workflow API', 'REST API', 'deploy API', 'NexusApp', 'API deployment', or 'workflow endpoint'."
+description: "Deploy workflows as REST APIs using WorkflowAPI and FastAPI. Use when asking 'workflow API', 'REST API', 'deploy API', 'WorkflowAPI', 'FastAPI workflow', 'API deployment', or 'workflow endpoint'."
 ---
 
 # Workflow API Deployment
@@ -10,28 +10,30 @@ Workflow API Deployment guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `deployment`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
 - **Primary Use**: Workflow API Deployment
 - **Category**: deployment
 - **Priority**: HIGH
-- **Trigger Keywords**: workflow API, REST API, deploy API, NexusApp, API deployment
+- **Trigger Keywords**: workflow API, REST API, deploy API, WorkflowAPI, FastAPI workflow
 
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Workflow Api Deployment implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -55,6 +57,10 @@ Use specialized subagents when:
 - Deep analysis necessary
 - Enterprise patterns needed
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
 - 💡 **Tip 1**: Always follow Workflow API Deployment best practices
@@ -63,4 +69,4 @@ Use specialized subagents when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: workflow API, REST API, deploy API, NexusApp, API deployment -->
+<!-- Trigger Keywords: workflow API, REST API, deploy API, WorkflowAPI, FastAPI workflow -->

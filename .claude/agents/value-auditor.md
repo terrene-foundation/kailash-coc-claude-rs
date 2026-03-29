@@ -1,6 +1,6 @@
 ---
 name: value-auditor
-description: "Enterprise demo QA from a skeptical buyer perspective. Use for value audits of product demos via Playwright."
+description: "Enterprise demo QA auditor. Use for value proposition testing, narrative coherence, or data credibility checks."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

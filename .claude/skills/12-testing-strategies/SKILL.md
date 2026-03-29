@@ -1,19 +1,17 @@
 ---
 name: testing-strategies
-description: "Comprehensive testing strategies for Kailash applications including the 3-tier testing approach with NO MOCKING policy for Tiers 2-3. Use when asking about 'testing', 'test strategy', '3-tier testing', 'unit tests', 'integration tests', 'end-to-end tests', 'testing workflows', 'testing DataFlow', 'testing Nexus', 'NO MOCKING', 'real infrastructure', 'test organization', or 'testing best practices'."
+description: "Comprehensive testing strategies for Kailash applications including the 3-tier testing approach with Real infrastructure recommended policy for Tiers 2-3. Use when asking about 'testing', 'test strategy', '3-tier testing', 'unit tests', 'integration tests', 'end-to-end tests', 'testing workflows', 'testing DataFlow', 'testing Nexus', 'Real infrastructure recommended', 'real infrastructure', 'test organization', or 'testing best practices'."
 ---
 
 # Kailash Testing Strategies
 
-Comprehensive testing approach for Kailash applications using the 3-tier testing strategy with NO MOCKING policy.
+Comprehensive testing approach for Kailash applications using the 3-tier testing strategy with Real infrastructure recommended policy.
 
 ## Overview
 
 Kailash testing philosophy:
-
-- **4-Tier Strategy**: Regression, Unit, Integration, End-to-End
-- **Regression-First**: Every bug fix starts with a failing regression test
-- **NO MOCKING Policy**: Tiers 2-3 use real infrastructure
+- **3-Tier Strategy**: Unit, Integration, End-to-End
+- **Real infrastructure recommended Policy**: Tiers 2-3 use real infrastructure
 - **Real Database Testing**: Actual PostgreSQL/SQLite
 - **Real API Testing**: Live HTTP calls
 - **Real LLM Testing**: Actual model calls (with caching)
@@ -21,140 +19,70 @@ Kailash testing philosophy:
 ## Reference Documentation
 
 ### Core Strategy
-
-- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete testing guide
-  - Tier 0: Regression Tests (reproduce known bugs, permanent guards)
-  - Tier 1: Unit Tests (test doubles allowed)
-  - Tier 2: Integration Tests (NO MOCKING)
-  - Tier 3: End-to-End Tests (NO MOCKING)
+- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete 3-tier testing guide
+  - Tier 1: Unit Tests (mocking allowed)
+  - Tier 2: Integration Tests (Real infrastructure recommended)
+  - Tier 3: End-to-End Tests (Real infrastructure recommended)
   - Test organization
-  - Helper function patterns
+  - Fixture patterns
   - CI/CD integration
 
-## 4-Tier Testing Strategy
-
-### Tier 0: Regression Tests
-
-**Scope**: Reproduce known bugs, permanent guards against re-introduction
-**Mocking**: Depends on bug scope (Tier 1 rules for unit bugs, Tier 2 rules for integration bugs)
-**Speed**: Varies
-**Lifetime**: PERMANENT — regression tests are never deleted
-
-Every bug fix MUST start with a failing regression test that reproduces the exact bug from the issue tracker. The test MUST fail before the fix and pass after.
-
-**Python:**
-
-```python
-# tests/regression/test_issue_42.py
-
-def test_issue_42_user_creation_preserves_explicit_id():
-    """Regression: #42 — CreateUser silently drops explicit id."""
-    import kailash
-
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    # ... reproduce the exact bug from the issue body ...
-    result = rt.execute(wf)
-    assert result["results"]["create"]["id"] == "custom-id-value"
-```
-
-**Ruby:**
-
-```ruby
-# spec/regression/issue_42_spec.rb
-
-RSpec.describe "Issue #42: user creation preserves explicit id" do
-  it "does not silently drop the explicit id" do
-    Kailash::Registry.open do |registry|
-      builder = Kailash::WorkflowBuilder.new
-      # ... reproduce the exact bug from the issue body ...
-      expect(result.results["create"]["id"]).to eq("custom-id-value")
-    end
-  end
-end
-```
-
-**Why Tier 0 exists:** Without regression tests, teams forget past bugs and re-introduce them (the Amnesia fault line). Without regression tests, the "shortest path" fix skips verification (the Security Blindness fault line). Regression tests are the cheapest insurance against known bugs.
-
-**Naming convention:**
-- Python: `tests/regression/test_issue_{number}.py`, function `test_issue_{number}_{description}`
-- Ruby: `spec/regression/issue_{number}_spec.rb`
+## 3-Tier Testing Strategy
 
 ### Tier 1: Unit Tests
-
 **Scope**: Individual functions and classes
-**Mocking**: Allowed (test doubles, fakes)
+**Mocking**: ✅ Allowed
 **Speed**: Fast (< 1s per test)
 
 ```python
-import kailash
-
 def test_workflow_builder():
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("LogNode", "node1", {})
-    wf = builder.build(reg)
-    assert wf is not None
+    """Test workflow builder logic (no execution)."""
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node1", {})
+
+    built = workflow.build()
+    assert built.node_count() == 1
 ```
 
 ### Tier 2: Integration Tests
-
 **Scope**: Component integration (workflows, database, APIs)
-**Mocking**: NO MOCKING
+**Mocking**: ❌ Real infrastructure recommended
 **Speed**: Medium (1-10s per test)
 
 ```python
-import kailash
-import os
-import pytest
+def test_dataflow_crud(db: DataFlow):
+    """Test DataFlow CRUD with real database."""
+    # Uses real PostgreSQL/SQLite
+    workflow = db.create_workflow("User_Create", {...})
+    results = runtime.execute(workflow.build())
 
-@pytest.mark.integration
-def test_dataflow_crud():
-    db_url = os.environ["DATABASE_URL"]
-
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "create", {
-        "connection_string": db_url,
-        "query": "INSERT INTO users (name) VALUES ($1) RETURNING id",
-        "parameters": ["Test"],
-    })
-
-    wf = builder.build(reg)
-    rt = kailash.Runtime(reg)
-    result = rt.execute(wf)
-
-    assert "create" in result["results"]
+    # Verify in actual database
+    assert results["create"]["result"] is not None
 ```
 
 ### Tier 3: End-to-End Tests
-
 **Scope**: Complete user workflows
-**Mocking**: NO MOCKING
+**Mocking**: ❌ Real infrastructure recommended
 **Speed**: Slow (10s+ per test)
 
 ```python
-import requests
-import pytest
-
-@pytest.mark.e2e
-def test_user_registration_flow():
-    response = requests.post("http://localhost:3000/api/register", json={
+def test_user_registration_flow(nexus: Nexus):
+    """Test complete user flow via Nexus API."""
+    # Real HTTP request to actual API
+    response = requests.post("http://localhost:8000/api/register", json={
         "email": "test@example.com",
-        "name": "Test User",
+        "name": "Test User"
     })
 
     assert response.status_code == 200
-    body = response.json()
-    assert "user_id" in body
+    assert response.json()["user_id"] is not None
 ```
 
-## NO MOCKING Policy
+## Real infrastructure recommended Policy
 
 ### Why No Mocking in Tiers 2-3?
 
 **Real Issues Found**:
-
 - Database constraint violations
 - API timeout problems
 - Race conditions
@@ -163,7 +91,6 @@ def test_user_registration_flow():
 - LLM token limits
 
 **Mocking Hides**:
-
 - Real-world latency
 - Actual error conditions
 - Integration bugs
@@ -172,190 +99,182 @@ def test_user_registration_flow():
 ### What to Use Instead
 
 **Real Infrastructure**:
-
 - Test databases (Docker containers)
 - Test API endpoints
 - Test LLM accounts (with caching)
-- Test file systems (temp directories via `tempfile` module)
+- Test file systems (temp directories)
 
 ## Test Organization
 
 ### Directory Structure
-
 ```
-project/
-  src/
-    app/
-      main.py
-  tests/
-    regression/         # Tier 0: Permanent bug reproduction tests
-      test_issue_42.py
-    unit/               # Tier 1
-      test_workflows.py
-      test_models.py
-    integration/        # Tier 2
-      test_dataflow.py
-      test_nexus.py
-    e2e/                # Tier 3
-      test_user_flows.py
-  conftest.py           # Shared fixtures
-  pytest.ini            # Test configuration
+tests/
+  tier1_unit/
+    test_workflow_builder.py
+    test_node_logic.py
+  tier2_integration/
+    test_dataflow_crud.py
+    test_workflow_execution.py
+    test_api_integration.py
+  tier3_e2e/
+    test_user_flows.py
+    test_production_scenarios.py
+  conftest.py  # Shared fixtures
 ```
 
-### pytest Configuration
+### Fixture Patterns
 
-```ini
-# pytest.ini
-[pytest]
-markers =
-    integration: Integration tests (require real database)
-    e2e: End-to-end tests (require running services)
-testpaths = tests
+```python
+# conftest.py
+import pytest
+from dataflow import DataFlow
+from kailash.runtime import LocalRuntime
+
+@pytest.fixture
+def db():
+    """Real database for testing (Docker)."""
+    db = DataFlow("postgresql://test:test@localhost:5433/test_db")
+    db.create_tables()
+    yield db
+    db.drop_tables()
+
+@pytest.fixture
+def runtime():
+    """Real runtime instance."""
+    return LocalRuntime()
 ```
 
 ## Testing Different Components
 
 ### Testing Workflows
-
 ```python
-import kailash
-
-def test_workflow_execution():
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("JSONTransformNode", "calc", {
-        "expression": "@.value",
+def test_workflow_execution(runtime):
+    """Tier 2: Integration test with real execution."""
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "calc", {
+        "code": "result = 2 + 2"
     })
 
-    wf = builder.build(reg)
-    rt = kailash.Runtime(reg)
-
-    result = rt.execute(wf, {"data": {"value": 42}})
-    assert "calc" in result["results"]
+    results = runtime.execute(workflow.build())
+    assert results["calc"]["result"] == 4
 ```
 
 ### Testing DataFlow
-
 ```python
-import kailash
-import os
-import pytest
-
-@pytest.mark.integration
-def test_dataflow_operations():
-    db_url = os.environ["DATABASE_URL"]
-    df = kailash.DataFlow(db_url)
+def test_dataflow_operations(db: DataFlow):
+    """Tier 2: Test with real database."""
+    @db.model
+    class User:
+        id: str
+        name: str
 
     # Real database operations
-    model = kailash.ModelDefinition("test_users")
-    model.add_field("name", kailash.FieldType.string(), required=True)
-    df.register_model(model)
+    workflow = db.create_workflow("User_Create", {
+        "data": {"id": "1", "name": "Test"}
+    })
+    results = runtime.execute(workflow.build())
+
+    # Verify in actual database
+    user = db.query("SELECT * FROM users WHERE id = '1'")
+    assert user["name"] == "Test"
 ```
 
 ### Testing Nexus
-
 ```python
-import requests
-import pytest
+def test_nexus_api(nexus_server):
+    """Tier 3: E2E test with real HTTP."""
+    import requests
 
-@pytest.mark.e2e
-def test_nexus_api():
     response = requests.post(
-        "http://localhost:3000/api/workflow/test_workflow",
-        json={"input": "data"},
+        "http://localhost:8000/api/workflow/test_workflow",
+        json={"input": "data"}
     )
 
     assert response.status_code == 200
-    body = response.json()
-    assert "result" in body
+    assert "result" in response.json()
 ```
 
 ### Testing Kaizen Agents
-
 ```python
-from kailash.kaizen import BaseAgent
-import os
-import pytest
-
-@pytest.mark.integration
 def test_agent_execution():
-    # Real LLM call (use caching to reduce costs)
-    class TestAgent(BaseAgent):
-        def run(self, input_text):
-            return {"response": f"Processed: {input_text}"}
+    """Tier 2: Test with real LLM (cached)."""
+    agent = MyAgent()
 
-    agent = TestAgent(name="test")
-    result = agent.run("Test query")
-    assert result["response"]
+    # Real LLM call (use caching to reduce costs)
+    result = agent(input="Test query")
+
+    assert result.output is not None
+    assert isinstance(result.output, str)
 ```
 
 ## Critical Rules
 
-- Tier 0: Every bug fix starts with a failing regression test
-- Tier 0: Regression tests are permanent — NEVER delete them
-- Tier 1: Test doubles for external dependencies allowed
-- Tier 2-3: Use real infrastructure
-- Use Docker for test databases
-- Clean up resources after tests
-- Cache LLM responses for cost
-- Run Tier 0-1 in CI, Tier 2-3 optionally
-- NEVER publish a bug fix without a regression test
-- NEVER use mock frameworks in Tier 2-3
-- NEVER mock database in Tier 2-3
-- NEVER mock HTTP calls in Tier 2-3
-- NEVER skip resource cleanup
-- NEVER commit test credentials (use `.env`)
+- ✅ Tier 1: Mock external dependencies
+- ✅ Tier 2-3: Use real infrastructure
+- ✅ Use Docker for test databases
+- ✅ Clean up resources after tests
+- ✅ Cache LLM responses for cost
+- ✅ Run Tier 1 in CI, Tier 2-3 optionally
+- ❌ NEVER mock database in Tier 2-3
+- ❌ NEVER mock HTTP calls in Tier 2-3
+- ❌ NEVER skip resource cleanup
+- ❌ NEVER commit test credentials
 
 ## Running Tests
 
 ### Local Development
-
 ```bash
-# Run all unit tests
-pytest tests/unit/
+# Run all tests
+pytest
 
 # Run by tier
-pytest tests/regression/                    # Tier 0: Regression
-pytest tests/unit/                          # Tier 1: Unit
-pytest tests/integration/ -m integration    # Tier 2: Integration
-pytest tests/e2e/ -m e2e                    # Tier 3: E2E
+pytest tests/tier1_unit/
+pytest tests/tier2_integration/
+pytest tests/tier3_e2e/
 
 # Run with coverage
-pytest --cov=src --cov-report=html tests/
+pytest --cov=app --cov-report=html
 ```
 
 ### CI/CD
-
 ```bash
 # Fast CI (Tier 1 only)
-pytest tests/unit/
-flake8 src/
+pytest tests/tier1_unit/
 
 # Full CI (all tiers)
-docker compose -f tests/docker-compose.test.yml up -d
-pytest tests/ -m "not e2e or integration"
-docker compose -f tests/docker-compose.test.yml down
+docker-compose up -d  # Start test infrastructure
+pytest
+docker-compose down
 ```
+
+## When to Use This Skill
+
+Use this skill when you need to:
+- Understand Kailash testing philosophy
+- Set up test infrastructure
+- Write integration tests
+- Test workflows with real execution
+- Test DataFlow with real databases
+- Test Nexus APIs end-to-end
+- Organize test suites
+- Configure CI/CD testing
 
 ## Best Practices
 
 ### Test Quality
-
-- Write descriptive test names (snake_case)
+- Write descriptive test names
 - Use AAA pattern (Arrange, Act, Assert)
 - Test both success and failure cases
 - Clean up resources properly
 - Use fixtures for setup/teardown
 
 ### Performance
-
 - Use test database containers
 - Cache expensive operations
-- Run tests in parallel (`pytest-xdist`)
-- Mark slow tests with `@pytest.mark.slow`
+- Run tests in parallel (when safe)
+- Skip slow tests in development (mark with @pytest.mark.slow)
 
 ### Maintenance
-
 - Keep tests close to code
 - Update tests with code changes
 - Review test coverage regularly
@@ -363,14 +282,14 @@ docker compose -f tests/docker-compose.test.yml down
 
 ## Related Skills
 
-- **[02-dataflow](../02-dataflow/SKILL.md)** - DataFlow testing
-- **[03-nexus](../03-nexus/SKILL.md)** - API testing
-- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Testing best practices
+- **[07-development-guides](../../07-development-guides/SKILL.md)** - Testing patterns
+- **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Testing best practices
+- **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow testing
+- **[03-nexus](../../03-nexus/SKILL.md)** - API testing
 
 ## Support
 
 For testing help, invoke:
-
 - `testing-specialist` - Testing strategies and patterns
 - `tdd-implementer` - Test-driven development
 - `dataflow-specialist` - DataFlow testing patterns

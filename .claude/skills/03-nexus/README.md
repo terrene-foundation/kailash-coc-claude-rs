@@ -22,9 +22,9 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
    - Priority: HIGH
    - Cross-channel sessions, state persistence
 
-5. **nexus-dataflow-integration** - DataFlow + Nexus integration patterns
+5. **nexus-dataflow-integration** - CRITICAL blocking fix configuration
    - Priority: CRITICAL
-   - Manual workflow registration, auto_migrate=True (default), performance optimization
+   - auto_discovery=False, auto_migrate=True (default), performance optimization
 
 ### Channel-Specific (6 Skills - HIGH)
 
@@ -80,7 +80,7 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
     - Priority: LOW
     - Custom plugins, plugin system, extensibility
 
-### Additional Skills (4 Skills - HIGH)
+### v1.3.0 Additions (4 Skills - HIGH)
 
 18. **nexus-handler-support** - Register Python functions as multi-channel workflows
     - Priority: HIGH
@@ -107,11 +107,11 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
 - Broadcasting behavior explained
 - Common pitfalls with solutions
 
-### 2. DataFlow Integration (Manual Workflow Registration)
+### 2. DataFlow Blocking Fix (Lines 320-386 from nexus-specialist)
 
-- NexusApp has no auto_discovery param — register workflows manually
-- auto_migrate=True (default, works in Docker)
-- Performance comparison (30s → <2s with proper config)
+- auto_discovery=False configuration
+- auto_migrate=True (default, works in Docker/FastAPI)
+- Performance comparison (30s → <2s)
 - Trade-off analysis
 
 ### 3. Zero-Config Pattern
@@ -125,8 +125,6 @@ Complete set of 21 Nexus skills covering all aspects from quickstart to advanced
 - Single registration, three interfaces
 - Cross-channel sessions
 - Unified parameter handling
-
-## Source Documentation
 
 All skills created from verified sources:
 
@@ -202,12 +200,6 @@ nexus-architecture
 - ✅ Authentication plugin (JWT, RBAC, SSO, rate limiting, tenant, audit)
 - ✅ Golden patterns catalog (7 patterns)
 - ✅ Codegen decision tree (anti-patterns, scaffolding)
-
-### Phase 17 Additions
-
-- PluginManager (Rust-backed): `nexus-plugins.md` -- load, unload, reload, health_check_all
-- EventBus (Rust-backed): `nexus-event-system.md` -- subscribe, publish for decoupled events
-- WorkflowRegistry (Rust-backed): `nexus-workflow-registration.md` -- register, get, execute workflows
 
 ### What's NOT Covered
 

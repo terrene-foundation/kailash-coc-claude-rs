@@ -10,6 +10,7 @@ Complete business scenario test template with full infrastructure stack.
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`test-3tier-strategy`](../../4-operations/testing/test-3tier-strategy.md), [`template-test-integration`](template-test-integration.md)
 > Related Subagents: `testing-specialist`, `tdd-implementer`
 
@@ -27,7 +28,8 @@ Complete business scenario test template with full infrastructure stack.
 """End-to-end tests for [Business Scenario]"""
 
 import pytest
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 @pytest.mark.e2e
 @pytest.mark.timeout(10)
@@ -36,50 +38,47 @@ class Test[BusinessScenario]E2E:
 
     def test_complete_user_journey(self, test_database_url):
         """Test complete user journey from start to finish."""
-        builder = kailash.WorkflowBuilder()
+        workflow = WorkflowBuilder()
 
         # Step 1: Data ingestion
-        builder.add_node("EmbeddedPythonNode", "ingest", {
-            "code": "result = {'data': [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]}",
-            "output_vars": ["result"]
+        workflow.add_node("PythonCodeNode", "ingest", {
+            "code": "result = {'data': [{'id': 1, 'name': 'Alice'}, {'id': 2, 'name': 'Bob'}]}"
         })
 
         # Step 2: Validation
-        builder.add_node("EmbeddedPythonNode", "validate", {
+        workflow.add_node("PythonCodeNode", "validate", {
             "code": """
 items = input_data
 valid_items = [item for item in items if 'id' in item and 'name' in item]
 result = {'validated': valid_items, 'count': len(valid_items)}
-""",
-            "output_vars": ["result"]
+"""
         })
 
         # Step 3: Database storage
-        builder.add_node("SQLQueryNode", "store", {
+        workflow.add_node("AsyncSQLDatabaseNode", "store", {
             "connection_string": test_database_url,
             "query": "INSERT INTO users (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING"
         })
 
         # Step 4: Verification
-        builder.add_node("SQLQueryNode", "verify", {
+        workflow.add_node("AsyncSQLDatabaseNode", "verify", {
             "connection_string": test_database_url,
             "query": "SELECT COUNT(*) as count FROM users"
         })
 
         # Connect complete pipeline
-        builder.connect("ingest", "outputs", "validate", "input_data")
-        builder.connect("validate", "outputs", "store", "batch_data")
-        builder.connect("store", "result", "verify", "trigger")
+        workflow.add_connection("ingest", "result.data", "validate", "input_data")
+        workflow.add_connection("validate", "result.validated", "store", "batch_data")
+        workflow.add_connection("store", "result", "verify", "trigger")
 
         # Execute complete workflow
-        reg = kailash.NodeRegistry()
-        rt = kailash.Runtime(reg)
-        result = rt.execute(builder.build(reg))
+        runtime = LocalRuntime()
+        results, run_id = runtime.execute(workflow.build())
 
         # Verify end-to-end results
-        assert result["results"]["ingest"]["outputs"]["data"] is not None
-        assert result["results"]["validate"]["outputs"]["count"] == 2
-        assert result["results"]["verify"]["data"][0]["count"] >= 2
+        assert results["ingest"]["result"]["data"] is not None
+        assert results["validate"]["result"]["count"] == 2
+        assert results["verify"]["data"][0]["count"] >= 2
 ```
 
 ## Related Patterns
@@ -91,7 +90,6 @@ result = {'validated': valid_items, 'count': len(valid_items)}
 ## When to Escalate
 
 Use `testing-specialist` when:
-
 - Complex E2E scenario design
 - Performance testing needed
 - CI/CD integration
@@ -99,7 +97,6 @@ Use `testing-specialist` when:
 ## Documentation References
 
 ### Primary Sources
-
 - **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 211-262)](../../../../.claude/agents/testing-specialist.md#L211-L262)
 
 ## Quick Tips

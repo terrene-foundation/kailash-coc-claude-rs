@@ -1,140 +1,169 @@
 ---
 name: mcp-transports-quick
-description: "MCP transport configuration patterns (STDIO, HTTP, SSE). Use when asking 'MCP transport', 'stdio mcp', 'HTTP transport', 'SSE transport', 'mcp connection', or 'mcp server setup'."
+description: "MCP transport configuration patterns (STDIO, HTTP, WebSocket). Use when asking 'MCP transport', 'stdio mcp', 'websocket mcp', 'HTTP transport', 'mcp connection', or 'mcp server setup'."
 ---
 
 # MCP Transports Quick Reference
 
-Configure MCP server connections using STDIO, HTTP, or SSE transports.
+Configure MCP server connections using STDIO, HTTP, or WebSocket transports.
 
 > **Skill Metadata**
 > Category: `mcp`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 > Related Skills: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md), [`mcp-authentication`](mcp-authentication.md)
 > Related Subagents: `mcp-specialist` (server implementation, troubleshooting)
-
-## Architecture Note
-
-MCP client connections (connecting to external MCP servers, discovering and executing tools) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes. `LLMNode` supports tool calling via the `tools` parameter but does not have an `mcp_servers` parameter.
-
-For building MCP servers, use the `McpApplication` class from `kailash.mcp`.
 
 ## Quick Reference
 
 - **STDIO**: Local process communication (fastest, recommended for development)
-- **SSE**: Server-Sent Events for real-time streaming (production)
 - **HTTP**: Remote servers, production deployments (stateless)
+- **WebSocket**: Real-time bidirectional communication (stateful connections)
 - **Transport Selection**: Choose based on deployment model and latency requirements
 
-## Server-Side Transport Patterns (McpApplication)
+## Transport Patterns
 
 ### STDIO Transport (Recommended for Local Development)
 
 ```python
-from kailash.mcp import McpApplication
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-app = McpApplication("weather-server", "1.0")
+workflow = WorkflowBuilder()
 
-@app.tool("get_weather", "Get weather for a city")
-def get_weather(params):
-    city = params["city"]
-    return f'{{"city": "{city}", "temp": 22}}'
+# STDIO: Launch MCP server as subprocess
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Get weather for NYC"}],
+    "mcp_servers": [{
+        "name": "weather",
+        "transport": "stdio",
+        "command": "python",
+        "args": ["-m", "weather_mcp_server"]
+    }],
+    "auto_discover_tools": True
+})
 
-# STDIO transport (default) -- best for local development
-server = app.server
-# server.set_transport(STDIO)  # Default, no change needed
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 **When to Use STDIO:**
-
 - Local development and testing
-- Desktop applications (e.g., Claude Desktop)
+- Desktop applications
 - CLI tools
 - Single-machine deployments
 - Lowest latency requirements
 
-### HTTP/SSE Transport (Production Deployments)
+### HTTP Transport (Production Deployments)
 
 ```python
-from kailash.mcp import McpApplication
-from kailash.nexus.mcp import SSE, HTTP
-import os
-
-app = McpApplication("doc-server", "1.0")
-
-@app.tool("search_docs", "Search documents")
-def search_docs(params):
-    query = params["query"]
-    return f'{{"results": ["{query} result"]}}'
-
-server = app.server
-
-# SSE transport for production
-server.set_transport(SSE)
-server.set_sse_config(host="0.0.0.0", port=int(os.getenv("MCP_PORT", "8080")))
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Search documents"}],
+    "mcp_servers": [{
+        "name": "doc_search",
+        "transport": "http",
+        "url": "https://api.company.com/mcp/search",
+        "headers": {
+            "Authorization": "Bearer ${API_TOKEN}",
+            "X-Tenant-ID": "tenant_123"
+        },
+        "timeout": 30
+    }],
+    "auto_discover_tools": True
+})
 ```
 
-**When to Use HTTP/SSE:**
-
+**When to Use HTTP:**
 - Production deployments
 - Microservices architecture
 - Cloud-hosted MCP servers
 - Load-balanced environments
 - Stateless operations
 
-## Client-Side Transport Configuration (Kaizen Agents)
-
-MCP client connections are configured in Kaizen agents. These config dicts are passed to the agent's MCP client setup:
-
-### STDIO Client
+### WebSocket Transport (Real-Time Communication)
 
 ```python
-# Kaizen agent MCP client config -- STDIO
-mcp_client_config = {
-    "name": "weather",
-    "transport": "stdio",
-    "command": "python",
-    "args": ["-m", "weather_mcp_server"]
-}
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Monitor system metrics"}],
+    "mcp_servers": [{
+        "name": "metrics",
+        "transport": "websocket",
+        "url": "wss://metrics.company.com/mcp",
+        "connection_params": {
+            "heartbeat_interval": 30,
+            "reconnect_attempts": 3,
+            "reconnect_delay": 5
+        }
+    }],
+    "auto_discover_tools": True
+})
 ```
 
-### HTTP Client
-
-```python
-# Kaizen agent MCP client config -- HTTP
-mcp_client_config = {
-    "name": "doc_search",
-    "transport": "http",
-    "url": "https://api.company.com/mcp/search",
-    "headers": {
-        "Authorization": f"Bearer {os.getenv('API_TOKEN')}",
-        "X-Tenant-ID": "tenant_123"
-    },
-    "timeout": 30
-}
-```
-
-### Multiple Transports
-
-```python
-# Kaizen agent with multiple MCP server connections
-mcp_server_configs = [
-    {
-        "name": "weather",
-        "transport": "stdio",
-        "command": "python",
-        "args": ["-m", "weather_mcp"]
-    },
-    {
-        "name": "docs",
-        "transport": "http",
-        "url": "https://api.company.com/mcp/docs",
-        "headers": {"Authorization": f"Bearer {os.getenv('API_TOKEN')}"}
-    },
-]
-```
+**When to Use WebSocket:**
+- Real-time streaming data
+- Long-running operations with progress updates
+- Bidirectional communication
+- Event-driven architectures
 
 ## Configuration Patterns
+
+### Multiple Transports in One Workflow
+
+```python
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Analyze weather and documents"}],
+    "mcp_servers": [
+        {
+            "name": "weather",
+            "transport": "stdio",
+            "command": "python",
+            "args": ["-m", "weather_mcp"]
+        },
+        {
+            "name": "docs",
+            "transport": "http",
+            "url": "https://api.company.com/mcp/docs",
+            "headers": {"Authorization": "Bearer ${API_TOKEN}"}
+        },
+        {
+            "name": "metrics",
+            "transport": "websocket",
+            "url": "wss://metrics.company.com/mcp"
+        }
+    ],
+    "auto_discover_tools": True
+})
+```
+
+### Transport with Retry Configuration
+
+```python
+# HTTP with retry logic
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Search"}],
+    "mcp_servers": [{
+        "name": "search",
+        "transport": "http",
+        "url": "https://api.company.com/mcp/search",
+        "retry_config": {
+            "max_retries": 3,
+            "backoff_factor": 2.0,
+            "retry_on": [502, 503, 504]
+        },
+        "timeout": 60
+    }]
+})
+```
 
 ### Environment-Based Transport Configuration
 
@@ -156,10 +185,33 @@ transport_config = {
 }
 
 env = os.getenv("ENV", "development")
-config = transport_config[env]
+
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Process data"}],
+    "mcp_servers": [{
+        "name": "processor",
+        **transport_config[env]
+    }]
+})
 ```
 
-### Development to Production
+## Transport Comparison
+
+| Feature | STDIO | HTTP | WebSocket |
+|---------|-------|------|-----------|
+| **Latency** | Lowest | Medium | Low-Medium |
+| **Scalability** | Single machine | High | Medium |
+| **State** | Process-bound | Stateless | Stateful |
+| **Best For** | Local dev | Production | Real-time |
+| **Complexity** | Low | Medium | High |
+| **Load Balancing** | No | Yes | Limited |
+| **Reconnection** | Process restart | Per-request | Automatic |
+
+## Common Patterns
+
+### Pattern 1: Development to Production
 
 ```python
 # Development: STDIO for fast iteration
@@ -180,33 +232,94 @@ prod_config = {
 config = prod_config if os.getenv("ENV") == "production" else dev_config
 ```
 
-## Transport Comparison
+### Pattern 2: Graceful Fallback
 
-| Feature            | STDIO           | SSE            | HTTP        |
-| ------------------ | --------------- | -------------- | ----------- |
-| **Latency**        | Lowest          | Low            | Medium      |
-| **Scalability**    | Single machine  | Medium         | High        |
-| **State**          | Process-bound   | Server-push    | Stateless   |
-| **Best For**       | Local dev       | Real-time      | Production  |
-| **Complexity**     | Low             | Medium         | Medium      |
-| **Load Balancing** | No              | Limited        | Yes         |
-| **Reconnection**   | Process restart | Auto-reconnect | Per-request |
+```python
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "messages": [{"role": "user", "content": "Get data"}],
+    "mcp_servers": [
+        {
+            "name": "primary",
+            "transport": "http",
+            "url": "https://primary.api.com/mcp",
+            "timeout": 5
+        },
+        {
+            "name": "fallback",
+            "transport": "http",
+            "url": "https://backup.api.com/mcp",
+            "timeout": 10
+        }
+    ]
+})
+# IterativeLLMAgentNode automatically tries fallback if primary fails
+```
 
-## McpApplication vs Kaizen Agent MCP Client
+## Troubleshooting
 
-| Feature   | `McpApplication`                    | Kaizen Agent MCP Client     |
-| --------- | ----------------------------------- | --------------------------- |
-| Role      | MCP server (serves tools/resources) | MCP client (consumes tools) |
-| Pattern   | `@app.tool()` / `@app.resource()`   | Config dict                 |
-| Transport | STDIO / SSE / HTTP                  | STDIO / SSE / HTTP          |
-| Best for  | Building MCP servers                | Connecting to MCP servers   |
+### STDIO Issues
+
+```python
+# Issue: Process not found
+# Solution: Use absolute paths
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "server",
+        "transport": "stdio",
+        "command": "/usr/bin/python3",  # Absolute path
+        "args": ["-m", "mcp_server"],
+        "env": {"PYTHONPATH": "/path/to/modules"}  # Set environment
+    }]
+})
+```
+
+### HTTP Issues
+
+```python
+# Issue: Connection timeout
+# Solution: Increase timeout and add retry
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "server",
+        "transport": "http",
+        "url": "https://slow-api.com/mcp",
+        "timeout": 120,  # Longer timeout
+        "retry_config": {
+            "max_retries": 5,
+            "backoff_factor": 3.0
+        }
+    }]
+})
+```
+
+### WebSocket Issues
+
+```python
+# Issue: Connection drops
+# Solution: Configure reconnection
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [{
+        "name": "server",
+        "transport": "websocket",
+        "url": "wss://api.com/mcp",
+        "connection_params": {
+            "heartbeat_interval": 15,  # More frequent heartbeat
+            "reconnect_attempts": 10,
+            "reconnect_delay": 2,
+            "ping_timeout": 5
+        }
+    }]
+})
+```
 
 ## Best Practices
 
 1. **Use STDIO for development** - Fastest iteration, easier debugging
-2. **Use SSE for real-time** - Server-push streaming updates
-3. **Use HTTP for production** - Scalable, load-balanced, stateless
-4. **Always set timeouts** - Prevent hanging connections
+2. **Use HTTP for production** - Scalable, load-balanced, stateless
+3. **Use WebSocket for streaming** - Real-time data, progress updates
+4. **Always set timeouts** - Prevent hanging workflows
 5. **Configure retries** - Handle transient failures gracefully
 6. **Use environment variables** - Keep credentials secure
 7. **Test transport switching** - Ensure dev/prod parity
@@ -220,24 +333,27 @@ config = prod_config if os.getenv("ENV") == "production" else dev_config
 ## When to Escalate to Subagent
 
 Use `mcp-specialist` subagent when:
-
 - Implementing custom MCP server with multiple transports
 - Troubleshooting transport-specific connection issues
 - Configuring production load balancing and failover
 - Implementing custom transport protocols
 - Performance tuning for high-throughput scenarios
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
 - Start with STDIO in development for fastest iteration
-- Switch to HTTP or SSE for production deployments
-- Use SSE when real-time server-push updates are required
+- Switch to HTTP for production deployments
+- Use WebSocket only when real-time bidirectional communication is required
 - Always configure timeouts to prevent hanging
 - Test transport failover scenarios
 
 ## Version Notes
 
-- McpApplication decorator-based server with transport configuration
-- Enhanced MCP transport support across STDIO, SSE, and HTTP
+- **v0.9.25+**: Real MCP tool execution in IterativeLLMAgentNode
+- **v0.6.5+**: Enhanced MCP transport support
 
-<!-- Trigger Keywords: MCP transport, stdio, SSE, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp sse, transport configuration, mcp deployment, McpApplication transport, SSE transport -->
+<!-- Trigger Keywords: MCP transport, stdio, websocket, HTTP transport, mcp connection, mcp server setup, mcp stdio, mcp http, mcp websocket, transport configuration, mcp deployment -->

@@ -7,6 +7,7 @@ Run comprehensive workflow tests for the Kailash Python SDK.
 `/test-workflow` -- Run tests, lint, and type checks
 
 Examples:
+
 - `/test-workflow` -- Run all tests
 - `/test-workflow quick` -- Quick smoke test
 
@@ -164,21 +165,25 @@ def test_build_with_invalid_node_type(registry):
 ## Quick Commands
 
 ### Run all tests
+
 ```bash
 pytest tests/ -v 2>&1
 ```
 
 ### Run specific test file
+
 ```bash
 pytest tests/test_workflow.py -v 2>&1
 ```
 
 ### Run specific test
+
 ```bash
 pytest tests/test_workflow.py::test_basic_execution -v 2>&1
 ```
 
 ### Run with output (for debugging)
+
 ```bash
 pytest tests/ -v -s 2>&1
 ```
@@ -186,6 +191,7 @@ pytest tests/ -v -s 2>&1
 ## Verify
 
 After running tests, check for:
+
 - All tests pass (0 failures)
 - No import errors
 - No deprecation warnings

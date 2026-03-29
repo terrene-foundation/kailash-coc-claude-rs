@@ -10,6 +10,7 @@ Distributed Transactions for database operations and query management.
 > **Skill Metadata**
 > Category: `database`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,43 +22,45 @@ Distributed Transactions for database operations and query management.
 ## Core Pattern
 
 ```python
-import kailash
+from kailash.nodes.transaction import DistributedTransactionManagerNode
 
 # Automatic pattern selection (Saga vs 2PC)
-# In the Rust-backed SDK, nodes are string-based via builder.add_node()
-builder = kailash.WorkflowBuilder()
-builder.add_node("DistributedTransactionManagerNode", "manager", {
-    "transaction_name": "business_process",
-    "state_storage": "redis",
-    "storage_config": {
-        "redis_client": "redis://localhost:6379",
+manager = DistributedTransactionManagerNode(
+    transaction_name="business_process",
+    state_storage="redis",
+    storage_config={
+        "redis_client": redis_client,
         "key_prefix": "transactions:"
     }
-})
+)
 
-# Execute transaction with requirements
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), inputs={
-    "manager": {
-        "operation": "create_transaction",
-        "requirements": {
-            "consistency": "eventual",  # eventual, strong, immediate
-            "availability": "high",     # high, medium, low
-            "timeout": 300
-        },
-        "context": {"order_id": "123", "customer_id": "456"},
-        "participants": [
-            {
-                "participant_id": "payment_service",
-                "endpoint": "http://payment:8080/api",
-                "supports_2pc": True,
-                "supports_saga": True,
-                "compensation_action": "refund_payment"
-            }
-        ]
+# Create transaction with requirements
+result = manager.execute(
+    operation="create_transaction",
+    requirements={
+        "consistency": "eventual",  # eventual, strong, immediate
+        "availability": "high",     # high, medium, low
+        "timeout": 300
+    },
+    context={"order_id": "123", "customer_id": "456"}
+)
+
+# Add participants with capabilities
+participants = [
+    {
+        "participant_id": "payment_service",
+        "endpoint": "http://payment:8080/api",
+        "supports_2pc": True,
+        "supports_saga": True,
+        "compensation_action": "refund_payment"
     }
-})
+]
+
+for participant in participants:
+    manager.execute(operation="add_participant", **participant)
+
+# Execute - DTM selects optimal pattern (Saga or 2PC)
+result = manager.execute(operation="execute_transaction")
 ```
 
 ## Common Use Cases
@@ -80,6 +83,10 @@ Use specialized subagents when:
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

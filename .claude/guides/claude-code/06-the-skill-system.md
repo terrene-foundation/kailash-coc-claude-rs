@@ -95,7 +95,7 @@ Skills provide **organized, accessible domain expertise**:
 | `12-testing-strategies`      | Testing       | 3-tier strategy           |
 | `13-architecture-decisions`  | Architecture  | Framework selection       |
 | `14-code-templates`          | Templates     | Starter code              |
-| `15-error-troubleshooting`   | Errors        | Debugging guides          |
+| `31-error-troubleshooting`   | Errors        | Debugging guides          |
 | `16-validation-patterns`     | Validation    | Input validation          |
 | `17-gold-standards`          | Standards     | Mandatory practices       |
 | `18-security-patterns`       | Security      | OWASP, secrets            |
@@ -329,7 +329,7 @@ Tier 3: E2E Tests
 - MCP server template
 - Test templates (all 3 tiers)
 
-### 15-error-troubleshooting: Debugging
+### 31-error-troubleshooting: Debugging
 
 **Purpose**: Common errors and solutions
 

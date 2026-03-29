@@ -1,6 +1,6 @@
 ---
 name: testing-patterns
-description: "Test implementation patterns for the 3-tier testing strategy including unit, integration, and E2E tests with NO MOCKING policy. Use for 'test patterns', 'unit test example', 'integration test example', or 'E2E test example'."
+description: "Test implementation patterns for the 3-tier testing strategy including unit, integration, and E2E tests with Real infrastructure recommended policy. Use for 'test patterns', 'unit test example', 'integration test example', or 'E2E test example'."
 ---
 
 # Testing Implementation Patterns
@@ -8,13 +8,13 @@ description: "Test implementation patterns for the 3-tier testing strategy inclu
 > **Skill Metadata**
 > Category: `testing`
 > Priority: `HIGH`
-> Policy: NO MOCKING in Tiers 2-3
+> Policy: Real infrastructure recommended in Tiers 2-3
 
 ## Tier 1: Unit Test Pattern
 
 ```python
 import pytest
-import kailash
+from kailash.nodes.custom_analysis_node import CustomAnalysisNode
 
 def test_analysis_node_basic_functionality():
     """Test basic node functionality in isolation."""
@@ -42,59 +42,63 @@ def test_analysis_node_error_handling():
 
 ```python
 import pytest
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 @pytest.mark.integration
 def test_workflow_database_integration():
     """Test workflow with real database operations."""
     # Uses real PostgreSQL from Docker
-    builder = kailash.WorkflowBuilder()
+    workflow = WorkflowBuilder()
 
-    builder.add_node("CreateUser", "create_user", {
+    workflow.add_node("UserCreateNode", "create_user", {
         "name": "Integration Test User",
         "email": "integration@test.com"
     })
 
-    builder.add_node("UserQueryNode", "find_user", {
+    workflow.add_node("UserQueryNode", "find_user", {
         "filter": {"email": "integration@test.com"}
     })
 
-    builder.connect("create_user", "user", "find_user", "criteria")
+    workflow.add_connection("create_user", "user", "find_user", "criteria")
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    # Use context manager for proper resource cleanup (required in the current version)
+    with LocalRuntime() as runtime:
+        results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["create_user"]["id"] is not None
-    assert result["results"]["find_user"]["found"] is True
+    assert results["create_user"]["id"] is not None
+    assert results["find_user"]["found"] is True
 ```
 
 ## Tier 3: E2E Test Pattern
 
 ```python
 import pytest
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 @pytest.mark.e2e
 def test_complete_data_processing_pipeline():
     """Test complete user workflow from ingestion to output."""
-    builder = kailash.WorkflowBuilder()
+    workflow = WorkflowBuilder()
 
     # Data pipeline
-    builder.add_node("CSVProcessorNode", "ingest", {"action": "read", "source_path": "tests/fixtures/real_data.csv"})
-    builder.add_node("SchemaValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
-    builder.add_node("DataMapperNode", "transform", {"operations": ["clean_names"]})
-    builder.add_node("BulkCreateUser", "store", {"batch_size": 100})
+    workflow.add_node("CSVReaderNode", "ingest", {"file_path": "tests/fixtures/real_data.csv"})
+    workflow.add_node("DataValidatorNode", "validate", {"schema": {"name": "str", "age": "int"}})
+    workflow.add_node("DataTransformerNode", "transform", {"operations": ["clean_names"]})
+    workflow.add_node("UserBatchCreateNode", "store", {"batch_size": 100})
 
     # Connect pipeline
-    builder.connect("ingest", "rows", "validate", "input_data")
-    builder.connect("validate", "validated", "transform", "raw_data")
-    builder.connect("transform", "transformed", "store", "user_data")
+    workflow.add_connection("ingest", "data", "validate", "input_data")
+    workflow.add_connection("validate", "validated", "transform", "raw_data")
+    workflow.add_connection("transform", "transformed", "store", "user_data")
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    # Use context manager for proper resource cleanup (required in the current version)
+    with LocalRuntime() as runtime:
+        results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["ingest"]["rows_read"] > 0
-    assert result["results"]["store"]["users_created"] > 0
+    assert results["ingest"]["rows_read"] > 0
+    assert results["store"]["users_created"] > 0
 ```
 
 ## Fixture Patterns
@@ -179,7 +183,7 @@ def test_database_integration(mock_db):  # WRONG
     pass
 
 # ❌ Don't mock SDK components
-@patch('kailash.nodes.csv_reader_node.CSVProcessorNode')
+@patch('kailash.nodes.csv_reader_node.CSVReaderNode')
 def test_workflow_integration(mock_node):  # WRONG
     pass
 
@@ -196,7 +200,7 @@ def test_file_processing(mock_open):  # WRONG
 pytest tests/unit/ --timeout=1 --tb=short
 
 # Integration tests (requires Docker)
-./tests/utils/test-env up && ./tests/utils/test-env status
+# Start test infrastructure (Docker containers)
 pytest tests/integration/ --timeout=5 -v
 
 # E2E tests
@@ -229,4 +233,4 @@ TEST_REDIS_URL = "redis://localhost:6380/0"
 TEST_MINIO_URL = "http://localhost:9001"
 ```
 
-<!-- Trigger Keywords: test patterns, unit test example, integration test example, E2E test example, pytest patterns, testing fixtures, test timeout, NO MOCKING -->
+<!-- Trigger Keywords: test patterns, unit test example, integration test example, E2E test example, pytest patterns, testing fixtures, test timeout, Real infrastructure recommended -->

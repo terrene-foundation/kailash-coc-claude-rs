@@ -62,7 +62,7 @@ Each layer encodes a different aspect of human judgment:
 | CO for Finance    | —          | Planned               |
 | CO for Operations | —          | Future                |
 
-COC is the first and most mature domain application. It proves CO's principles work in practice with 32 agents, 32 skills, 11 rules, 14 hooks, and 22 commands.
+COC is the first and most mature domain application. It proves CO's principles work in practice with 29 agents, 25 skills, 8 rules, 8 hooks, and 12 commands.
 
 ## CARE → CO Connection
 

@@ -316,7 +316,7 @@ Permitted deterministic logic: input validation, error handling, output formatti
 - Always load `.env` at program entry before any env access
 - BaseAgent subclass attributes define configuration (name, model, system_prompt, temperature, max_tokens)
 - `execute()` is the main entry point for agent logic; `run()` is the stateless BaseAgent trait method
-- LLM provider is auto-detected from model name prefix (gpt-* = OpenAI, claude-* = Anthropic, gemini-* = Google)
+- LLM provider is auto-detected from model name prefix (gpt-_ = OpenAI, claude-_ = Anthropic, gemini-\* = Google)
 - `HookManager` supports 9 event types for lifecycle observation
 - `Signature` provides structured input/output contracts for agents
 - Pipelines (Sequential, Supervisor, MapReduce, Ensemble, Router, Chain, Parallel) compose agents declaratively

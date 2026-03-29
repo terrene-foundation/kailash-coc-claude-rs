@@ -8,6 +8,7 @@ description: "Gold standard for security practices. Use when asking 'security st
 > **Skill Metadata**
 > Category: `gold-standards`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Security Principles
 
@@ -16,7 +17,7 @@ description: "Gold standard for security practices. Use when asking 'security st
 # ✅ GOOD: Environment variables
 import os
 
-builder.add_node("HTTPRequestNode", "api", {
+workflow.add_node("APICallNode", "api", {
     "url": "https://api.example.com",
     "headers": {
         "Authorization": f"Bearer {os.getenv('API_KEY')}"
@@ -30,7 +31,7 @@ builder.add_node("HTTPRequestNode", "api", {
 ### 2. SQL Injection Prevention
 ```python
 # ✅ GOOD: Parameterized queries
-builder.add_node("SQLQueryNode", "query", {
+workflow.add_node("DatabaseQueryNode", "query", {
     "query": "SELECT * FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })
@@ -42,7 +43,7 @@ builder.add_node("SQLQueryNode", "query", {
 ### 3. Input Validation
 ```python
 # ✅ GOOD: Validate all inputs
-builder.add_node("SchemaValidatorNode", "validate", {
+workflow.add_node("DataValidationNode", "validate", {
     "input": "{{input.user_data}}",
     "schema": {
         "email": "email",
@@ -56,20 +57,22 @@ builder.add_node("SchemaValidatorNode", "validate", {
 ### 4. Authentication & Authorization
 ```python
 # ✅ GOOD: Check permissions
-builder.add_node("SQLQueryNode", "check_auth", {
+workflow.add_node("DatabaseQueryNode", "check_auth", {
     "query": "SELECT role FROM users WHERE id = ?",
     "parameters": ["{{input.user_id}}"]
 })
 
-builder.add_node("ConditionalNode", "authorize", {})
-# ConditionalNode takes NO config params — inputs via connections only
-builder.connect("check_auth", "result", "authorize", "condition")
+workflow.add_node("ConditionalNode", "authorize", {
+    "condition": "{{check_auth.role}} in ['admin', 'editor']",
+    "true_branch": "process",
+    "false_branch": "unauthorized"
+})
 ```
 
 ### 5. Audit Logging
 ```python
 # ✅ GOOD: Log all sensitive operations
-builder.add_node("SQLQueryNode", "audit_log", {
+workflow.add_node("DatabaseExecuteNode", "audit_log", {
     "query": "INSERT INTO audit_log (user_id, action, resource, timestamp) VALUES (?, ?, ?, NOW())",
     "parameters": ["{{input.user_id}}", "delete_user", "{{input.target_user}}"]
 })

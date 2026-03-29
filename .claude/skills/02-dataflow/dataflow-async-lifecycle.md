@@ -2,7 +2,7 @@
 
 ## Overview
 
-DataFlow provides proper async lifecycle methods for use in async contexts like pytest async fixtures and async main functions.
+DataFlow current version provides proper async lifecycle methods for use in async contexts like FastAPI lifespan events, pytest async fixtures, and async main functions.
 
 ## The Problem (DF-501 Error)
 
@@ -15,34 +15,33 @@ RuntimeError: Event loop is closed
 
 ## Async Methods Reference
 
-| Sync Method                  | Async Alternative                  | Usage                            |
-| ---------------------------- | ---------------------------------- | -------------------------------- |
-| `create_tables()`            | `create_tables_async()`            | Table creation in async contexts |
-| `close()`                    | `close_async()`                    | Cleanup in async contexts        |
-| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Internal migration tables        |
+| Sync Method | Async Alternative | Usage |
+|-------------|-------------------|-------|
+| `create_tables()` | `create_tables_async()` | Table creation in async contexts |
+| `close()` | `close_async()` | Cleanup in async contexts |
+| `_ensure_migration_tables()` | `_ensure_migration_tables_async()` | Internal migration tables |
 
 ## When to Use Each
 
 **Use Async Methods When:**
-
+- Inside FastAPI lifespan events (`@asynccontextmanager async def lifespan()`)
 - Inside pytest async fixtures (`@pytest.fixture async def db()`)
 - Inside async main functions (`async def main()`)
 - Any code running in an async context with `asyncio.get_running_loop()`
 
 **Use Sync Methods When:**
-
 - CLI scripts and management commands
 - Sync pytest tests (non-async)
 - Any code NOT running in an async context
 
-## Nexus Integration Pattern
+## FastAPI Integration Pattern
 
 ```python
-import kailash
-from kailash.dataflow import db
-from kailash.nexus import NexusApp
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from dataflow import DataFlow
 
-df = kailash.DataFlow("postgresql://localhost/mydb")
+db = DataFlow("postgresql://localhost/mydb")
 
 @db.model
 class User:
@@ -50,28 +49,31 @@ class User:
     name: str
     email: str
 
-reg = kailash.NodeRegistry()
-app = NexusApp()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Use async version
+    await db.create_tables_async()
+    yield
+    # Shutdown: Use async version
+    await db.close_async()
 
-@app.handler()
-def get_user(user_id: str):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ReadUser", "read", {"id": user_id})
-    rt = kailash.Runtime(reg)
-    return rt.execute(builder.build(reg))
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: str):
+    return await db.express.read("User", user_id)
 ```
 
 ## Pytest Async Fixture Pattern
 
 ```python
 import pytest
-import kailash
-from kailash.dataflow import db
+from dataflow import DataFlow
 
 @pytest.fixture
-async def dataflow():
+async def db():
     """Async fixture with proper cleanup."""
-    df = kailash.DataFlow("postgresql://...")
+    db = DataFlow("postgresql://...", test_mode=True)
 
     @db.model
     class User:
@@ -79,16 +81,16 @@ async def dataflow():
         name: str
 
     # Use async version in async context
-    await df.create_tables_async()
+    await db.create_tables_async()
 
-    yield df
+    yield db
 
     # Use async cleanup
-    await df.close_async()
+    await db.close_async()
 
 @pytest.mark.asyncio
-async def test_user_creation(dataflow):
-    # Test with async dataflow fixture
+async def test_user_creation(db):
+    # Test with async db fixture
     pass
 ```
 
@@ -109,14 +111,12 @@ except RuntimeError as e:
 ## Error Messages
 
 **DF-501 for create_tables():**
-
 ```
 RuntimeError: Cannot use create_tables() in async context - use create_tables_async() instead.
 See DF-501 for details.
 ```
 
-**DF-501 for \_ensure_migration_tables():**
-
+**DF-501 for _ensure_migration_tables():**
 ```
 RuntimeError: Cannot use _ensure_migration_tables() in async context - use _ensure_migration_tables_async() instead.
 See DF-501 for details.
@@ -125,37 +125,37 @@ See DF-501 for details.
 ## Migration from Sync to Async
 
 **Before (DF-501 Error):**
-
 ```python
-from kailash.dataflow import db
-
 # WRONG - Causes DF-501 in async context
-async def setup():
-    df = kailash.DataFlow("postgresql://...")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = DataFlow("postgresql://...")
 
     @db.model
     class User:
         id: str
         name: str
 
-    df.create_tables()  # DF-501 ERROR!
+    db.create_tables()  # DF-501 ERROR!
+    yield
+    db.close()  # May fail silently
 ```
 
-**Correct Pattern:**
-
+**After (current version Fix):**
 ```python
-from kailash.dataflow import db
-
 # CORRECT - Use async methods in async context
-async def setup():
-    df = kailash.DataFlow("postgresql://...")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = DataFlow("postgresql://...")
 
     @db.model
     class User:
         id: str
         name: str
 
-    await df.create_tables_async()  # Works correctly
+    await db.create_tables_async()  # Works correctly
+    yield
+    await db.close_async()  # Proper cleanup
 ```
 
 ## close_async() Method Details
@@ -171,7 +171,6 @@ async def close_async(self):
 ```
 
 **Safe to Call Multiple Times:**
-
 ```python
 await db.close_async()  # First call - cleans up
 await db.close_async()  # Second call - no-op, safe
@@ -183,26 +182,27 @@ await db.close_async()  # Third call - no-op, safe
 DataFlow supports sync context managers for CLI/scripts:
 
 ```python
-from kailash.dataflow import db
-
 # Sync context manager (for CLI/scripts)
-with kailash.DataFlow("sqlite:///dev.db") as df:
+with DataFlow("sqlite:///dev.db") as db:
     @db.model
     class User:
         id: str
         name: str
 
-    df.create_tables()  # OK in sync context
+    db.create_tables()  # OK in sync context
     # Automatic cleanup when exiting context
 
 # For async contexts, use the lifespan pattern above
 ```
 
-## References
+## File References
 
-- **Specialist**: `.claude/agents/frameworks/dataflow-specialist.md`
-- **Pattern**: Async lifecycle management for DataFlow in async Python contexts
+- **Implementation**: `src/dataflow/core/engine.py:7180-7230` (close_async, close methods)
+- **Async Table Creation**: `src/dataflow/core/engine.py:4100-4200` (create_tables_async)
+- **Error Messages**: `src/dataflow/platform/errors.py:2757-2783` (DF-501 error codes)
+- **Tests**: `tests/integration/test_dataflow_async_lifecycle.py` (16 comprehensive tests)
 
-## Requirements
+## Version Requirements
 
+- DataFlow current version for async lifecycle methods
 - Python 3.10+

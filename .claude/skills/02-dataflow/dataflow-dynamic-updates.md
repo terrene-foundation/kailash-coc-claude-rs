@@ -1,32 +1,30 @@
-# DataFlow Dynamic Updates with EmbeddedPythonNode
+# DataFlow Dynamic Updates with PythonCodeNode
 
-**Multi-output EmbeddedPythonNode** enables natural, intuitive dynamic update patterns.
+**Multi-output PythonCodeNode** enables natural, intuitive dynamic update patterns.
 
 ## TL;DR
 
 ```python
 # NEW: Multi-output pattern
-builder.add_node("EmbeddedPythonNode", "prepare", {
+workflow.add_node("PythonCodeNode", "prepare", {
     "code": """
 filter_data = {"id": summary_id}
 summary_markdown = updated_text
 edited_by_user = True
-""",
-    "output_vars": ["filter_data"]
+"""
 })
 
-builder.add_node("UpdateSummary", "update", {})
-builder.connect("prepare", "filter_data", "update", "filter")
-builder.connect("prepare", "summary_markdown", "update", "summary_markdown")
-builder.connect("prepare", "edited_by_user", "update", "edited_by_user")
+workflow.add_node("SummaryUpdateNode", "update", {})
+workflow.add_connection("prepare", "filter_data", "update", "filter")
+workflow.add_connection("prepare", "summary_markdown", "update", "summary_markdown")
+workflow.add_connection("prepare", "edited_by_user", "update", "edited_by_user")
 ```
 
 ## What Changed
 
-**EmbeddedPythonNode** now supports exporting multiple variables without nesting in `result`.
+**PythonCodeNode** now supports exporting multiple variables without nesting in `result`.
 
 ### Before (Legacy Pattern)
-
 ```python
 # Forced to nest everything in 'result'
 result = {
@@ -36,7 +34,6 @@ result = {
 ```
 
 ### After (Current Pattern)
-
 ```python
 # Natural variable definitions
 filter_data = {"id": summary_id}
@@ -46,11 +43,11 @@ summary_markdown = updated_text
 ## Full Example
 
 ```python
-import kailash
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
 
-reg = kailash.NodeRegistry()
-
-df = kailash.DataFlow("postgresql://...")
+db = DataFlow("postgresql://...")
 
 @db.model
 class ConversationSummary:
@@ -60,9 +57,9 @@ class ConversationSummary:
     edited_by_user: bool
 
 # Dynamic update workflow
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("EmbeddedPythonNode", "prepare_update", {
+workflow.add_node("PythonCodeNode", "prepare_update", {
     "code": """
 import json
 
@@ -73,20 +70,19 @@ filter_data = {"id": summary_id}
 summary_markdown = generate_markdown(raw_text)
 topics_json = json.dumps(extract_topics(raw_text))
 edited_by_user = True
-""",
-    "output_vars": ["filter_data"]
+"""
 })
 
-builder.add_node("ConversationUpdateSummary", "update", {})
+workflow.add_node("ConversationSummaryUpdateNode", "update", {})
 
 # Clean, direct connections
-builder.connect("prepare_update", "filter_data", "update", "filter")
-builder.connect("prepare_update", "summary_markdown", "update", "summary_markdown")
-builder.connect("prepare_update", "topics_json", "update", "topics_json")
-builder.connect("prepare_update", "edited_by_user", "update", "edited_by_user")
+workflow.add_connection("prepare_update", "filter_data", "update", "filter")
+workflow.add_connection("prepare_update", "summary_markdown", "update", "summary_markdown")
+workflow.add_connection("prepare_update", "topics_json", "update", "topics_json")
+workflow.add_connection("prepare_update", "edited_by_user", "update", "edited_by_user")
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg), {
+runtime = AsyncLocalRuntime()
+result = await runtime.execute_workflow_async(workflow.build(), {
     "summary_id": "summary-123",
     "raw_text": "Conversation text..."
 })
@@ -94,15 +90,13 @@ result = rt.execute(builder.build(reg), {
 
 ## Backward Compatibility
 
-Use an intermediate EmbeddedPythonNode to extract fields:
+Legacy patterns still work 100%:
 
 ```python
-# Use EmbeddedPythonNode to unpack and re-emit as separate outputs
-builder.add_node("EmbeddedPythonNode", "prepare", {
-    "code": "filter_val = data['filter']\nfields_val = data['fields']",
-    "output_vars": ["filter_val", "fields_val"]
-})
-builder.connect("prepare", "outputs", "update", "filter")  # outputs contains filter_val, fields_val
+# This still works fine
+result = {"filter": {...}, "fields": {...}}
+workflow.add_connection("prepare", "result.filter", "update", "filter")
+workflow.add_connection("prepare", "result.fields", "update", "fields")
 ```
 
 ## Benefits

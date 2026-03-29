@@ -10,29 +10,31 @@ Complete reference for monitoring and observability nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `LOW`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (monitoring patterns)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available monitoring nodes: MetricsCollectorNode, TransactionMonitorNode,
-#   DeadlockDetectorNode, RaceConditionDetectorNode, PerformanceAnomalyNode
+from kailash.nodes.monitoring import (
+    TransactionMetricsNode,
+    TransactionMonitorNode,
+    DeadlockDetectorNode,
+    RaceConditionDetectorNode,
+    PerformanceAnomalyNode
+)
 ```
 
 ## Transaction Metrics
 
-### MetricsCollectorNode
-
+### TransactionMetricsNode
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("MetricsCollectorNode", "metrics", {
+workflow.add_node("TransactionMetricsNode", "metrics", {
     "operation": "collect",
     "transaction_id": "txn_123",
     "metrics": {
@@ -45,9 +47,8 @@ builder.add_node("MetricsCollectorNode", "metrics", {
 ## Real-Time Monitoring
 
 ### TransactionMonitorNode
-
 ```python
-builder.add_node("TransactionMonitorNode", "monitor", {
+workflow.add_node("TransactionMonitorNode", "monitor", {
     "operation": "trace",
     "transaction_id": "txn_123",
     "alert_thresholds": {
@@ -60,27 +61,24 @@ builder.add_node("TransactionMonitorNode", "monitor", {
 ## Issue Detection
 
 ### DeadlockDetectorNode
-
 ```python
-builder.add_node("DeadlockDetectorNode", "deadlock_check", {
+workflow.add_node("DeadlockDetectorNode", "deadlock_check", {
     "operation": "detect",
     "timeout_seconds": 30
 })
 ```
 
 ### RaceConditionDetectorNode
-
 ```python
-builder.add_node("RaceConditionDetectorNode", "race_check", {
+workflow.add_node("RaceConditionDetectorNode", "race_check", {
     "operation": "analyze",
     "resource_id": "resource_123"
 })
 ```
 
 ### PerformanceAnomalyNode
-
 ```python
-builder.add_node("PerformanceAnomalyNode", "anomaly_check", {
+workflow.add_node("PerformanceAnomalyNode", "anomaly_check", {
     "operation": "detect",
     "metric": "response_time",
     "threshold": 1000
@@ -91,4 +89,7 @@ builder.add_node("PerformanceAnomalyNode", "anomaly_check", {
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: monitoring node, metrics, alerts, deadlock detection, performance monitoring, MetricsCollectorNode -->
+## Documentation
+
+
+<!-- Trigger Keywords: monitoring node, metrics, alerts, deadlock detection, performance monitoring, TransactionMetricsNode -->

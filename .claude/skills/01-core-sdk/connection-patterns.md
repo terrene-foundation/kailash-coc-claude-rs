@@ -1,6 +1,6 @@
 ---
 name: connection-patterns
-description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'connect', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', or 'workflow connections'."
+description: "Node connection patterns with 4-parameter syntax for data flow mapping. Use when asking 'connect nodes', 'add_connection', 'connection syntax', '4 parameters', 'data flow', 'port mapping', 'fan-out', 'fan-in', 'nested data', 'dot notation', or 'workflow connections'."
 ---
 
 # Connection Patterns
@@ -10,34 +10,34 @@ Essential patterns for connecting workflow nodes using the 4-parameter connectio
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **Syntax**: `connect(source, source_output, target, target_input)`
+- **Syntax**: `add_connection(from_node, from_output, to_node, to_input)`
 - **CRITICAL**: Always use 4 parameters (source + output → target + input)
-- **Port names are flat**: Use the actual output port name (e.g., `"outputs"`, `"rows"`, `"body"`)
+- **Dot Notation**: Access nested fields: `"result.metrics.accuracy"`
 - **Fan-Out**: One source → multiple targets
 - **Fan-In**: Multiple sources → one target
 
 ## Core Pattern
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Add nodes
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+workflow.add_node("PythonCodeNode", "processor", {"code": "result = len(data)"})
 
 # ✅ CORRECT: 4-parameter connection
-builder.connect("reader", "rows", "processor", "data")
+workflow.add_connection("reader", "data", "processor", "data")
 #                      ^source  ^output   ^target    ^input
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ## Common Use Cases
@@ -46,118 +46,102 @@ result = rt.execute(builder.build(reg))
 - **Conditional Routing**: Split data based on conditions
 - **Fan-Out**: Broadcast data to multiple processors
 - **Fan-In**: Merge data from multiple sources
-- **Multi-Input**: Multiple sources feeding different input ports on one node
+- **Nested Data Access**: Extract specific fields from complex outputs
 
 ## Connection Types
 
 ### Type 1: Direct Mapping (Most Common)
-
 ```python
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "input.csv"})
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = len(data)", "output_vars": ["result"]})
-builder.add_node("FileWriterNode", "writer", {"path": "output.json"})
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "input.csv"})
+workflow.add_node("PythonCodeNode", "processor", {"code": "result = len(data)"})
+workflow.add_node("JSONWriterNode", "writer", {"file_path": "output.json"})
 
 # Sequential connections
-builder.connect("reader", "rows", "processor", "data")
-builder.connect("processor", "outputs", "writer", "data")
+workflow.add_connection("reader", "data", "processor", "data")
+workflow.add_connection("processor", "result", "writer", "data")
 ```
 
 ### Type 2: Port Name Mapping
-
 ```python
 # Different port names - explicit mapping
-builder.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = {'parsed': data}", "output_vars": ["result"]})
+workflow.add_node("HTTPRequestNode", "api", {"url": "https://api.example.com"})
+workflow.add_node("PythonCodeNode", "process", {"code": "result = {'parsed': data}"})
 
-# Map 'body' output to 'data' input
-builder.connect("api", "body", "process", "data")
+# Map 'response' output to 'data' input
+workflow.add_connection("api", "response", "process", "data")
 ```
 
-### Type 3: Nested Data via Intermediate Node
-
-The runtime does a direct key lookup on port names -- there is no dot-path resolution. To extract nested fields, use an intermediate EmbeddedPythonNode.
-
+### Type 3: Dot Notation for Nested Data
 ```python
-# Analyzer outputs a complex structure
-builder.add_node("EmbeddedPythonNode", "analyzer", {
+# Extract nested fields from complex outputs
+workflow.add_node("PythonCodeNode", "analyzer", {
     "code": """
 result = {
     'summary': 'Analysis complete',
     'metrics': {
         'accuracy': 0.95,
         'confidence': 0.87
+    },
+    'metadata': {
+        'timestamp': '2024-01-01',
+        'version': '1.0'
     }
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 
-# Intermediate node to extract the nested field
-builder.add_node("EmbeddedPythonNode", "extractor", {
-    "code": """
-accuracy = data.get('result', {}).get('metrics', {}).get('accuracy', 0)
-result = accuracy
-""",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "reporter", {
+    "code": "result = f'Accuracy: {accuracy}'"
 })
 
-builder.add_node("EmbeddedPythonNode", "reporter", {
-    "code": "result = f'Accuracy: {accuracy}'",
-    "output_vars": ["result"]
-})
-
-# Pass whole outputs to extractor, then extracted value to reporter
-builder.connect("analyzer", "outputs", "extractor", "data")
-builder.connect("extractor", "outputs", "reporter", "accuracy")
+# Extract nested field
+workflow.add_connection("analyzer", "result.metrics.accuracy", "reporter", "accuracy")
 ```
 
 ### Type 4: Fan-Out (One-to-Many)
-
 ```python
 # Send same data to multiple processors
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
 
 # Parallel processors
-builder.add_node("EmbeddedPythonNode", "validator", {"code": "result = {'valid': True}", "output_vars": ["result"]})
-builder.add_node("EmbeddedPythonNode", "logger", {"code": "result = {'logged': True}", "output_vars": ["result"]})
-builder.add_node("EmbeddedPythonNode", "analyzer", {"code": "result = {'analyzed': True}", "output_vars": ["result"]})
+workflow.add_node("PythonCodeNode", "validator", {"code": "result = {'valid': True}"})
+workflow.add_node("PythonCodeNode", "logger", {"code": "result = {'logged': True}"})
+workflow.add_node("PythonCodeNode", "analyzer", {"code": "result = {'analyzed': True}"})
 
 # Fan-out: reader → multiple targets
-builder.connect("reader", "rows", "validator", "data")
-builder.connect("reader", "rows", "logger", "data")
-builder.connect("reader", "rows", "analyzer", "data")
+workflow.add_connection("reader", "data", "validator", "data")
+workflow.add_connection("reader", "data", "logger", "data")
+workflow.add_connection("reader", "data", "analyzer", "data")
 ```
 
 ### Type 5: Fan-In with MergeNode
-
 ```python
 # Combine multiple data sources
-builder.add_node("CSVProcessorNode", "source1", {"action": "read", "source_path": "data1.csv"})
-builder.add_node("FileReaderNode", "source2", {"path": "data2.json"})
-builder.add_node("HTTPRequestNode", "source3", {"url": "https://api.example.com"})
+workflow.add_node("CSVReaderNode", "source1", {"file_path": "data1.csv"})
+workflow.add_node("JSONReaderNode", "source2", {"file_path": "data2.json"})
+workflow.add_node("HTTPRequestNode", "source3", {"url": "https://api.example.com"})
 
-builder.add_node("MergeNode", "merger", {})
+workflow.add_node("MergeNode", "merger", {})
 
 # Fan-in: multiple sources → merger
-builder.connect("source1", "rows", "merger", "input1")
-builder.connect("source2", "content", "merger", "input2")
-builder.connect("source3", "body", "merger", "input3")
+workflow.add_connection("source1", "data", "merger", "input1")
+workflow.add_connection("source2", "data", "merger", "input2")
+workflow.add_connection("source3", "response", "merger", "input3")
 
 # Process merged data
-builder.add_node("EmbeddedPythonNode", "processor", {"code": "result = {'count': 3}", "output_vars": ["result"]})
-builder.connect("merger", "merged", "processor", "data")
+workflow.add_node("PythonCodeNode", "processor", {"code": "result = {'count': 3}"})
+workflow.add_connection("merger", "result", "processor", "data")
 ```
 
 ### Type 6: Multi-Input Processing
-
 ```python
 # Custom multi-input node
-builder.add_node("CSVProcessorNode", "customers", {"action": "read", "source_path": "customers.csv"})
-builder.add_node("CSVProcessorNode", "orders", {"action": "read", "source_path": "orders.csv"})
+workflow.add_node("CSVReaderNode", "customers", {"file_path": "customers.csv"})
+workflow.add_node("CSVReaderNode", "orders", {"file_path": "orders.csv"})
 
-builder.add_node("EmbeddedPythonNode", "join", {
+workflow.add_node("PythonCodeNode", "join", {
     "code": """
 customers_data = customers if customers else []
 orders_data = orders if orders else []
@@ -168,44 +152,22 @@ result = {
     'orders': len(orders_data),
     'combined': customers_data + orders_data
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 
 # Multiple inputs to same node
-builder.connect("customers", "rows", "join", "customers")
-builder.connect("orders", "rows", "join", "orders")
+workflow.add_connection("customers", "data", "join", "customers")
+workflow.add_connection("orders", "data", "join", "orders")
 ```
 
-### Type 7: Multi-Field Extraction via Intermediate Node
-
-The runtime does a direct key lookup -- `"outputs.result.metrics.accuracy"` will NOT resolve. To extract multiple fields from a complex output, use an intermediate EmbeddedPythonNode that unpacks the structure.
-
+### Type 7: Complex Nested Extraction
 ```python
-# EmbeddedPythonNode outputs via port 'outputs', with named vars from output_vars
-builder.add_node("EmbeddedPythonNode", "analyzer", {
-    "code": """
-result = {
-    'metrics': {'accuracy': 0.95, 'f1_score': 0.91},
-    'summary': 'Analysis complete',
-    'confidence': 0.87
-}
-""",
-    "output_vars": ["result"]
+workflow.add_node("LLMAgentNode", "llm", {
+    "model": "gpt-4",
+    "system_prompt": "Analyze data"
 })
 
-# Intermediate node to unpack nested fields into separate output vars
-builder.add_node("EmbeddedPythonNode", "unpack", {
-    "code": """
-r = data.get('result', {})
-accuracy = r.get('metrics', {}).get('accuracy', 0)
-summary = r.get('summary', '')
-confidence = r.get('confidence', 0)
-""",
-    "output_vars": ["accuracy", "summary", "confidence"]
-})
-
-builder.add_node("EmbeddedPythonNode", "metrics_reporter", {
+workflow.add_node("PythonCodeNode", "metrics_reporter", {
     "code": """
 report = {
     'accuracy': accuracy,
@@ -213,76 +175,65 @@ report = {
     'confidence': confidence
 }
 result = report
-""",
-    "output_vars": ["result"]
+"""
 })
 
-# Pass whole outputs to unpacker, then individual fields to reporter
-builder.connect("analyzer", "outputs", "unpack", "data")
-builder.connect("unpack", "outputs", "metrics_reporter", "accuracy")
-builder.connect("unpack", "outputs", "metrics_reporter", "summary")
-builder.connect("unpack", "outputs", "metrics_reporter", "confidence")
+# Extract multiple nested fields
+workflow.add_connection("llm", "result.metrics.accuracy", "metrics_reporter", "accuracy")
+workflow.add_connection("llm", "result.summary", "metrics_reporter", "summary")
+workflow.add_connection("llm", "result.confidence", "metrics_reporter", "confidence")
 ```
 
 ## Common Mistakes
 
 ### ❌ Mistake 1: Using 3-Parameter Syntax (Deprecated)
-
 ```python
 # Wrong - Old 3-parameter syntax
-builder.connect("reader", "processor", "data")  # DEPRECATED
+workflow.add_connection("reader", "processor", "data")  # DEPRECATED
 ```
 
 ### ✅ Fix: Use 4-Parameter Syntax
-
 ```python
 # Correct - Modern 4-parameter syntax
-builder.connect("reader", "rows", "processor", "data")
+workflow.add_connection("reader", "data", "processor", "data")
 ```
 
 ### ❌ Mistake 2: Wrong Port Names
-
 ```python
 # Wrong - Using non-existent ports
-builder.connect("csv_reader", "output", "processor", "input")  # Error
+workflow.add_connection("csv_reader", "output", "processor", "input")  # Error
 ```
 
 ### ✅ Fix: Use Correct Port Names
-
 ```python
-# Correct - CSVProcessorNode outputs to 'rows' port
-builder.connect("csv_reader", "rows", "processor", "data")
+# Correct - CSVReaderNode outputs to 'data' port
+workflow.add_connection("csv_reader", "data", "processor", "data")
 ```
 
-### ❌ Mistake 3: Using Dot Notation in Port Names
-
+### ❌ Mistake 3: Missing Dot Notation for Nested Data
 ```python
-# Wrong - runtime does a direct key lookup, no dot-path resolution
-builder.connect("analyzer", "outputs.result.accuracy", "reporter", "accuracy")  # Key not found!
+# Wrong - Trying to pass entire result when you need one field
+workflow.add_connection("analyzer", "result", "reporter", "accuracy")  # Gets dict, not number
 ```
 
-### ✅ Fix: Use Actual Port Name + Intermediate Node
-
+### ✅ Fix: Use Dot Notation
 ```python
-# Correct - pass the whole output, extract in the receiving node's code
-builder.connect("analyzer", "outputs", "extractor", "data")
-# Then in extractor's code: accuracy = data['result']['accuracy']
+# Correct - Extract specific field
+workflow.add_connection("analyzer", "result.accuracy", "reporter", "accuracy")
 ```
 
 ### ❌ Mistake 4: Incorrect Node IDs
-
 ```python
 # Wrong - Node ID mismatch
-builder.add_node("CSVProcessorNode", "csv_reader", {})
-builder.connect("reader", "rows", "processor", "data")  # Error: 'reader' not found
+workflow.add_node("CSVReaderNode", "csv_reader", {})
+workflow.add_connection("reader", "data", "processor", "data")  # Error: 'reader' not found
 ```
 
 ### ✅ Fix: Match Node IDs Exactly
-
 ```python
 # Correct - Consistent node IDs
-builder.add_node("CSVProcessorNode", "csv_reader", {})
-builder.connect("csv_reader", "rows", "processor", "data")
+workflow.add_node("CSVReaderNode", "csv_reader", {})
+workflow.add_connection("csv_reader", "data", "processor", "data")
 ```
 
 ## Related Patterns
@@ -290,36 +241,42 @@ builder.connect("csv_reader", "rows", "processor", "data")
 - **For workflow creation**: See [`workflow-quickstart`](#)
 - **For parameter passing**: See [`param-passing-quick`](#)
 - **For node patterns**: See [`node-patterns-common`](#)
-- **For cyclic workflows**: See [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md)
+- **For cyclic workflows**: See [`cycle-workflows-basics`](#)
 
 ## When to Escalate to Subagent
 
 Use `pattern-expert` subagent when:
-
 - Designing complex connection patterns
 - Implementing advanced data flow
 - Debugging connection issues
 - Optimizing workflow architecture
 
 Use `sdk-navigator` subagent when:
-
 - Finding node port names
 - Understanding node input/output structure
 - Resolving connection errors
+
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
+
+### Gold Standards
 
 ## Quick Tips
 
 - 💡 **Always 4 parameters**: Source node + output port → Target node + input port
 - 💡 **Check port names**: Verify ports exist on nodes before connecting
-- 💡 **No dot notation**: Port names are flat strings -- use an intermediate node to extract nested fields
+- 💡 **Use dot notation**: Access nested data with `"result.field.subfield"`
 - 💡 **Plan data flow**: Map out connections before coding
 - 💡 **Test incrementally**: Add connections one at a time, verify each works
 
 ## Version Notes
 
-- 4-parameter connection syntax is the standard pattern
-- Port names are flat strings -- use intermediate nodes for nested field extraction
+- **v0.9.20+**: 4-parameter connection syntax required
+- **v0.8.0+**: Dot notation supported for nested field access
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: connect nodes, connect, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, workflow connections, node connections, data mapping, connection patterns -->
+<!-- Trigger Keywords: connect nodes, add_connection, connection syntax, 4 parameters, data flow, port mapping, fan-out, fan-in, nested data, dot notation, workflow connections, node connections, data mapping, connection patterns -->

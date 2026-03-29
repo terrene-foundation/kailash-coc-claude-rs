@@ -10,7 +10,6 @@ Production-ready workflow patterns and templates for industry-specific use cases
 ## Overview
 
 Complete workflow patterns for:
-
 - Industry-specific applications
 - Common use case templates
 - Production-ready patterns
@@ -19,7 +18,6 @@ Complete workflow patterns for:
 ## Industry-Specific Patterns
 
 ### Finance
-
 - **[workflow-industry-finance](workflow-industry-finance.md)** - Financial services workflows
   - Payment processing
   - Fraud detection
@@ -29,7 +27,6 @@ Complete workflow patterns for:
   - Credit scoring
 
 ### Healthcare
-
 - **[workflow-industry-healthcare](workflow-industry-healthcare.md)** - Healthcare workflows
   - Patient data processing
   - Medical record management
@@ -39,7 +36,6 @@ Complete workflow patterns for:
   - HIPAA compliance
 
 ### Logistics
-
 - **[workflow-industry-logistics](workflow-industry-logistics.md)** - Logistics workflows
   - Order fulfillment
   - Inventory management
@@ -49,7 +45,6 @@ Complete workflow patterns for:
   - Supply chain coordination
 
 ### Manufacturing
-
 - **[workflow-industry-manufacturing](workflow-industry-manufacturing.md)** - Manufacturing workflows
   - Production planning
   - Quality control
@@ -59,7 +54,6 @@ Complete workflow patterns for:
   - Defect tracking
 
 ### Retail
-
 - **[workflow-industry-retail](workflow-industry-retail.md)** - Retail workflows
   - Order processing
   - Inventory management
@@ -71,7 +65,6 @@ Complete workflow patterns for:
 ## Common Use Case Patterns
 
 ### AI & Document Processing
-
 - **[workflow-pattern-ai-document](workflow-pattern-ai-document.md)** - AI document processing
   - Document classification
   - Entity extraction
@@ -80,18 +73,86 @@ Complete workflow patterns for:
   - Form processing
   - Multi-document analysis
 
-## Important: Data Flow Syntax
+### API Integration
+- **[workflow-pattern-api](workflow-pattern-api.md)** - API integration patterns
+  - API orchestration
+  - Multi-API coordination
+  - API retry logic
+  - Rate limiting
+  - Response transformation
+  - Error handling
 
-Many pattern files use `{{node_id.output_port}}` shorthand in node config to show which data flows where. **This is pseudocode** — Kailash does NOT support template interpolation in node config. In real code, use `builder.connect()`:
+### Business Rules
+- **[workflow-pattern-business-rules](workflow-pattern-business-rules.md)** - Business rule engines
+  - Rule evaluation
+  - Decision tables
+  - Policy enforcement
+  - Conditional processing
+  - Dynamic routing
+  - Approval workflows
 
-```python
-# Pseudocode shorthand in patterns:
-#   "params": "{{validate.rows}}"
-# Actual code:
-builder.connect("validate", "rows", "target_node", "params")
-```
+### Cyclic Workflows
+- **[workflow-pattern-cyclic](workflow-pattern-cyclic.md)** - Cyclic workflow patterns
+  - Iterative processing
+  - Feedback loops
+  - Retry mechanisms
+  - State machines
+  - Multi-cycle patterns
+  - Convergence detection
 
-Similarly, `{{input.xxx}}` references workflow-level inputs passed via `runtime.execute(workflow, {"xxx": value})`.
+### Data Processing
+- **[workflow-pattern-data](workflow-pattern-data.md)** - Data processing patterns
+  - Data validation
+  - Data enrichment
+  - Data aggregation
+  - Data normalization
+  - Data quality checks
+  - Master data management
+
+### ETL (Extract, Transform, Load)
+- **[workflow-pattern-etl](workflow-pattern-etl.md)** - ETL workflows
+  - Data extraction
+  - Transformation pipelines
+  - Data loading
+  - Incremental updates
+  - Error handling
+  - Performance optimization
+
+### File Processing
+- **[workflow-pattern-file](workflow-pattern-file.md)** - File processing patterns
+  - Bulk file processing
+  - File monitoring
+  - File transformation
+  - Archive management
+  - File validation
+  - Multi-format handling
+
+### Project Management
+- **[workflow-pattern-project-mgmt](workflow-pattern-project-mgmt.md)** - Project workflows
+  - Task automation
+  - Status tracking
+  - Resource allocation
+  - Deadline monitoring
+  - Report generation
+  - Approval workflows
+
+### RAG (Retrieval-Augmented Generation)
+- **[workflow-pattern-rag](workflow-pattern-rag.md)** - RAG workflows
+  - Document indexing
+  - Vector search
+  - Context retrieval
+  - Answer generation
+  - Source attribution
+  - Multi-source RAG
+
+### Security
+- **[workflow-pattern-security](workflow-pattern-security.md)** - Security workflows
+  - Access control
+  - Audit logging
+  - Threat detection
+  - Incident response
+  - Compliance checking
+  - Security scanning
 
 ## Pattern Usage
 
@@ -106,7 +167,6 @@ Similarly, `{{input.xxx}}` references workflow-level inputs passed via `runtime.
 ### Pattern Structure
 
 Each pattern includes:
-
 - **Overview**: Use case description
 - **Architecture**: Workflow design
 - **Nodes Used**: Required nodes
@@ -118,7 +178,6 @@ Each pattern includes:
 ## When to Use This Skill
 
 Use this skill when you need:
-
 - Industry-specific workflow templates
 - Production-ready starting points
 - Common use case implementations
@@ -131,13 +190,11 @@ Use this skill when you need:
 ### Starting from Patterns
 
 ```python
-import kailash
-
 # 1. Copy pattern template
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 2. Add nodes from pattern
-builder.add_node("NodeType", "id", {...})
+workflow.add_node("NodeType", "id", {...})
 
 # 3. Customize parameters
 # 4. Add industry-specific logic
@@ -154,36 +211,34 @@ builder.add_node("NodeType", "id", {...})
 ## Quick Patterns
 
 ### ETL Workflow
-
 ```python
-builder.add_node("CSVProcessorNode", "extract", {"action": "read", "source_path": "data.csv"})
-builder.add_node("JSONTransformNode", "transform", {"expression": "@"})
-builder.add_node("SQLQueryNode", "load", {"query": "INSERT INTO target VALUES (?, ?)"})
-builder.connect("extract", "rows", "transform", "data")
-builder.connect("transform", "result", "load", "body")
+workflow.add_node("Extract", "extract", {"source": "..."})
+workflow.add_node("Transform", "transform", {"logic": "..."})
+workflow.add_node("Load", "load", {"destination": "..."})
+workflow.add_connection("extract", "data", "transform", "input")
+workflow.add_connection("transform", "output", "load", "data")
 ```
 
 ### RAG Workflow
-
 ```python
-builder.add_node("EmbeddingNode", "embed", {"model": "text-embedding-3-small"})
-builder.add_node("VectorSearchNode", "search", {"collection": "documents", "top_k": 5})
-builder.add_node("LLMNode", "generate", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")})
+workflow.add_node("Embed", "embed", {"model": "text-embedding-ada-002"})
+workflow.add_node("Search", "search", {"index": "vectors"})
+workflow.add_node("Generate", "generate", {"model": "gpt-4"})
 ```
 
 ## CRITICAL Warnings
 
-| Rule                         | Reason                    |
-| ---------------------------- | ------------------------- |
-| ❌ NEVER hardcode secrets    | Use environment variables |
-| ✅ ALWAYS validate inputs    | At workflow boundaries    |
-| ❌ NEVER skip error handling | Required in production    |
+| Rule | Reason |
+|------|--------|
+| ❌ NEVER hardcode secrets | Use environment variables |
+| ✅ ALWAYS validate inputs | At workflow boundaries |
+| ❌ NEVER skip error handling | Required in production |
 
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow creation
-- **[06-cheatsheets](../06-cheatsheets/SKILL.md)** - Pattern quick reference
-- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Node reference
+- **[06-cheatsheets](../cheatsheets/SKILL.md)** - Pattern quick reference
+- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - Database workflows
 - **[03-nexus](../../03-nexus/SKILL.md)** - Workflow deployment
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
@@ -191,7 +246,6 @@ builder.add_node("LLMNode", "generate", {"model": os.environ.get("DEFAULT_LLM_MO
 ## Support
 
 For workflow pattern help, invoke:
-
 - `pattern-expert` - Workflow pattern selection and design
 - `framework-advisor` - Architecture decisions
 - `testing-specialist` - Pattern testing strategies

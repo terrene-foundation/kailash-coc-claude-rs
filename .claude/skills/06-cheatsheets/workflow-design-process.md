@@ -10,6 +10,7 @@ Workflow Design Process guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `advanced`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,17 +22,18 @@ Workflow Design Process guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Workflow Design Process implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -50,15 +52,18 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
 - 💡 **Start with Workflow Diagram**: Draw nodes and connections before coding to visualize data flow and identify issues
-- 💡 **Break Down Complex Logic**: Use multiple smaller nodes connected by data flow instead of one giant EmbeddedPythonNode
+- 💡 **Break Down Complex Logic**: Use multiple smaller nodes connected by data flow instead of one giant PythonCodeNode
 - 💡 **Plan Error Paths Early**: Design SwitchNode branches, retry logic, and fallback workflows during design phase
 - 💡 **Identify Reusable Patterns**: Check workflow-patterns-library for pre-built solutions before building from scratch
 - 💡 **Consider Scale**: Design for production from start - connection pooling, batch operations, async execution

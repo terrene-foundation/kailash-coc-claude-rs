@@ -5,5 +5,3 @@ paths:
   - "pyproject.toml"
   - "CHANGELOG.md"
 ---
-
-

@@ -66,15 +66,18 @@ nexus run workflow --config '{"key": "value", "nested": {"a": 1}}'
 
 ## CLI Configuration
 
-NexusApp does not have `app.cli.*` attributes. CLI behavior is configured
-server-side via the Rust Nexus engine (clap-based CLI generation).
-
 ```python
-import kailash
-from kailash.nexus import NexusApp, NexusConfig
+from nexus import Nexus
 
-app = NexusApp(config=NexusConfig(cli_name="nexus"))
-# CLI features are auto-generated from registered handlers
+app = Nexus()
+
+# Configure CLI behavior
+app.cli.interactive = True          # Enable interactive prompts
+app.cli.auto_complete = True        # Tab completion
+app.cli.progress_bars = True        # Progress indicators
+app.cli.colored_output = True       # Colorized output
+app.cli.streaming_output = True     # Stream output
+app.cli.command_history = True      # Command history
 ```
 
 ## Interactive Mode

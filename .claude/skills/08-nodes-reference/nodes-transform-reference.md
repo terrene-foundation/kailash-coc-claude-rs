@@ -1,6 +1,6 @@
 ---
 name: nodes-transform-reference
-description: "Transformation nodes reference (DataMapperNode, Filter, Map, Sort). Use when asking 'transform node', 'DataMapperNode', 'data transform', 'filter data', or 'map node'."
+description: "Transformation nodes reference (DataTransformer, Filter, Map, Sort). Use when asking 'transform node', 'DataTransformer', 'data transform', 'filter data', or 'map node'."
 ---
 
 # Transformation Nodes Reference
@@ -10,40 +10,40 @@ Complete reference for data transformation and processing nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-data-reference`](nodes-data-reference.md), [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (transformation workflows)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available transform nodes: FilterNode, DataMapperNode,
-#   AggregationNode, TextSplitterNode
+from kailash.nodes.transform import (
+    FilterNode,
+    DataTransformer,
+    AggregationNode,
+    TextSplitterNode
+)
 ```
 
 ## Filter Node
 
 ### FilterNode
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("FilterNode", "filter", {
+workflow.add_node("FilterNode", "filter", {
     "condition": "age > 18 and status == 'active'",
     "data": []  # From previous node
 })
 ```
 
-## Data Mapper
+## Data Transformer
 
-### DataMapperNode
-
+### DataTransformer
 ```python
-builder.add_node("DataMapperNode", "transform", {
+workflow.add_node("DataTransformer", "transform", {
     "transformations": [
         {"field": "price", "operation": "multiply", "value": 1.1},
         {"field": "name", "operation": "upper"}
@@ -55,9 +55,8 @@ builder.add_node("DataMapperNode", "transform", {
 ## Aggregation
 
 ### AggregationNode
-
 ```python
-builder.add_node("AggregationNode", "aggregate", {
+workflow.add_node("AggregationNode", "aggregate", {
     "group_by": ["category"],
     "aggregations": [
         {"field": "price", "operation": "sum"},
@@ -70,9 +69,8 @@ builder.add_node("AggregationNode", "aggregate", {
 ## Text Processing
 
 ### TextSplitterNode
-
 ```python
-builder.add_node("TextSplitterNode", "splitter", {
+workflow.add_node("TextSplitterNode", "splitter", {
     "chunk_size": 1000,
     "chunk_overlap": 100,
     "separator": "\n\n"
@@ -84,4 +82,7 @@ builder.add_node("TextSplitterNode", "splitter", {
 - **Data Nodes**: [`nodes-data-reference`](nodes-data-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: transform node, DataMapperNode, data transform, filter data, map node, FilterNode, AggregationNode -->
+## Documentation
+
+
+<!-- Trigger Keywords: transform node, DataTransformer, data transform, filter data, map node, FilterNode, AggregationNode -->
