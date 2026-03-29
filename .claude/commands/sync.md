@@ -45,11 +45,29 @@ Search paths (in order):
 2. `../../kailash/{template}/` (kailash parent)
 3. Ask user for path
 
-### 3. Compare freshness
+### 3. Check SDK version compatibility
+
+Read this project's SDK version from `pyproject.toml` (look for `kailash-enterprise`) or `Gemfile` (look for `kailash` gem) or `Cargo.toml` (look for `kailash` dependency). Read the template's VERSION file for the `build_version`.
+
+Report both in the sync header:
+```
+Project SDK: kailash-enterprise==1.0.0 (from pyproject.toml)
+Template COC: 1.0.0 (from template .claude/VERSION)
+```
+
+If the template artifacts were codified from a newer SDK version than the project uses, warn:
+```
+⚠ Template artifacts may reference SDK features newer than your installed version.
+  Consider upgrading your SDK dependency.
+```
+
+This is informational — sync proceeds regardless.
+
+### 4. Compare freshness
 
 Compare `.coc-sync-marker` timestamps. If already fresh: "Already up to date."
 
-### 4. Pull and merge
+### 5. Pull and merge
 
 **Updated from template** (shared artifacts):
 
@@ -80,17 +98,17 @@ Compare `.coc-sync-marker` timestamps. If already fresh: "Already up to date."
 - `scripts/hooks/*.js` — updated
 - `scripts/hooks/lib/*.js` — updated
 
-### 5. Verify integrity
+### 6. Verify integrity
 
 - Every hook in `settings.json` has a corresponding script
 - Every `require("./lib/...")` has a matching lib file
 
-### 6. Update tracking
+### 7. Update tracking
 
 - Write `.claude/.coc-sync-marker` with timestamp and template source
 - If `.claude/VERSION` exists, update `upstream.version` to match the template's VERSION version (so future session-start checks report correctly)
 
-### 7. Report
+### 8. Report
 
 ```
 ## Sync Complete: kailash-coc-claude-rs → this repo
