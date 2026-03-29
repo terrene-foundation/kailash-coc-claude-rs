@@ -8,16 +8,19 @@ description: "Validate absolute imports in SDK code. Use when asking 'check impo
 > **Skill Metadata**
 > Category: `validation`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Required Pattern
 
 ```python
 # ✅ CORRECT: Absolute imports
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
+from kailash.nodes.llm import LLMNode
 
 # ❌ WRONG: Relative imports
-from ..workflow.builder import kailash.WorkflowBuilder
-from .runtime import kailash.Runtime
+from ..workflow.builder import WorkflowBuilder
+from .runtime import LocalRuntime
 ```
 
 ## Validation Script
@@ -39,6 +42,6 @@ grep -r "from \." kailash/ --include="*.py" | grep -v "# type:"
 
 ## Documentation
 
-- **Import Standards**: [`sdk-contributors/4-gold-standards/01-code-standards.md#imports`](../../../../sdk-contributors/4-gold-standards/01-code-standards.md)
+- **Import Standards**: [`contrib/4-gold-standards/01-code-standards.md#imports`](../../../../contrib/4-gold-standards/01-code-standards.md)
 
 <!-- Trigger Keywords: check imports, import validation, absolute imports, relative imports -->

@@ -22,31 +22,36 @@ Run multiple isolated DataFlow instances (dev/prod) with proper context separati
 ## Core Pattern
 
 ```python
-import kailash
-from kailash.dataflow import db
+from dataflow import DataFlow
 
 # Development instance
-df_dev = kailash.DataFlow(
-    "sqlite:///dev.db",
+db_dev = DataFlow(
+    database_url="sqlite:///dev.db",
     auto_migrate=True,  # Default - auto-creates and migrates tables
 )
 
 # Production instance (existing database, no schema changes)
-df_prod = kailash.DataFlow(
-    "postgresql://user:pass@localhost/prod",
+db_prod = DataFlow(
+    database_url="postgresql://user:pass@localhost/prod",
     auto_migrate=False,  # Don't modify schema
 )
 
-# Models use @db.model (the module-level singleton decorator)
-@db.model
+# Models isolated per instance
+@db_dev.model
 class DevModel:
     id: str
     name: str
+    # Only in db_dev
 
-@db.model
+@db_prod.model
 class ProdModel:
     id: str
     name: str
+    # Only in db_prod
+
+# Verify isolation
+print(f"Dev models: {list(db_dev.models.keys())}")    # ['DevModel']
+print(f"Prod models: {list(db_prod.models.keys())}")  # ['ProdModel']
 ```
 
 ## Common Use Cases
@@ -59,24 +64,34 @@ class ProdModel:
 
 ## Common Mistakes
 
-### Mistake 1: Confusing DataFlow Instances with Model Registration
+### Mistake 1: Not Using Instance-Specific Decorators
 
 ```python
-# The @db.model decorator is a module-level singleton
-# All models are registered via @db.model, not @instance.model
-from kailash.dataflow import db
+# Wrong - attempting to share models between instances
+db1 = DataFlow("sqlite:///db1.db")
+db2 = DataFlow("postgresql://db2")
 
-df1 = kailash.DataFlow("sqlite:///db1.db")
-df2 = kailash.DataFlow("postgresql://db2")
+# Attempting to use a generic @model decorator
+# This would cause ambiguity about which instance owns the model
+```
 
-@db.model
+**Fix: Use Instance-Specific Decorators**
+
+```python
+# Correct - proper isolation with instance-specific decorators
+db1 = DataFlow("sqlite:///db1.db")
+db2 = DataFlow("postgresql://db2")
+
+@db1.model
 class Model1:
-    id: str
     name: str
-# Model1 registered via the db singleton
+# Model1 only in db1 - properly isolated
 ```
 
 ## Documentation References
+
+### Primary Sources
+
 
 ### Specialist Reference
 

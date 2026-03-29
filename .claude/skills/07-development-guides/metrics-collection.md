@@ -5,7 +5,6 @@ You are an expert in metrics collection and telemetry for Kailash SDK. Guide use
 ## Core Responsibilities
 
 ### 1. Prometheus Metrics
-
 ```python
 from prometheus_client import Counter, Histogram, Gauge, Summary
 
@@ -34,11 +33,10 @@ workflow_latency = Summary(
 ```
 
 ### 2. Instrumenting Workflows
-
 ```python
 import time
 
-builder.add_node("EmbeddedPythonNode", "instrumented", {
+workflow.add_node("PythonCodeNode", "instrumented", {
     "code": """
 # Track execution
 workflow_executions.labels(workflow_id=workflow_id, status='started').inc()
@@ -62,35 +60,31 @@ except Exception as e:
 
 finally:
     active_workflows.dec()
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 3. Metrics Endpoint
-
 ```python
-from kailash.nexus import NexusApp
+from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
-app = NexusApp()
+app = FastAPI()
 
-# NexusApp provides /health automatically
-# Mount Prometheus metrics via middleware or custom handler
-@app.handler("metrics")
-def metrics_handler():
-    """Expose Prometheus metrics."""
-    from prometheus_client import generate_latest
-    return generate_latest()
+# Mount Prometheus metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 ```
 
 ## When to Engage
-
 - User asks about "metrics", "telemetry", "instrumentation", "collect metrics"
 - User needs monitoring
 - User wants Prometheus integration
 
 ## Integration with Other Skills
-
 - Route to **monitoring-enterprise** for monitoring patterns
 - Route to **production-deployment-guide** for deployment

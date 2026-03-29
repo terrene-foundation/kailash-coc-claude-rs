@@ -1,6 +1,6 @@
 ---
 name: dataflow-multi-tenancy
-description: "Multi-tenant patterns with DataFlow. Use when multi-tenant, tenant isolation, SaaS, tenant_id field, or QueryInterceptor."
+description: "Multi-tenant patterns with DataFlow. Use when multi-tenant, tenant isolation, SaaS, __dataflow__ config, or tenant_id field."
 ---
 
 # DataFlow Multi-Tenancy
@@ -10,92 +10,93 @@ Automatic tenant isolation for SaaS applications using DataFlow enterprise featu
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+ / DataFlow 0.6.0`
 > Related Skills: [`dataflow-models`](#), [`dataflow-crud-operations`](#)
 > Related Subagents: `dataflow-specialist` (enterprise architecture)
 
 ## Quick Reference
 
-- **Enable**: Add `tenant_id: str` field to your `@db.model` class
-- **Auto-Filter**: Use `with_tenant` context manager for automatic tenant filtering
-- **Validation**: QueryInterceptor prevents cross-tenant access at the SQL level
+- **Enable**: `__dataflow__ = {'multi_tenant': True}`
+- **Auto-Adds**: `tenant_id` field to model
+- **Auto-Filter**: All queries filtered by current tenant
+- **Validation**: Prevents cross-tenant access
 
 ## Core Pattern
 
 ```python
-import os
-import kailash
-from kailash.dataflow import db, with_tenant
+from dataflow import DataFlow
 
-df = kailash.DataFlow(os.environ["DATABASE_URL"])
+db = DataFlow()
 
 @db.model
 class Order:
-    id: int
     customer_id: int
     total: float
-    status: str
-    tenant_id: str  # Tenant isolation field
+    status: str = 'pending'
 
-# Create interceptor then use with_tenant context manager
-from kailash import QueryInterceptor, TenantContext
-ctx = TenantContext("default")
-interceptor = QueryInterceptor(ctx)
+    __dataflow__ = {
+        'multi_tenant': True,     # Automatic tenant isolation
+        'soft_delete': True,      # Preserve deleted data
+        'audit_log': True         # Track all changes
+    }
 
-with with_tenant(interceptor, "tenant_abc") as scoped:
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateOrder", "create", {
-        "customer_id": 123,
-        "total": 250.00,
-        # tenant_id is auto-injected by QueryInterceptor
-    })
+# Automatically adds tenant_id field
+# All queries filtered by tenant automatically
 
-    # List only shows current tenant's orders
-    builder.add_node("ListOrder", "list", {
-        "filter": {"status": "completed"},
-        # tenant_id filter is auto-injected
-    })
+workflow = WorkflowBuilder()
+workflow.add_node("OrderCreateNode", "create", {
+    "customer_id": 123,
+    "total": 250.00,
+    "tenant_id": "tenant_abc"  # Automatic isolation
+})
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+# List only shows current tenant's orders
+workflow.add_node("OrderListNode", "list", {
+    "filter": {"status": "completed"},
+    "tenant_id": "tenant_abc"  # Filters automatically
+})
 ```
 
-## Auto-Wired Multi-Tenancy
+## Auto-Wired Multi-Tenancy 
 
-Multi-tenancy is auto-wired via `QueryInterceptor`, which hooks into SQL execution:
+Multi-tenancy is now auto-wired into the engine via `QueryInterceptor`, which hooks into 8 SQL execution points:
 
 - All SELECT, INSERT, UPDATE, DELETE operations are automatically intercepted
 - Tenant filtering is injected at the SQL level, not the application level
 - No manual `tenant_id` parameter needed in workflow nodes when tenant context is set
 
 ```python
-from kailash.dataflow import with_tenant
+# Set tenant context once; all queries are automatically filtered
+from dataflow.tenancy import TenantContextSwitch
 
-# Create interceptor, then set tenant context
-from kailash import QueryInterceptor, TenantContext
-ctx = TenantContext("default")
-interceptor = QueryInterceptor(ctx)
-
-with with_tenant(interceptor, "tenant_abc") as scoped:
-    # All queries via scoped interceptor are tenant-filtered
-    result = rt.execute(builder.build(reg))
+async with TenantContextSwitch(db, tenant_id="tenant_abc"):
+    # All operations inside this block are tenant-scoped
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 ```
 
 ## Multi-Tenant Features
 
-- **Tenant Isolation**: Automatic filtering by tenant_id via QueryInterceptor
+- **Tenant Isolation**: Automatic filtering by tenant_id
 - **Data Partitioning**: Separate data per tenant
-- **Security**: Prevents cross-tenant access at the SQL level
-- **Audit Trails**: Track tenant-specific changes via enterprise audit
+- **Security**: Prevents cross-tenant access
+- **Audit Trails**: Track tenant-specific changes
+- **Auto-Wired Interceptor**: QueryInterceptor at 8 SQL execution points 
+
+## Documentation References
+
+### Primary Sources
+
+### Specialist Reference
+- **DataFlow Specialist**: [`.claude/skills/dataflow-specialist.md`](../../dataflow-specialist.md#L296-L303)
 
 ## Quick Tips
 
-- Add `tenant_id: str` field to your model
-- Use `with with_tenant(interceptor, "tenant_id") as scoped:` context manager (first arg is QueryInterceptor, NOT DataFlow)
-- QueryInterceptor auto-filters all queries by tenant
-- Prevents cross-tenant access at the SQL level
+- Add `multi_tenant: True` to `__dataflow__`
+- tenant_id automatically added to model
+- All queries filtered by tenant
+- Prevents cross-tenant access
 - Perfect for SaaS applications
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: multi-tenant, tenant isolation, SaaS, QueryInterceptor, tenant_id, multi-tenancy, tenant data, with_tenant -->
+<!-- Trigger Keywords: multi-tenant, tenant isolation, SaaS, __dataflow__ config, tenant_id, multi-tenancy, tenant data -->

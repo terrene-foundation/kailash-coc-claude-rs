@@ -20,13 +20,13 @@ MUST set `DATAFLOW_MAX_CONNECTIONS` environment variable. The default pool size 
 
 **Formula**: `pool_size = postgres_max_connections / num_workers * 0.7`
 
-| Instance Size   | `max_connections` | Workers | `DATAFLOW_MAX_CONNECTIONS` |
-| --------------- | ----------------- | ------- | -------------------------- |
-| t2.micro        | 87                | 2       | 30                         |
-| t2.small        | 150               | 2       | 50                         |
-| t2.medium       | 150               | 2       | 50                         |
-| t3.medium       | 150               | 4       | 25                         |
-| r5.large        | 1000              | 4       | 175                        |
+| Instance Size | `max_connections` | Workers | `DATAFLOW_MAX_CONNECTIONS` |
+| ------------- | ----------------- | ------- | -------------------------- |
+| t2.micro      | 87                | 2       | 30                         |
+| t2.small      | 150               | 2       | 50                         |
+| t2.medium     | 150               | 2       | 50                         |
+| t3.medium     | 150               | 4       | 25                         |
+| r5.large      | 1000              | 4       | 175                        |
 
 #### Python
 
@@ -197,12 +197,14 @@ DATAFLOW_MAX_CONNECTIONS x num_workers <= postgres_max_connections x 0.7
 The 0.7 factor reserves 30% of connections for admin tasks, migrations, monitoring, and connection spikes.
 
 **Example**:
+
 - PostgreSQL `max_connections = 150` (t2.medium default)
 - Puma workers = 4
 - `DATAFLOW_MAX_CONNECTIONS = 25`
 - Check: `25 x 4 = 100 <= 150 x 0.7 = 105` — PASS
 
 **Counter-example** (the bug that created this rule):
+
 - PostgreSQL `max_connections = 150`
 - Gunicorn workers = 4
 - `DATAFLOW_MAX_CONNECTIONS = 50` (or default)

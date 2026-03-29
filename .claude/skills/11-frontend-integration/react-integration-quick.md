@@ -5,40 +5,36 @@ description: "React + Kailash SDK integration. Use when asking 'react integratio
 
 # React + Kailash Integration
 
+> **Skill Metadata**
+> Category: `frontend`
+> Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
+
 ## Quick Setup
 
 ### 1. Backend API (Python)
-
 ```python
-from kailash.nexus import NexusApp
-import kailash
-import os
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "chat", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "{{input.message}}",
+# Create workflow
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "{{input.message}}"
 })
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
 
-app = NexusApp(preset="standard")
-
-@app.handler("execute")
-async def execute(message: str) -> dict:
-    result = rt.execute(wf, {"message": message})
-    return result["results"]["chat"]
-
-app.start()  # Serves on port 3000
+# Deploy as API
+api = WorkflowAPI(workflow.build())
+api.run(port=8000)  # POST /execute
 ```
 
 ### 2. React Frontend
-
 ```typescript
 // src/api/workflow.ts
 export async function executeWorkflow(message: string) {
-  const response = await fetch('http://localhost:3000/execute', {
+  const response = await fetch('http://localhost:8000/execute', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({inputs: {message}})
@@ -77,21 +73,24 @@ export function Chat() {
 ## Streaming Responses
 
 ```typescript
+// Backend (Python)
+api = WorkflowAPI(workflow.build(), streaming=True)
+
 // Frontend (React)
 async function streamWorkflow(message: string) {
-  const response = await fetch("http://localhost:3000/stream", {
-    method: "POST",
-    body: JSON.stringify({ inputs: { message } }),
+  const response = await fetch('http://localhost:8000/stream', {
+    method: 'POST',
+    body: JSON.stringify({inputs: {message}})
   });
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
   while (true) {
-    const { done, value } = await reader.read();
+    const {done, value} = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value);
-    console.log(chunk); // Update UI incrementally
+    console.log(chunk);  // Update UI incrementally
   }
 }
 ```

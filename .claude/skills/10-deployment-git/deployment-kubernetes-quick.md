@@ -8,11 +8,11 @@ description: "Kubernetes deployment basics. Use when asking 'kubernetes deployme
 > **Skill Metadata**
 > Category: `deployment`
 > Priority: `LOW`
+> SDK Version: `0.9.25+`
 
 ## Kubernetes Manifests
 
 ### Deployment
-
 ```yaml
 # deployment.yaml
 apiVersion: apps/v1
@@ -30,53 +30,49 @@ spec:
         app: kailash-app
     spec:
       containers:
-        - name: app
-          image: my-kailash-app:latest
-          ports:
-            - containerPort: 3000
-          env:
-            - name: RUNTIME_TYPE
-              value: "async"
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: kailash-secrets
-                  key: openai-api-key
-            - name: DEFAULT_LLM_MODEL
-              valueFrom:
-                configMapKeyRef:
-                  name: kailash-config
-                  key: default-llm-model
-            - name: DATABASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: kailash-config
-                  key: database-url
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+      - name: app
+        image: my-kailash-app:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kailash-secrets
+              key: openai-api-key
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: kailash-config
+              key: database-url
+        - name: RUNTIME_TYPE
+          value: "async"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ```
 
 ### Service
-
 ```yaml
 # service.yaml
+# Note: LoadBalancer type requires a cloud provider (AWS, GCP, Azure).
+# For local/on-prem, use NodePort or ClusterIP with an Ingress controller.
 apiVersion: v1
 kind: Service
 metadata:
@@ -86,12 +82,11 @@ spec:
   selector:
     app: kailash-app
   ports:
-    - port: 80
-      targetPort: 3000
+  - port: 80
+    targetPort: 8000
 ```
 
 ### ConfigMap
-
 ```yaml
 # configmap.yaml
 apiVersion: v1
@@ -100,24 +95,24 @@ metadata:
   name: kailash-config
 data:
   database-url: postgresql://user@db:5432/mydb
-  default-llm-model: gpt-4o # Set model via config, not hardcoded in code
 ```
 
 ### Secret
 
+> **Recommended**: Use `kubectl create secret generic` instead of manually base64-encoding values:
+> ```bash
+> kubectl create secret generic kailash-secrets \
+>   --from-literal=openai-api-key="sk-your-key-here"
+> ```
+
 ```yaml
-# secret.yaml
-# EXAMPLE ONLY — never commit real credentials.
-# In production use a secrets manager (Vault, AWS Secrets Manager, SOPS)
-# or create secrets from literals: kubectl create secret generic ...
+# secret.yaml — if you must use a manifest, values must be base64-encoded
 apiVersion: v1
 kind: Secret
 metadata:
   name: kailash-secrets
 type: Opaque
 data:
-  # Values below are placeholders. Generate real secrets with:
-  #   echo -n "your-real-key" | base64
   openai-api-key: <base64-encoded-key>
 ```
 

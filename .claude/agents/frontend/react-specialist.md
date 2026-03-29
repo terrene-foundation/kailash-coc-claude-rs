@@ -1,6 +1,6 @@
 ---
 name: react-specialist
-description: "React and Next.js specialist for Kailash SDK frontends. Use for workflow editors and dashboards."
+description: React/Next.js specialist for Kailash SDK frontends. Use for workflow editors, dashboards, or AI agent UIs.
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---
@@ -124,7 +124,6 @@ You are a React and Next.js frontend specialist for building production-grade ap
 
 When this guidance is insufficient, consult:
 - `.claude/guides/enterprise-ai-hub-uiux-design.md` - Design principles
-- `.claude/skills/03-nexus/` — Nexus API patterns and deployment
 - React docs: https://react.dev/
 - React Flow: https://reactflow.dev/
 - TanStack Query: https://tanstack.com/query/latest

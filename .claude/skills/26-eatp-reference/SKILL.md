@@ -117,74 +117,6 @@ Existing standards verify identity and access. EATP verifies that actions are wi
 
 Trust revocation at any level automatically revokes all downstream delegations. No orphaned agents. Mitigations for propagation latency: short-lived credentials (5-minute validity), push-based revocation, action idempotency.
 
-## Multi-Signature Delegations
-
-M-of-N threshold signing for delegation records. Enables quorum-based trust establishment where multiple signers must approve before a delegation takes effect.
-
-- **`MultiSigPolicy`**: Defines threshold and authorized signers (Ed25519 public keys)
-- **`MultiSigBundle`**: Collects signatures from authorized signers
-- **Domain separation**: `EATP-MULTISIG-v1:` prefix prevents cross-protocol replay
-- **Constraint tightening**: Multi-sig policies tighten through delegation chains (child requires >= parent threshold on subset of signers)
-- **Backward compatible**: `DelegationRecord` fields `multi_sig_policy` and `multi_sig_bundle` are optional with defaults
-- **CLI**: `eatp multi-sig create-policy|sign|collect|verify` subcommands
-- **MCP**: Extended `delegate` tool + new `validate-multi-sig` tool (6 total)
-
-## Operational Trust Patterns
-
-These patterns build on the EATP protocol elements to provide runtime trust enforcement. They compose with the standalone EATP SDK.
-
-### Circuit Breaker (Failure Isolation)
-
-Per-agent failure isolation using an all-atomic FSM (Closed -> Open -> HalfOpen). Prevents cascading failures — one misbehaving agent does not take down the runtime.
-
-- **States**: Closed (normal), Open (tripped, rejects calls), HalfOpen (probe with limited calls)
-- **Transitions**: Atomic state machine, no locks
-- **Registry**: `CircuitBreakerRegistry` manages per-agent breakers with configurable thresholds
-- **GovernedAgent integration**: `.with_circuit_breaker(registry)` auto-manages state transitions
-
-### Shadow Enforcer (Safe Config Rollout)
-
-Dual-config evaluation for safely migrating to stricter trust postures. Evaluates actions against both production and candidate configs, tracks divergences.
-
-- **Bounded memory**: Configurable max records
-- **Recommendations**: `Promote` (candidate is safe), `Revert` (too many divergences), `Keep` (continue observing)
-- **GovernedAgent integration**: `.with_shadow_enforcer(enforcer)` evaluates every action
-
-### Lifecycle Hooks (Trust Event Dispatch)
-
-Narrow trust event hooks with timeout and panic safety. Enables composable trust enforcement policies.
-
-- **Events**: `TrustEvent` enum (action evaluated, posture changed, delegation created, etc.)
-- **Decisions**: `HookDecision::Allow` or `HookDecision::Block { reason }`
-- **Panic isolation**: Each hook runs in isolation — panics are caught, logged, treated as Allow
-- **Timeout**: Configurable per-dispatcher, hooks exceeding timeout treated as Allow (fail-open per-hook)
-- **GovernedAgent integration**: `.with_event_dispatcher(dispatcher)` fires hooks on trust events
-
-### GovernedAgent (Composition Layer)
-
-Wraps any `BaseAgent` with trust enforcement, composing all operational patterns:
-
-```
-GovernedAgent = BaseAgent + CircuitBreaker + ShadowEnforcer + Hooks
-```
-
-- `GovernedAgent::new(inner, agent_id, trust_level)` — base construction
-- `.with_circuit_breaker(registry)` — attach failure isolation
-- `.with_shadow_enforcer(enforcer)` — attach config rollout
-- `.with_event_dispatcher(dispatcher)` — attach lifecycle hooks
-- `run_governed(input)` — executes with full trust pipeline (direct `run()` bypasses all checks)
-
-### Trust-Integrated Durability (behind `durability-trust` feature)
-
-EATP signing applied to the workflow durability layer:
-
-- **TrustedCheckpointStore**: Wraps any `CheckpointStore` with Ed25519 signing -- every checkpoint is signed on save, verified on load. Tampered checkpoints are rejected.
-- **SignatureStore**: Pluggable signature persistence (`InMemorySignatureStore`, `SqliteSignatureStore`) so signatures survive process restarts.
-- **GovernedResumePolicy**: Verifies EATP delegation authority before allowing workflow resume. Enforces monotonic constraint tightening across pause/resume cycles.
-- **ConstraintAwareRetryPolicy**: Checks financial and temporal constraints before retrying failed executions. Prevents unbounded cost accumulation from retries.
-
-These features are available through the Kailash SDK binding when the `durability-trust` feature is enabled.
-
 ## Quick Reference
 
 ```
@@ -209,12 +141,26 @@ Operations: ESTABLISH → DELEGATE → VERIFY → AUDIT
 
 ## Relationship to Companion Frameworks
 
-| Framework   | Relationship                                                  |
-| ----------- | ------------------------------------------------------------- |
-| **CARE**    | EATP operationalizes CARE's governance philosophy             |
-| **CO**      | CO's guardrails (Layer 3) formalize EATP constraint envelopes |
-| **COC**     | COC maps EATP concepts to development guardrails              |
-| **Kailash** | SDK implementations (Kailash RS: proprietary; Kailash Python: Apache 2.0, Foundation-owned) |
+| Framework   | Relationship                                      |
+| ----------- | ------------------------------------------------- |
+| **CARE**    | EATP operationalizes CARE's governance philosophy |
+| **COC**     | COC maps EATP concepts to development guardrails  |
+| **Kailash** | Reference implementation (Apache 2.0)             |
+
+## SDK Implementation Reference
+
+This repo contains the EATP SDK (the trust module). For SDK-specific knowledge, see these companion files:
+
+- **[eatp-sdk-quickstart.md](eatp-sdk-quickstart.md)** — Getting started with `pip install kailash[trust]`, 4-operation lifecycle, store selection
+- **[eatp-sdk-api-reference.md](eatp-sdk-api-reference.md)** — Complete API surface: all exports, module reference, type signatures
+- **[eatp-sdk-patterns.md](eatp-sdk-patterns.md)** — Implementation patterns, critical gotchas, security findings, architecture patterns
+- **[eatp-sdk-reasoning-traces.md](eatp-sdk-reasoning-traces.md)** — Reasoning trace extension: lifecycle, confidentiality, knowledge bridge integration
+- **[eatp-budget-tracking.md](eatp-budget-tracking.md)** — BudgetTracker API, SQLiteBudgetStore, reserve/record lifecycle, threshold callbacks, integer microdollars
+- **[eatp-posture-stores.md](eatp-posture-stores.md)** — PostureStore protocol, SQLitePostureStore, PostureEvidence, PostureEvaluationResult, posture persistence
+- **[eatp-security-patterns.md](eatp-security-patterns.md)** — EATP security patterns from red team: lock ordering, integer arithmetic, symlink rejection, fail-closed
+- **[eatp-store-backends.md](eatp-store-backends.md)** — Step-by-step guide for adding new TrustPlaneStore backends with 6-requirement security contract
+- **[eatp-trust-plane-security.md](eatp-trust-plane-security.md)** — 11 hardened security patterns validated through 14 rounds of red teaming (TrustPlane-specific)
+- **[eatp-trust-plane-enterprise.md](eatp-trust-plane-enterprise.md)** — RBAC, OIDC, SIEM, Dashboard, Archive, Shadow mode, Cloud KMS reference
 
 ## For Detailed Information
 

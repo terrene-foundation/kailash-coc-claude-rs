@@ -14,24 +14,20 @@ Register once, deploy to API + CLI + MCP automatically.
 Traditional platforms require separate implementations for each interface. Nexus automatically generates all three:
 
 ```python
-import kailash
-from kailash.nexus import NexusApp
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-
-app = NexusApp()
+app = Nexus()
 
 # Build once
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "fetch", {
     "url": "https://api.github.com/users/{{username}}",
     "method": "GET"
 })
 
 # Register once
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("github-user", lambda **inputs: rt.execute(wf, inputs))
+app.register("github-user", workflow.build())
 
 # Now available as:
 # 1. REST API: POST /workflows/github-user/execute
@@ -62,42 +58,39 @@ app.register("github-user", lambda **inputs: rt.execute(wf, inputs))
 ## API Channel
 
 **Automatic REST Endpoints**:
-
 ```bash
 # Execute workflow
-curl -X POST http://localhost:3000/workflows/github-user/execute \
+curl -X POST http://localhost:8000/workflows/github-user/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"username": "octocat"}}'
 
 # Get workflow schema
-curl http://localhost:3000/workflows/github-user/schema
+curl http://localhost:8000/workflows/github-user/schema
 
 # Get OpenAPI docs
-curl http://localhost:3000/docs
+curl http://localhost:8000/docs
 
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 **Configuration**:
-
 ```python
-from kailash.nexus import NexusApp
+app = Nexus(
+    api_port=8000,
+    enable_auth=True,
+    rate_limit=1000
+)
 
-app = NexusApp()
-
-# Add rate limiting
-app.add_rate_limit(1000)
-
-# NOTE: NexusApp does not have app.api.* attributes.
-# API behavior (compression, timeouts, concurrency) is configured
-# server-side via Rust Nexus engine and tower middleware.
+# Fine-tune API behavior
+app.api.response_compression = True
+app.api.request_timeout = 30
+app.api.max_concurrent_requests = 100
 ```
 
 ## CLI Channel
 
 **Automatic Commands**:
-
 ```bash
 # Execute workflow
 nexus run github-user --username octocat
@@ -112,36 +105,40 @@ nexus info github-user
 nexus --help
 ```
 
-**Note**: NexusApp does not have `app.cli.*` attributes. CLI behavior is configured
-server-side via the Rust Nexus engine (clap-based CLI generation).
+**Configuration**:
+```python
+# Configure CLI behavior
+app.cli.interactive = True          # Enable prompts
+app.cli.auto_complete = True        # Tab completion
+app.cli.progress_bars = True        # Progress indicators
+app.cli.colored_output = True       # Colors
+```
 
 ## MCP Channel
 
 **AI Agent Integration**:
-
 ```python
 # Workflows automatically become MCP tools
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus(mcp_port=3001)
 
-# Use @app.handler() with descriptions for AI discovery
-# NOTE: workflow.add_metadata() does not exist. Use handler descriptions instead.
-@app.handler("github_user_lookup", description="Look up GitHub user by username")
-async def github_user_lookup(username: str) -> dict:
-    """Look up GitHub user information by username."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("HTTPRequestNode", "fetch", {
-        "url": f"https://api.github.com/users/{username}",
-        "method": "GET"
-    })
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["fetch"]
+# Add metadata for AI discovery
+workflow = WorkflowBuilder()
+workflow.add_metadata({
+    "name": "github_user_lookup",
+    "description": "Look up GitHub user by username",
+    "parameters": {
+        "username": {
+            "type": "string",
+            "description": "GitHub username",
+            "required": True
+        }
+    }
+})
+
+app.register("github-lookup", workflow.build())
 ```
 
 **MCP Usage**:
-
 ```python
 import mcp_client
 
@@ -149,8 +146,12 @@ client = mcp_client.connect("http://localhost:3001")
 result = client.call_tool("github-lookup", {"username": "octocat"})
 ```
 
-**Note**: NexusApp does not have `app.mcp.*` attributes. MCP behavior is configured
-server-side via the Rust Nexus engine.
+**Configuration**:
+```python
+app.mcp.tool_caching = True        # Cache tool results
+app.mcp.batch_operations = True    # Batch calls
+app.mcp.async_execution = True     # Async execution
+```
 
 ## Cross-Channel Parameter Consistency
 
@@ -182,7 +183,7 @@ Sessions work across all channels:
 ```python
 # Create session in API
 response = requests.post(
-    "http://localhost:3000/workflows/process/execute",
+    "http://localhost:8000/workflows/process/execute",
     json={"inputs": {"step": 1}},
     headers={"X-Session-ID": "session-123"}
 )
@@ -206,7 +207,7 @@ import subprocess
 class MultiChannelTester:
     def test_api(self, workflow_name, inputs):
         response = requests.post(
-            f"http://localhost:3000/workflows/{workflow_name}/execute",
+            f"http://localhost:8000/workflows/{workflow_name}/execute",
             json={"inputs": inputs}
         )
         return response.json()
@@ -229,11 +230,10 @@ tester.test_mcp("github-user", {"username": "octocat"})
 ## Best Practices
 
 ### 1. Channel-Agnostic Design
-
 Design workflows that work well across all channels:
 
 ```python
-builder.add_node("EmbeddedPythonNode", "universal_output", {
+workflow.add_node("PythonCodeNode", "universal_output", {
     "code": """
 result = {
     'data': process(input_data),        # Core logic
@@ -241,32 +241,34 @@ result = {
     'cli_display': format_text(data),   # For CLI
     'mcp_result': format_tool(data)     # For MCP
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 2. Progressive Enhancement
-
 Start simple, add channel-specific features as needed:
 
 ```python
-app = NexusApp()
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("workflow", lambda **inputs: rt.execute(wf, inputs))
+app = Nexus()
+app.register("workflow", workflow.build())
 
-# NOTE: NexusApp does not have app.api.*, app.cli.*, or app.mcp.* attributes.
-# Channel-specific features are configured server-side via the Rust Nexus engine.
-# Use presets for bundled middleware configurations.
+# Add API features
+app.api.enable_docs = True
+app.api.enable_metrics = True
+
+# Add CLI features
+app.cli.enable_autocomplete = True
+app.cli.enable_history = True
+
+# Add MCP features
+app.mcp.enable_tool_discovery = True
 ```
 
 ### 3. Consistent Error Handling
-
 Handle errors uniformly across channels:
 
 ```python
-builder.add_node("EmbeddedPythonNode", "error_handler", {
+workflow.add_node("PythonCodeNode", "error_handler", {
     "code": """
 if 'error' in data:
     result = {
@@ -274,8 +276,7 @@ if 'error' in data:
         'cli_error': f"Error: {data['error']}",
         'mcp_error': {'error': True, 'details': data['error']}
     }
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 

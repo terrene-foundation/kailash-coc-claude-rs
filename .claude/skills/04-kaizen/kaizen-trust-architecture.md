@@ -4,14 +4,14 @@ The trust stack spans three layers. This map shows where each trust concept live
 
 ## Three-Layer Trust Stack
 
-| Concept          | Layer 1: EATP (Protocol)                       | Layer 2: Trust-Plane (Environment)                | Layer 3: Kaizen Trust (Agent Runtime)     |
-| ---------------- | ---------------------------------------------- | ------------------------------------------------- | ----------------------------------------- |
-| Constraint model | `ConstraintDimensions` (8 fields)              | `ConstraintEnvelope` (5 dimension structs)        | Re-exports via trust feature              |
-| Delegation       | `DelegationRecord` + `DelegationChain`         | `DelegationManager` (file-backed, WAL)            | `DelegationChain` (in-memory)             |
-| Enforcement      | None (protocol spec only)                      | `StrictEnforcer` + `ShadowEnforcer`               | `GovernedAgent` + `GovernedTaodRunner`    |
-| Verification     | `VerificationGradient` (4 levels)              | `Verdict` (4 levels, different names)             | Re-exports EATP verification              |
-| Intersection     | None                                           | `intersect_constraints()` -> `IntersectionResult` | None                                      |
-| Posture          | `PostureSystem` (state machine)                | None                                              | Re-exports EATP posture system            |
+| Concept          | Layer 1: EATP (Protocol)               | Layer 2: Trust-Plane (Environment)                | Layer 3: Kaizen Trust (Agent Runtime)  |
+| ---------------- | -------------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| Constraint model | `ConstraintDimensions` (8 fields)      | `ConstraintEnvelope` (5 dimension structs)        | Re-exports via trust feature           |
+| Delegation       | `DelegationRecord` + `DelegationChain` | `DelegationManager` (file-backed, WAL)            | `DelegationChain` (in-memory)          |
+| Enforcement      | None (protocol spec only)              | `StrictEnforcer` + `ShadowEnforcer`               | `GovernedAgent` + `GovernedTaodRunner` |
+| Verification     | `VerificationGradient` (4 levels)      | `Verdict` (4 levels, different names)             | Re-exports EATP verification           |
+| Intersection     | None                                   | `intersect_constraints()` -> `IntersectionResult` | None                                   |
+| Posture          | `PostureSystem` (state machine)        | None                                              | Re-exports EATP posture system         |
 
 ## When to Use Each Layer
 
@@ -130,12 +130,12 @@ print(report.divergence_rate)  # 0.0 to 1.0
 
 Trust-Plane uses `Verdict` with four levels:
 
-| Level          | Meaning                                             |
-| -------------- | --------------------------------------------------- |
-| `auto_approved` | Action is within all constraints                   |
-| `flagged`      | Action is within constraints but noteworthy         |
-| `held`         | Action requires human approval before proceeding    |
-| `blocked`      | Action violates constraints and cannot proceed      |
+| Level           | Meaning                                          |
+| --------------- | ------------------------------------------------ |
+| `auto_approved` | Action is within all constraints                 |
+| `flagged`       | Action is within constraints but noteworthy      |
+| `held`          | Action requires human approval before proceeding |
+| `blocked`       | Action violates constraints and cannot proceed   |
 
 ## Five Constraint Dimensions
 

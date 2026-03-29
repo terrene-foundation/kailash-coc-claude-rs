@@ -10,41 +10,39 @@ Complete reference for file I/O and data processing nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-database-reference`](nodes-database-reference.md), [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (data workflows)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available data nodes: CSVProcessorNode, FileWriterNode, FileReaderNode,
-#   JSONTransformNode (expression-based transform), ExcelReaderNode (feature: excel),
-#   PDFReaderNode (feature: pdf), XMLParserNode
+from kailash.nodes.data import (
+    CSVReaderNode, CSVWriterNode,
+    JSONReaderNode, JSONWriterNode,
+    TextReaderNode, ExcelReaderNode,
+    DocumentProcessorNode  # ⭐ Multi-format support
+)
 ```
 
 ## CSV Nodes
 
-### CSVProcessorNode
-
+### CSVReaderNode
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {
-    "action": "read",
-    "source_path": "data/users.csv",
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {
+    "file_path": "data/users.csv",
     "delimiter": ",",
     "encoding": "utf-8"
 })
 ```
 
-### FileWriterNode
-
+### CSVWriterNode
 ```python
-builder.add_node("FileWriterNode", "writer", {
-    "path": "output/results.csv",
+workflow.add_node("CSVWriterNode", "writer", {
+    "file_path": "output/results.csv",
     "data": [],  # From previous node
     "headers": ["id", "name", "email"]
 })
@@ -52,72 +50,53 @@ builder.add_node("FileWriterNode", "writer", {
 
 ## JSON Nodes
 
-### JSONTransformNode (Expression-Based Transform)
-
-JSONTransformNode transforms JSON data using dot-notation path expressions. It does NOT read or write files.
-
-- **Input**: `data` (required) -- the data to transform
-- **Input**: `expression` (required) -- dot-notation path expression (e.g., `"@.name"`, `"@.items[0]"`)
-- **Output**: `result` -- the transformed data
-
+### JSONReaderNode
 ```python
-builder.add_node("JSONTransformNode", "extract_name", {
-    "expression": "@.users[0].name"
-})
-builder.connect("source", "data", "extract_name", "data")
-# Output: result contains the extracted value
-```
-
-### FileReaderNode (Read JSON Files)
-
-To read JSON files, use FileReaderNode:
-
-```python
-builder.add_node("FileReaderNode", "json_reader", {
-    "path": "config/settings.json"
+workflow.add_node("JSONReaderNode", "json_reader", {
+    "file_path": "config/settings.json",
+    "encoding": "utf-8"
 })
 ```
 
-### FileWriterNode (Write JSON Files)
-
-To write JSON files, use FileWriterNode:
-
+### JSONWriterNode
 ```python
-builder.add_node("FileWriterNode", "json_writer", {
-    "path": "output/data.json"
+workflow.add_node("JSONWriterNode", "json_writer", {
+    "file_path": "output/data.json",
+    "data": {},  # From previous node
+    "indent": 2
 })
 ```
 
 ## Document Processing
 
-### PDFReaderNode ⭐
-
+### DocumentProcessorNode ⭐
 ```python
-# PDF document processing (use PDFReaderNode for PDF files)
-builder.add_node("PDFReaderNode", "doc_processor", {
+# Multi-format document processing (PDF, DOCX, MD, HTML, RTF, TXT)
+workflow.add_node("DocumentProcessorNode", "doc_processor", {
     "file_path": "documents/report.pdf",
-    "extract_metadata": True
+    "extract_metadata": True,
+    "preserve_structure": True,
+    "page_numbers": True
 })
 ```
 
-**Supported Formats**: PDF (feature-gated, requires `pdf` feature)
+**Supported Formats**: PDF, DOCX, Markdown, HTML, RTF, TXT
 
 ## Text Nodes
 
-### FileReaderNode (for text files)
-
+### TextReaderNode
 ```python
-builder.add_node("FileReaderNode", "text_reader", {
-    "path": "data/content.txt"
+workflow.add_node("TextReaderNode", "text_reader", {
+    "file_path": "data/content.txt",
+    "encoding": "utf-8"
 })
 ```
 
 ## Excel Nodes
 
 ### ExcelReaderNode
-
 ```python
-builder.add_node("ExcelReaderNode", "excel_reader", {
+workflow.add_node("ExcelReaderNode", "excel_reader", {
     "file_path": "data/sales.xlsx",
     "sheet_name": "Q4_2024"
 })
@@ -129,4 +108,7 @@ builder.add_node("ExcelReaderNode", "excel_reader", {
 - **Transform Nodes**: [`nodes-transform-reference`](nodes-transform-reference.md)
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
 
-<!-- Trigger Keywords: CSV node, JSON node, Excel, data nodes, file reader, data I/O, CSVProcessorNode, JSONTransformNode -->
+## Documentation
+
+
+<!-- Trigger Keywords: CSV node, JSON node, Excel, data nodes, file reader, data I/O, CSVReaderNode, JSONReaderNode -->

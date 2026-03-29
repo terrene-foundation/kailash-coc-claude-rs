@@ -8,25 +8,25 @@ description: "Validate workflow connections. Use when asking 'validate workflow'
 > **Skill Metadata**
 > Category: `validation`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Validation Checks
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "node1", {})
-builder.add_node("JSONTransformNode", "node2", {})
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "node1", {})
+workflow.add_node("TransformNode", "node2", {})
 
 # ✅ Valid connection (4-parameter pattern)
-builder.connect("node1", "result", "node2", "input")
+workflow.add_connection("node1", "result", "node2", "input")
 
 # ❌ Invalid: node doesn't exist
-# builder.connect("node1", "node3")  # Error!
+# workflow.add_connection("node1", "node3")  # Error!
 
 # Validate workflow
-reg = kailash.NodeRegistry()
-built = builder.build(reg)  # Raises error if invalid
+built = workflow.build()  # Raises error if invalid
 ```
 
 ## Common Issues
@@ -35,5 +35,8 @@ built = builder.build(reg)  # Raises error if invalid
 2. **Invalid node IDs** - Typos in connections
 3. **Circular dependencies** - A → B → A
 4. **Unreachable nodes** - No path from start
+
+## Documentation
+
 
 <!-- Trigger Keywords: validate workflow, check connections, workflow validation, connection errors -->

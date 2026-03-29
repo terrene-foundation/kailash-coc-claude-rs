@@ -25,11 +25,12 @@ services:
     container_name: ${PROJECT_NAME}_backend
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - RUNTIME_TYPE=async
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app/backend:cached
       - backend_logs:/var/log/app
@@ -45,19 +46,13 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "4"
+          cpus: '4'
           memory: 8G
         reservations:
-          cpus: "2"
+          cpus: '2'
           memory: 4G
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')",
-        ]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -73,7 +68,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"  # Remove in production — only needed for local dev access
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-scripts:/docker-entrypoint-initdb.d/
@@ -89,7 +84,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2"
+          cpus: '2'
           memory: 4G
 
   # Redis Cache
@@ -129,7 +124,7 @@ networks:
     driver: bridge
   app_backend:
     driver: bridge
-    internal: true # No external access for security
+    internal: true  # No external access for security
 ```
 
 ## Environment Configuration Template
@@ -185,7 +180,7 @@ FRONTEND_URL=https://app.yourdomain.com
 # SERVICE PORTS
 # ==============================================================================
 
-BACKEND_PORT=3000
+BACKEND_PORT=8000
 FRONTEND_PORT=3000
 
 # ==============================================================================
@@ -193,7 +188,7 @@ FRONTEND_PORT=3000
 # ==============================================================================
 # 1. NEVER commit .env files to version control
 # 2. Generate secrets with: openssl rand -hex 32
-# 3. Use secrets management tools (Vault, AWS Secrets Manager)
+# 3. Use a secrets manager (e.g., HashiCorp Vault) in production
 # 4. Rotate secrets regularly
 ```
 
@@ -235,45 +230,45 @@ spec:
         app: backend
     spec:
       containers:
-        - name: backend
-          image: your-registry/backend:latest
-          ports:
-            - containerPort: 3000
-          env:
-            - name: RUNTIME_TYPE
-              value: "async"
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: database-url
-            - name: JWT_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: jwt-secret
-          envFrom:
-            - configMapRef:
-                name: app-config
-          resources:
-            requests:
-              cpu: 500m
-              memory: 1Gi
-            limits:
-              cpu: 2000m
-              memory: 4Gi
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 5
+      - name: backend
+        image: your-registry/backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-url
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
+        - name: RUNTIME_TYPE
+          value: "async"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
@@ -283,9 +278,9 @@ spec:
   selector:
     app: backend
   ports:
-    - protocol: TCP
-      port: 3000
-      targetPort: 3000
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
   type: ClusterIP
 ```
 
@@ -308,39 +303,39 @@ spec:
         app: postgres
     spec:
       containers:
-        - name: postgres
-          image: postgres:15-alpine
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_DB
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: POSTGRES_DB
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: postgres-password
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
-          resources:
-            requests:
-              cpu: 500m
-              memory: 2Gi
-            limits:
-              cpu: 2000m
-              memory: 4Gi
-  volumeClaimTemplates:
-    - metadata:
-        name: postgres-storage
-      spec:
-        accessModes: ["ReadWriteOnce"]
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: POSTGRES_DB
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: postgres-password
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
         resources:
           requests:
-            storage: 50Gi
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi
 ```
 
 ### Horizontal Pod Autoscaler
@@ -358,18 +353,18 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
 ```
 
 ### ConfigMap and Secrets
@@ -386,18 +381,14 @@ data:
   POSTGRES_DB: "app_db"
 ---
 # Secrets (sensitive data)
-# EXAMPLE ONLY — never commit real credentials to version control.
-# In production use: kubectl create secret generic app-secrets \
-#   --from-literal=database-url="postgresql://..." \
-#   --from-literal=jwt-secret="$(openssl rand -hex 32)"
 apiVersion: v1
 kind: Secret
 metadata:
   name: app-secrets
 type: Opaque
 data:
-  # EXAMPLE ONLY — base64-encoded placeholder values
-  # Generate real values with: echo -n "real-value" | base64
+  # EXAMPLES ONLY — replace with real base64-encoded secrets before deploying.
+  # Prefer: kubectl create secret generic app-secrets --from-literal=database-url="..." --from-literal=jwt-secret="..."
   database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bwb3N0Z3Jlczo1NDMyL2RiCg==
   jwt-secret: Y2hhbmdlX3RoaXNfdG9fc2VjdXJlX2tleQo=
 ```
@@ -428,7 +419,7 @@ docker-compose ps
 docker-compose logs -f backend
 
 # 6. Verify API health
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 ### Production Deployment (Kubernetes)
@@ -441,7 +432,6 @@ kubectl create namespace production
 kubectl create secret generic app-secrets \
   --from-literal=database-url="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
   --from-literal=jwt-secret="$(openssl rand -hex 32)" \
-  --from-literal=postgres-password="${POSTGRES_PASSWORD}" \
   --namespace=production
 
 # 3. Create ConfigMap
@@ -481,37 +471,39 @@ kubectl rollout undo deployment/backend -n production
 ### Application Health Endpoints (Python)
 
 ```python
-from kailash.nexus import NexusApp
+from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
 
-app = NexusApp()
+app = FastAPI()
 
-# NexusApp provides /health automatically.
-# Custom readiness check:
-@app.handler("ready")
-def readiness_check():
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    """Liveness probe - is the application running?"""
+    return {"status": "healthy"}
+
+@app.get("/ready", status_code=status.HTTP_200_OK)
+async def readiness_check():
     """Readiness probe - can the application serve traffic?"""
     try:
-        # Check database and cache connectivity
+        await db.execute("SELECT 1")
+        await redis.ping()
         return {"status": "ready"}
-    except Exception as e:
-        return {"status": "not ready", "error": str(e)}
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "not ready"}
+        )
 ```
 
 ### Docker Compose Health Checks
 
 ```yaml
 healthcheck:
-  test:
-    [
-      "CMD",
-      "python",
-      "-c",
-      "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')",
-    ]
-  interval: 30s # Check every 30 seconds
-  timeout: 10s # Wait 10 seconds for response
-  retries: 3 # Retry 3 times before marking unhealthy
-  start_period: 40s # Wait 40 seconds before starting checks
+  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  interval: 30s      # Check every 30 seconds
+  timeout: 10s       # Wait 10 seconds for response
+  retries: 3         # Retry 3 times before marking unhealthy
+  start_period: 40s  # Wait 40 seconds before starting checks
 ```
 
 ### Kubernetes Probes
@@ -520,7 +512,7 @@ healthcheck:
 livenessProbe:
   httpGet:
     path: /health
-    port: 3000
+    port: 8000
   initialDelaySeconds: 30
   periodSeconds: 10
   failureThreshold: 3
@@ -528,7 +520,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /ready
-    port: 3000
+    port: 8000
   initialDelaySeconds: 10
   periodSeconds: 5
   successThreshold: 1

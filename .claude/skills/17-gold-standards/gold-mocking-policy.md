@@ -1,30 +1,31 @@
 ---
 name: gold-mocking-policy
-description: "Testing policy requiring real infrastructure, no mocking for Tier 2-3 tests. Use when asking 'mocking policy', 'NO MOCKING', 'real infrastructure', 'test policy', 'mock guidelines', or 'testing standards'."
+description: "Testing policy requiring real infrastructure, no mocking for Tier 2-3 tests. Use when asking 'mocking policy', 'Real infrastructure recommended', 'real infrastructure', 'test policy', 'mock guidelines', or 'testing standards'."
 ---
 
-# Gold Standard: NO MOCKING Policy
+# Gold Standard: Real infrastructure recommended Policy
 
-NO MOCKING policy for integration and E2E tests - use real infrastructure with Runtime.
+Real infrastructure recommended policy for integration and E2E tests - use real infrastructure with LocalRuntime and AsyncLocalRuntime.
 
 > **Skill Metadata**
 > Category: `gold-standards`
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 
 ## Core Policy
 
-### NO MOCKING in Tiers 2-3
+### Real infrastructure recommended in Tiers 2-3
 
 **Tier 1 (Unit Tests)**: Mocking ALLOWED for external dependencies
-**Tier 2 (Integration Tests)**: NO MOCKING - Use real Docker services
-**Tier 3 (E2E Tests)**: NO MOCKING - Use real infrastructure
+**Tier 2 (Integration Tests)**: Real infrastructure recommended - Use real Docker services
+**Tier 3 (E2E Tests)**: Real infrastructure recommended - Use real infrastructure
 
-## Why NO MOCKING?
+## Why Real infrastructure recommended?
 
 1. **Mocks hide real integration issues** - Type mismatches, connection errors, timing issues
 2. **Real infrastructure catches actual bugs** - Validates actual behavior, not assumptions
 3. **Production-like testing prevents surprises** - Discovers deployment issues early
-4. **Runtime validation** - Tests Runtime with real services
+4. **Runtime validation** - Tests LocalRuntime and AsyncLocalRuntime with real services
 5. **Better confidence** - Tests prove the code works with real systems
 
 ## What to Use Instead
@@ -32,7 +33,8 @@ NO MOCKING policy for integration and E2E tests - use real infrastructure with R
 ### Tier 1: Unit Tests (Mocking Allowed)
 ```python
 from unittest.mock import patch
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 # ✅ ALLOWED in unit tests
 @patch('requests.get')
@@ -42,57 +44,59 @@ def test_node_logic(mock_get):
     # Test node logic without real API
 ```
 
-### Tier 2: Integration Tests (NO MOCKING)
+### Tier 2: Integration Tests (Real infrastructure recommended)
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 from tests.utils.docker_config import get_postgres_connection_string
 import pytest
 
 # ✅ CORRECT: Use real Docker PostgreSQL
 @pytest.mark.requires_docker
 def test_database_integration():
-    """Integration test with real PostgreSQL - NO MOCKING."""
+    """Integration test with real PostgreSQL - Real infrastructure recommended."""
     conn_string = get_postgres_connection_string()
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["db"]["success"]
-    assert len(result["results"]["db"]["data"]) > 0
+    assert results["db"]["success"]
+    assert len(results["db"]["data"]) > 0
+
 
 # ❌ WRONG: Mocking in integration tests
 # from unittest.mock import patch
-# @patch('sqlalchemy.create_engine')  # DON'T DO THIS
-# def test_database_integration(mock_engine):
-#     mock_engine.return_value = Mock(...)
+# @patch('psycopg2.connect')  # DON'T DO THIS
+# def test_database_integration(mock_connect):
+#     mock_connect.return_value = Mock(...)
 ```
 
-### Tier 3: E2E Tests (NO MOCKING)
+### Tier 3: E2E Tests (Real infrastructure recommended)
 ```python
 import pytest
+from kailash.runtime import AsyncLocalRuntime
 
 # ✅ CORRECT: Use real services for E2E
 @pytest.mark.e2e
 @pytest.mark.requires_docker
 async def test_complete_pipeline():
-    """E2E test with real infrastructure - NO MOCKING."""
+    """E2E test with real infrastructure - Real infrastructure recommended."""
     workflow = build_complete_etl_pipeline()
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(workflow)
+    runtime = AsyncLocalRuntime()
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 
     # All stages use real services
-    assert result["results"]["extract"]["status"] == "success"
-    assert result["results"]["transform"]["rows_processed"] > 0
-    assert result["results"]["load"]["rows_inserted"] > 0
+    assert results["extract"]["status"] == "success"
+    assert results["transform"]["rows_processed"] > 0
+    assert results["load"]["rows_inserted"] > 0
 ```
 
 ## Real Infrastructure Examples
@@ -105,18 +109,17 @@ def test_with_real_postgres():
     """Use real PostgreSQL from Docker."""
     conn_string = get_postgres_connection_string()
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT * FROM users",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["db"]["success"]
+    assert results["db"]["success"]
 ```
 
 ### Real Redis Cache
@@ -141,42 +144,47 @@ import requests
 
 def test_with_real_api():
     """Use real mock-api Docker service."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("HTTPRequestNode", "api", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("HTTPRequestNode", "api", {
         "url": f"{MOCK_API_CONFIG['base_url']}/v1/users",
         "method": "GET"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["api"]["status_code"] == 200
+    assert results["api"]["status_code"] == 200
 ```
 
-## Testing with Real Services
+## Testing Both Runtimes with Real Services
 
 ```python
 import pytest
+import asyncio
+from kailash.runtime import LocalRuntime, AsyncLocalRuntime
 from tests.utils.docker_config import get_postgres_connection_string
 
+@pytest.mark.parametrize("runtime_class", [LocalRuntime, AsyncLocalRuntime])
 @pytest.mark.requires_docker
-def test_database_with_real_services():
-    """Test database operations with real infrastructure - NO MOCKING."""
+def test_database_with_both_runtimes(runtime_class):
+    """Test database operations with both runtimes - Real infrastructure recommended."""
     conn_string = get_postgres_connection_string()
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = runtime_class()
 
-    assert result["results"]["db"]["success"]
+    if isinstance(runtime, AsyncLocalRuntime):
+        results = asyncio.run(runtime.execute_workflow_async(workflow.build(), inputs={}))
+    else:
+        results, run_id = runtime.execute(workflow.build())
+
+    assert results["db"]["success"]
 ```
 
 ## Available Docker Services
@@ -213,9 +221,9 @@ from tests.utils.docker_config import (
 # ❌ WRONG: Mocking database in integration test
 from unittest.mock import patch, Mock
 
-@patch('sqlalchemy.create_engine')
-def test_database_query(mock_engine):
-    mock_engine.return_value = Mock(...)
+@patch('psycopg2.connect')
+def test_database_query(mock_connect):
+    mock_connect.return_value = Mock(...)
     # BAD - mocking hides real connection issues
 
 # ✅ CORRECT: Use real database
@@ -252,31 +260,35 @@ def test_api_call():
 # ❌ WRONG: Mocking runtime behavior
 from unittest.mock import patch
 
-@patch('kailash.Runtime.execute')
+@patch('kailash.runtime.local.LocalRuntime.execute')
 def test_workflow(mock_execute):
-    mock_execute.return_value = {"results": {}, "run_id": "run_123", "metadata": {}}
+    mock_execute.return_value = ({}, 'run_123')
     # BAD - not testing real runtime behavior
 
 # ✅ CORRECT: Use real runtime
+from kailash.runtime import LocalRuntime
 
 def test_workflow():
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {"code": "result = 42", "output_vars": ["result"]})
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node", {"code": "result = 42"})
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    assert result["results"]["node"]["outputs"]["result"] == 42
+    assert results["node"]["result"] == 42
 ```
 
 ## Policy Summary
 
 | Test Tier | Mocking Policy | Infrastructure | Runtime |
 |-----------|---------------|----------------|---------|
-| **Tier 1: Unit** | ✅ ALLOWED | In-memory, mocked | Runtime |
-| **Tier 2: Integration** | ❌ NO MOCKING | Real Docker services | Runtime |
-| **Tier 3: E2E** | ❌ NO MOCKING | Real infrastructure | Runtime |
+| **Tier 1: Unit** | ✅ ALLOWED | In-memory, mocked | LocalRuntime |
+| **Tier 2: Integration** | ❌ Real infrastructure recommended | Real Docker services | LocalRuntime or AsyncLocalRuntime |
+| **Tier 3: E2E** | ❌ Real infrastructure recommended | Real infrastructure | AsyncLocalRuntime (typical) |
+
+## Documentation References
+
+### Primary Sources
 
 ## Related Patterns
 
@@ -284,4 +296,4 @@ def test_workflow():
 - **Test organization**: [`test-organization`](../../07-development-guides/test-organization.md)
 - **Gold testing standard**: [`gold-testing`](gold-testing.md)
 
-<!-- Trigger Keywords: mocking policy, NO MOCKING, real infrastructure, test policy, mock guidelines, testing standards -->
+<!-- Trigger Keywords: mocking policy, Real infrastructure recommended, real infrastructure, test policy, mock guidelines, testing standards -->

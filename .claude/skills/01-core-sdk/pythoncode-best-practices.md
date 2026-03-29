@@ -1,38 +1,39 @@
 ---
 name: pythoncode-best-practices
-description: "Best practices for EmbeddedPythonNode including result wrapping, register_callback, and common patterns. Use when asking 'EmbeddedPythonNode', 'Python code', 'custom logic', 'register_callback', 'result wrapping', 'PythonCode patterns', 'code node', 'Python in workflow', or 'code best practices'."
+description: "Best practices for PythonCodeNode including result wrapping, from_function decorator, and common patterns. Use when asking 'PythonCodeNode', 'Python code', 'custom logic', 'from_function', 'result wrapping', 'PythonCode patterns', 'code node', 'Python in workflow', or 'code best practices'."
 ---
 
-# EmbeddedPythonNode Best Practices
+# PythonCodeNode Best Practices
 
-EmbeddedPythonNode Best Practices guide with patterns, examples, and best practices.
+PythonCodeNode Best Practices guide with patterns, examples, and best practices.
 
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **Primary Use**: EmbeddedPythonNode Best Practices
+- **Primary Use**: PythonCodeNode Best Practices
 - **Category**: core-sdk
 - **Priority**: CRITICAL
-- **Trigger Keywords**: EmbeddedPythonNode, Python code, custom logic, register_callback, result wrapping
+- **Trigger Keywords**: PythonCodeNode, Python code, custom logic, from_function, result wrapping
 
 ## Core Pattern
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Pythoncode Best Practices implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -56,12 +57,16 @@ Use specialized subagents when:
 - Deep analysis necessary
 - Enterprise patterns needed
 
+## Documentation References
+
+### Primary Sources
+
 ## Quick Tips
 
-- 💡 **Tip 1**: Always follow EmbeddedPythonNode Best Practices best practices
+- 💡 **Tip 1**: Always follow PythonCodeNode Best Practices best practices
 - 💡 **Tip 2**: Test patterns incrementally
 - 💡 **Tip 3**: Reference documentation for details
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: EmbeddedPythonNode, Python code, custom logic, register_callback, result wrapping -->
+<!-- Trigger Keywords: PythonCodeNode, Python code, custom logic, from_function, result wrapping -->

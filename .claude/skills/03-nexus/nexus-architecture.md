@@ -40,7 +40,7 @@ Understanding how Nexus works internally.
 ├──────────────────┴──────────────────────────────┤
 │              Kailash SDK Core                   │
 │  - WorkflowBuilder & Runtime                    │
-│  - 139+ Nodes                                   │
+│  - 140+ Nodes                                   │
 │  - Execution Engine                             │
 └─────────────────────────────────────────────────┘
 ```
@@ -53,7 +53,7 @@ Understanding how Nexus works internally.
 
 **Components**:
 
-- **API Channel**: REST server (via enterprise gateway, axum internally)
+- **API Channel**: FastAPI-based REST server (via enterprise gateway)
 - **CLI Channel**: Command-line interface (via enterprise gateway)
 - **MCP Channel**: Model Context Protocol server (separate initialization)
 
@@ -63,10 +63,10 @@ Understanding how Nexus works internally.
 - Automatic endpoint generation through enterprise gateway
 - Unified parameter handling
 
-**Current Implementation:**
+**v1.1.0 Implementation:**
 
 ```python
-# Current architecture - NO ChannelManager class
+# Actual v1.1.0 architecture - NO ChannelManager class
 class Nexus:
     def __init__(self):
         # Channels initialized by Nexus directly:
@@ -87,29 +87,38 @@ class Nexus:
 - ❌ **REMOVED**: `ChannelManager.register_workflow_on_channels()` (was stub logging success)
 - ✅ **REALITY**: Nexus handles initialization and registration directly
 
-### 2. Workflow State Management
+### 2. Session Manager
 
-**Purpose**: State tracking across workflow executions
+**Purpose**: Unified session management across channels
 
-**Approach**: Nexus workflows are stateless by default. For stateful workflows:
+**Features**:
 
-- **Workflow inputs/outputs**: Pass state between executions via `inputs`
-- **EventBus**: Track lifecycle events with `app._nexus.event_bus()`
-- **DataFlow**: Persist state in a database
+- Cross-channel session persistence
+- State synchronization
+- Session lifecycle management
 
 ```python
-import kailash
-from kailash.nexus import NexusApp
+class SessionManager:
+    def __init__(self, backend="redis"):
+        self.backend = backend
+        self.sessions = {}
 
-app = NexusApp()
-bus = app._nexus.event_bus()
+    def create_session(self, channel, metadata):
+        session_id = generate_id()
+        self.sessions[session_id] = {
+            "channel": channel,
+            "metadata": metadata,
+            "created_at": time.time(),
+            "state": {}
+        }
+        return session_id
 
-# Track workflow lifecycle events
-app._nexus.on("workflow_started", lambda e: print(f"Started: {e}"))
-app._nexus.on("workflow_completed", lambda e: print(f"Completed: {e}"))
-
-# Publish custom events for cross-component communication
-bus.publish("user_action", {"user_id": "123", "action": "login"})
+    def sync_session(self, session_id, target_channel):
+        # Sync session state across channels
+        session = self.sessions.get(session_id)
+        if session:
+            session["channel"] = target_channel
+            return session
 ```
 
 ### 3. Enterprise Gateway
@@ -125,22 +134,46 @@ bus.publish("user_action", {"user_id": "123", "action": "login"})
 - **Caching**: Response caching
 - **Monitoring**: Metrics and tracing
 
-The enterprise gateway is implemented server-side in Rust via axum + tower middleware.
-NexusAuthPlugin configures JWT, RBAC, and tenant isolation. Rate limiting is configured
-via `app.add_rate_limit()`. These are composed as tower middleware layers, not Python classes.
-
 ```python
-# Configure enterprise gateway features via NexusApp methods and NexusAuthPlugin
-from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig, RbacConfig
+class EnterpriseGateway:
+    def __init__(self):
+        self.auth = AuthenticationManager()
+        self.rate_limiter = RateLimiter()
+        self.circuit_breaker = CircuitBreaker()
+        self.cache = CacheManager()
+        self.monitor = MonitoringManager()
 
-app = NexusApp(config=NexusConfig(port=3000))
-app.add_rate_limit(max_requests=1000, window_secs=60)
+    def process_request(self, request):
+        # Authentication
+        user = self.auth.authenticate(request)
 
-auth = NexusAuthPlugin(
-    jwt=JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),
-    tenant_header="X-Tenant-ID",
-)
+        # Authorization
+        if not self.auth.authorize(user, request.workflow):
+            raise UnauthorizedError()
+
+        # Rate limiting
+        if not self.rate_limiter.check(user):
+            raise RateLimitError()
+
+        # Circuit breaker
+        if self.circuit_breaker.is_open(request.workflow):
+            raise ServiceUnavailableError()
+
+        # Check cache
+        cached = self.cache.get(request)
+        if cached:
+            return cached
+
+        # Execute workflow
+        result = self.execute_workflow(request)
+
+        # Cache result
+        self.cache.set(request, result)
+
+        # Monitor
+        self.monitor.record_request(request, result)
+
+        return result
 ```
 
 ### 4. Workflow Registry
@@ -148,17 +181,23 @@ auth = NexusAuthPlugin(
 **Purpose**: Manage registered workflows
 
 ```python
-# Workflow registration is handled by NexusApp directly
-app = NexusApp(config=NexusConfig(port=3000))
+class WorkflowRegistry:
+    def __init__(self):
+        self.workflows = {}
+        self.metadata = {}
 
-# Register workflows
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("my-workflow", lambda **inputs: rt.execute(wf, inputs))
+    def register(self, name, workflow, metadata=None):
+        self.workflows[name] = workflow
+        self.metadata[name] = metadata or {}
 
-# List registered handlers
-handlers = app.get_registered_handlers()
-print(handlers)
+    def get(self, name):
+        return self.workflows.get(name)
+
+    def list(self):
+        return list(self.workflows.keys())
+
+    def get_metadata(self, name):
+        return self.metadata.get(name, {})
 ```
 
 ## Design Principles
@@ -169,7 +208,7 @@ print(handlers)
 
 ```python
 # Just works
-app = NexusApp()
+app = Nexus()
 app.start()
 ```
 
@@ -185,11 +224,12 @@ app.start()
 
 ```python
 # Start simple
-app = NexusApp()
+app = Nexus()
 
 # Add features progressively
-app.add_rate_limit(1000)
-# Auth configured via NexusAuthPlugin (see nexus-auth-plugin.md)
+app.enable_auth = True
+app.enable_monitoring = True
+app.rate_limit = 1000
 ```
 
 **Implementation**:
@@ -215,33 +255,30 @@ app.add_rate_limit(1000)
 **Benefits**:
 
 - No SDK modification needed
-- All 139+ nodes available
+- All 140+ nodes available
 - Proven execution engine
 
 ```python
 # Nexus uses Kailash SDK underneath
-import kailash
-
-reg = kailash.NodeRegistry()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 # Build workflow with SDK
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {...})
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "test", {...})
 
 # Nexus registers and exposes it
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("test", lambda **inputs: rt.execute(wf, inputs))
+app.register("test", workflow.build())
 ```
 
-## Request Flow
+## Request Flow (v1.1.0)
 
 ### API Request Flow
 
 ```
 1. Client sends HTTP POST to /workflows/name/execute
    ↓
-2. Enterprise Gateway receives request
+2. Enterprise Gateway receives request (FastAPI)
    ↓
 3. Gateway processes (built-in):
    - Authentication (if enabled)
@@ -300,28 +337,78 @@ NOTE: Response caching is optional (enable_durability flag)
 
 ## Parameter Broadcasting
 
-Parameter broadcasting is handled internally by the Rust runtime. API inputs
-are broadcast to all nodes in the workflow -- each node receives the full
-inputs dict merged with its static config.
+```python
+# How inputs flow to nodes
+class ParameterBroadcaster:
+    def broadcast_inputs(self, workflow, inputs):
+        """
+        Broadcast API inputs to ALL nodes in workflow
+        Each node receives the full inputs dict
+        """
+        parameters = inputs  # inputs → parameters
+
+        for node in workflow.nodes:
+            # Each node gets full parameters
+            node_params = {**node.config, **parameters}
+            node.execute(node_params)
+```
 
 ## Key Implementation Details
 
 ### Auto-Discovery
 
-Auto-discovery scans for workflow files matching patterns like `workflows/*.py`,
-`*.workflow.py`, `workflow_*.py`, `*_workflow.py`. However, auto-discovery is
-disabled by default and should stay disabled when using DataFlow to avoid blocking.
-Register workflows manually with `app.register()` or `@app.handler()` instead.
+```python
+class WorkflowDiscovery:
+    PATTERNS = [
+        "workflows/*.py",
+        "*.workflow.py",
+        "workflow_*.py",
+        "*_workflow.py"
+    ]
+
+    def discover(self, paths):
+        workflows = []
+        for pattern in self.PATTERNS:
+            for path in paths:
+                workflows.extend(glob.glob(f"{path}/{pattern}"))
+        return workflows
+
+    def load_workflow(self, file_path):
+        # Dynamic import
+        spec = importlib.util.spec_from_file_location("module", file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        if hasattr(module, 'workflow'):
+            return module.workflow
+```
 
 ### Health Checking
 
 ```python
-# Health checking is built into NexusApp
-app = NexusApp()
-health = app.health_check()
-print(health)  # {"status": "healthy", ...}
+class HealthChecker:
+    def __init__(self):
+        self.checks = {}
 
-# Health endpoint is available at GET /health
+    def register_check(self, name, check_func):
+        self.checks[name] = check_func
+
+    def check_all(self):
+        results = {}
+        for name, check in self.checks.items():
+            try:
+                results[name] = check()
+            except Exception as e:
+                results[name] = {"status": "unhealthy", "error": str(e)}
+
+        overall = "healthy" if all(
+            r.get("status") == "healthy" for r in results.values()
+        ) else "unhealthy"
+
+        return {
+            "status": overall,
+            "components": results
+        }
 ```
 
 ## Performance Optimizations
@@ -351,31 +438,30 @@ cache.set(
 ### 3. Async Execution
 
 ```python
-# Use async runtime
-import kailash
+# Use async runtime for Docker/FastAPI
+from kailash.runtime import AsyncLocalRuntime
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(workflow, inputs)
+runtime = AsyncLocalRuntime()
+result = await runtime.execute_workflow_async(workflow, inputs)
 ```
 
-## Key Takeaways
+## Key Takeaways (v1.1.0)
 
 - **Multi-layer architecture**: Nexus → Enterprise Gateway → Kailash SDK
 - **Zero-configuration**: `Nexus()` with smart defaults
 - **Built on Kailash SDK**: Leverages proven workflow execution
 - **Single registration path**: `Nexus.register()` handles all channels
-- **Enterprise gateway integration**: Multi-channel support
+- **Enterprise gateway integration**: FastAPI-based with multi-channel support
 - **Parameter broadcasting**: Inputs broadcast to all nodes via runtime
+- **v1.0 vs v1.1 features**: Event logging (v1.0) vs real-time broadcasting (v1.1)
 
-**Current Features:**
+**What's Real in v1.1.0:**
 
 - ✅ Multi-channel exposure (API, CLI, MCP)
 - ✅ Workflow registration and execution
 - ✅ Custom REST endpoints with rate limiting
 - ✅ Health monitoring and metrics
-- ✅ Event logging (via EventBus `subscribe()` and `publish()`)
+- ✅ Event logging (retrieve with `get_events()`)
 
 **Planned for v1.1:**
 

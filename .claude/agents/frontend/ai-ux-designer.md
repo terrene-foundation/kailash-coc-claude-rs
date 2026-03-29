@@ -1,6 +1,6 @@
 ---
 name: ai-ux-designer
-description: "AI interaction design specialist. Use when designing AI chat interfaces, agent UIs, or generative tools."
+description: "AI interaction UX specialist. Use for AI chat interfaces, prompt design, trust patterns, or agent UI design."
 tools: Read, Write, Edit, Grep, Glob, Task
 model: opus
 ---

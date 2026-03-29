@@ -10,6 +10,7 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 > **Skill Metadata**
 > Category: `cross-cutting` (decision-support)
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 > Related Skills: [`dataflow-quickstart`](../../02-dataflow/dataflow-quickstart.md), [`nexus-quickstart`](../../03-nexus/nexus-quickstart.md), [`kaizen-baseagent-template`](../../04-kaizen/kaizen-baseagent-template.md)
 > Related Subagents: `framework-advisor` (complex architecture), `dataflow-specialist`, `nexus-specialist`, `kaizen-specialist`
 
@@ -17,7 +18,7 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 | Your Primary Need                        | Choose                | Why                                            |
 | ---------------------------------------- | --------------------- | ---------------------------------------------- |
-| **Custom workflows, integrations**       | **Core SDK**          | Fine-grained control, 139+ nodes               |
+| **Custom workflows, integrations**       | **Core SDK**          | Fine-grained control, 140+ nodes               |
 | **Database operations**                  | **DataFlow**          | Zero-config, 11 auto-generated nodes per model |
 | **Multi-channel platform** (API+CLI+MCP) | **Nexus**             | Zero-config multi-channel deployment           |
 | **AI agents, multi-agent systems**       | **Kaizen**            | Signature-based programming, BaseAgent         |
@@ -27,7 +28,7 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 ## Framework Comparison
 
-### Core SDK (`pip install kailash-enterprise`)
+### Core SDK (`pip install kailash`)
 
 **Foundational building blocks for workflow automation**
 
@@ -41,27 +42,27 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 **Key Components:**
 
-- WorkflowBuilder with 139+ nodes
-- Runtime with NodeRegistry
+- WorkflowBuilder with 140+ nodes
+- LocalRuntime, ParallelRuntime, AsyncLocalRuntime
 - String-based node API
 - MCP integration built-in
 
 **Example:**
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = len(data)", "output_vars": ["result"]})
-builder.connect("reader", "rows", "process", "data")
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+workflow.add_node("PythonCodeNode", "process", {"code": "result = len(data)"})
+workflow.add_connection("reader", "data", "process", "data")
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-### DataFlow (`pip install kailash-enterprise` -- DataFlow included)
+### DataFlow (`pip install kailash-dataflow`)
 
 **Zero-config database framework built ON Core SDK**
 
@@ -84,29 +85,31 @@ result = rt.execute(builder.build(reg))
 **Example:**
 
 ```python
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-df = kailash.DataFlow("postgresql://localhost/db")
+db = DataFlow("postgresql://localhost/db")
 
 @db.model
 class User:
     name: str
     email: str
 
-# Automatically generates: CreateUser, ReadUser, UpdateUser,
-# DeleteUser, ListUser, BulkCreateUser, etc.
+# Automatically generates: UserCreateNode, UserReadNode, UserUpdateNode,
+# UserDeleteNode, UserListNode, UserBulkCreateNode, etc.
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("CreateUser", "create", {
+workflow = WorkflowBuilder()
+workflow.add_node("UserCreateNode", "create", {
     "name": "Alice",
     "email": "alice@example.com"
 })
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-### Nexus (`pip install kailash-enterprise` -- Nexus included)
+### Nexus (`pip install kailash-nexus`)
 
 **Multi-channel platform built ON Core SDK**
 
@@ -120,7 +123,7 @@ result = rt.execute(builder.build(reg))
 
 **Key Features:**
 
-- True zero-config: `NexusApp()` with no parameters
+- True zero-config: `Nexus()` with no parameters
 - Automatic workflow registration
 - Unified sessions across all channels
 - Progressive enterprise enhancement
@@ -128,25 +131,21 @@ result = rt.execute(builder.build(reg))
 **Example:**
 
 ```python
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-from kailash.nexus import NexusApp
+app = Nexus()  # Zero configuration!
 
-app = NexusApp()  # Zero configuration!
-
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "process", {
-    "code": "result = {'message': 'Hello!'}",
-    "output_vars": ["result"]
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "process", {
+    "code": "result = {'message': 'Hello!'}"
 })
 
-reg = kailash.NodeRegistry()
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("my_workflow", lambda **inputs: rt.execute(workflow, inputs))
+app.register("my_workflow", workflow.build())
 app.start()  # Now accessible via API, CLI, and MCP!
 ```
 
-### Kaizen (`pip install kailash-enterprise` -- Kaizen included)
+### Kaizen (`pip install kailash-kaizen`)
 
 **AI agent framework built ON Core SDK**
 
@@ -162,13 +161,14 @@ app.start()  # Now accessible via API, CLI, and MCP!
 
 - BaseAgent architecture with lazy initialization
 - Signature-based I/O (InputField/OutputField)
-- Memory management with write_to_memory() and read_relevant()
+- SharedMemoryPool for multi-agent coordination
 - Automatic A2A capability card generation
 
 **Example:**
 
 ```python
-import os
+from kaizen.core.base_agent import BaseAgent
+from kaizen.signatures import Signature, InputField, OutputField
 from dataclasses import dataclass
 
 class QASignature(Signature):
@@ -177,7 +177,8 @@ class QASignature(Signature):
 
 @dataclass
 class QAConfig:
-    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
+    llm_provider: str = "openai"
+    model: str = "gpt-3.5-turbo"
 
 class QAAgent(BaseAgent):
     def __init__(self, config: QAConfig):
@@ -197,14 +198,15 @@ result = agent.ask("What is machine learning?")
 Perfect for database applications needing API, CLI, and MCP access:
 
 ```python
+from dataflow import DataFlow
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-# Step 1: Create NexusApp
-from kailash.nexus import NexusApp
+# Step 1: Create Nexus with auto_discovery=False
+app = Nexus(auto_discovery=False)
 
-app = NexusApp()
-
-# Step 2: Create kailash.DataFlow (defaults work correctly)
-df = kailash.DataFlow("postgresql://localhost/db")
+# Step 2: Create DataFlow (defaults work correctly)
+db = DataFlow("postgresql://localhost/db")
 
 @db.model
 class User:
@@ -212,12 +214,9 @@ class User:
     email: str
 
 # Step 3: Register workflows
-builder = kailash.WorkflowBuilder()
-builder.add_node("ListUser", "list_users", {})
-reg = kailash.NodeRegistry()
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("list_users", lambda **inputs: rt.execute(workflow, inputs))
+workflow = WorkflowBuilder()
+workflow.add_node("UserListNode", "list_users", {})
+app.register("list_users", workflow.build())
 
 app.start()
 ```
@@ -227,14 +226,17 @@ app.start()
 Ideal for custom workflows with AI decision-making:
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kaizen.core.base_agent import BaseAgent
 
 # Kaizen agent for AI processing
 agent = QAAgent(config)
 
 # Core SDK workflow for orchestration
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "ai_process", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
+workflow = WorkflowBuilder()
+workflow.add_node("LLMAgentNode", "ai_process", {
+    "provider": "openai",
+    "model": "gpt-4"
 })
 ```
 
@@ -244,17 +246,17 @@ builder.add_node("LLMNode", "ai_process", {
 START: What's your primary use case?
   │
   ├─ Database-heavy application?
-  │    YES → kailash.DataFlow
+  │    YES → DataFlow
   │    │
   │    └─ Need multi-channel access (API/CLI/MCP)?
-  │         YES → kailash.DataFlow + Nexus
-  │         NO → kailash.DataFlow alone
+  │         YES → DataFlow + Nexus
+  │         NO → DataFlow alone
   │
   ├─ Multi-channel platform needed?
   │    YES → Nexus
   │    │
   │    └─ Need database operations?
-  │         YES → kailash.DataFlow + Nexus
+  │         YES → DataFlow + Nexus
   │         NO → Nexus alone
   │
   ├─ AI agent system?

@@ -10,7 +10,6 @@ Comprehensive collection of quick reference guides, common patterns, and best pr
 ## Overview
 
 This skill provides quick access to:
-
 - Common workflow patterns and anti-patterns
 - Node selection and usage guides
 - Production-ready patterns
@@ -21,7 +20,6 @@ This skill provides quick access to:
 ## Quick Reference Guides
 
 ### Essential Guides
-
 - **[kailash-quick-tips](kailash-quick-tips.md)** - Essential tips for Kailash development
 - **[common-mistakes-catalog](common-mistakes-catalog.md)** - Common pitfalls and solutions
 - **[node-selection-guide](node-selection-guide.md)** - Choosing the right nodes
@@ -29,7 +27,6 @@ This skill provides quick access to:
 - **[README](README.md)** - Cheatsheets overview
 
 ### Node References
-
 - **[admin-nodes-reference](admin-nodes-reference.md)** - Admin and management nodes
 - **[asyncsql-advanced](asyncsql-advanced.md)** - AsyncSQL node patterns
 - **[pythoncode-data-science](pythoncode-data-science.md)** - Data science with PythonCode
@@ -38,8 +35,16 @@ This skill provides quick access to:
 - **[query-builder](query-builder.md)** - Query construction patterns
 - **[query-routing](query-routing.md)** - Intelligent query routing
 
-### Production & Enterprise
+### Cyclic Workflow Patterns
+- **[cyclic-patterns-advanced](cyclic-patterns-advanced.md)** - Advanced cyclic patterns
+- **[cycle-aware-nodes](cycle-aware-nodes.md)** - Cycle-aware node development
+- **[cycle-debugging](cycle-debugging.md)** - Debugging cyclic workflows
+- **[cycle-testing](cycle-testing.md)** - Testing cyclic workflows
+- **[cycle-state-persistence](cycle-state-persistence.md)** - State management in cycles
+- **[cycle-scenarios](cycle-scenarios.md)** - Real-world cycle scenarios
+- **[multi-path-cycles](multi-path-cycles.md)** - Multi-path cyclic patterns
 
+### Production & Enterprise
 - **[production-patterns](production-patterns.md)** - Production-ready patterns
 - **[production-readiness](production-readiness.md)** - Production checklist
 - **[performance-optimization](performance-optimization.md)** - Performance tuning
@@ -49,7 +54,6 @@ This skill provides quick access to:
 - **[multi-tenancy-patterns](multi-tenancy-patterns.md)** - Multi-tenant architectures
 
 ### Enterprise Patterns
-
 - **[distributed-transactions](distributed-transactions.md)** - Distributed transaction patterns
 - **[saga-pattern](saga-pattern.md)** - Saga pattern for long transactions
 - **[enterprise-mcp](enterprise-mcp.md)** - Enterprise MCP patterns
@@ -57,7 +61,6 @@ This skill provides quick access to:
 - **[mcp-resource-subscriptions](mcp-resource-subscriptions.md)** - MCP resource patterns
 
 ### Development Tools
-
 - **[custom-node-guide](custom-node-guide.md)** - Creating custom nodes
 - **[developer-tools](developer-tools.md)** - Developer tooling
 - **[node-initialization](node-initialization.md)** - Node initialization patterns
@@ -66,66 +69,60 @@ This skill provides quick access to:
 - **[visualization](visualization.md)** - Workflow visualization
 
 ### Workflow Management
-
 - **[workflow-composition](workflow-composition.md)** - Composing complex workflows
 - **[workflow-design-process](workflow-design-process.md)** - Design process guide
 - **[workflow-api-deployment](workflow-api-deployment.md)** - Deploying workflows as APIs
 - **[workflow-export](workflow-export.md)** - Export and import patterns
 
 ### Integration Patterns
-
 - **[data-integration](data-integration.md)** - Data integration patterns
 - **[integration-mastery](integration-mastery.md)** - Advanced integration techniques
 
 ## Quick Patterns
 
 ### Basic Workflow
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("NodeType", "node_id", {"param": "value"})
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+workflow = WorkflowBuilder()
+workflow.add_node("NodeType", "node_id", {"param": "value"})
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ### Common Node Selection
-
 ```python
 # Data processing
-builder.add_node("EmbeddedPythonNode", "transform", {"code": "result = data", "output_vars": ["result"]})
+workflow.add_node("PythonCode", "transform", {"code": "..."})
 
 # API calls
-builder.add_node("HTTPRequestNode", "api", {"url": "...", "method": "GET"})
+workflow.add_node("HTTPRequest", "api", {"url": "...", "method": "GET"})
 
 # AI/LLM
-builder.add_node("LLMNode", "chat", {"model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"), "prompt": "..."})
+workflow.add_node("LLMNode", "chat", {"model": "gpt-4", "prompt": "..."})
 ```
 
 ### Cyclic Pattern
-
 ```python
-builder.add_node("LoopNode", "loop", {"max_iterations": 5})
-builder.add_node("EmbeddedPythonNode", "process", {"code": "result = input_data", "output_vars": ["result"]})
-builder.connect("source", "items_array", "loop", "items")
-builder.connect("loop", "results", "process", "data")
+workflow.add_node("LoopNode", "loop", {"max_iterations": 5})
+workflow.add_node("ProcessNode", "process", {})
+workflow.add_connection("loop", "item", "process", "input")
+workflow.add_connection("process", "output", "loop", "feedback")
 ```
 
 ## CRITICAL Gotchas
 
-| Rule                          | Why                     |
-| ----------------------------- | ----------------------- |
-| ❌ NEVER use raw SQL          | Use DataFlow instead    |
-| ✅ ALWAYS call `.build()`     | Before `rt.execute()`   |
-| ❌ NEVER use relative imports | Use absolute imports    |
-| ❌ NEVER mock in Tier 2-3     | Use real infrastructure |
+| Rule | Why |
+|------|-----|
+| ❌ NEVER use raw SQL | Use DataFlow instead |
+| ✅ ALWAYS call `.build()` | Before `runtime.execute()` |
+| ❌ NEVER use relative imports | Use absolute imports |
+| ❌ NEVER mock in Tier 2-3 | Use real infrastructure |
 
 ## When to Use This Skill
 
 Use this skill when you need:
-
 - Quick reference for common patterns
 - Solution to a specific problem
 - Best practices for production
@@ -138,15 +135,14 @@ Use this skill when you need:
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core SDK fundamentals
-- **[07-development-guides](../07-development-guides/SKILL.md)** - Detailed development guides
-- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Node reference documentation
-- **[09-workflow-patterns](../09-workflow-patterns/SKILL.md)** - Industry workflow patterns
+- **[07-development-guides](../development-guides/SKILL.md)** - Detailed development guides
+- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference documentation
+- **[09-workflow-patterns](../workflows/SKILL.md)** - Industry workflow patterns
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Mandatory best practices
 
 ## Support
 
 For cheatsheet-related questions, invoke:
-
 - `pattern-expert` - Pattern selection and usage
 - `sdk-navigator` - Find specific patterns in documentation
 - `framework-advisor` - Choose appropriate patterns for your use case

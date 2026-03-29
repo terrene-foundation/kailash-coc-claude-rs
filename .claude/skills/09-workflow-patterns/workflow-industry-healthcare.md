@@ -8,48 +8,49 @@ description: "Healthcare workflows (patient data, HIPAA, medical records). Use w
 > **Skill Metadata**
 > Category: `industry-workflows`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Patient Record Management (HIPAA Compliant)
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Authenticate user
-builder.add_node("HTTPRequestNode", "authenticate", {
+workflow.add_node("APICallNode", "authenticate", {
     "url": "{{secrets.auth_endpoint}}",
     "method": "POST"
 })
 
 # 2. Check HIPAA authorization
-builder.add_node("SQLQueryNode", "check_access", {
+workflow.add_node("DatabaseQueryNode", "check_access", {
     "query": "SELECT role FROM healthcare_staff WHERE id = ? AND hipaa_certified = TRUE",
-    "params": ["{{authenticate.body}}"]
+    "parameters": ["{{authenticate.user_id}}"]
 })
 
 # 3. Fetch patient record (encrypted)
-builder.add_node("SQLQueryNode", "fetch_record", {
+workflow.add_node("DatabaseQueryNode", "fetch_record", {
     "query": "SELECT encrypted_data FROM patient_records WHERE patient_id = ?",
-    "params": ["{{input.patient_id}}"]
+    "parameters": ["{{input.patient_id}}"]
 })
 
 # 4. Decrypt data
-builder.add_node("EmbeddedPythonNode", "decrypt", {
-    "code": "result = aes_decrypt(data, secret_key)",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "decrypt", {
+    "input": "{{fetch_record.encrypted_data}}",
+    "transformation": "aes_decrypt(value, secret_key)"
 })
 
 # 5. Audit log
-builder.add_node("SQLQueryNode", "audit", {
+workflow.add_node("DatabaseExecuteNode", "audit", {
     "query": "INSERT INTO hipaa_audit_log (staff_id, patient_id, action, timestamp) VALUES (?, ?, 'record_access', NOW())",
-    "params": ["{{authenticate.body}}", "{{input.patient_id}}"]
+    "parameters": ["{{authenticate.user_id}}", "{{input.patient_id}}"]
 })
 
-builder.connect("authenticate", "body", "check_access", "body")
-builder.connect("check_access", "rows", "fetch_record", "body")
-builder.connect("fetch_record", "rows", "decrypt", "inputs")
-builder.connect("decrypt", "outputs", "audit", "body")
+workflow.add_connection("authenticate", "user_id", "check_access", "parameters")
+workflow.add_connection("check_access", "role", "fetch_record", "authorization")
+workflow.add_connection("fetch_record", "encrypted_data", "decrypt", "input")
+workflow.add_connection("decrypt", "data", "audit", "parameters")
 ```
 
 <!-- Trigger Keywords: healthcare workflow, patient workflow, HIPAA, medical records, patient data -->

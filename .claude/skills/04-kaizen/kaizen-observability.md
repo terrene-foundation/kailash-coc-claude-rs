@@ -1,145 +1,131 @@
----
-name: kaizen-observability
-description: "Observability stack for Kaizen agents. Use when asking about ObservabilityManager, MetricsCollector, TracingManager, LogAggregator, SpanContext, agent metrics, distributed tracing, or log aggregation."
----
+# Kaizen Observability
 
-# Kaizen Observability: Metrics, Tracing, and Logging
-
-The observability module provides three subsystems coordinated by a central manager:
-
-1. **`MetricsCollector`** -- Latency, token counts, errors, and tool calls per agent
-2. **`TracingManager`** -- Hierarchical spans with parent-child relationships
-3. **`LogAggregator`** -- Structured log entries with ring buffer storage
-4. **`SpanContext`** -- Trace/span ID propagation for distributed tracing
-5. **`ObservabilityManager`** -- Coordinator that owns all three subsystems
-
-All types are thread-safe and suitable for concurrent use.
+Monitor, trace, and debug AI agent execution with structured logging and metrics.
 
 ## SpanContext
 
+Track execution spans for timing and correlation.
+
 ```python
-from kailash.kaizen import SpanContext
+from kailash_kaizen.observability import SpanContext
+import time
 
-# Create a root span (new trace_id, no parent)
-root = SpanContext.root("agent-run")
-print(root.trace_id)           # str (UUID)
-print(root.span_id)            # str (UUID)
-print(root.parent_span_id)     # None for root
-print(root.name)               # "agent-run"
+# Create a span for tracking
+span = SpanContext(name="research_task", trace_id="trace-001")
+span.start()
 
-# Create a child span (inherits trace_id)
-child = root.child("llm-call")
-assert child.trace_id == root.trace_id
-assert child.parent_span_id == root.span_id
+# ... do work ...
+time.sleep(0.1)
+
+span.end()
+print(f"Duration: {span.duration_ms}ms")
+print(f"Trace ID: {span.trace_id}")
 ```
 
 ## MetricsCollector
 
-Thread-safe metrics collection. Records latency, token counts, errors, and tool calls per agent.
+Collect and aggregate execution metrics.
 
 ```python
-from kailash.kaizen import MetricsCollector
+from kailash_kaizen.observability import MetricsCollector
 
-mc = MetricsCollector()
+metrics = MetricsCollector()
 
 # Record metrics
-mc.record_latency("agent-1", 250)           # duration_ms
-mc.record_tokens("agent-1", 500, 200)       # input_tokens, output_tokens
-mc.record_error("agent-1", "timeout")
-mc.record_tool_call("agent-1", "search", 100)  # tool_name, duration_ms
+metrics.record("agent_calls", 1)
+metrics.record("tokens_used", 150)
+metrics.record("latency_ms", 230)
 
-# Get snapshot
-snapshot = mc.get_metrics()
-# {"agent-1": {"total_calls": 1, "avg_latency_ms": 250.0, ...}}
-
-# Reset
-mc.reset()
-```
-
-### AgentMetrics Fields
-
-- `total_calls` -- Number of latency records
-- `total_latency_ms` -- Sum of all latency durations in ms
-- `avg_latency_ms` -- Average latency
-- `total_input_tokens` / `total_output_tokens`
-- `error_count`
-- `tool_calls`
-
-## TracingManager
-
-Creates and manages hierarchical spans.
-
-```python
-import os
-from kailash.kaizen import TracingManager
-
-tm = TracingManager()
-
-# Start spans
-root = tm.start_span("agent-run")               # no parent
-child = tm.start_span("llm-call", parent=root)
-
-# Add attributes
-tm.add_span_attribute(child, "model", os.environ.get("LLM_MODEL", "gpt-4o"))
-tm.add_span_attribute(child, "tokens", "700")
-
-# End spans
-tm.end_span(child)
-tm.end_span(root)
-
-# Retrieve trace
-trace = tm.get_trace(root.trace_id)
-# {"trace_id": "...", "spans": [{"span_id": "...", ...}]}
+# Get aggregated metrics
+summary = metrics.summary()
+print(f"Total agent calls: {summary['agent_calls']}")
+print(f"Total tokens: {summary['tokens_used']}")
+print(f"Avg latency: {summary['latency_ms_avg']}ms")
 ```
 
 ## LogAggregator
 
-Structured log collection with ring buffer storage and filtering.
+Aggregate logs from multiple agents.
 
 ```python
-from kailash.kaizen import LogAggregator
+from kailash_kaizen.observability import LogAggregator
 
-la = LogAggregator(max_entries=1000)
+logs = LogAggregator()
 
-# Log entries
-la.log("info", "agent-1", "Processing started")
-la.log("error", "agent-1", "Failed", metadata={"code": "500"})
-la.log("debug", "agent-1", "Details", span_context=root)
+# Add log entries
+logs.add("researcher", "info", "Starting research on AI safety")
+logs.add("researcher", "debug", "Found 15 relevant papers")
+logs.add("writer", "info", "Generating summary")
+logs.add("writer", "warning", "Output exceeded max length, truncating")
 
-# Query logs with filters
-logs = la.get_logs()                      # all logs
-logs = la.get_logs(level="error")         # filter by level
-logs = la.get_logs(agent_name="agent-1")  # filter by agent
-# Each log: {"timestamp", "level", "agent_name", "message", "metadata", "span_context"}
+# Query logs
+researcher_logs = logs.get_by_agent("researcher")
+warnings = logs.get_by_level("warning")
+all_logs = logs.get_all()
 ```
-
-### LogLevel
-
-Supported levels: `"debug"`, `"info"`, `"warn"`, `"error"`
 
 ## ObservabilityManager
 
-Coordinator that owns a MetricsCollector, TracingManager, and LogAggregator (capacity: 10,000).
+Unified observability combining spans, metrics, and logs.
 
 ```python
-from kailash.kaizen import ObservabilityManager
+from kailash_kaizen.observability import ObservabilityManager
 
-mgr = ObservabilityManager()
+obs = ObservabilityManager()
 
-# Access subsystems
-mgr.metrics.record_latency("agent-1", 250)
-ctx = mgr.tracing.start_span("operation")
-mgr.logging.log("info", "agent-1", "Started")
-mgr.tracing.end_span(ctx)
+# Start a traced operation
+with obs.span("full_pipeline") as span:
+    # Research phase
+    with obs.span("research") as research_span:
+        obs.log("researcher", "info", "Starting research")
+        # ... research work ...
+        obs.record("research_sources", 15)
 
-# Export
-json_str = mgr.export_metrics_json()              # str
-json_str = mgr.export_trace_json(ctx.trace_id)     # str, raises ValueError if not found
+    # Writing phase
+    with obs.span("writing") as write_span:
+        obs.log("writer", "info", "Generating article")
+        # ... writing work ...
+        obs.record("output_words", 500)
 
-# Subsystem properties
-mc = mgr.metrics     # MetricsCollector
-tm = mgr.tracing     # TracingManager
-la = mgr.logging     # LogAggregator
+# Get full report
+report = obs.report()
+print(f"Total duration: {report['total_duration_ms']}ms")
+print(f"Spans: {len(report['spans'])}")
+print(f"Metrics: {report['metrics']}")
 ```
 
-<!-- Trigger Keywords: observability, ObservabilityManager, MetricsCollector, TracingManager, LogAggregator, SpanContext, agent metrics, distributed tracing, log aggregation -->
+## Integration with Agents
+
+```python
+from kailash_kaizen import BaseAgent
+from kailash_kaizen.observability import ObservabilityManager
+
+class ObservableAgent(BaseAgent):
+    def __init__(self, name, obs=None):
+        super().__init__(name=name)
+        self.obs = obs or ObservabilityManager()
+
+    def run(self, input_text):
+        with self.obs.span(f"{self.name}_execution") as span:
+            self.obs.log(self.name, "info", f"Processing: {input_text[:50]}")
+
+            result = self._process(input_text)
+
+            self.obs.record(f"{self.name}_tokens", len(input_text.split()))
+            self.obs.log(self.name, "info", "Complete")
+
+            return result
+
+    def _process(self, input_text):
+        return {"response": f"Processed: {input_text}"}
+```
+
+## Best Practices
+
+1. **Use spans for timing** -- wrap operations in spans for duration tracking
+2. **Log at appropriate levels** -- info for key events, debug for details, warning for issues
+3. **Record meaningful metrics** -- token counts, latency, error rates
+4. **Use trace IDs for correlation** -- link spans across agent boundaries
+5. **Don't over-instrument** -- focus on key operations, not every function call
+
+<!-- Trigger Keywords: observability, tracing, metrics, logging, spans, monitoring, agent debugging -->

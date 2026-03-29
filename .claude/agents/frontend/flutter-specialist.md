@@ -1,6 +1,6 @@
 ---
 name: flutter-specialist
-description: "Flutter specialist for Kailash SDK mobile/desktop apps. Use for architecture and Kailash integration."
+description: Flutter specialist for Kailash SDK mobile/desktop. Use for Flutter architecture, Riverpod, or SDK integration.
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---
@@ -120,7 +120,6 @@ When this guidance is insufficient, consult:
 - `.claude/skills/19-flutter-patterns/creating-design-system.md` - Creating design systems
 - `.claude/skills/19-flutter-patterns/flutter-testing-patterns.md` - Testing strategies
 - `.claude/skills/23-uiux-design-principles/SKILL.md` - UI/UX design principles (CRITICAL)
-- `.claude/skills/03-nexus/` — Nexus API patterns and deployment
 - Flutter docs: https://docs.flutter.dev/
 - Riverpod docs: https://riverpod.dev/
 - Go Router docs: https://pub.dev/packages/go_router

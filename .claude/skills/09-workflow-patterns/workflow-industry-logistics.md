@@ -8,53 +8,57 @@ description: "Logistics/supply chain workflows (tracking, routing, delivery). Us
 > **Skill Metadata**
 > Category: `industry-workflows`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Shipment Tracking and Delivery
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Create shipment
-builder.add_node("SQLQueryNode", "create_shipment", {
+workflow.add_node("DatabaseExecuteNode", "create_shipment", {
     "query": "INSERT INTO shipments (origin, destination, status) VALUES (?, ?, 'pending')",
-    "params": ["{{input.origin}}", "{{input.destination}}"]
+    "parameters": ["{{input.origin}}", "{{input.destination}}"]
 })
 
 # 2. Calculate optimal route
-builder.add_node("HTTPRequestNode", "route_optimization", {
+workflow.add_node("APICallNode", "route_optimization", {
     "url": "https://api.routingengine.com/optimize",
     "method": "POST",
     "body": {"origin": "{{input.origin}}", "destination": "{{input.destination}}"}
 })
 
 # 3. Assign to driver
-builder.add_node("SQLQueryNode", "find_driver", {
+workflow.add_node("DatabaseQueryNode", "find_driver", {
     "query": "SELECT id FROM drivers WHERE status = 'available' AND location_near(?, 50) LIMIT 1",
-    "params": ["{{input.origin}}"]
+    "parameters": ["{{input.origin}}"]
 })
 
 # 4. Update shipment with route
-builder.add_node("SQLQueryNode", "update_shipment", {
+workflow.add_node("DatabaseExecuteNode", "update_shipment", {
     "query": "UPDATE shipments SET driver_id = ?, route = ?, status = 'in_transit' WHERE id = ?",
-    "params": ["{{find_driver.rows}}", "{{route_optimization.body}}", "{{create_shipment.rows}}"]
+    "parameters": ["{{find_driver.id}}", "{{route_optimization.route}}", "{{create_shipment.id}}"]
 })
 
-# 5. Real-time tracking — LoopNode input is "items", outputs "results" and "count"
-builder.add_node("LoopNode", "track_location", {})
+# 5. Real-time tracking
+workflow.add_node("LoopNode", "track_location", {
+    "condition": "{{current_status}} != 'delivered'",
+    "interval": 300  # Check every 5 minutes
+})
 
 # 6. Update delivery status
-builder.add_node("SQLQueryNode", "mark_delivered", {
+workflow.add_node("DatabaseExecuteNode", "mark_delivered", {
     "query": "UPDATE shipments SET status = 'delivered', delivered_at = NOW() WHERE id = ?",
-    "params": ["{{create_shipment.rows}}"]
+    "parameters": ["{{create_shipment.id}}"]
 })
 
-builder.connect("create_shipment", "rows", "route_optimization", "body")
-builder.connect("route_optimization", "body", "find_driver", "body")
-builder.connect("find_driver", "rows", "update_shipment", "body")
-builder.connect("update_shipment", "row_count", "track_location", "items")
-builder.connect("track_location", "results", "mark_delivered", "body")
+workflow.add_connection("create_shipment", "id", "route_optimization", "shipment_id")
+workflow.add_connection("route_optimization", "route", "find_driver", "location")
+workflow.add_connection("find_driver", "id", "update_shipment", "driver_id")
+workflow.add_connection("update_shipment", "status", "track_location", "current_status")
+workflow.add_connection("track_location", "result", "mark_delivered", "trigger")
 ```
 
 <!-- Trigger Keywords: logistics workflow, supply chain, shipment tracking, route optimization, delivery -->

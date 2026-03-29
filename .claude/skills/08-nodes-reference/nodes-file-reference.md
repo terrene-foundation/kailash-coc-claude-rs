@@ -10,29 +10,30 @@ Complete reference for file system operation nodes.
 > **Skill Metadata**
 > Category: `nodes`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`nodes-data-reference`](nodes-data-reference.md), [`nodes-quick-index`](nodes-quick-index.md)
 > Related Subagents: `pattern-expert` (file workflows)
 
 ## Quick Reference
 
 ```python
-import kailash
-
-# All nodes are string-based: builder.add_node("NodeType", "id", {...})
-# Available file nodes: FileReaderNode, FileWriterNode, DirectoryReaderNode
+from kailash.nodes.data import (
+    FileReaderNode,
+    FileWriterNode,
+    DirectoryReaderNode
+)
 ```
 
 ## File Reader
 
 ### FileReaderNode
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-builder.add_node("FileReaderNode", "reader", {
-    "path": "/path/to/file.txt",
+workflow.add_node("FileReaderNode", "reader", {
+    "file_path": "/path/to/file.txt",
     "encoding": "utf-8"
 })
 ```
@@ -40,10 +41,9 @@ builder.add_node("FileReaderNode", "reader", {
 ## File Writer
 
 ### FileWriterNode
-
 ```python
-builder.add_node("FileWriterNode", "writer", {
-    "path": "/path/to/output.txt",
+workflow.add_node("FileWriterNode", "writer", {
+    "file_path": "/path/to/output.txt",
     "content": "File content here",
     "mode": "w"  # 'w' (write) or 'a' (append)
 })
@@ -52,9 +52,8 @@ builder.add_node("FileWriterNode", "writer", {
 ## Directory Operations
 
 ### DirectoryReaderNode
-
 ```python
-builder.add_node("DirectoryReaderNode", "dir_reader", {
+workflow.add_node("DirectoryReaderNode", "dir_reader", {
     "directory_path": "/path/to/directory",
     "pattern": "*.txt",
     "recursive": True

@@ -10,29 +10,33 @@ AI-powered document analysis, extraction, and classification workflows.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
-> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../08-nodes-reference/nodes-ai-reference.md)
+> SDK Version: `0.9.25+`
+> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../nodes/nodes-ai-reference.md)
 
 ## Pattern: Invoice Processing with AI
 
 ```python
-import os
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Read document
-builder.add_node("PDFReaderNode", "read_invoice", {
+workflow.add_node("DocumentProcessorNode", "read_invoice", {
     "file_path": "{{input.invoice_path}}"
 })
 
 # 2. OCR extraction
-builder.add_node("LLMNode", "extract_fields", {
-    "model": os.environ.get("DEFAULT_VISION_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "Extract: invoice_number, date, amount, vendor from this invoice"
+workflow.add_node("LLMNode", "extract_fields", {
+    "provider": "openai",
+    "model": "gpt-4-vision",
+    "prompt": "Extract: invoice_number, date, amount, vendor from this invoice",
+    "image": "{{read_invoice.content}}"
 })
 
-# 3. Validate extracted data — use SchemaValidatorNode
-builder.add_node("SchemaValidatorNode", "validate", {
+# 3. Validate extracted data
+workflow.add_node("DataValidationNode", "validate", {
+    "input": "{{extract_fields.data}}",
     "schema": {
         "invoice_number": "string",
         "date": "date",
@@ -42,19 +46,20 @@ builder.add_node("SchemaValidatorNode", "validate", {
 })
 
 # 4. Store in database
-builder.add_node("SQLQueryNode", "store", {
+workflow.add_node("DatabaseExecuteNode", "store", {
     "query": "INSERT INTO invoices (number, date, amount, vendor) VALUES (?, ?, ?, ?)",
-    "params": "{{validate.valid}}"
+    "parameters": "{{validate.valid_data}}"
 })
 
-builder.connect("read_invoice", "text", "extract_fields", "prompt")
-builder.connect("extract_fields", "response", "validate", "data")
-builder.connect("validate", "valid", "store", "body")
+workflow.add_connection("read_invoice", "content", "extract_fields", "image")
+workflow.add_connection("extract_fields", "data", "validate", "input")
+workflow.add_connection("validate", "valid_data", "store", "parameters")
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
+
+## Documentation
+
 
 <!-- Trigger Keywords: AI document, document AI, OCR workflow, intelligent document processing, invoice extraction -->

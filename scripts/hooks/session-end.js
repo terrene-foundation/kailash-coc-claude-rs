@@ -19,6 +19,13 @@ const {
   countObservations,
 } = require("./lib/learning-utils");
 
+// Timeout fallback — prevents hanging the Claude Code session
+const TIMEOUT_MS = 15000;
+const _timeout = setTimeout(() => {
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(1);
+}, TIMEOUT_MS);
+
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => (input += chunk));
@@ -107,18 +114,14 @@ function collectSessionStats(cwd) {
   try {
     const stats = {
       pythonFiles: 0,
-      rubyFiles: 0,
       testFiles: 0,
       workflowFiles: 0,
     };
 
-    const files = fs.readdirSync(cwd);
-    const pyFiles = files.filter((f) => f.endsWith(".py"));
-    const rbFiles = files.filter((f) => f.endsWith(".rb"));
-    stats.pythonFiles = pyFiles.length;
-    stats.rubyFiles = rbFiles.length;
+    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
+    stats.pythonFiles = files.length;
 
-    for (const file of pyFiles) {
+    for (const file of files) {
       if (/_test\.py$|test_.*\.py$/.test(file)) {
         stats.testFiles++;
       }
@@ -130,12 +133,6 @@ function collectSessionStats(cwd) {
       } catch {}
     }
 
-    for (const file of rbFiles) {
-      if (/_spec\.rb$/.test(file)) {
-        stats.testFiles++;
-      }
-    }
-
     return stats;
   } catch {
     return {};
@@ -145,36 +142,19 @@ function collectSessionStats(cwd) {
 // Scans top-level cwd only (not subdirectories) for performance in hooks.
 function detectFramework(cwd) {
   try {
-    const files = fs.readdirSync(cwd);
-
-    // ── Python detection ────────────────────────────────────────────────
-    const pyFiles = files.filter((f) => f.endsWith(".py"));
-    for (const file of pyFiles.slice(0, 10)) {
+    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
+    for (const file of files.slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/@db\.model/.test(content) || /from kailash\.dataflow/.test(content))
+        if (/@db\.model/.test(content) || /from dataflow/.test(content))
           return "dataflow";
-        if (/from kailash\.nexus/.test(content) || /NexusApp/.test(content))
+        if (/from nexus/.test(content) || /Nexus\(/.test(content))
           return "nexus";
-        if (/from kailash\.kaizen/.test(content) || /BaseAgent/.test(content))
+        if (/from kaizen/.test(content) || /BaseAgent/.test(content))
           return "kaizen";
         if (/WorkflowBuilder/.test(content)) return "core-sdk";
       } catch {}
     }
-
-    // ── Ruby detection ──────────────────────────────────────────────────
-    const rbFiles = files.filter((f) => f.endsWith(".rb"));
-    for (const file of rbFiles.slice(0, 10)) {
-      try {
-        const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/Kailash::DataFlow/.test(content)) return "dataflow";
-        if (/Kailash::Nexus/.test(content)) return "nexus";
-        if (/Kailash::Kaizen/.test(content)) return "kaizen";
-        if (/Kailash::Enterprise/.test(content)) return "enterprise";
-        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
-      } catch {}
-    }
-
     return "core-sdk";
   } catch {
     return "unknown";
@@ -228,6 +208,12 @@ function autoProcessLearning(learningDir) {
   if (fp.length > 0) {
     const fpInstincts = processor.generateInstincts(fp);
     processor.saveInstincts(fpInstincts, "framework-selection", learningDir);
+  }
+
+  const dfp = processor.analyzeDataFlowPatterns(obs);
+  if (dfp.length > 0) {
+    const dfpInstincts = processor.generateInstincts(dfp);
+    processor.saveInstincts(dfpInstincts, "dataflow-models", learningDir);
   }
 
   // Auto-evolve: promote high-confidence instincts to skills/commands

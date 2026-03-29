@@ -13,22 +13,21 @@ Master workflow registration patterns from basic to advanced.
 
 Nexus provides two registration approaches:
 
-| Method           | Use Case                       | Example                                                         |
-| ---------------- | ------------------------------ | --------------------------------------------------------------- |
-| `app.register()` | WorkflowBuilder workflows      | `app.register("name", lambda **inputs: rt.execute(wf, inputs))` |
-| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                                          |
+| Method           | Use Case                       | Example                                  |
+| ---------------- | ------------------------------ | ---------------------------------------- |
+| `app.register()` | WorkflowBuilder workflows      | `app.register("name", workflow.build())` |
+| `@app.handler()` | Python functions (recommended) | `@app.handler("name")`                   |
 
-**Recommendation**: Use `@app.handler()` for most cases. It bypasses EmbeddedPythonNode sandbox restrictions and provides better IDE support.
+**Recommendation**: Use `@app.handler()` for most cases. It bypasses PythonCodeNode sandbox restrictions and provides better IDE support.
 
 ## Handler Registration (Recommended)
 
 Register Python functions directly as multi-channel workflows:
 
 ```python
-import kailash
+from nexus import Nexus
 
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
 @app.handler("greet", description="Greet a user")
 async def greet(name: str, greeting: str = "Hello") -> dict:
@@ -50,7 +49,7 @@ app.start()
 ```python
 from my_app.handlers import process_order
 
-app = NexusApp()
+app = Nexus()
 app.register_handler("process_order", process_order, description="Process an order")
 app.start()
 ```
@@ -65,36 +64,30 @@ app.start()
 
 See [nexus-handler-support](#) for complete handler documentation.
 
-## Workflow Registration
+## Workflow Registration (v1.1.0)
 
 ```python
-import kailash
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
 # Create workflow
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "fetch", {
     "url": "https://api.example.com/data",
     "method": "GET"
 })
 
-# Build workflow and create runtime
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-
 # Register with name - single call exposes on ALL channels
-app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs))
+app.register("data-fetcher", workflow.build())
 
-# What happens internally:
-# 1. Nexus stores callable: self._handlers[name] = callable
-# 2. Gateway registration: self._gateway.register_workflow(name, callable)
+# What happens internally (v1.1.0):
+# 1. Nexus stores workflow: self._workflows[name] = workflow
+# 2. Gateway registration: self._gateway.register_workflow(name, workflow)
 #    → API endpoint: POST /workflows/data-fetcher/execute
 #    → CLI command: nexus execute data-fetcher
-# 3. MCP registration: self._mcp_channel.register_workflow(name, callable)
+# 3. MCP registration: self._mcp_channel.register_workflow(name, workflow)
 #    → MCP tool: workflow_data-fetcher
 
 # No ChannelManager - Nexus handles everything directly
@@ -102,45 +95,41 @@ app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs))
 
 ## Critical Rules
 
-### Always Call .build() and Wrap in a Callable
+### Always Call .build()
 
 ```python
-# CORRECT - build workflow, create runtime, register a callable
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("workflow-name", lambda **inputs: rt.execute(workflow, inputs))
+# CORRECT
+app.register("workflow-name", workflow.build())
 
-# WRONG - register() takes a callable, not a Workflow object
-app.register("workflow-name", builder.build(reg))
+# WRONG - Will fail
+app.register("workflow-name", workflow)
 ```
 
 ### Correct Parameter Order
 
 ```python
-# CORRECT - name first, callable second
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register(name, lambda **inputs: rt.execute(workflow, inputs))
+# CORRECT - name first, workflow second
+app.register(name, workflow.build())
 
 # WRONG - reversed parameters
-app.register(builder.build(reg), name)
+app.register(workflow.build(), name)
 ```
 
-## Enhanced Registration with Metadata
+## Enhanced Registration with Metadata (v1.1.0)
 
-**NOTE**: Metadata is currently NOT supported in the `register()` method signature.
-The method accepts `(name, callable, params=None, description=None, auto_params=False)`.
+**NOTE**: Metadata is currently NOT supported in v1.1.0's `register()` method signature.
+The method only accepts `(name, workflow)` - no metadata parameter.
 
 ```python
-# Current: register with callable + optional params/description
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs))
+# v1.1.0 Reality: No metadata parameter
+app.register("data-fetcher", workflow.build())
 
-# With description:
-# app.register("data-fetcher", lambda **inputs: rt.execute(workflow, inputs),
-#     description="Fetches data from external API"
-# )
+# Planned for future version:
+# app.register("data-fetcher", workflow.build(), metadata={
+#     "version": "1.0.0",
+#     "description": "Fetches data from external API",
+#     "tags": ["data", "api"]
+# })
 
 # Current workaround: Store metadata separately
 app._workflow_metadata = getattr(app, '_workflow_metadata', {})
@@ -154,8 +143,8 @@ app._workflow_metadata["data-fetcher"] = {
 
 **What Changed:**
 
-- ❌ `register(name, callable, metadata)` not supported currently
-- ✅ Only `register(name, callable)` signature available
+- ❌ `register(name, workflow, metadata)` not supported in v1.1.0
+- ✅ Only `register(name, workflow)` signature available
 - 🔜 Metadata support planned for future version
 
 ## Auto-Discovery
@@ -173,10 +162,10 @@ Nexus automatically discovers workflows in these patterns:
 
 ```python
 # my_workflow.py
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "fetch", {
     "url": "https://httpbin.org/json",
     "method": "GET"
 })
@@ -186,10 +175,10 @@ builder.add_node("HTTPRequestNode", "fetch", {
 
 ```python
 # Enable (default)
-app = NexusApp()  # auto_discovery not a NexusApp param
+app = Nexus(auto_discovery=True)
 
 # Disable (recommended with DataFlow)
-app = NexusApp()  # Register workflows manually
+app = Nexus(auto_discovery=False)
 ```
 
 ## Dynamic Registration
@@ -197,14 +186,11 @@ app = NexusApp()  # Register workflows manually
 ### Runtime Workflow Discovery
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
 import os
 import importlib.util
 
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
 def discover_and_register(directory="./workflows"):
     for filename in os.listdir(directory):
@@ -220,10 +206,8 @@ def discover_and_register(directory="./workflows"):
             spec.loader.exec_module(module)
 
             # Register workflow
-            if hasattr(module, 'builder'):
-                workflow = module.builder.build(reg)
-                rt = kailash.Runtime(reg)
-                app.register(name, lambda **inputs, _rt=rt, _wf=workflow: _rt.execute(_wf, inputs))
+            if hasattr(module, 'workflow'):
+                app.register(name, module.workflow.build())
                 print(f"Registered: {name}")
 
 discover_and_register()
@@ -239,11 +223,11 @@ def register_from_config(app, config_file="workflows.yaml"):
         config = yaml.safe_load(f)
 
     for wf_config in config['workflows']:
-        builder = kailash.WorkflowBuilder()
+        workflow = WorkflowBuilder()
 
         # Build from config
         for node in wf_config['nodes']:
-            builder.add_node(
+            workflow.add_node(
                 node['type'],
                 node['id'],
                 node['parameters']
@@ -251,17 +235,15 @@ def register_from_config(app, config_file="workflows.yaml"):
 
         # Add connections
         for conn in wf_config.get('connections', []):
-            builder.connect(
-                conn['source'], "result",
-                conn['target'], "input"
+            workflow.add_connection(
+                conn['from_node'], "result",
+                conn['to_node'], "input"
             )
 
-        # NOTE: register() only accepts (name, callable) -- no metadata parameter
-        workflow = builder.build(reg)
-        rt = kailash.Runtime(reg)
         app.register(
             wf_config['name'],
-            lambda **inputs, _rt=rt, _wf=workflow: _rt.execute(_wf, inputs),
+            workflow.build(),
+            metadata=wf_config.get('metadata', {})
         )
 ```
 
@@ -271,9 +253,8 @@ def register_from_config(app, config_file="workflows.yaml"):
 
 ```python
 class WorkflowVersionManager:
-    def __init__(self, nexus_app, runtime):
+    def __init__(self, nexus_app):
         self.app = nexus_app
-        self.rt = runtime
         self.versions = {}
 
     def register_version(self, name, workflow, version, metadata=None):
@@ -287,9 +268,7 @@ class WorkflowVersionManager:
             **(metadata or {})
         }
 
-        # NOTE: register() only accepts (name, callable) -- no metadata parameter
-        rt = self.rt
-        self.app.register(versioned_name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
+        self.app.register(versioned_name, workflow.build(), metadata=version_metadata)
 
         # Track versions
         if name not in self.versions:
@@ -299,23 +278,18 @@ class WorkflowVersionManager:
         # Register as latest
         latest = max(self.versions[name])
         if version == latest:
-            self.app.register(f"{name}:latest", lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
-            self.app.register(name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
+            self.app.register(f"{name}:latest", workflow.build(), metadata=version_metadata)
+            self.app.register(name, workflow.build(), metadata=version_metadata)
 
     def rollback(self, name, target_version):
-        # NOTE: app.workflows does not exist. Use app.get_registered_handlers()
-        # This is a conceptual pattern -- actual implementation needs a version store.
-        versioned_workflow = self._version_store.get(f"{name}:v{target_version}")
+        versioned_workflow = self.app.workflows.get(f"{name}:v{target_version}")
         if versioned_workflow:
-            rt = self.rt
-            wf = versioned_workflow.workflow
-            self.app.register(name, lambda **inputs, _wf=wf: rt.execute(_wf, inputs))
+            self.app.register(name, versioned_workflow.workflow)
             return True
         return False
 
 # Usage
-rt = kailash.Runtime(reg)
-version_mgr = WorkflowVersionManager(app, rt)
+version_mgr = WorkflowVersionManager(app)
 version_mgr.register_version("data-api", workflow, "1.0.0")
 version_mgr.register_version("data-api", workflow_v2, "2.0.0")
 version_mgr.rollback("data-api", "1.0.0")
@@ -325,44 +299,35 @@ version_mgr.rollback("data-api", "1.0.0")
 
 ```python
 class BlueGreenDeployment:
-    def __init__(self, nexus_app, runtime):
+    def __init__(self, nexus_app):
         self.app = nexus_app
-        self.rt = runtime
         self.deployments = {}
 
     def deploy_blue(self, name, workflow, metadata=None):
         blue_name = f"{name}-blue"
-        rt = self.rt
-        self.app.register(blue_name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
-        self.deployments[blue_name] = workflow
+        self.app.register(blue_name, workflow.build(), metadata=metadata)
         print(f"Blue deployed: {blue_name}")
         return blue_name
 
     def deploy_green(self, name, workflow, metadata=None):
         green_name = f"{name}-green"
-        rt = self.rt
-        self.app.register(green_name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
-        self.deployments[green_name] = workflow
+        self.app.register(green_name, workflow.build(), metadata=metadata)
         print(f"Green deployed: {green_name}")
         return green_name
 
     def switch_traffic(self, name, target_environment):
         """Switch traffic to blue or green"""
         target_name = f"{name}-{target_environment}"
-        # NOTE: app.workflows does not exist. This is a conceptual pattern.
-        # Actual implementation needs a workflow store to look up by name.
 
-        if target_name in self.deployments:
-            target_workflow = self.deployments[target_name]
-            rt = self.rt
-            self.app.register(name, lambda **inputs, _wf=target_workflow: rt.execute(_wf, inputs))
+        if target_name in self.app.workflows:
+            target_workflow = self.app.workflows[target_name]
+            self.app.register(name, target_workflow.workflow, metadata=target_workflow.metadata)
             print(f"Traffic switched to {target_environment}")
             return True
         return False
 
 # Usage
-rt = kailash.Runtime(reg)
-bg = BlueGreenDeployment(app, rt)
+bg = BlueGreenDeployment(app)
 
 # Deploy production to blue
 bg.deploy_blue("data-service", prod_workflow)
@@ -381,9 +346,8 @@ bg.switch_traffic("data-service", "green")
 
 ```python
 class WorkflowLifecycleManager:
-    def __init__(self, nexus_app, runtime):
+    def __init__(self, nexus_app):
         self.app = nexus_app
-        self.rt = runtime
         self.hooks = {
             "pre_register": [],
             "post_register": [],
@@ -412,9 +376,8 @@ class WorkflowLifecycleManager:
         # Pre-registration hooks
         self.trigger_hooks("pre_register", context)
 
-        # Register callable (no metadata parameter)
-        rt = self.rt
-        self.app.register(name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
+        # Register
+        self.app.register(name, workflow.build(), metadata=metadata)
 
         # Post-registration hooks
         context["registered"] = True
@@ -430,8 +393,7 @@ def log_registration(context):
     print(f"Logged: {context['name']} at {context['timestamp']}")
 
 # Use lifecycle management
-rt = kailash.Runtime(reg)
-lifecycle = WorkflowLifecycleManager(app, rt)
+lifecycle = WorkflowLifecycleManager(app)
 lifecycle.add_hook("pre_register", validate_workflow)
 lifecycle.add_hook("pre_register", log_registration)
 lifecycle.register_with_lifecycle("my-workflow", workflow)
@@ -440,11 +402,11 @@ lifecycle.register_with_lifecycle("my-workflow", workflow)
 ## Conditional Registration
 
 ```python
-def conditional_register(app, rt, name, workflow_factory, condition_func):
+def conditional_register(app, name, workflow_factory, condition_func, metadata=None):
     """Register only if condition is met"""
     if condition_func():
         workflow = workflow_factory()
-        app.register(name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
+        app.register(name, workflow.build(), metadata=metadata)
         print(f"Registered: {name}")
         return True
     else:
@@ -459,79 +421,13 @@ def has_database_access():
     return check_database_connection()
 
 # Conditional registration
-rt = kailash.Runtime(reg)
 conditional_register(
     app,
-    rt,
     "production-api",
     create_production_workflow,
     is_production,
+    metadata={"environment": "production"}
 )
-```
-
-## WorkflowRegistry (Rust-backed)
-
-The `WorkflowRegistry` class from `kailash.nexus` provides a Rust-backed workflow registry for registering, retrieving, and executing workflows by name.
-
-```python
-import kailash
-from kailash.nexus import WorkflowRegistry
-
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "fetch", {"url": "https://api.example.com/data"})
-builder.add_node("JSONTransformNode", "parse", {"expression": "@.results"})
-builder.connect("fetch", "response", "parse", "data")
-wf = builder.build(reg)
-
-# Register a built Workflow object
-wr = WorkflowRegistry()
-wr.register("my-workflow", wf, description="Fetch and parse data")
-
-# Retrieve a registered workflow
-stored_wf = wr.get("my-workflow")
-
-# Execute a registered workflow with a Runtime
-rt = kailash.Runtime(reg)
-result = wr.execute("my-workflow", rt, inputs={"url": "https://api.example.com/data"})
-```
-
-### WorkflowRegistry vs NexusApp Registration
-
-| Feature       | `WorkflowRegistry`             | `app.register()` / `@app.handler()` |
-| ------------- | ------------------------------ | ----------------------------------- |
-| Backend       | Rust (standalone)              | Python (NexusApp)                   |
-| Multi-channel | No (registry only)             | Yes (API + CLI + MCP)               |
-| Execution     | `registry.execute()`           | Via HTTP, CLI, or MCP               |
-| Best for      | Standalone workflow management | Platform deployment                 |
-
-### Production Pattern
-
-```python
-import kailash
-from kailash.nexus import WorkflowRegistry, NexusApp
-
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-
-# Use WorkflowRegistry for centralized workflow management
-wr = WorkflowRegistry()
-
-# Build and register workflows
-builder1 = kailash.WorkflowBuilder()
-builder1.add_node("HTTPRequestNode", "fetch", {"url": "https://api.example.com/data"})
-wf1 = builder1.build(reg)
-wr.register("data-pipeline", wf1)
-
-# Bridge to NexusApp for multi-channel deployment
-app = NexusApp()
-
-@app.handler(name="run_workflow", description="Execute a registered workflow")
-async def run_workflow(workflow_name: str) -> dict:
-    result = wr.execute(workflow_name, rt)
-    return result
-
-app.start()
 ```
 
 ## Workflow Validation
@@ -557,7 +453,7 @@ class WorkflowValidator:
         return {"errors": errors, "warnings": warnings}
 
     @staticmethod
-    def safe_register(app, rt, name, workflow, strict=False):
+    def safe_register(app, name, workflow, metadata=None, strict=False):
         """Register with validation"""
         result = WorkflowValidator.validate_workflow(workflow, name)
 
@@ -574,20 +470,19 @@ class WorkflowValidator:
                 raise ValueError(f"Validation failed: {name}")
             return False
 
-        # Register callable if valid (no metadata parameter)
-        app.register(name, lambda **inputs, _wf=workflow: rt.execute(_wf, inputs))
+        # Register if valid
+        app.register(name, workflow.build(), metadata=metadata)
         print(f"Validated and registered: {name}")
         return True
 
 # Usage
-rt = kailash.Runtime(reg)
 validator = WorkflowValidator()
-validator.safe_register(app, rt, "my-workflow", workflow)
+validator.safe_register(app, "my-workflow", workflow)
 ```
 
 ## Best Practices
 
-1. **Always call .build()** and wrap the workflow in a callable before registration
+1. **Always call .build()** before registration
 2. **Use descriptive names** for workflows
 3. **Add metadata** for documentation and discovery
 4. **Validate workflows** before registration
@@ -600,47 +495,43 @@ validator.safe_register(app, rt, "my-workflow", workflow)
 ### Workflow Not Found
 
 ```python
-# Ensure .build() is called and wrapped in a callable
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("workflow", lambda **inputs: rt.execute(workflow, inputs))  # Correct
+# Ensure .build() is called
+app.register("workflow", workflow.build())  # Correct
 ```
 
 ### Auto-Discovery Blocking
 
 ```python
 # Disable when using DataFlow
-app = NexusApp()  # Register workflows manually
+app = Nexus(auto_discovery=False)
 ```
 
 ### Registration Order
 
 ```python
-# Name first, callable second
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register(name, lambda **inputs: rt.execute(workflow, inputs))  # Correct
+# Name first, workflow second
+app.register(name, workflow.build())  # Correct
 ```
 
-## Key Takeaways
+## Key Takeaways (v1.1.0)
 
 **Registration Flow:**
 
-- ✅ Single `app.register(name, lambda **inputs: rt.execute(workflow, inputs))` call
+- ✅ Single `app.register(name, workflow.build())` call
 - ✅ Automatically exposes on API, CLI, and MCP channels
 - ✅ No ChannelManager - Nexus handles everything directly
 - ✅ Enterprise gateway provides multi-channel support
 
 **Current Limitations:**
 
-- ❌ No metadata parameter on `register()` (use workaround with `_workflow_metadata`)
-- ❌ No auto-discovery — register all workflows manually with `app.register()`
+- ❌ No metadata parameter (use workaround with `_workflow_metadata`)
+- ❌ Auto-discovery can block with DataFlow (use `auto_discovery=False`)
 - ✅ Versioning and lifecycle management require custom implementation
 
 **Always Remember:**
 
-1. Call `.build()` and wrap the result in a callable (`lambda **inputs: rt.execute(workflow, inputs)`) before registration
-2. Register all workflows manually (NexusApp has no `auto_discovery` param)
+1. Call `.build()` before registration
+2. Use `auto_discovery=False` when integrating with DataFlow
 3. Single registration → multi-channel exposure
 4. No need to manage channels manually
 

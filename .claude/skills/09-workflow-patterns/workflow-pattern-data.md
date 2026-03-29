@@ -10,57 +10,54 @@ Patterns for data cleaning, transformation, and aggregation workflows.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `HIGH`
-> Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`nodes-transform-reference`](../08-nodes-reference/nodes-transform-reference.md)
+> SDK Version: `0.9.25+`
+> Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`nodes-transform-reference`](../nodes/nodes-transform-reference.md)
 
 ## Pattern: Data Quality Pipeline
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Load data
-builder.add_node("CSVProcessorNode", "load", {"action": "read", "source_path": "data.csv"})
+workflow.add_node("CSVReaderNode", "load", {"file_path": "data.csv"})
 
-# 2. Remove duplicates — use ArrayOperationsNode for deduplication
-builder.add_node("ArrayOperationsNode", "dedupe", {
-    "operation": "unique",
+# 2. Remove duplicates
+workflow.add_node("DeduplicateNode", "dedupe", {
+    "input": "{{load.data}}",
     "key_fields": ["email"]
 })
 
-# 3. Validate schema — use SchemaValidatorNode
-builder.add_node("SchemaValidatorNode", "validate", {
+# 3. Validate schema
+workflow.add_node("DataValidationNode", "validate", {
+    "input": "{{dedupe.data}}",
     "schema": {"email": "email", "age": "integer"}
 })
 
 # 4. Clean fields
-builder.add_node("EmbeddedPythonNode", "clean", {
-    "code": """
-for row in data:
-    row['email'] = row['email'].lower()
-    row['name'] = row['name'].strip()
-result = data
-    """,
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "clean", {
+    "input": "{{validate.valid_data}}",
+    "transformations": [
+        {"field": "email", "operation": "lowercase"},
+        {"field": "name", "operation": "trim"}
+    ]
 })
 
-# 5. Aggregate metrics — use EmbeddedPythonNode for aggregation
-builder.add_node("EmbeddedPythonNode", "aggregate", {
-    "code": """
-from collections import defaultdict
-groups = defaultdict(lambda: {'count': 0, 'total_age': 0})
-for row in data:
-    groups[row['country']]['count'] += 1
-    groups[row['country']]['total_age'] += row.get('age', 0)
-aggregated = [{'country': k, 'count': v['count'], 'avg_age': v['total_age']/v['count']} for k, v in groups.items()]
-    """,
-    "output_vars": ["aggregated"]
+# 5. Aggregate metrics
+workflow.add_node("AggregateNode", "aggregate", {
+    "input": "{{clean.data}}",
+    "group_by": ["country"],
+    "aggregations": {"count": "COUNT(*)", "avg_age": "AVG(age)"}
 })
 
-builder.connect("load", "rows", "dedupe", "input")
-builder.connect("dedupe", "result", "validate", "data")
-builder.connect("validate", "valid", "clean", "inputs")
-builder.connect("clean", "outputs", "aggregate", "inputs")
+workflow.add_connection("load", "data", "dedupe", "input")
+workflow.add_connection("dedupe", "data", "validate", "input")
+workflow.add_connection("validate", "valid_data", "clean", "input")
+workflow.add_connection("clean", "data", "aggregate", "input")
 ```
+
+## Documentation
+
 
 <!-- Trigger Keywords: data pipeline, data processing, data transformation, data cleaning, data quality -->

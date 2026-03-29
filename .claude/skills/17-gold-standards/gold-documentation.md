@@ -8,6 +8,7 @@ description: "Gold standard for documentation. Use when asking 'documentation st
 > **Skill Metadata**
 > Category: `gold-standards`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Documentation Principles
 
@@ -41,29 +42,29 @@ def process_payment(amount: float, customer_id: str) -> dict:
 
 ### 2. Workflow Documentation
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
 # ✅ GOOD: Document workflow purpose and flow
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Step 1: Validate payment details
-builder.add_node("SchemaValidatorNode", "validate_payment", {
+workflow.add_node("DataValidationNode", "validate_payment", {
     "schema": {"amount": "decimal > 0", "card": "credit_card"}
 })
 
 # Step 2: Process with payment gateway
-builder.add_node("HTTPRequestNode", "charge_card", {
+workflow.add_node("APICallNode", "charge_card", {
     "url": "https://api.stripe.com/charges"
     # Creates charge with validated payment details
 })
 
 # Step 3: Record transaction in database
-builder.add_node("SQLQueryNode", "record_transaction", {
+workflow.add_node("DatabaseExecuteNode", "record_transaction", {
     "query": "INSERT INTO transactions ..."
 })
 
-builder.connect("validate_payment", "result", "charge_card", "payment_data")
-builder.connect("charge_card", "result", "record_transaction", "transaction_data")
+workflow.add_connection("validate_payment", "result", "charge_card", "payment_data")
+workflow.add_connection("charge_card", "result", "record_transaction", "transaction_data")
 ```
 
 ### 3. README Structure

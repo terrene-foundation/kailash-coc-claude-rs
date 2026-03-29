@@ -8,13 +8,15 @@ description: "GDPR compliance patterns in DataFlow. Use when asking 'GDPR datafl
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## GDPR Delete (Right to be Forgotten)
 
 ```python
-import kailash
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
 
-df = kailash.DataFlow("postgresql://localhost/app")
+db = DataFlow("postgresql://localhost/app")
 
 @db.model
 class User:
@@ -23,28 +25,32 @@ class User:
     gdpr_deleted: bool = False
 
 # GDPR deletion workflow
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Mark as deleted (soft delete)
-builder.add_node("UpdateUser", "mark_deleted", {
-    "filter": {"id": "{{input.user_id}}"},
-    "fields": {"gdpr_deleted": True, "email": "[REDACTED]"}
+workflow.add_node("UserUpdateNode", "mark_deleted", {
+    "id": "{{input.user_id}}",
+    "gdpr_deleted": True,
+    "email": "[REDACTED]"
 })
 
 # 2. Anonymize related data
-builder.add_node("SQLQueryNode", "anonymize_logs", {
+workflow.add_node("DatabaseExecuteNode", "anonymize_logs", {
     "query": "UPDATE audit_logs SET user_email = '[REDACTED]' WHERE user_id = ?",
     "parameters": ["{{input.user_id}}"]
 })
 
 # 3. Delete from external systems
-builder.add_node("HTTPRequestNode", "delete_external", {
+workflow.add_node("APICallNode", "delete_external", {
     "url": "https://analytics.example.com/users/{{input.user_id}}",
     "method": "DELETE"
 })
 
-builder.connect("mark_deleted", "result", "anonymize_logs", "user_id")
-builder.connect("anonymize_logs", "result", "delete_external", "trigger")
+workflow.add_connection("mark_deleted", "result", "anonymize_logs", "user_id")
+workflow.add_connection("anonymize_logs", "result", "delete_external", "trigger")
 ```
+
+## Documentation
+
 
 <!-- Trigger Keywords: GDPR dataflow, data compliance, right to be forgotten, data privacy -->

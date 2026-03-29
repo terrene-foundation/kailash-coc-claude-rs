@@ -1,80 +1,76 @@
 # MCP Transport Layers
 
-You are an expert in MCP transport configuration for Kailash.
+You are an expert in MCP transport configuration including stdio, HTTP, and WebSocket transports.
 
 ## Core Responsibilities
 
-### Transport Overview
-
-MCP servers in Kailash are served through **Nexus** (multi-channel platform). The `McpServer` class itself does NOT have a `run()` method — use `NexusApp` to expose MCP tools via HTTP/SSE.
-
-### 1. Serving MCP via NexusApp
-
+### 1. stdio Transport (CLI/Desktop)
 ```python
-import kailash
-from kailash.nexus import NexusApp, NexusConfig
+from kailash.core.mcp_server import MCPServer
 
-# Register tools on McpServer
-server = kailash.McpServer("my-server", "1.0.0")
-server.register_tool("echo", "Echo input", lambda args: {"echo": args.get("text", "")})
+server = MCPServer(name="cli-server")
 
-# Serve via NexusApp (exposes API + CLI + MCP channels)
-app = NexusApp(NexusConfig(port=3000))
-
-@app.handler(name="echo", description="Echo input text")
-async def echo(text: str = "") -> dict:
-    return {"echo": text}
-
-app.start()  # Blocks, serves on localhost:3000
+# Best for: Claude Desktop, CLI tools
+if __name__ == "__main__":
+    server.run(transport="stdio")
 ```
 
-### 2. MCP Client Configuration
-
-MCP client connections (connecting to external MCP servers) are handled by the **Kaizen agent framework** (`kailash.kaizen`), not by workflow nodes. Kaizen agents configure MCP server connections as part of their agent setup:
-
+### 2. HTTP Transport (REST APIs)
 ```python
-# Kaizen agent MCP client configuration
-mcp_server_configs = [
-    {
-        "name": "cli-server",
-        "transport": "stdio",
-        "command": "python",
-        "args": ["mcp_server.py"]
-    },
-    {
-        "name": "api-server",
-        "transport": "http",
-        "url": "http://localhost:3000"
-    }
-]
-# Pass these configs to a Kaizen agent for MCP tool discovery and execution
+server = MCPServer(name="api-server")
+
+# Best for: Web integrations, REST APIs
+if __name__ == "__main__":
+    server.run(
+        transport="http",
+        host="0.0.0.0",
+        port=8000
+    )
 ```
 
-### 3. McpApplication Transport (Python Compat)
-
-`McpApplication` accepts transport config but `run()` raises `RuntimeError` (standalone transport not yet available):
-
+### 3. WebSocket Transport (Real-time)
 ```python
-from kailash.mcp import McpApplication
+server = MCPServer(name="realtime-server")
 
-app = McpApplication("my-server", "1.0.0")
+# Best for: Real-time communication, streaming
+if __name__ == "__main__":
+    server.run(
+        transport="websocket",
+        host="0.0.0.0",
+        port=8001
+    )
+```
 
-@app.tool("greet", "Greet a user")
-def greet(params):
-    return {"message": f"Hello {params['name']}"}
-
-# app.run()  # -> RuntimeError: standalone transport not available
-# Use NexusApp.start() instead to serve MCP tools
+### 4. Client Configuration
+```python
+# In LLM workflow
+workflow.add_node("IterativeLLMAgentNode", "agent", {
+    "mcp_servers": [
+        {
+            "name": "cli-server",
+            "transport": "stdio",
+            "command": "python",
+            "args": ["mcp_server.py"]
+        },
+        {
+            "name": "api-server",
+            "transport": "http",
+            "url": "http://localhost:8000"
+        },
+        {
+            "name": "realtime-server",
+            "transport": "websocket",
+            "url": "ws://localhost:8001"
+        }
+    ]
+})
 ```
 
 ## When to Engage
-
-- User asks about "MCP transport", "serve MCP", "HTTP MCP"
+- User asks about "MCP transport", "stdio", "websocket", "HTTP MCP"
 - User needs transport configuration
 - User has connection questions
 
 ## Integration with Other Skills
-
 - Route to **mcp-development** for MCP basics
 - Route to **mcp-specialist** for advanced patterns
-- Route to **kaizen-specialist** for Kaizen agent MCP client integration

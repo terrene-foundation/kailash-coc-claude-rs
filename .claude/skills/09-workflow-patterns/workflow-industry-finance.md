@@ -8,29 +8,32 @@ description: "Finance industry workflows (payments, fraud, compliance). Use when
 > **Skill Metadata**
 > Category: `industry-workflows`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Pattern: Payment Processing with Fraud Detection
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-# 1. Validate payment details — use SchemaValidatorNode
-builder.add_node("SchemaValidatorNode", "validate", {
+# 1. Validate payment details
+workflow.add_node("DataValidationNode", "validate", {
+    "input": "{{input.payment}}",
     "schema": {"amount": "decimal", "card_number": "credit_card"}
 })
 
 # 2. Fraud check
-builder.add_node("HTTPRequestNode", "fraud_check", {
+workflow.add_node("APICallNode", "fraud_check", {
     "url": "https://api.fraudcheck.com/analyze",
     "method": "POST",
-    "body": "{{validate.valid}}"
+    "body": "{{validate.valid_data}}"
 })
 
-# 3. Risk assessment — use SwitchNode for multi-branch routing
-builder.add_node("SwitchNode", "assess_risk", {
-    "cases": {
+# 3. Risk assessment
+workflow.add_node("ConditionalNode", "assess_risk", {
+    "condition": "{{fraud_check.risk_score}}",
+    "branches": {
         "low": "process_payment",
         "medium": "manual_review",
         "high": "reject_payment"
@@ -38,22 +41,22 @@ builder.add_node("SwitchNode", "assess_risk", {
 })
 
 # 4. Process payment
-builder.add_node("HTTPRequestNode", "process_payment", {
+workflow.add_node("APICallNode", "process_payment", {
     "url": "https://api.paymentgateway.com/charge",
     "method": "POST",
     "body": "{{validate.valid_data}}"
 })
 
 # 5. Record transaction
-builder.add_node("SQLQueryNode", "record", {
+workflow.add_node("DatabaseExecuteNode", "record", {
     "query": "INSERT INTO transactions (amount, status, timestamp) VALUES (?, ?, NOW())",
-    "params": ["{{input.amount}}", "completed"]
+    "parameters": ["{{input.amount}}", "completed"]
 })
 
-builder.connect("validate", "valid", "fraud_check", "body")
-builder.connect("fraud_check", "body", "assess_risk", "input")
-builder.connect("assess_risk", "matched", "process_payment", "body")
-builder.connect("process_payment", "body", "record", "body")
+workflow.add_connection("validate", "valid_data", "fraud_check", "body")
+workflow.add_connection("fraud_check", "risk_score", "assess_risk", "condition")
+workflow.add_connection("assess_risk", "output_low", "process_payment", "body")
+workflow.add_connection("process_payment", "result", "record", "parameters")
 ```
 
 <!-- Trigger Keywords: finance workflow, payment processing, fraud detection, financial compliance -->

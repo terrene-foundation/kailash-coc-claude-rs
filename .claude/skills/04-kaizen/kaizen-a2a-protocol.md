@@ -1,80 +1,34 @@
 # Google A2A Protocol
 
-Agent identity cards and registry for agent-to-agent communication.
+Automatic capability card generation and semantic agent matching.
 
-## AgentCard
-
-```python
-from kailash.kaizen import AgentCard
-
-card = AgentCard("DataAnalyst", "Analyzes data and produces insights")
-
-print(card.name)            # "DataAnalyst"
-print(card.description)     # "Analyzes data and produces insights"
-print(card.id)              # Auto-generated UUID
-print(card.capabilities)    # [] (empty by default)
-```
-
-### Adding Capabilities
+## Automatic Capability Cards
 
 ```python
-card = card.with_capability("data_analysis")
-card = card.with_capability("visualization")
-print(card.has_capability("data_analysis"))  # True
+agent = DataAnalystAgent(config)
+card = agent.to_a2a_card()
+
+print(card.agent_name)            # "DataAnalystAgent"
+print(card.primary_capabilities)  # Extracted from signature
+print(card.domain)                # Auto-inferred: "data_analysis"
 ```
 
-### Properties
-
-| Property       | Type | Description                |
-| -------------- | ---- | -------------------------- |
-| `id`           | str  | Auto-generated UUID        |
-| `name`         | str  | Agent name                 |
-| `description`  | str  | Agent description          |
-| `capabilities` | list | List of capability strings |
-
-### Methods
-
-| Method                      | Description                        |
-| --------------------------- | ---------------------------------- |
-| `with_capability(name)`     | Add a capability (returns new Self, must capture) |
-| `has_capability(name)`      | Check if capability exists -> bool |
-
-## AgentRegistry
+## Semantic Matching
 
 ```python
-from kailash.kaizen import AgentRegistry, AgentCard
-
-registry = AgentRegistry()
-
-card = AgentCard("DataAnalyst", "Analyzes data")
-agent_id = registry.register(card)  # Returns UUID
-
-# Lookup by UUID (not name)
-agent = registry.get(agent_id)
-
-# List all
-all_agents = registry.list_all()
-
-# Discover by capability
-matches = registry.discover("data_analysis")
-
-# Remove by UUID
-registry.deregister(agent_id)
+best_worker = supervisor.select_worker_for_task(
+    task="Analyze sales data and create visualization",
+    available_workers=[code_expert, data_expert, writing_expert],
+    return_score=True
+)
+# Returns: {"worker": <DataAnalystAgent>, "score": 0.9}
 ```
 
-## TrustLevel & TrustPosture
-
-```python
-from kailash.kaizen import TrustLevel, TrustPosture
-```
-
-TrustLevel values: `untrusted`, `restricted`, `supervised`, `autonomous`, `full`
-
-TrustPosture properties: `level`, `capabilities`, `allow_network`, `allow_filesystem`, `allow_code_execution`, `allow_delegation`, `max_tool_calls`, `max_llm_calls`
-
-> **Known Issue**: `BaseAgent` does NOT have a `to_a2a_card()` method. Create AgentCard instances directly.
-
-> **Known Issue**: The semantic matching pattern (`supervisor.select_worker_for_task()`) shown in older docs is conceptual and not implemented.
+**Benefits:**
+- ✅ No hardcoded if/else logic
+- ✅ Semantic capability matching (0.0-1.0 scores)
+- ✅ Zero configuration
+- ✅ 100% Google A2A compliant
 
 ## References
-- **Specialist**: `.claude/agents/frameworks/kaizen-specialist.md`
+- **Specialist**: `.claude/agents/frameworks/kaizen-specialist.md` lines 115-165

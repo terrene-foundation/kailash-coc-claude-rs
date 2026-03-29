@@ -6,12 +6,12 @@
 
 ## Repos Audited
 
-| #   | Repo                   | Path                 | Type                    |
-| --- | ---------------------- | -------------------- | ----------------------- |
-| 1   | Terrene Foundation     | `<canonical-source>`  | Governance KB           |
-| 2   | Kailash Python SDK     | `<sdk-repo>`          | BUILD (SDK development) |
-| 3   | Kailash Python USE     | `<setup-repo-py>`     | USE template (end-user) |
-| 4   | Kailash Rust BUILD/USE | `<setup-repo-rs>`     | BUILD + USE template    |
+| #   | Repo                   | Type                    |
+| --- | ---------------------- | ----------------------- |
+| 1   | Governance KB          | Governance KB           |
+| 2   | Kailash Python SDK     | BUILD (SDK development) |
+| 3   | Kailash Python USE     | USE template (end-user) |
+| 4   | Kailash Rust BUILD/USE | BUILD + USE template    |
 
 ## Documents
 

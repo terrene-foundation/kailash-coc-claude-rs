@@ -3,5 +3,3 @@ paths:
   - "**/db/**"
   - "**/infrastructure/**"
 ---
-
-

@@ -15,24 +15,28 @@ Use MongoDB-style query operators for filtering, searching, and aggregating Data
 
 ## ⚠️ Important: Filter Operators
 
-DataFlow uses MongoDB-style filter syntax translated to SQL. Only the following operators are supported:
+All MongoDB-style filter operators are fully supported. Ensure you're using the latest DataFlow version for complete operator support.
+
+**To ensure all operators work correctly:**
+
+```bash
+pip install --upgrade kailash-dataflow
+```
 
 **Supported Operators:**
 
-- ✅ `$eq` (equal — or direct value match: `{"active": True}`)
-- ✅ `$ne` (not equal)
-- ✅ `$gt`, `$gte`, `$lt`, `$lte` (comparison)
-- ✅ `$in` (value in list)
-- ✅ `$like` (SQL LIKE pattern match)
-- ✅ `$null` (IS NULL / IS NOT NULL check)
-
-**NOT supported:** `$nin`, `$regex`, `$or`, `$and`, `$not`, `$contains`, `$overlap`, `$text`, `$exists`
+- ✅ $ne (not equal)
+- ✅ $nin (not in)
+- ✅ $in (in)
+- ✅ $not (logical NOT)
+- ✅ All comparison operators ($gt, $lt, $gte, $lte)
 
 ## Quick Reference
 
-- **Operators**: `$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$like`, `$null`
+- **Operators**: `$gt`, `$gte`, `$lt`, `$lte`, `$ne`, `$in`, `$nin`, `$regex`, `$or`, `$and`, `$not`
+- **Performance**: <10ms for most queries, <100ms for aggregations
+- **SQL Database Agnostic**: Works across PostgreSQL, MySQL, SQLite (MongoDB has native query language)
 - **Pattern**: Use in `filter` parameter of ListNode
-- **Multiple conditions at same level = implicit AND**
 
 ```python
 # Basic comparison
@@ -41,26 +45,24 @@ DataFlow uses MongoDB-style filter syntax translated to SQL. Only the following 
 # Multiple conditions (implicit AND)
 {"active": True, "age": {"$gte": 18}}
 
+# OR conditions
+{"$or": [{"role": "admin"}, {"role": "manager"}]}
+
 # IN operator
 {"category": {"$in": ["electronics", "computers"]}}
 
-# Pattern match (SQL LIKE)
-{"name": {"$like": "%laptop%"}}
-
-# NULL check
-{"deleted_at": {"$null": True}}   # WHERE deleted_at IS NULL
+# Text search
+{"name": {"$regex": "laptop"}}
 ```
 
 ## Core Pattern
 
 ```python
-import os
-import kailash
-from kailash.dataflow import db
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-
-df = kailash.DataFlow(os.environ["DATABASE_URL"])
+db = DataFlow()
 
 @db.model
 class Product:
@@ -70,15 +72,15 @@ class Product:
     stock: int
     active: bool = True
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Simple filter
-builder.add_node("ListProduct", "active_products", {
+workflow.add_node("ProductListNode", "active_products", {
     "filter": {"active": True}
 })
 
 # Comparison operators
-builder.add_node("ListProduct", "affordable_products", {
+workflow.add_node("ProductListNode", "affordable_products", {
     "filter": {
         "price": {"$lt": 100.00},
         "stock": {"$gt": 0}
@@ -86,28 +88,31 @@ builder.add_node("ListProduct", "affordable_products", {
 })
 
 # Range query
-builder.add_node("ListProduct", "mid_range_products", {
+workflow.add_node("ProductListNode", "mid_range_products", {
     "filter": {
         "price": {"$gte": 50.00, "$lte": 150.00}
     }
 })
 
 # IN operator
-builder.add_node("ListProduct", "electronics", {
+workflow.add_node("ProductListNode", "electronics", {
     "filter": {
         "category": {"$in": ["phones", "laptops", "tablets"]}
     }
 })
 
-# NULL check
-builder.add_node("ListProduct", "with_description", {
+# OR conditions
+workflow.add_node("ProductListNode", "featured_or_popular", {
     "filter": {
-        "description": {"$null": False}  # Has a description
+        "$or": [
+            {"featured": True},
+            {"views": {"$gt": 1000}}
+        ]
     }
 })
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ## Common Use Cases
@@ -122,31 +127,35 @@ result = rt.execute(builder.build(reg))
 
 ### Comparison Operators
 
-| Operator | SQL Equivalent            | Example                                                  |
-| -------- | ------------------------- | -------------------------------------------------------- |
-| `$eq`    | `=`                       | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
-| `$ne`    | `!=`                      | `{"status": {"$ne": "inactive"}}`                        |
-| `$gt`    | `>`                       | `{"age": {"$gt": 18}}`                                   |
-| `$gte`   | `>=`                      | `{"age": {"$gte": 18}}`                                  |
-| `$lt`    | `<`                       | `{"price": {"$lt": 100}}`                                |
-| `$lte`   | `<=`                      | `{"price": {"$lte": 100}}`                               |
-| `$in`    | `IN`                      | `{"category": {"$in": ["a", "b", "c"]}}`                 |
-| `$like`  | `LIKE`                    | `{"name": {"$like": "%laptop%"}}`                        |
-| `$null`  | `IS NULL` / `IS NOT NULL` | `{"deleted_at": {"$null": True}}`                        |
+| Operator  | SQL Equivalent | Example                                                  |
+| --------- | -------------- | -------------------------------------------------------- |
+| `$gt`     | `>`            | `{"age": {"$gt": 18}}`                                   |
+| `$gte`    | `>=`           | `{"age": {"$gte": 18}}`                                  |
+| `$lt`     | `<`            | `{"price": {"$lt": 100}}`                                |
+| `$lte`    | `<=`           | `{"price": {"$lte": 100}}`                               |
+| `$ne`     | `!=`           | `{"status": {"$ne": "inactive"}}`                        |
+| `$eq`     | `=`            | `{"active": {"$eq": true}}` (or just `{"active": true}`) |
+| `$null`   | `IS NULL`      | `{"deleted_at": {"$null": True}}`                        |
+| `$exists` | `IS NOT NULL`  | `{"email": {"$exists": True}}`                           |
 
-### Null Checking
+### Null Checking Operators 
 
 **For soft-delete filtering and nullable field queries:**
 
 ```python
 # Query for NULL values (e.g., non-deleted records)
-builder.add_node("ListPatient", "active_patients", {
+workflow.add_node("PatientListNode", "active_patients", {
     "filter": {"deleted_at": {"$null": True}}  # WHERE deleted_at IS NULL
 })
 
 # Query for NOT NULL values
-builder.add_node("ListPatient", "deleted_patients", {
-    "filter": {"deleted_at": {"$null": False}}  # WHERE deleted_at IS NOT NULL
+workflow.add_node("PatientListNode", "deleted_patients", {
+    "filter": {"deleted_at": {"$exists": True}}  # WHERE deleted_at IS NOT NULL
+})
+
+# Alternative: $eq with None also works 
+workflow.add_node("PatientListNode", "active", {
+    "filter": {"deleted_at": {"$eq": None}}  # Also generates IS NULL
 })
 ```
 
@@ -155,47 +164,42 @@ builder.add_node("ListPatient", "deleted_patients", {
 ```python
 # soft_delete: True only affects DELETE operations, NOT queries!
 # You MUST manually filter in queries:
-builder.add_node("ListModel", "active_records", {
+workflow.add_node("ModelListNode", "active_records", {
     "filter": {"deleted_at": {"$null": True}}  # Exclude soft-deleted records
 })
 ```
 
-### Pattern Matching
+### Logical Operators
 
-```python
-# SQL LIKE pattern matching
-builder.add_node("ListUser", "search", {
-    "filter": {"name": {"$like": "%john%"}}  # Contains "john"
-})
+| Operator | Purpose        | Example                                              |
+| -------- | -------------- | ---------------------------------------------------- |
+| `$and`   | All conditions | `{"$and": [{"active": true}, {"verified": true}]}`   |
+| `$or`    | Any condition  | `{"$or": [{"role": "admin"}, {"super_user": true}]}` |
+| `$not`   | Negation       | `{"$not": {"status": "suspended"}}`                  |
 
-builder.add_node("ListUser", "starts_with", {
-    "filter": {"email": {"$like": "admin%"}}  # Starts with "admin"
-})
-```
+### Array Operators
 
-### Multiple Conditions (Implicit AND)
+| Operator    | Purpose              | Example                                   |
+| ----------- | -------------------- | ----------------------------------------- |
+| `$in`       | Value in list        | `{"category": {"$in": ["a", "b", "c"]}}`  |
+| `$nin`      | Value not in list    | `{"role": {"$nin": ["guest", "banned"]}}` |
+| `$contains` | Array contains value | `{"tags": {"$contains": "featured"}}`     |
+| `$overlap`  | Arrays overlap       | `{"tags": {"$overlap": ["sale", "new"]}}` |
 
-Multiple filter keys at the same level are combined with AND:
+### Text Operators
 
-```python
-# All conditions must be true (implicit AND)
-builder.add_node("ListUser", "query", {
-    "filter": {
-        "active": True,
-        "role": {"$ne": "banned"},
-        "age": {"$gte": 18}
-    }
-})
-```
-
-**Note:** Explicit `$or`, `$and`, `$not` logical operators are NOT supported. Use multiple filter fields for AND conditions. For OR-like behavior, run separate queries.
+| Operator              | Purpose          | Example                                          |
+| --------------------- | ---------------- | ------------------------------------------------ |
+| `$regex`              | Pattern match    | `{"name": {"$regex": "laptop"}}`                 |
+| `$regex` + `$options` | Case-insensitive | `{"email": {"$regex": "john", "$options": "i"}}` |
+| `$text`               | Full-text search | `{"$text": {"$search": "gaming laptop"}}`        |
 
 ## Key Parameters / Options
 
 ### Sorting
 
 ```python
-builder.add_node("ListProduct", "sorted_products", {
+workflow.add_node("ProductListNode", "sorted_products", {
     "filter": {"active": True},
     "order_by": ["-price", "name"]  # - prefix for descending
 })
@@ -205,7 +209,7 @@ builder.add_node("ListProduct", "sorted_products", {
 
 ```python
 # Offset-based
-builder.add_node("ListProduct", "page_2", {
+workflow.add_node("ProductListNode", "page_2", {
     "filter": {"active": True},
     "order_by": ["created_at"],
     "limit": 20,
@@ -213,7 +217,7 @@ builder.add_node("ListProduct", "page_2", {
 })
 
 # Cursor-based (more efficient)
-builder.add_node("ListProduct", "next_page", {
+workflow.add_node("ProductListNode", "next_page", {
     "filter": {
         "active": True,
         "id": {"$gt": last_id}  # After last seen ID
@@ -227,23 +231,23 @@ builder.add_node("ListProduct", "next_page", {
 
 ```python
 # Select specific fields only
-builder.add_node("ListUser", "names_only", {
+workflow.add_node("UserListNode", "names_only", {
     "filter": {"active": True},
     "fields": ["id", "name", "email"]  # Only these fields
 })
 
 # Exclude fields
-builder.add_node("ListProduct", "no_description", {
+workflow.add_node("ProductListNode", "no_description", {
     "filter": {"active": True},
     "exclude_fields": ["description", "long_text"]
 })
 ```
 
-### Aggregation
+### Aggregation (ListNode)
 
 ```python
-# Group by and aggregate
-builder.add_node("ListOrder", "revenue_by_status", {
+# Group by and aggregate via ListNode (MongoDB-style)
+workflow.add_node("OrderListNode", "revenue_by_status", {
     "group_by": "status",
     "aggregations": {
         "total_revenue": {"$sum": "total"},
@@ -253,13 +257,16 @@ builder.add_node("ListOrder", "revenue_by_status", {
 })
 ```
 
+> **For direct SQL aggregation queries** (COUNT/SUM/AVG/MIN/MAX with GROUP BY, parameterized SQL, operator suffixes), see [`dataflow-aggregation`](dataflow-aggregation.md).
+> The `dataflow.query` module provides `count_by()`, `sum_by()`, and `aggregate()` async functions that work directly on database connections.
+
 ## Common Mistakes
 
 ### Mistake 1: Using SQL Operators
 
 ```python
 # Wrong - SQL operators don't work
-builder.add_node("ListProduct", "query", {
+workflow.add_node("ProductListNode", "query", {
     "filter": {"price > 100"}  # FAILS
 })
 ```
@@ -268,30 +275,34 @@ builder.add_node("ListProduct", "query", {
 
 ```python
 # Correct
-builder.add_node("ListProduct", "query", {
+workflow.add_node("ProductListNode", "query", {
     "filter": {"price": {"$gt": 100.00}}
 })
 ```
 
-### Mistake 2: Using Unsupported Logical Operators
+### Mistake 2: Implicit AND with OR
 
 ```python
-# Wrong - $or and $and are NOT supported
-builder.add_node("ListUser", "query", {
+# Wrong - will fail
+workflow.add_node("UserListNode", "query", {
     "filter": {
-        "$or": [{"role": "admin"}, {"role": "manager"}]  # FAILS
+        "active": True,
+        "$or": [{"role": "admin"}, {"role": "manager"}]
+        # Mixing levels incorrectly
     }
 })
 ```
 
-**Fix: Use $in for OR-like Behavior on Same Field**
+**Fix: Use $and for Mixed Conditions**
 
 ```python
-# Correct - use $in for multiple values on one field
-builder.add_node("ListUser", "query", {
+# Correct
+workflow.add_node("UserListNode", "query", {
     "filter": {
-        "active": True,
-        "role": {"$in": ["admin", "manager"]}
+        "$and": [
+            {"active": True},
+            {"$or": [{"role": "admin"}, {"role": "manager"}]}
+        ]
     }
 })
 ```
@@ -300,7 +311,7 @@ builder.add_node("ListUser", "query", {
 
 ```python
 # Wrong - missing $ prefix
-builder.add_node("ListProduct", "query", {
+workflow.add_node("ProductListNode", "query", {
     "filter": {"price": {"gt": 100}}  # FAILS
 })
 ```
@@ -309,7 +320,7 @@ builder.add_node("ListProduct", "query", {
 
 ```python
 # Correct
-builder.add_node("ListProduct", "query", {
+workflow.add_node("ProductListNode", "query", {
     "filter": {"price": {"$gt": 100}}
 })
 ```
@@ -317,6 +328,7 @@ builder.add_node("ListProduct", "query", {
 ## Related Patterns
 
 - **For CRUD operations**: See [`dataflow-crud-operations`](#)
+- **For SQL aggregation (GROUP BY)**: See [`dataflow-aggregation`](dataflow-aggregation.md)
 - **For bulk operations**: See [`dataflow-bulk-operations`](#)
 - **For performance**: See [`dataflow-performance`](#)
 - **For result access**: See [`dataflow-result-access`](#)
@@ -332,23 +344,31 @@ Use `dataflow-specialist` subagent when:
 - Creating dashboard analytics
 - Troubleshooting query errors
 
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
+
 ## Examples
 
 ### Example 1: E-commerce Search
 
 ```python
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-# Product search with multiple filters (implicit AND)
-builder.add_node("ListProduct", "search_results", {
+# Complex product search
+workflow.add_node("ProductListNode", "search_results", {
     "filter": {
-        "active": True,
-        "name": {"$like": "%laptop%"},
-        "price": {"$gte": 500.00, "$lte": 2000.00},
-        "category": {"$in": ["computers", "electronics"]},
-        "stock": {"$gt": 0}
+        "$and": [
+            {"active": True},
+            {"name": {"$regex": "laptop", "$options": "i"}},
+            {"price": {"$gte": 500.00, "$lte": 2000.00}},
+            {"category": {"$in": ["computers", "electronics"]}},
+            {"stock": {"$gt": 0}}
+        ]
     },
-    "order_by": ["-created_at"],
+    "order_by": ["-views", "-rating"],
     "limit": 20
 })
 ```
@@ -357,7 +377,7 @@ builder.add_node("ListProduct", "search_results", {
 
 ```python
 # Revenue by category
-builder.add_node("ListOrder", "category_revenue", {
+workflow.add_node("OrderListNode", "category_revenue", {
     "filter": {
         "status": {"$in": ["completed", "shipped"]},
         "created_at": {"$gte": "2024-01-01"}
@@ -375,15 +395,23 @@ builder.add_node("ListOrder", "category_revenue", {
 ### Example 3: User Search with Multiple Filters
 
 ```python
-# Advanced user search (all conditions = implicit AND)
-builder.add_node("ListUser", "power_users", {
+# Advanced user search
+workflow.add_node("UserListNode", "power_users", {
     "filter": {
-        "active": True,
-        "verified": True,
-        "subscription": "premium",
-        "role": {"$ne": "banned"},
+        "$and": [
+            {"active": True},
+            {"verified": True},
+            {
+                "$or": [
+                    {"subscription": "premium"},
+                    {"purchases": {"$gte": 10}}
+                ]
+            },
+            {"last_login": {"$gte": "30 days ago"}},
+            {"role": {"$nin": ["guest", "banned"]}}
+        ]
     },
-    "order_by": ["-created_at"],
+    "order_by": ["-total_spent", "-created_at"],
     "limit": 100
 })
 ```
@@ -401,9 +429,8 @@ builder.add_node("ListUser", "power_users", {
 
 - Always use $ prefix for operators
 - Multiple conditions at same level = implicit AND
-- Use `$in` for OR-like behavior on same field
-- Use `$like` for pattern matching (SQL LIKE syntax: `%` for wildcard)
-- Use `$null` for NULL/NOT NULL checks
+- Use $and explicitly when mixing with $or
+- Regex is case-sensitive unless `$options: "i"`
 - Add indexes for frequently queried fields
 - Use cursor pagination for better performance
 - Limit + offset for simple pagination

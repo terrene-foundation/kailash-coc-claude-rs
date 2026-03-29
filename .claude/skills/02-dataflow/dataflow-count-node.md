@@ -24,46 +24,42 @@ description: "CountNode for efficient COUNT(*) queries with 10-50x performance i
 ## ⚠️ CRITICAL: Performance Comparison
 
 ### Before CountNode
-
 ```python
 # ❌ SLOW - Fetches all records to count (20-50ms for 10,000 records)
-builder.add_node("ListUser", "count_users", {
+workflow.add_node("UserListNode", "count_users", {
     "filter": {"active": True},
     "limit": 10000  # Must fetch all to count
 })
 
 # In node output:
-count = len(result["results"]["count_users"])  # Retrieved 10,000 records!
+count = len(results["count_users"])  # Retrieved 10,000 records!
 ```
 
 ### After CountNode
-
 ```python
 # ✅ FAST - Uses COUNT(*) query (1-5ms regardless of record count)
-builder.add_node("CountUser", "count_users", {
+workflow.add_node("UserCountNode", "count_users", {
     "filter": {"active": True}
 })
 
 # In node output:
-count = result["results"]["count_users"]["count"]  # Only count value (99% faster!)
+count = results["count_users"]["count"]  # Only count value (99% faster!)
 ```
 
 ## Basic Usage
 
 ### Simple Count
-
 ```python
 # Count all users
-builder.add_node("CountUser", "count_all", {})
+workflow.add_node("UserCountNode", "count_all", {})
 
 # Result: {"count": 1000}
 ```
 
 ### Count with Filter
-
 ```python
 # Count active users
-builder.add_node("CountUser", "count_active", {
+workflow.add_node("UserCountNode", "count_active", {
     "filter": {"active": True}
 })
 
@@ -71,10 +67,9 @@ builder.add_node("CountUser", "count_active", {
 ```
 
 ### Complex Filter
-
 ```python
 # Count premium users created in last 30 days
-builder.add_node("CountUser", "count_recent_premium", {
+workflow.add_node("UserCountNode", "count_recent_premium", {
     "filter": {
         "subscription_tier": "premium",
         "created_at": {"$gte": "2024-01-01"}
@@ -87,14 +82,13 @@ builder.add_node("CountUser", "count_recent_premium", {
 ## Common Patterns
 
 ### 1. Pagination Metadata
-
 ```python
 # Get total count for pagination
-builder.add_node("CountUser", "total_users", {
+workflow.add_node("UserCountNode", "total_users", {
     "filter": {"active": True}
 })
 
-builder.add_node("ListUser", "page_users", {
+workflow.add_node("UserListNode", "page_users", {
     "filter": {"active": True},
     "offset": 0,
     "limit": 20
@@ -107,10 +101,9 @@ builder.add_node("ListUser", "page_users", {
 ```
 
 ### 2. Existence Checks
-
 ```python
 # Check if any records exist matching criteria
-builder.add_node("CountOrder", "pending_orders", {
+workflow.add_node("OrderCountNode", "pending_orders", {
     "filter": {
         "user_id": "user-123",
         "status": "pending"
@@ -122,14 +115,13 @@ builder.add_node("CountOrder", "pending_orders", {
 ```
 
 ### 3. Dashboard Metrics
-
 ```python
 # Dashboard: Active vs Inactive users
-builder.add_node("CountUser", "active_count", {
+workflow.add_node("UserCountNode", "active_count", {
     "filter": {"active": True}
 })
 
-builder.add_node("CountUser", "inactive_count", {
+workflow.add_node("UserCountNode", "inactive_count", {
     "filter": {"active": False}
 })
 
@@ -140,30 +132,23 @@ builder.add_node("CountUser", "inactive_count", {
 ```
 
 ### 4. Conditional Logic Based on Count
-
 ```python
 # Count items in cart before checkout
-builder.add_node("CountCartItem", "item_count", {
+workflow.add_node("CartItemCountNode", "item_count", {
     "filter": {"cart_id": "cart-123"}
 })
 
-# ConditionalNode selects between two values based on a boolean condition.
-# NO config params. Inputs: "condition", "if_value", "else_value". Output: "result".
-builder.add_node("ConditionalNode", "check_empty", {})
-
-builder.connect("item_count", "count", "check_empty", "condition")  # truthy if count > 0
-builder.connect("item_count", "count", "check_empty", "if_value")   # pass count when non-empty
-builder.connect("item_count", "count", "check_empty", "else_value") # pass count when empty
-
-# ConditionalNode outputs the selected value on a single "result" port
-builder.connect("check_empty", "result", "proceed_checkout", "data")
+workflow.add_node("SwitchNode", "check_empty", {
+    "condition": results["item_count"]["count"] > 0,
+    "true_output": "proceed_checkout",
+    "false_output": "show_empty_cart"
+})
 ```
 
 ### 5. Multi-Tenant Counts
-
 ```python
 # Count records per tenant
-builder.add_node("CountOrder", "tenant_orders", {
+workflow.add_node("OrderCountNode", "tenant_orders", {
     "filter": {"tenant_id": current_tenant_id}
 })
 
@@ -171,10 +156,9 @@ builder.add_node("CountOrder", "tenant_orders", {
 ```
 
 ### 6. Time Series Counts
-
 ```python
 # Count events in last hour
-builder.add_node("CountEvent", "recent_events", {
+workflow.add_node("EventCountNode", "recent_events", {
     "filter": {
         "timestamp": {
             "$gte": datetime.now() - timedelta(hours=1)
@@ -190,34 +174,32 @@ builder.add_node("CountEvent", "recent_events", {
 CountNode supports all MongoDB-style filter operators:
 
 ### Comparison Operators
-
 ```python
 # Greater than
-builder.add_node("CountUser", "adults", {
+workflow.add_node("UserCountNode", "adults", {
     "filter": {"age": {"$gte": 18}}
 })
 
 # Not equal
-builder.add_node("CountUser", "not_admin", {
+workflow.add_node("UserCountNode", "not_admin", {
     "filter": {"role": {"$ne": "admin"}}
 })
 
 # In list
-builder.add_node("CountProduct", "active_categories", {
+workflow.add_node("ProductCountNode", "active_categories", {
     "filter": {"category": {"$in": ["electronics", "books"]}}
 })
 
-# Not equal
-builder.add_node("CountProduct", "exclude_inactive", {
-    "filter": {"status": {"$ne": "archived"}}
+# Not in list
+workflow.add_node("ProductCountNode", "exclude_categories", {
+    "filter": {"category": {"$nin": ["archived", "deleted"]}}
 })
 ```
 
 ### Complex Filters
-
 ```python
 # Multiple conditions
-builder.add_node("CountOrder", "high_value_recent", {
+workflow.add_node("OrderCountNode", "high_value_recent", {
     "filter": {
         "amount": {"$gte": 1000},
         "status": "completed",
@@ -229,7 +211,6 @@ builder.add_node("CountOrder", "high_value_recent", {
 ## Performance Optimization
 
 ### Index Usage
-
 ```python
 # Ensure indexes on filtered fields for optimal performance
 @db.model
@@ -238,11 +219,15 @@ class Order:
     status: str
     created_at: datetime
 
-    # Create indexes on status and (status, created_at) in your database
-    # for optimal count query performance
+    __dataflow__ = {
+        'indexes': [
+            ['status'],           # Single-field index
+            ['status', 'created_at']  # Composite index
+        ]
+    }
 
 # Query uses index for fast counting
-builder.add_node("CountOrder", "count", {
+workflow.add_node("OrderCountNode", "count", {
     "filter": {
         "status": "pending",
         "created_at": {"$gte": "2024-01-01"}
@@ -252,24 +237,22 @@ builder.add_node("CountOrder", "count", {
 ```
 
 ### Avoiding Full Table Scans
-
 ```python
 # ✅ GOOD - Uses index on 'status'
-builder.add_node("CountOrder", "pending", {
+workflow.add_node("OrderCountNode", "pending", {
     "filter": {"status": "pending"}
 })
 
 # ❌ SLOW - No index, full table scan
-builder.add_node("CountOrder", "search_notes", {
-    "filter": {"notes": {"$like": "%important%"}}
+workflow.add_node("OrderCountNode", "search_notes", {
+    "filter": {"notes": {"$regex": "important"}}
 })
-# Solution: Add index on frequently searched fields
+# Solution: Add text search index or use dedicated search node
 ```
 
 ## Database Behavior
 
 ### PostgreSQL
-
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = true;
@@ -277,7 +260,6 @@ SELECT COUNT(*) FROM users WHERE active = true;
 ```
 
 ### MySQL
-
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = 1;
@@ -285,7 +267,6 @@ SELECT COUNT(*) FROM users WHERE active = 1;
 ```
 
 ### SQLite
-
 ```sql
 -- Generated SQL
 SELECT COUNT(*) FROM users WHERE active = 1;
@@ -293,7 +274,6 @@ SELECT COUNT(*) FROM users WHERE active = 1;
 ```
 
 ### MongoDB
-
 ```python
 # Generated MongoDB query
 collection.count_documents({"active": True})
@@ -303,24 +283,22 @@ collection.count_documents({"active": True})
 ## Best Practices
 
 ### 1. Use CountNode Instead of ListNode for Counts
-
 ```python
 # ✅ CORRECT - Use CountNode (99% faster)
-builder.add_node("CountUser", "count", {
+workflow.add_node("UserCountNode", "count", {
     "filter": {"active": True}
 })
-count = result["results"]["count"]["count"]
+count = results["count"]["count"]
 
 # ❌ WRONG - Use ListNode (10-50x slower)
-builder.add_node("ListUser", "list", {
+workflow.add_node("UserListNode", "list", {
     "filter": {"active": True},
     "limit": 10000
 })
-count = len(result["results"]["list"])
+count = len(results["list"])
 ```
 
 ### 2. Add Indexes for Frequently Counted Fields
-
 ```python
 # ✅ CORRECT - Index frequently filtered fields
 @db.model
@@ -329,83 +307,84 @@ class Order:
     status: str
     user_id: str
 
-    # Create database indexes on status and user_id for optimal count performance
+    __dataflow__ = {
+        'indexes': [
+            ['status'],      # For status counts
+            ['user_id']      # For per-user counts
+        ]
+    }
 ```
 
 ### 3. Use CountNode for Existence Checks
-
 ```python
 # ✅ CORRECT - Fast existence check
-builder.add_node("CountOrder", "has_pending", {
+workflow.add_node("OrderCountNode", "has_pending", {
     "filter": {
         "user_id": user_id,
         "status": "pending"
     }
 })
-has_pending = result["results"]["has_pending"]["count"] > 0
+has_pending = results["has_pending"]["count"] > 0
 
 # ❌ WRONG - Fetches unnecessary data
-builder.add_node("ListOrder", "pending_list", {
+workflow.add_node("OrderListNode", "pending_list", {
     "filter": {
         "user_id": user_id,
         "status": "pending"
     },
     "limit": 1
 })
-has_pending = len(result["results"]["pending_list"]) > 0
+has_pending = len(results["pending_list"]) > 0
 ```
 
 ### 4. Combine with Pagination
-
 ```python
 # ✅ CORRECT - Efficient pagination
-builder.add_node("CountUser", "total", {
+workflow.add_node("UserCountNode", "total", {
     "filter": {"active": True}
 })
 
-builder.add_node("ListUser", "page", {
+workflow.add_node("UserListNode", "page", {
     "filter": {"active": True},
     "offset": page * limit,
     "limit": limit
 })
 
 # Calculate pagination:
-# total_pages = ceil(result["results"]["total"]["count"] / limit)
+# total_pages = ceil(results["total"]["count"] / limit)
 ```
 
 ## Troubleshooting
 
 ### ❌ Slow CountNode Queries
-
 **Cause:** Missing index on filtered fields
 
 **Solution:**
-
 ```python
 # Add index to model
 @db.model
 class Order:
     status: str
 
-    # Add a database index on status for count performance
+    __dataflow__ = {
+        'indexes': [['status']]  # ← Add index
+    }
 ```
 
 ### ❌ Count Returns 0 Unexpectedly
-
 **Cause:** Filter condition too restrictive or incorrect
 
 **Solution:**
-
 ```python
 # Debug with ListNode first
-builder.add_node("ListOrder", "debug_list", {
+workflow.add_node("OrderListNode", "debug_list", {
     "filter": {"status": "pending"},
     "limit": 5
 })
 # Check if ListNode returns records
 
 # Then use CountNode
-builder.add_node("CountOrder", "count", {
+workflow.add_node("OrderCountNode", "count", {
     "filter": {"status": "pending"}
 })
 ```
@@ -419,7 +398,6 @@ builder.add_node("CountOrder", "count", {
 ## When to Use This Skill
 
 Use CountNode when you:
-
 - Count records without fetching data (10-50x faster)
 - Calculate pagination metadata (total pages, records)
 - Perform existence checks (any matching records?)

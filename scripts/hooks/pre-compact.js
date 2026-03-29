@@ -20,6 +20,13 @@ const {
 } = require("./lib/learning-utils");
 const { detectActiveWorkspace } = require("./lib/workspace-utils");
 
+// Timeout fallback — prevents hanging the Claude Code session
+const TIMEOUT_MS = 10000;
+const _timeout = setTimeout(() => {
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(1);
+}, TIMEOUT_MS);
+
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk) => (input += chunk));
@@ -120,38 +127,27 @@ function savePreCompactState(data) {
   }
 }
 
+// Permitted exception to cc-artifacts Rule 4 (no semantic analysis in hooks):
+// Framework detection here is structural context preservation for compaction checkpoints,
+// not agent decision-making. See journal/0009 decision D1.
 function detectFramework(cwd) {
   try {
-    const files = fs.readdirSync(cwd);
+    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
 
-    // ── Python detection ────────────────────────────────────────────────
-    const pyFiles = files.filter((f) => f.endsWith(".py"));
-    for (const file of pyFiles.slice(0, 10)) {
+    for (const file of files.slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/@db\.model/.test(content) || /from kailash\.dataflow/.test(content))
+        if (/@db\.model/.test(content) || /from dataflow/.test(content))
           return "dataflow";
-        if (/from kailash\.nexus/.test(content) || /NexusApp/.test(content))
+        if (/from nexus/.test(content) || /Nexus\(/.test(content))
           return "nexus";
         if (
-          /from kailash\.kaizen/.test(content) ||
-          /BaseAgent/.test(content)
+          /from kaizen/.test(content) ||
+          /BaseAgent/.test(content) ||
+          /from kaizen\.api import Agent/.test(content)
         )
           return "kaizen";
         if (/WorkflowBuilder/.test(content)) return "core-sdk";
-      } catch {}
-    }
-
-    // ── Ruby detection ──────────────────────────────────────────────────
-    const rbFiles = files.filter((f) => f.endsWith(".rb"));
-    for (const file of rbFiles.slice(0, 10)) {
-      try {
-        const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/Kailash::DataFlow/.test(content)) return "dataflow";
-        if (/Kailash::Nexus/.test(content)) return "nexus";
-        if (/Kailash::Kaizen/.test(content)) return "kaizen";
-        if (/Kailash::Enterprise/.test(content)) return "enterprise";
-        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
       } catch {}
     }
 
@@ -164,7 +160,7 @@ function detectFramework(cwd) {
 function findActiveWorkflows(cwd) {
   try {
     const workflows = [];
-    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py") || f.endsWith(".rb"));
+    const files = fs.readdirSync(cwd).filter((f) => f.endsWith(".py"));
 
     for (const file of files.slice(0, 10)) {
       try {
@@ -195,7 +191,7 @@ function findRecentlyModified(cwd) {
 
     const files = fs
       .readdirSync(cwd)
-      .filter((f) => f.endsWith(".py") || f.endsWith(".rb") || f.endsWith(".md"));
+      .filter((f) => f.endsWith(".py") || f.endsWith(".md"));
 
     for (const file of files) {
       try {
@@ -228,12 +224,12 @@ function extractCriticalPatterns(cwd) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
         if (/@db\.model/.test(content)) patterns.hasDataFlowModels = true;
-        if (/NexusApp/.test(content)) patterns.hasNexusApp = true;
-        if (/BaseAgent|from kailash\.kaizen/.test(content))
+        if (/Nexus\(/.test(content)) patterns.hasNexusApp = true;
+        if (/BaseAgent|from kaizen\.api import Agent/.test(content))
           patterns.hasKaizenAgent = true;
         if (/enable_cycles\s*=\s*True/.test(content))
           patterns.hasCyclicWorkflow = true;
-        if (/kailash\.Runtime/.test(content)) patterns.hasAsyncRuntime = true;
+        if (/AsyncLocalRuntime/.test(content)) patterns.hasAsyncRuntime = true;
       } catch {}
     }
   } catch {}

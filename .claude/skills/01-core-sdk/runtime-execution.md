@@ -1,277 +1,311 @@
 ---
 name: runtime-execution
-description: "Execute workflows with kailash.Runtime, with parameter overrides and configuration options. Use when asking 'execute workflow', 'runtime.execute', 'kailash.Runtime', 'run workflow', 'execution options', 'runtime parameters', 'content-aware detection', or 'workflow execution'."
+description: "Execute workflows with LocalRuntime or AsyncLocalRuntime, with parameter overrides and configuration options. Use when asking 'execute workflow', 'runtime.execute', 'LocalRuntime', 'AsyncLocalRuntime', 'run workflow', 'execution options', 'runtime parameters', 'content-aware detection', or 'workflow execution'."
 ---
 
-# Runtime Execution
+# Runtime Execution Options
 
-Configuration and execution patterns for the Kailash Runtime.
+Runtime Execution Options guide with patterns, examples, and best practices.
 
-## Usage
+> **Skill Metadata**
+> Category: `core-sdk`
+> Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
-`/runtime-execution` -- Reference for Runtime creation, execute(), and reading results
+## Quick Reference
 
-## The Runtime
+- **Primary Use**: Runtime Execution Options
+- **Category**: core-sdk
+- **Priority**: HIGH
+- **Trigger Keywords**: execute workflow, runtime.execute, LocalRuntime, AsyncLocalRuntime, run workflow
+
+## Core Patterns
+
+### Synchronous Execution (CLI/Scripts)
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-# Create registry and build a workflow
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("LogNode", "logger", {"message": "Hello"})
-wf = builder.build(reg)
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
 
-# Create runtime (reuse across executions)
-rt = kailash.Runtime(reg)
-
-# Execute workflow
-result = rt.execute(wf)
-# result is a dict: {"results": {...}, "run_id": "...", "metadata": {...}}
+# Context manager ensures proper cleanup (RECOMMENDED)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
-## ExecutionResult
-
-The `rt.execute()` method returns a dict with these keys:
+### Asynchronous Execution (Docker/FastAPI)
 
 ```python
-result = rt.execute(wf, inputs)
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
 
-# result["run_id"]    -- Unique identifier for this execution run (str)
-# result["results"]   -- Per-node output maps: {node_id: {output_key: value}} (dict)
-# result["metadata"]  -- Execution metadata: timing, node counts, etc. (dict)
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+
+# AsyncLocalRuntime for async execution (Docker-optimized)
+runtime = AsyncLocalRuntime()
+results, run_id = await runtime.execute_workflow_async(workflow.build(), inputs={})
 ```
 
-## Accessing Results
+### Runtime Configuration Options
+
+Both runtimes share 29 configuration parameters:
 
 ```python
-result = rt.execute(wf, {"text": "hello"})
-
-# Check the unique run ID
-print(f"Run: {result['run_id']}")
-
-# Access output from a specific node by ID
-node_output = result["results"].get("my_transform_node")
-if node_output:
-    value = node_output.get("result")
-    print(f"Result: {value}")
-
-# Pattern: get or raise
-output = result["results"].get("final_node")
-if output is None:
-    raise KeyError("node 'final_node' not in results")
-
-# Pattern: get string value with default
-text = (
-    result["results"]
-    .get("text_node", {})
-    .get("text", "default")
+# Common configuration options
+runtime = LocalRuntime(
+    debug=True,                                    # Enable debug logging
+    enable_cycles=True,                            # Allow cyclic workflows
+    conditional_execution=True,                    # Enable conditional nodes
+    connection_validation="strict",                # Validation mode: strict, warn, off
+    content_aware_success_detection=True,          # Detect {"success": False} patterns
+    max_iterations=100,                            # Max cycle iterations
+    convergence_threshold=0.001                    # Cycle convergence threshold
 )
 
-# Iterate all node results
-for node_id, outputs in result["results"].items():
-    print(f"Node '{node_id}': {len(outputs)} outputs")
-    for key, val in outputs.items():
-        print(f"  {key}: {val}")
+# Get validation metrics (LocalRuntime public API)
+metrics = runtime.get_validation_metrics()
+runtime.reset_validation_metrics()
 ```
 
-## Execution Model (Level-Based Parallelism)
-
-```
-Workflow DAG:
-  A -> B -> D
-  A -> C -> D
-
-Level 0: [A]        -- runs first (no dependencies)
-Level 1: [B, C]     -- runs in parallel (both depend only on A)
-Level 2: [D]        -- runs last (depends on B and C)
-```
-
-The Runtime pre-computes execution levels at `builder.build(reg)` time and runs nodes at the same level concurrently.
-
-## Passing Inputs to Workflows
+## Parameter Passing at Runtime
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("TextTransformNode", "upper", {"operation": "uppercase"})
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-
-# Pass inputs as a dict
-result = rt.execute(wf, {
-    "text": "hello world",
-    "count": 10,
-    "enabled": True,
-    "config": {"timeout": 30},
-})
+# Override node parameters at runtime
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(
+        workflow.build(),
+        parameters={
+            "reader": {"file_path": "custom.csv"},     # Override node config
+            "filter": {"threshold": 100}               # Add runtime parameter
+        }
+    )
 ```
 
-## Common Patterns
+## Runtime Architecture
 
-### Re-using Runtime for Multiple Executions
+Both LocalRuntime and AsyncLocalRuntime inherit from BaseRuntime and use shared mixins for consistent behavior:
+
+**BaseRuntime Foundation**:
+
+- Provides 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
+- Manages execution metadata (run IDs, workflow caching)
+- Common initialization and validation modes (strict, warn, off)
+
+**Shared Mixins**:
+
+- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
+- **ValidationMixin**: Workflow structure validation (5 methods)
+  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
+  - \_validate_connection_contracts(): Validates connection parameter contracts
+  - \_validate_conditional_execution_prerequisites(): Validates conditional execution setup
+  - \_validate_switch_results(): Validates switch node results
+  - \_validate_conditional_execution_results(): Validates conditional execution results
+- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
+  - Pattern detection and cycle detection
+  - Node skipping and hierarchical execution
+  - Conditional workflow orchestration
+
+**LocalRuntime-Specific Features**:
+
+- \_generate_enhanced_validation_error(): Enhanced error messages with context
+- \_build_connection_context(): Builds connection context for errors
+- get_validation_metrics(): Public API for retrieving validation metrics
+- reset_validation_metrics(): Public API for resetting validation metrics
+
+**ParameterHandlingMixin Not Used**:
+LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
+
+All existing usage patterns remain unchanged.
+
+## AsyncLocalRuntime Extensions
+
+AsyncLocalRuntime inherits from LocalRuntime and adds async-specific capabilities:
+
+### Async-Specific Components
+
+**WorkflowAnalyzer**: Analyzes workflows to determine optimal execution strategy
+
+- Detects async vs sync nodes
+- Identifies execution levels (dependency-based)
+- Calculates concurrency opportunities
+
+**ExecutionContext**: Async execution context with integrated resource access
+
+- Integrated ResourceRegistry support
+- Execution variables management
+- Performance metrics collection
+
+**Execution Strategies**: Automatically selects optimal execution path
+
+- Pure Async: All AsyncNode instances (maximum concurrency)
+- Mixed: Combination of sync/async nodes (balanced)
+- Sync-Only: All sync nodes in thread pool (compatibility)
+
+**Level-Based Parallelism**: Executes independent nodes concurrently
+
+- Groups nodes by dependency level
+- Uses asyncio.gather() for concurrent execution
+- Respects data dependencies
+
+**Concurrency Control**: Semaphore-based limits
+
+- Default: 10 concurrent nodes
+- Configurable via max_concurrent_nodes parameter
+- Prevents resource exhaustion
+
+**Thread Pool**: Executes sync nodes without blocking
+
+- Runs sync nodes via loop.run_in_executor()
+- Configurable pool size (default: 4 threads)
+- Proper cleanup in destructor
+
+### Usage Example
 
 ```python
-import kailash
+from kailash.runtime import AsyncLocalRuntime
+from kailash.resources import ResourceRegistry
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+# Create runtime with async-specific options
+runtime = AsyncLocalRuntime(
+    debug=True,
+    enable_cycles=True,                    # Inherited from BaseRuntime
+    conditional_execution=True,            # Inherited from mixins
+    connection_validation="strict",        # Inherited from mixins
+    max_concurrent_nodes=20,               # AsyncLocalRuntime-specific
+    thread_pool_size=8,                    # AsyncLocalRuntime-specific
+    enable_analysis=True,                  # Enable WorkflowAnalyzer
+    enable_profiling=True                  # Enable performance metrics
+)
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("LogNode", "logger", {})
-wf = builder.build(reg)
+# Execute with async context
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 
-# Execute multiple times with different inputs
-for i in range(10):
-    result = rt.execute(wf, {"id": i})
-    print(f"Run {result['run_id']}")
+# All inherited methods available
+runtime.validate_workflow(workflow)         # ValidationMixin
+metrics = runtime.get_validation_metrics()  # LocalRuntime
 ```
 
-### Concurrent Executions (asyncio)
+### When to Use AsyncLocalRuntime
+
+Use AsyncLocalRuntime when:
+
+- Deploying to Docker/Kubernetes
+- Building FastAPI applications
+- Requiring high concurrency
+- Using async nodes (AsyncPythonCodeNode, etc.)
+- Production API deployments (10-100x faster than LocalRuntime)
+
+Use LocalRuntime when:
+
+- Building CLI tools or scripts
+- Synchronous execution contexts
+- Testing and development
+- Simple automation tasks
+
+## Advanced: Custom Runtime Development
+
+For advanced users building custom runtimes:
 
 ```python
-import kailash
-import asyncio
+from kailash.runtime.base import BaseRuntime
+from kailash.runtime.mixins.cycle_execution import CycleExecutionMixin
+from kailash.runtime.mixins.validation import ValidationMixin
+from kailash.runtime.mixins.conditional_execution import ConditionalExecutionMixin
 
-async def run_batch():
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
+class CustomRuntime(BaseRuntime, CycleExecutionMixin, ValidationMixin, ConditionalExecutionMixin):
+    """Custom runtime inheriting shared foundation (3 mixins)."""
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("LogNode", "logger", {})
-    wf = builder.build(reg)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)  # Initialize BaseRuntime
+        # Add custom initialization
 
-    # Run multiple workflows concurrently
-    tasks = []
-    for i in range(10):
-        # Each execute call can be wrapped in asyncio
-        tasks.append(asyncio.to_thread(rt.execute, wf, {"id": i}))
-
-    results = await asyncio.gather(*tasks)
-    for result in results:
-        print(f"Run ID: {result['run_id']}")
+    def execute(self, workflow, **kwargs):
+        """Implement custom execution logic."""
+        # Use self._generate_run_id(), self._cache_workflow(), etc.
+        pass
 ```
 
-### Error Handling
+Note: ParameterHandlingMixin is not included as LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling.
+
+See `STATE_OWNERSHIP_CONVENTION.md` for mixin development guidelines.
+
+## Related Patterns
+
+- **For fundamentals**: See [`workflow-quickstart`](#)
+- **For parameter passing**: See [`gold-parameter-passing`](#)
+- **For runtime selection**: See [`decide-runtime`](#)
+
+## Documentation References
+
+### Primary Sources
+
+- [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
+
+### Advanced References
+
+
+## Performance Configuration
+
+Phase 0 optimizations reduce per-node execution overhead. Key configuration:
 
 ```python
-import kailash
+# Default: optimized for speed (resource checks disabled)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("HTTPRequestNode", "api", {
-    "url": "https://api.example.com/data",
-    "method": "GET",
-})
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
+# Opt-in: enable psutil resource limit checks (adds ~71us/node overhead)
+with LocalRuntime(enable_resource_limits=True) as runtime:
+    results, run_id = runtime.execute(workflow.build())
 
-try:
-    result = rt.execute(wf)
-    output = result["results"]["api"]
-    print(f"Response: {output}")
-except RuntimeError as e:
-    print(f"Workflow execution failed: {e}")
+# Maximum performance: disable both resource limits and monitoring
+with LocalRuntime(enable_resource_limits=False, enable_monitoring=False) as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
-## Ruby Equivalent
+**What's optimized (automatic, no config needed)**:
 
-```ruby
-require "kailash"
+- Topological sort cached per workflow (742x-6504x speedup on cache hit)
+- Cycle edge classification cached with dirty-flag invalidation (60x-265x speedup)
+- Module-level imports (no per-node import overhead)
+- Shared MetricsCollector per workflow (skips thread spawn when psutil disabled)
+- Node ID frozenset pre-computed once per execution
+- Security allowed_types cached at module level (eliminates 13+ per-call lazy imports)
+- Topo cache returns immutable tuple (prevents cache corruption)
+- Deferred monitoring storage (zero I/O during execution, batch write after)
+- Batch CARE persistence (single file per run, avoids 1M+ entry directory bloat)
+- SQLite CARE storage (ACID-compliant, queryable audit trail with EATP event persistence)
 
-Kailash::Registry.open do |registry|
-  builder = Kailash::WorkflowBuilder.new
-  builder.add_node("TextTransformNode", "upper", { "operation" => "uppercase" })
-  workflow = builder.build(registry)
+**Framework overhead**: ~41-52us/node with monitoring disabled (30-34% of total execution time
+for PythonCodeNode with minimal code). See `docs/guides/00-performance-optimizations.md` for
+detailed benchmark results.
 
-  Kailash::Runtime.open(registry) do |runtime|
-    result = runtime.execute(workflow, { "text" => "hello world" })
-    puts result.results["upper"]["result"]
-  end
-  workflow.close
-end
-```
+**Monitoring overhead**: ~35us/node in-loop + ~1.5-2.8ms SQLite flush after execution.
+Monitoring ON adds ~34% overhead in-loop (down from 3200x before P0D-007). Post-execution
+SQLite flush adds ~1.5ms for 5-node workflows, scaling sub-linearly at ~56us/task for 50 tasks.
 
-**Ruby RuntimeConfig**:
+**CARE audit persistence (P0E)**: Tracking data + EATP audit events written atomically to
+`~/.kailash/tracking/tracking.db` using WAL mode + `executemany()` batch inserts.
+`DeferredStorageBackend.flush_to_sqlite()` is called by `_flush_deferred_storage_sqlite()`
+in LocalRuntime, which collects `RuntimeAuditGenerator` events before flushing.
 
-```ruby
-config = Kailash::RuntimeConfig.new
-config.debug = true
-config.max_concurrent_nodes = 8
-config.workflow_timeout = 120
-config.node_timeout = 30
+- networkx removed from hot-path execution (local.py, async_local.py)
+- BFS ancestor traversal replaces nx.ancestors for switch evaluation
 
-Kailash::Runtime.open(registry, config) do |runtime|
-  result = runtime.execute(workflow, inputs)
-end
-```
+**Regression tests**: `tests/unit/runtime/test_phase0{a,b,c,d,e}_optimizations.py` (113+ tests)
 
-## Resource Lifecycle (Three-Layer Model)
+See `docs/guides/00-performance-optimizations.md` for full details.
 
-The Runtime manages resources through a three-layer model:
+## Quick Tips
 
-1. **Access layer** -- Global pool registry for key-based pool lookup
-2. **Ownership layer** -- DataFlow and nodes own pools with explicit cleanup
-3. **Lifecycle layer** -- Per-Runtime resource registry with LIFO shutdown
+- Always use `runtime.execute(workflow.build())` - never `workflow.execute()`
+- Choose LocalRuntime for CLI/scripts, AsyncLocalRuntime for Docker/FastAPI
+- Both runtimes share the same configuration parameters and validation logic
+- Parameter resolution supports ${param} templates with type preservation
+- Use context manager (`with LocalRuntime() as runtime:`) for proper resource cleanup
 
-Database connections created by `DatabaseConnectionNode` are automatically registered and cleaned up when the Runtime is garbage collected (Python) or when the block closes (Ruby).
+## Keywords for Auto-Trigger
 
-## Testing with Runtime
-
-### Python
-
-```python
-import kailash
-
-def test_workflow_produces_correct_output():
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("TextTransformNode", "upper", {
-        "operation": "uppercase",
-    })
-
-    wf = builder.build(reg)
-    rt = kailash.Runtime(reg)
-
-    result = rt.execute(wf, {"text": "hello"})
-    output = result["results"]["upper"]
-    assert output.get("result") == "HELLO"
-```
-
-### Ruby
-
-```ruby
-require "kailash"
-
-RSpec.describe "TextTransform workflow" do
-  it "uppercases text" do
-    Kailash::Registry.open do |registry|
-      builder = Kailash::WorkflowBuilder.new
-      builder.add_node("TextTransformNode", "upper", { "operation" => "uppercase" })
-      workflow = builder.build(registry)
-
-      Kailash::Runtime.open(registry) do |runtime|
-        result = runtime.execute(workflow, { "text" => "hello" })
-        expect(result.results["upper"]["result"]).to eq("HELLO")
-      end
-      workflow.close
-    end
-  end
-end
-```
-
-## Verify
-
-```bash
-# Python
-pip install kailash-enterprise
-python -c "import kailash; print(kailash.NodeRegistry().list_types()[:5])"
-
-# Ruby
-gem install kailash
-ruby -e 'require "kailash"; puts Kailash::Registry.new.list_types.first(5).inspect'
-```
-
-<!-- Trigger Keywords: execute workflow, runtime, kailash.Runtime, run workflow, execution, workflow execution -->
+<!-- Trigger Keywords: execute workflow, runtime.execute, LocalRuntime, AsyncLocalRuntime, run workflow -->

@@ -10,6 +10,7 @@ Error Handling Patterns guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,18 +22,18 @@ Error Handling Patterns guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Error Handling Patterns implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -55,6 +56,10 @@ Use specialized subagents when:
 - Production deployment required
 - Deep analysis necessary
 - Enterprise patterns needed
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

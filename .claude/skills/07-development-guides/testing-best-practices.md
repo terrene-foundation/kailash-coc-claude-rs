@@ -5,171 +5,159 @@ Testing strategies for Kailash SDK including 3-tier testing, runtime testing pat
 ## 3-Tier Testing Strategy
 
 ### Tier 1: Unit Tests
-
 - Test individual nodes and components
 - Fast execution (< 1s per test)
 - Mocking allowed for external dependencies
-- Uses kailash.Runtime for synchronous execution
+- Uses LocalRuntime for synchronous execution
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 def test_workflow_creation():
     """Test workflow builder."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "process", {
-        "code": "result = {'value': input_value * 2}",
-        "output_vars": ["result"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "process", {
+        "code": "result = {'value': input_value * 2}"
     })
 
-    reg = kailash.NodeRegistry()
-
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), inputs={
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build(), parameters={
         "process": {"input_value": 10}
     })
 
-    assert result["results"]["process"]["outputs"]["value"] == 20
+    assert results["process"]["result"]["value"] == 20
 ```
 
-### Tier 2: Integration Tests (NO MOCKING)
-
+### Tier 2: Integration Tests (Real infrastructure recommended)
 - Test multi-node workflows with real infrastructure
 - Use real Docker services (PostgreSQL, Redis, Ollama)
-- Test with kailash.Runtime(reg)
+- Test both LocalRuntime and AsyncLocalRuntime
 - Medium execution time (< 30s per test)
 
-```pythonfrom tests.utils.docker_config import get_postgres_connection_string
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
+from tests.utils.docker_config import get_postgres_connection_string
 
 def test_database_workflow():
     """Test with real PostgreSQL - NO MOCKS."""
     conn_string = get_postgres_connection_string()
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("SQLQueryNode", "db", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("SQLDatabaseNode", "db", {
         "connection_string": conn_string,
         "query": "SELECT 1 as value",
         "operation": "select"
     })
 
-    reg = kailash.NodeRegistry()
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-
-    assert result["results"]["db"]["success"]
+    assert results["db"]["success"]
     assert len(results["db"]["data"]) > 0
 ```
 
 ### Tier 3: End-to-End Tests
-
 - Complete workflows with full scenarios
 - Real external services and Docker infrastructure
 - Test production-like deployments
 - Slower execution (minutes acceptable)
 
 ```python
-import kailash
-
 import pytest
+from kailash.runtime import AsyncLocalRuntime
+
 @pytest.mark.e2e
 @pytest.mark.requires_docker
 async def test_complete_etl_pipeline():
-    """Test full ETL pipeline with kailash.Runtime."""
+    """Test full ETL pipeline with AsyncLocalRuntime."""
     workflow = build_etl_workflow()
 
-    reg = kailash.NodeRegistry()
+    runtime = AsyncLocalRuntime()
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), inputs={})
-
-    assert result["results"]["extract"]["status"] == "success"
-    assert result["results"]["transform"]["rows_processed"] > 0
-    assert result["results"]["load"]["rows_inserted"] > 0
+    assert results["extract"]["status"] == "success"
+    assert results["transform"]["rows_processed"] > 0
+    assert results["load"]["rows_inserted"] > 0
 ```
 
 ## Runtime Testing Patterns
 
-### Testing Runtime
-
+### Testing LocalRuntime (Sync)
 ```python
-import kailash
+from kailash.runtime import LocalRuntime
 
 def test_sync_execution():
     """Test synchronous runtime execution."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'status': 'completed'}",
-        "output_vars": ["result"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node", {
+        "code": "result = {'status': 'completed'}"
     })
 
-    reg = kailash.NodeRegistry()
+    runtime = LocalRuntime()
+    results, run_id = runtime.execute(workflow.build())
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-
-    assert result["results"]["node"]["outputs"]["status"] == "completed"
-    assert result["run_id"] is not None
+    assert results["node"]["result"]["status"] == "completed"
+    assert run_id is not None
 ```
 
-### Testing Async Patterns
-
+### Testing AsyncLocalRuntime (Async)
 ```python
-import kailash
-
 import pytest
+from kailash.runtime import AsyncLocalRuntime
+
 @pytest.mark.asyncio
 async def test_async_execution():
     """Test asynchronous runtime execution."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'status': 'completed'}",
-        "output_vars": ["result"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node", {
+        "code": "result = {'status': 'completed'}"
     })
 
-    reg = kailash.NodeRegistry()
+    runtime = AsyncLocalRuntime()
+    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
 
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg), inputs={})
-
-    assert result["results"]["node"]["outputs"]["status"] == "completed"
+    assert results["node"]["result"]["status"] == "completed"
 ```
 
 ### Parametrized Runtime Testing
-
 ```python
-import kailash
+import pytest
+from kailash.runtime import LocalRuntime, AsyncLocalRuntime
 
-def test_workflow_execution():
-    """Test pattern works with kailash.Runtime."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "node", {
-        "code": "result = {'value': 42}",
-        "output_vars": ["result"]
+@pytest.mark.parametrize("runtime_class", [LocalRuntime, AsyncLocalRuntime])
+def test_both_runtimes(runtime_class):
+    """Test pattern works with both runtimes."""
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node", {
+        "code": "result = {'value': 42}"
     })
 
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    runtime = runtime_class()
 
-    assert result["results"]["node"]["outputs"]["value"] == 42
+    if isinstance(runtime, AsyncLocalRuntime):
+        import asyncio
+        results = asyncio.run(runtime.execute_workflow_async(workflow.build(), inputs={}))
+    else:
+        results, run_id = runtime.execute(workflow.build())
+
+    assert results["node"]["result"]["value"] == 42
 ```
 
 ## Testing with Real Infrastructure
 
 ### Docker Services Setup
-
 ```bash
 # Start test services
-cd tests/utils
-docker-compose -f docker-compose.test.yml up -d
+cd tests/infrastructure
+docker compose -f compose.yaml up -d
 
 # Verify services
-docker-compose -f docker-compose.test.yml ps
+docker compose -f compose.yaml ps
 ```
 
 ### Available Test Services
-
 - PostgreSQL: `localhost:5434`
 - Redis: `localhost:6380`
 - Ollama: `localhost:11435`
@@ -178,7 +166,6 @@ docker-compose -f docker-compose.test.yml ps
 - Mock API: `localhost:8888`
 
 ### Using Docker Config
-
 ```python
 from tests.utils.docker_config import (
     get_postgres_connection_string,
@@ -201,7 +188,6 @@ def test_with_redis():
 ## Test Organization
 
 ### Directory Structure
-
 ```
 tests/
 ├── unit/              # Tier 1: Fast, isolated tests
@@ -219,7 +205,6 @@ tests/
 ```
 
 ### Running Tests by Tier
-
 ```bash
 # Tier 1 - Unit tests (ALL unit tests)
 pytest tests/unit/
@@ -233,8 +218,7 @@ pytest tests/e2e/
 
 ## Critical Testing Policies
 
-### 1. NO MOCKING in Tiers 2-3
-
+### 1. Real infrastructure recommended in Tiers 2-3
 ```python
 # ❌ NEVER in integration/e2e tests
 from unittest.mock import patch
@@ -251,7 +235,6 @@ def test_api_integration():
 ```
 
 ### 2. Zero Skip Tolerance
-
 ```python
 # ❌ NEVER skip tests
 @pytest.mark.skip("Redis not available")
@@ -265,7 +248,6 @@ def test_redis_operations():
 ```
 
 ### 3. Test Isolation
-
 ```python
 @pytest.fixture
 def clean_database():
@@ -292,7 +274,6 @@ def test_two(clean_database):
 ## When to Escalate
 
 Use `testing-specialist` subagent when:
-
 - Complex test infrastructure setup needed
 - Performance testing strategy required
 - CI/CD integration issues

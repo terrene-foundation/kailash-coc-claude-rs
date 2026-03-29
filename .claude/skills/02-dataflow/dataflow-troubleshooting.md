@@ -1,230 +1,232 @@
-# DataFlow Troubleshooting Guide (Rust Binding)
+# DataFlow Troubleshooting Guide
 
-Troubleshoot common issues when using DataFlow with the Rust-backed Python binding (`kailash-enterprise`).
+## Overview
 
-## Issue 1: Unsupported Type Annotation
+DataFlow v0.4.7+ provides diagnostic tools to resolve issues quickly.
 
-**Error**:
+## Troubleshooting Flowchart
 
-```
-TypeError: unsupported type annotation: <class 'list'>; expected int, str, float, bool, datetime.datetime, or Optional[T]
-```
+1. **Start**: Is workflow executing at all?
+   - NO -> Check error message for DF-XXX code
+2. **Results empty?**
+   - YES -> Use Inspector to validate connections
+3. **Slow performance?**
+   - YES -> Use `dataflow perf` to identify bottlenecks
+4. **Type errors?**
+   - YES -> Use Inspector to check connection types
+5. **Event loop errors?**
+   - YES -> Enable test_mode with cleanup
 
-**Cause**: `@db.model` only supports these type annotations: `int`, `str`, `float`, `bool`, `datetime.datetime`, and `Optional[T]` variants.
+## Issue 1: Workflow Builds But Produces No Results
 
-**Fix**: Use supported types. For complex data, serialize to `str` (JSON):
+**Symptoms**: `runtime.execute(workflow.build())` succeeds but results are empty or None.
 
+**Solution**:
 ```python
-from kailash.dataflow import db
-from typing import Optional
-import json
+# Step 1: Use Inspector to validate connections
+inspector = Inspector(workflow)
+validation = inspector.validate_connections()
 
-@db.model
-class Config:
-    __table__ = "configs"
-    id: int
-    name: str
-    data_json: str  # Store complex data as JSON string
+if not validation["is_valid"]:
+    print("Connection errors found:")
+    for error in validation["errors"]:
+        print(f"  - {error}")
 
-    def set_data(self, data: dict):
-        self.data_json = json.dumps(data)
-
-    def get_data(self) -> dict:
-        return json.loads(self.data_json)
+# Step 2: Use CLI validate command
+# dataflow validate my_workflow.py --strict
 ```
 
-## Issue 2: DataFlow Connection Failed
+## Issue 2: Missing Parameter Error (DF-101)
 
-**Error**:
+**Symptoms**: Error shows "DF-101: Missing Required Parameter"
 
-```
-RuntimeError: DataFlow connection failed: database error: error returned from database: (code: 14) unable to open database file
-```
-
-**Cause**: SQLite file path doesn't exist or the directory is not writable.
-
-**Fix**:
-
+**Solution**:
 ```python
-import os
-from kailash.dataflow import DataFlow
+# ErrorEnhancer shows exactly which parameter is missing
+# Follow the 3 solutions provided in error message:
 
-# Ensure directory exists
-os.makedirs("/path/to/data", exist_ok=True)
+# Solution 1: Add missing parameter
+data = {
+    "id": "user-123",  # <- ADD THIS
+    "name": "Alice",
+    "email": "alice@example.com"
+}
 
-# Use absolute path
-df = DataFlow("sqlite:///path/to/data/app.db")
+# Solution 2: Check model definition
+# Verify all required fields are present
 
-# For in-memory (testing)
-df = DataFlow("sqlite://:memory:")
+# Solution 3: Use Inspector to validate
+inspector = Inspector(workflow)
+trace = inspector.trace_parameter("create", "id")
 ```
 
-## Issue 3: FieldDef Has No Constructor
+## Issue 3: Slow First Operation
 
-**Error**:
+**Symptoms**: First database operation takes ~1500ms, subsequent operations are fast.
 
-```
-TypeError: No constructor defined for FieldDef
-```
-
-**Cause**: `FieldDef` is created internally by `@db.model` and `ModelDefinition.field()`. It has no public constructor.
-
-**Fix**: Use `ModelDefinition.field()` to add fields programmatically:
-
+**Solution**:
 ```python
-from kailash.dataflow import ModelDefinition, FieldType
+# This is expected behavior! Schema cache causes this pattern:
+# - First operation: Cache miss (~1500ms) - includes migration checks
+# - Subsequent operations: Cache hit (~1ms) - 99% faster
 
-md = ModelDefinition("User", "users")
-md.field("id", FieldType.integer(), primary_key=True)
-md.field("name", FieldType.text())
-md.field("active", FieldType.boolean())
+# To verify schema cache is working:
+metrics = db._schema_cache.get_metrics()
+print(f"Hit rate: {metrics['hit_rate']:.2%}")  # Should be >90% after warm-up
 ```
 
-`FieldType` variants are **lowercase class methods** (not uppercase attributes):
+## Issue 4: Event Loop Closed Errors
 
-| Method                  | Type         |
-| ----------------------- | ------------ |
-| `FieldType.integer()`   | Integer      |
-| `FieldType.text()`      | Text/Varchar |
-| `FieldType.real()`      | Real/Double  |
-| `FieldType.float()`     | Float        |
-| `FieldType.boolean()`   | Boolean      |
-| `FieldType.json()`      | JSON         |
-| `FieldType.timestamp()` | Timestamp    |
-| `FieldType.uuid()`      | UUID         |
+**Symptoms**: "Event loop is closed" or "Pool attached to different loop"
 
-## Issue 4: Workflow Build Failed — Unknown Node Type
-
-**Error**:
-
-```
-RuntimeError: workflow build failed: unknown node type: CreateUser
-```
-
-**Cause**: DataFlow-generated node types (CreateNode, ReadNode, etc.) are not registered in `NodeRegistry` by default. The Rust binding does not auto-generate nodes from model definitions like the pure Python SDK does.
-
-**Fix**: Use `@db.model` with DataFlow's workflow integration, or use `SQLQueryNode` / `DatabaseConnectionNode` for direct SQL:
-
+**Solution**:
 ```python
-import kailash
+# Use test mode with automatic cleanup
+db = DataFlow("postgresql://...", test_mode=True)
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-
-# Use built-in SQL nodes instead of generated CRUD nodes
-builder.add_node("SQLQueryNode", "query_users", {
-    "query": "SELECT * FROM users WHERE active = true",
-    "connection_string": "sqlite:///app.db"
-})
-
-wf = builder.build(reg)
+# In pytest fixture:
+@pytest.fixture(scope="function")
+async def db():
+    db = DataFlow("postgresql://...", test_mode=True)
+    yield db
+    await db.cleanup_all_pools()  # Clean up after each test
 ```
 
-## Issue 5: Invalid Connection — Target Node Does Not Exist
+## Issue 5: Connection Type Mismatch (DF-201)
 
-**Error**:
+**Symptoms**: Error shows "DF-201: Connection Type Mismatch"
 
-```
-RuntimeError: workflow build failed: invalid connection from node_a.result to node_b.input: target node 'node_b' does not exist in the workflow
-```
-
-**Cause**: Connecting to a node ID that hasn't been added to the builder.
-
-**Fix**: Ensure all nodes are added before connecting:
-
+**Solution**:
 ```python
-builder = kailash.WorkflowBuilder()
+# ErrorEnhancer shows expected vs actual types
+# Use Inspector to trace the issue:
 
-# Add ALL nodes first
-builder.add_node("SwitchNode", "router", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
-builder.add_node("MergeNode", "combiner", {})
+inspector = Inspector(workflow)
+validation = inspector.validate_connections()
 
-# Then connect -- SwitchNode outputs "matched" and "data"
-builder.connect("router", "data", "combiner", "data")
+for error in validation["errors"]:
+    if "type mismatch" in error["reason"].lower():
+        print(f"Mismatch: {error['from_node']}.{error['from_param']}")
+        print(f"Expected: {error['expected_type']}")
+        print(f"Got: {error['actual_type']}")
+        # Fix the type in the source node
 ```
 
-## Issue 6: Cycle Detected
+## Quick Diagnostic Commands
 
-**Error**:
+```bash
+# Full workflow validation
+dataflow validate my_workflow.py --strict
 
-```
-RuntimeError: workflow build failed: cycle detected involving nodes: a, b
-```
+# Debug specific node
+dataflow debug my_workflow.py --node "problematic_node"
 
-**Cause**: The Rust binding blocks cyclic graphs at `build()` time.
+# Analyze performance
+dataflow perf my_workflow.py --profile
 
-**Fix**: See [`error-cycle-convergence`](../15-error-troubleshooting/error-cycle-convergence.md) for detailed solutions (LoopNode, callback nodes, linear pipelines).
-
-## Issue 7: Node Execution Failed — No Matching Case
-
-**Error**:
-
-```
-RuntimeError: workflow execution failed: node 'sw' failed -> node execution failed: no matching case for condition '"x > 5"' and no default branch configured
+# Check workflow structure
+dataflow analyze my_workflow.py
 ```
 
-**Cause**: SwitchNode condition doesn't match any case and no default is set.
+## Debugging Steps (v0.4.7+)
 
-**Fix**: Add a default branch or ensure conditions cover all cases:
-
+**Step 1: Use Inspector First**
 ```python
-builder.add_node("SwitchNode", "router", {
-    "cases": {
-        "active": "process_active",
-        "inactive": "process_inactive"
-    },
-    "default_branch": "process_default"  # Always set a default
-})
-# Connect the condition input (the value to match against case keys)
-builder.connect("source", "status", "router", "condition")
-# SwitchNode outputs: "matched" (the branch name) and "data" (forwarded input)
+from dataflow.platform.inspector import Inspector
+
+# ALWAYS start with Inspector
+inspector = Inspector(workflow)
+
+# Quick health check
+validation = inspector.validate_connections()
+if not validation["is_valid"]:
+    print(f"Found {len(validation['errors'])} errors")
+    for error in validation["errors"]:
+        print(f"  - {error}")
 ```
 
-## Issue 8: Duplicate Node IDs (Silent Overwrite)
-
-**Symptom**: Second `add_node()` with the same ID silently overwrites the first. No error raised.
-
-**Cause**: `WorkflowBuilder` does not enforce unique node IDs — it overwrites.
-
-**Fix**: Use unique IDs. Check with `get_node_ids()`:
-
+**Step 2: Check Error Codes**
 ```python
-builder = kailash.WorkflowBuilder()
-builder.add_node("SwitchNode", "step1", {"cases": {"a": "handler_a"}, "default_branch": "handler_a"})
-
-# Check before adding
-existing = builder.get_node_ids()
-if "step1" in existing:
-    print("Warning: step1 already exists!")
+# Enhanced errors show DF-XXX codes
+try:
+    results = runtime.execute(workflow.build())
+except Exception as e:
+    if "DF-" in str(e):
+        error_code = str(e).split(":")[0]
+        print(f"Error code: {error_code}")
+        print(f"Documentation: https://docs.kailash.dev/dataflow/errors/{error_code}")
 ```
 
-## Quick Diagnostic Checklist
+**Step 3: Use CLI Commands**
+```bash
+dataflow validate my_workflow.py --strict
+dataflow debug my_workflow.py --node "problematic_node"
+dataflow perf my_workflow.py --profile
+```
 
-- [ ] Using supported type annotations in `@db.model` (int, str, float, bool, datetime, Optional)
-- [ ] Database file path exists and is writable (SQLite)
-- [ ] All node IDs are unique in the builder
-- [ ] All connection targets exist (added via `add_node` before `connect`)
-- [ ] No cyclic connections (use LoopNode instead)
-- [ ] SwitchNode has a `default_branch` configured
-- [ ] Using `FieldType.text()` (lowercase method), not `FieldType.Text` (no such attribute)
-- [ ] Using `builder.connect()` with 4 positional args, not keyword args
+**Step 4: Verify Node-Instance Coupling**
+```python
+# Check node-instance coupling (rare issue)
+node = db._nodes["UserCreateNode"]()
+print(f"Bound to: {node.dataflow_instance}")
+print(f"Correct: {node.dataflow_instance is db}")
+```
 
-## Pure Python SDK vs Rust Binding Differences
+**Step 5: Verify String ID Preservation**
+```python
+# Verify string ID preservation (rare issue)
+results = runtime.execute(workflow.build())
+print(f"ID type: {type(results['create_user']['id'])}")
+print(f"ID value: {results['create_user']['id']}")
+```
 
-| Feature                            | Pure Python SDK    | Rust Binding                       |
-| ---------------------------------- | ------------------ | ---------------------------------- |
-| Auto-generated CRUD nodes          | Yes (11 per model) | No -- use SQLQueryNode             |
-| DataFlowInspector                  | Yes                | Yes                                |
-| DataFlowExpress                    | Yes                | Yes                                |
-| DebugAgent                         | Yes                | No                                 |
-| CLI commands (`dataflow validate`) | Yes                | No                                 |
-| DF-XXX error codes                 | Yes                | RuntimeError messages              |
-| `DataFlow(url, test_mode=True)`    | Yes                | Yes (also `DataFlowConfig.test()`) |
-| Schema cache metrics               | Yes                | No                                 |
+## Common Debugging Patterns
 
-## Related
+### Pattern 1: Connection Issues
+```python
+# Use Inspector to trace parameter flow
+inspector = Inspector(workflow)
+trace = inspector.trace_parameter("target_node", "missing_param")
 
-- [DataFlow quickstart](dataflow-quickstart.md)
-- [DataFlow models](dataflow-models.md)
-- [DataFlow gotchas](dataflow-gotchas.md)
-- [Cycle errors](../15-error-troubleshooting/error-cycle-convergence.md)
+if trace.source is None:
+    print("Parameter not connected! Add connection:")
+    print(f"  workflow.add_connection(source_node, 'param', 'target_node', 'missing_param')")
+```
+
+### Pattern 2: Type Mismatches
+```python
+# Inspector shows type mismatches in connections
+validation = inspector.validate_connections()
+for error in validation["errors"]:
+    if "type mismatch" in error["reason"].lower():
+        print(f"Type mismatch: {error['from_node']}.{error['from_param']} -> {error['to_node']}.{error['to_param']}")
+        print(f"Expected: {error['expected_type']}, Got: {error['actual_type']}")
+```
+
+### Pattern 3: Performance Issues
+```bash
+# Use CLI perf command to identify bottlenecks
+dataflow perf my_workflow.py --profile --output report.json
+
+# Analyze report:
+# - Long-running nodes
+# - Network-bound operations
+# - Database query optimization opportunities
+```
+
+## Common Error Codes Reference
+
+| Code | Issue | Solution |
+|------|-------|----------|
+| DF-101 | Missing Required Parameter | Add missing field to data dictionary |
+| DF-201 | Connection Type Mismatch | Check parameter types in connections |
+| DF-301 | Migration Failed | Review schema changes and constraints |
+| DF-401 | Database URL Invalid | Verify connection string format |
+| DF-501 | Sync Method in Async Context | Use `create_tables_async()` instead |
+| DF-601 | Primary Key Missing | Ensure model has 'id' field |
+| DF-701 | Node Not Found | Check node name spelling and case |
+| DF-801 | Workflow Build Failed | Validate all connections before .build() |
+
+## Version Requirements
+
+- DataFlow v0.4.7+ for enhanced debugging tools

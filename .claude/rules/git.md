@@ -2,7 +2,7 @@
 
 ## Scope
 
-These rules apply to all git operations in projects using the Kailash SDK.
+These rules apply to all git operations.
 
 ## MUST Rules
 
@@ -29,26 +29,15 @@ type(scope): description
 - `refactor`: Code restructure
 - `test`: Adding tests
 - `chore`: Maintenance
-- `perf`: Performance improvement
-- `ci`: CI/CD changes
-
-**Scopes** (use module/framework names):
-
-- `dataflow`, `nexus`, `kaizen`, `enterprise`
-- `workflow`, `agents`, `mcp`
-- `api`, `auth`, `models`
-- `project` (cross-module changes)
 
 **Examples**:
 
 ```
-feat(nexus): add OAuth2 middleware for API routes
-fix(dataflow): resolve connection pool exhaustion
-docs(workflow): update workflow builder examples
-refactor(kaizen): simplify agent orchestration
+feat(auth): add OAuth2 support
+fix(api): resolve rate limiting issue
+docs(readme): update installation guide
+refactor(workflow): simplify node connection logic
 test(dataflow): add integration tests for bulk operations
-perf(workflow): optimize DAG traversal
-ci(project): add linting to CI pipeline
 ```
 
 **Enforced by**: Pre-commit hook (future)
@@ -56,16 +45,9 @@ ci(project): add linting to CI pipeline
 
 ### 2. Security Review Before Commit
 
-MUST run security-reviewer before commit.
+> See `agents.md` Rule 2. Security review is strongly recommended before commits.
 
-**Process**:
-
-1. Complete code changes
-2. Delegate to security-reviewer
-3. Address all CRITICAL findings (especially secrets, injection risks, auth bypasses)
-4. Then commit
-
-**Enforced by**: agents.md rule
+**Enforced by**: agents.md, PreToolUse hook
 **Violation**: Potential security issues
 
 ### 3. Branch Naming
@@ -76,8 +58,8 @@ Feature branches MUST follow naming convention.
 
 **Examples**:
 
-- `feat/add-auth-middleware`
-- `fix/db-pool-timeout`
+- `feat/add-auth`
+- `fix/api-timeout`
 - `docs/update-readme`
 - `refactor/workflow-builder`
 - `test/dataflow-integration`
@@ -89,7 +71,6 @@ Pull requests MUST include:
 - Summary of changes (what and why)
 - Test plan (how to verify)
 - Related issues (links)
-- Modules affected
 
 **Template**:
 
@@ -98,15 +79,9 @@ Pull requests MUST include:
 
 [1-3 bullet points]
 
-## Modules Affected
-
-- DataFlow models
-- Nexus API routes
-
 ## Test plan
 
-- [ ] `pytest` passes (Python) or `bundle exec rspec` passes (Ruby)
-- [ ] Linting clean (`flake8` / `rubocop`)
+- [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] Manual testing completed
 
@@ -123,25 +98,27 @@ Each commit MUST be self-contained.
 
 - One commit per logical change
 - Tests and implementation together
-- Each commit passes tests
+- Each commit builds and passes tests
 
 **Incorrect**:
 
 ```
-"WIP"
-"fix stuff"
-"update files"
-Multiple unrelated module changes
+❌ "WIP"
+❌ "fix stuff"
+❌ "update files"
+❌ Multiple unrelated changes
 ```
 
 ## MUST NOT Rules
 
 ### 1. No Direct Push to Main
 
-MUST NOT push directly to main/master branch.
+MUST NOT push directly to main/master branch. All changes go through PRs.
 
-**Enforced by**: Branch protection
-**Consequence**: Push rejected
+**Enforced by**: GitHub branch protection (active on all 4 repos)
+**Consequence**: Push rejected by GitHub
+**Workflow**: See `rules/branch-protection.md` for the PR workflow
+**Admin bypass**: Owner can merge with `gh pr merge <N> --admin --merge --delete-branch`
 
 ### 2. No Force Push to Main
 
@@ -163,8 +140,7 @@ MUST NOT commit secrets, even in history.
 - Passwords
 - Tokens
 - Private keys
-- `.env` files
-- PyPI tokens / RubyGems credentials
+- .env files
 
 ### 4. No Large Binaries
 
@@ -179,26 +155,6 @@ MUST NOT commit large binary files.
 
 - Git LFS for large files
 - External storage for assets
-- Build artifacts should be in `.gitignore`
-
-### 5. Lock Files
-
-- Python: MUST commit `requirements.txt` or `poetry.lock` / `uv.lock` for applications
-- Ruby: MUST commit `Gemfile.lock` for applications
-- MUST NOT commit lock files for libraries published as packages
-
-### 6. Close Issues After Fix
-
-MUST close GitHub issues immediately after the fix is committed or released.
-
-**Process**:
-
-1. Comment on the issue with what was done and which version includes the fix
-2. Close the issue: `gh issue close N`
-3. Reference the version: "Fixed in vX.Y.Z"
-
-**Enforced by**: Post-release checklist
-**Violation**: Stale issue tracker, misleading backlog
 
 ## Pre-Commit Checklist
 
@@ -206,9 +162,8 @@ Before every commit:
 
 - [ ] Code review completed (intermediate-reviewer)
 - [ ] Security review completed (security-reviewer)
-- [ ] `pytest` passes (Python) or `bundle exec rspec` passes (Ruby)
-- [ ] `flake8` passes (Python) or `rubocop` passes (Ruby)
-- [ ] `pip-audit` or `bundle-audit` clean
+- [ ] Tests pass
+- [ ] Linting passes
 - [ ] No secrets in changes
 - [ ] Commit message follows convention
 
@@ -231,20 +186,6 @@ Before every commit:
 - Branch from main
 - Fix critical issues
 - Fast-track review process
-
-## Release Process
-
-### Version Bumps
-
-- Python: Update `version` in `pyproject.toml` or `setup.cfg`
-- Ruby: Update `version` in the gemspec or `lib/*/version.rb`
-- Tag with `v{version}` (e.g., `v1.0.0`)
-
-### Publishing
-
-- Python: `pip install build && python -m build && twine upload dist/*`
-- Ruby: `gem build *.gemspec && gem push *.gem`
-- Always run tests before publishing
 
 ## Exceptions
 

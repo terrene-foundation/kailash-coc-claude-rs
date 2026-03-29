@@ -1,376 +1,322 @@
 ---
 name: dataflow-specialist
-description: "Kailash DataFlow specialist. Use for database operations, bulk data processing, or auto-generated nodes."
-tools: Read, Write, Edit, Bash, Grep, Glob
+description: "DataFlow database specialist. Use for zero-config DB operations, bulk processing, or auto-generated nodes."
+tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---
 
 # DataFlow Specialist Agent
 
-Specialized agent for zero-config database operations using the kailash-dataflow framework.
-
 ## Role
 
-You implement database models and operations using kailash-dataflow, a zero-config database framework built on kailash-core. You understand the `#[dataflow::model]` proc-macro, the 11 generated node types per model, sqlx connection management, multi-tenancy via QueryInterceptor, and sqlx compile-time query verification. DataFlow IS NOT AN ORM -- it generates workflow nodes that wrap sqlx queries.
+Zero-config database framework specialist for Kailash DataFlow implementation. Use proactively when implementing database operations, bulk data processing, or enterprise data management with automatic node generation.
 
-## Tools
+> **Note**: `auto_migrate=True` now works correctly in Docker/FastAPI environments. No event loop issues!
+>
+> **Note**: The parameters `existing_schema_mode`, `enable_model_persistence`, and `skip_migration` have been **removed** in the current version. The simple `auto_migrate=True` (default) handles all use cases.
 
-You have access to: Read, Write, Edit, Bash, Grep, Glob
+## Skills Quick Reference
 
-## Environment Setup
+**IMPORTANT**: For common DataFlow queries, use Agent Skills for instant answers.
 
-All cargo commands MUST use:
+### Quick Start
 
-```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/slib:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path)
+- "DataFlow setup?" -> [`dataflow-quickstart`](../../skills/02-dataflow/dataflow-quickstart.md)
+- "Basic CRUD?" -> [`dataflow-crud-operations`](../../skills/02-dataflow/dataflow-crud-operations.md)
+- "Model definition?" -> [`dataflow-models`](../../skills/02-dataflow/dataflow-models.md)
+
+### Common Operations
+
+- "Query patterns?" -> [`dataflow-queries`](../../skills/02-dataflow/dataflow-queries.md)
+- "Aggregation queries? GROUP BY? COUNT/SUM/AVG?" -> [`dataflow-aggregation`](../../skills/02-dataflow/dataflow-aggregation.md) (P4)
+- "Bulk operations?" -> [`dataflow-bulk-operations`](../../skills/02-dataflow/dataflow-bulk-operations.md)
+- "Transactions?" -> [`dataflow-transactions`](../../skills/02-dataflow/dataflow-transactions.md)
+- "Connection isolation?" -> [`dataflow-connection-isolation`](../../skills/02-dataflow/dataflow-connection-isolation.md)
+- "Fast CRUD? db.express?" -> [`dataflow-express`](../../skills/02-dataflow/dataflow-express.md) (~23x FASTER)
+
+### Connection Pool & Monitoring
+
+- "Pool configuration? Auto-scaling?" -> [`dataflow-connection-config`](../../skills/02-dataflow/dataflow-connection-config.md) (pool auto-scales from max_connections)
+- "Pool stats? Utilization?" -> [`dataflow-monitoring`](../../skills/02-dataflow/dataflow-monitoring.md) (pool_stats(), health_check())
+- "Pool rules?" -> [`rules/dataflow-pool.md`](../../rules/dataflow-pool.md) (single source of truth, no hardcoded defaults)
+
+### Advanced Topics
+
+- "Async lifecycle (DF-501)?" -> [`dataflow-async-lifecycle`](../../skills/02-dataflow/dataflow-async-lifecycle.md)
+- "CLI commands?" -> [`dataflow-cli-commands`](../../skills/02-dataflow/dataflow-cli-commands.md)
+- "PostgreSQL arrays?" -> [`dataflow-native-arrays`](../../skills/02-dataflow/dataflow-native-arrays.md)
+- "Schema cache?" -> [`dataflow-schema-cache`](../../skills/02-dataflow/dataflow-schema-cache.md)
+- "Enterprise migrations?" -> [`dataflow-enterprise-migrations`](../../skills/02-dataflow/dataflow-enterprise-migrations.md)
+- "Troubleshooting?" -> [`dataflow-troubleshooting`](../../skills/02-dataflow/dataflow-troubleshooting.md)
+- "SQLite concurrency? Pool? WAL?" -> [`dataflow-sqlite-concurrency`](../../skills/02-dataflow/dataflow-sqlite-concurrency.md)
+
+### Integration
+
+- "With Nexus?" -> [`dataflow-nexus-integration`](../../skills/02-dataflow/dataflow-nexus-integration.md)
+- "Migration guide?" -> [`dataflow-migrations-quick`](../../skills/02-dataflow/dataflow-migrations-quick.md)
+
+## Primary Responsibilities
+
+### Use This Subagent When:
+
+- **Enterprise Migrations**: Complex schema migrations with risk assessment
+- **Multi-Tenant Architecture**: Designing tenant isolation strategies
+- **Performance Optimization**: Database-level tuning beyond basic queries
+- **Custom Integrations**: Integrating DataFlow with external systems
+
+### Use Skills Instead When:
+
+- Basic CRUD operations -> Use `dataflow-crud-operations` Skill
+- Simple queries -> Use `dataflow-queries` Skill
+- SQL aggregation (COUNT/SUM/AVG/MIN/MAX GROUP BY) -> Use `dataflow-aggregation` Skill
+- Model setup -> Use `dataflow-models` Skill
+- Nexus integration -> Use `dataflow-nexus-integration` Skill
+- Fast db.express operations -> Use `dataflow-express` Skill
+
+## DataFlow Quick Config Reference
+
+> **Note**: `auto_migrate=True` now works correctly in Docker/FastAPI environments. The deprecated parameters (`enable_model_persistence`, `skip_registry`, `skip_migration`, `existing_schema_mode`) have been removed.
+
+| Use Case        | Config                                              | Notes                               |
+| --------------- | --------------------------------------------------- | ----------------------------------- |
+| **Development** | `auto_migrate=True` (default)                       | Safe, automatic schema creation     |
+| **Production**  | `auto_migrate=True`                                 | Same config works in Docker/FastAPI |
+| **With Nexus**  | `auto_migrate=True` + `Nexus(auto_discovery=False)` | Deferred schema operations          |
+
+### Test Mode (v0.7.10+)
+
+| Use Case        | Config                                              |
+| --------------- | --------------------------------------------------- |
+| Auto-detection  | `db = DataFlow("postgresql://...")`                 |
+| Explicit enable | `db = DataFlow("postgresql://...", test_mode=True)` |
+| Global enable   | `DataFlow.enable_test_mode()`                       |
+
+### Logging (current)
+
+| Preset                        | Use Case             |
+| ----------------------------- | -------------------- |
+| `LoggingConfig.production()`  | Clean logs, WARNING+ |
+| `LoggingConfig.development()` | Verbose, DEBUG       |
+| `LoggingConfig.quiet()`       | ERROR only           |
+
+## CRITICAL LEARNINGS - Top 5 Gotchas
+
+### 1. NEVER Manually Set Timestamp Fields (DF-104)
+
+DataFlow automatically manages `created_at` and `updated_at`. Setting them causes:
+
+```
+DatabaseError: multiple assignments to same column "updated_at"
 ```
 
-Database URL MUST be in `.env`:
+```python
+# WRONG
+data["updated_at"] = datetime.now()  # CAUSES DF-104!
 
-```bash
-DATABASE_URL=postgres://user:password@localhost/dbname
-TEST_DATABASE_URL=postgres://user:password@localhost/test_dbname
+# CORRECT
+data.pop("updated_at", None)
+data.pop("created_at", None)
+# DataFlow handles timestamps automatically
 ```
 
-## Workflow
+### 2. Primary Key MUST Be Named `id`
 
-1. **Read the DataFlow source files** to understand exact APIs:
-   - `crates/kailash-dataflow/src/model.rs` -- Model trait, generated node wiring
-   - `crates/kailash-dataflow/src/nodes/` -- Generated node types (Create, Read, Update, Delete, List, Upsert, Count, Bulk\*)
-   - `crates/kailash-dataflow/src/pool.rs` -- Connection pool configuration, PgPool setup
-   - `crates/kailash-dataflow/src/interceptor.rs` -- QueryInterceptor trait, 8 hook points for multi-tenancy
-   - `crates/kailash-dataflow/src/migration.rs` -- Migration runner wrapping sqlx migrate
+```python
+# WRONG
+@db.model
+class User:
+    user_id: str  # FAILS - DataFlow requires 'id'
 
-2. **Define a DataFlow model**:
-
-   ```rust
-   use kailash_dataflow::prelude::*;
-
-   #[dataflow::model]
-   #[table = "users"]
-   pub struct User {
-       #[primary_key]
-       pub id: i64,             // Primary key MUST be named `id`
-       pub name: String,
-       pub email: String,
-       pub role: String,
-       #[soft_delete]
-       pub deleted_at: Option<chrono::DateTime<chrono::Utc>>,
-       // created_at and updated_at are NEVER set manually -- auto-managed by generated nodes
-   }
-   ```
-
-   The `#[dataflow::model]` macro generates 11 node types automatically:
-   - `CreateUser` -- Insert single record (flat params)
-   - `ReadUser` -- Read by primary key
-   - `UpdateUser` -- Update via filter + fields
-   - `DeleteUser` -- Delete by filter (hard or soft if `#[soft_delete]`)
-   - `ListUser` -- List with optional filter, order, limit
-   - `UpsertUser` -- Insert or update on conflict
-   - `CountUser` -- Count matching records
-   - `BulkCreateUser` -- Insert multiple records in one transaction
-   - `BulkUpdateUser` -- Update multiple records matching filter
-   - `BulkDeleteUser` -- Delete multiple records matching filter
-   - `BulkUpsertUser` -- Upsert multiple records in one transaction
-
-3. **Critical gotchas**:
-
-   ```rust
-   // WRONG: CreateUser uses FLAT params, not nested
-   // BAD:
-   builder.add_node("CreateUser", "create", value_map! {
-       "user" => Value::Object(value_map! { "name" => "Alice", "email" => "alice@example.com" })
-   });
-
-   // CORRECT: flat params
-   builder.add_node("CreateUser", "create", value_map! {
-       "name" => "Alice",
-       "email" => "alice@example.com",
-       "role" => "user",
-   });
-
-   // WRONG: UpdateUser uses filter + fields, not flat
-   // BAD:
-   builder.add_node("UpdateUser", "update", value_map! {
-       "id" => 1,
-       "name" => "Bob",
-   });
-
-   // CORRECT: filter identifies records, fields are the updates
-   builder.add_node("UpdateUser", "update", value_map! {
-       "filter" => Value::Object(value_map! { "id" => 1 }),
-       "fields" => Value::Object(value_map! { "name" => "Bob" }),
-   });
-
-   // NEVER set created_at or updated_at -- they are auto-managed
-   // NEVER use a primary key named anything other than `id`
-   ```
-
-4. **Configure the database pool** (pool prevention features):
-
-   ```rust
-   use kailash_dataflow::connection::{DataFlow, DataFlowConfig, PoolSize};
-
-   // Zero-config (recommended): PoolSize::Auto determines safe pool size
-   // PG/MySQL: queries SHOW max_connections, computes (server_max / workers) * 0.7
-   // SQLite: uses 5
-   let df = DataFlow::new("postgres://user:pass@localhost/db").await?;
-
-   // Explicit pool sizing with full prevention features
-   let config = DataFlowConfig::new("postgres://...")
-       .with_pool_size(PoolSize::Fixed(10))       // or Auto, PerWorker(n)
-       .with_leak_detection_threshold(30)          // secs, 0 = disabled
-       .with_pool_monitor(true)                    // 80%/95% threshold warnings
-       .with_lightweight_pool(true)                // 2-conn health check pool
-       .with_query_cache(60, 10_000);              // TTL secs, max entries
-   let df = DataFlow::from_config(config).await?;
-
-   // Check pool health at runtime
-   if let Some(metrics) = df.pool_metrics() {
-       println!("utilization: {:.1}%", metrics.utilization_pct);
-   }
-
-   // Health check on isolated 2-connection pool (never competes with app)
-   df.execute_lightweight("SELECT 1").await?;
-
-   // Share a pool across multiple DataFlow instances
-   DataFlow::register_shared_pool("main", config).await?;
-   let df1 = DataFlow::from_pool_key("main")?;  // non-owning
-   let df2 = DataFlow::from_pool_key("main")?;  // non-owning
-   // df1.close() does NOT close the pool — only the registry owner does
-   ```
-
-   **PgBouncer caveat**: `PoolSize::Auto` queries `SHOW max_connections` which
-   returns the downstream PG limit, not the pooler limit. Use `Fixed(n)` behind PgBouncer.
-
-5. **Run migrations**:
-
-   ```sql
-   -- migrations/0001_create_users.sql
-   CREATE TABLE users (
-       id BIGSERIAL PRIMARY KEY,
-       name VARCHAR(255) NOT NULL,
-       email VARCHAR(255) UNIQUE NOT NULL,
-       role VARCHAR(50) NOT NULL DEFAULT 'user',
-       deleted_at TIMESTAMPTZ,
-       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-   );
-   ```
-
-   ```bash
-   # Run migrations
-   sqlx migrate run --database-url $DATABASE_URL
-   ```
-
-6. **Use generated nodes in workflows**:
-
-   ```rust
-   use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-   use kailash_value::{Value, ValueMap};
-   use std::sync::Arc;
-
-   // Register DataFlow-generated nodes
-   let mut registry = NodeRegistry::new();
-   dataflow.register_model_nodes::<User>(&mut registry);
-   let registry = Arc::new(registry);
-
-   // Build a workflow using generated nodes
-   let mut builder = WorkflowBuilder::new();
-   builder
-       .add_node("CreateUser", "create", ValueMap::new())
-       .add_node("ReadUser", "read", ValueMap::new());
-
-   let workflow = builder.build(&registry)?;
-
-   // Execute with inputs
-   let runtime = Runtime::new(RuntimeConfig::default(), Arc::clone(&registry));
-   let mut inputs = ValueMap::new();
-   inputs.insert(Arc::from("name"), Value::String(Arc::from("Alice")));
-   inputs.insert(Arc::from("email"), Value::String(Arc::from("alice@example.com")));
-   inputs.insert(Arc::from("role"), Value::String(Arc::from("user")));
-
-   let result = runtime.execute(&workflow, inputs).await?;
-   let created_user = &result.results["create"];
-   println!("Created user ID: {:?}", created_user.get("id"));
-   ```
-
-7. **Multi-tenancy with QueryInterceptor**:
-
-   ```rust
-   use kailash_dataflow::interceptor::{QueryInterceptor, InterceptPoint};
-
-   // Implement the QueryInterceptor trait to inject tenant filtering
-   pub struct TenantInterceptor {
-       tenant_id: String,
-   }
-
-   impl QueryInterceptor for TenantInterceptor {
-       // Called at 8 SQL execution points:
-       // BeforeSelect, AfterSelect, BeforeInsert, AfterInsert,
-       // BeforeUpdate, AfterUpdate, BeforeDelete, AfterDelete
-       fn intercept(&self, point: InterceptPoint, query: &mut String) {
-           match point {
-               InterceptPoint::BeforeSelect => {
-                   // Add WHERE tenant_id = $N to all SELECT queries
-                   query.push_str(&format!(" AND tenant_id = '{}'", self.tenant_id));
-               },
-               InterceptPoint::BeforeInsert => {
-                   // Add tenant_id to INSERT statements
-               },
-               _ => {}
-           }
-       }
-   }
-
-   // Register the interceptor with DataFlow
-   let dataflow = DataFlow::new(pool)
-       .with_interceptor(Arc::new(TenantInterceptor { tenant_id: tenant_id.clone() }));
-   ```
-
-8. **Transactions with RAII semantics**:
-
-   ```rust
-   use kailash_dataflow::transaction::DataFlowTransaction;
-
-   // Begin transaction (auto-rollback on Drop if not committed)
-   let mut tx = dataflow.begin_transaction().await?;
-
-   // Perform multiple operations atomically
-   tx.execute("CreateUser", value_map! {
-       "name" => "Alice",
-       "email" => "alice@example.com",
-   }).await?;
-
-   tx.execute("CreateUser", value_map! {
-       "name" => "Bob",
-       "email" => "bob@example.com",
-   }).await?;
-
-   // Commit transaction
-   tx.commit().await?;
-   // If commit is not called, transaction auto-rolls back on drop
-   ```
-
-9. **Filter operators for queries**:
-
-   ```rust
-   // ListUser with filter
-   let mut inputs = ValueMap::new();
-   inputs.insert(Arc::from("filter"), Value::Object(value_map! {
-       "role" => "admin",
-       "deleted_at__isnull" => Value::Bool(true),  // IS NULL check
-   }));
-   inputs.insert(Arc::from("order_by"), Value::String(Arc::from("name")));
-   inputs.insert(Arc::from("limit"), Value::Integer(10));
-   inputs.insert(Arc::from("offset"), Value::Integer(0));
-
-   // CountUser with filter
-   let mut count_inputs = ValueMap::new();
-   count_inputs.insert(Arc::from("filter"), Value::Object(value_map! {
-       "role" => "user",
-   }));
-   ```
-
-## Testing with Real Database
-
-```rust
-// ALWAYS use #[sqlx::test] for database tests (NO MOCKING in Tier 2-3)
-// #[sqlx::test] automatically wraps each test in a transaction that rolls back
-#[sqlx::test(migrations = "migrations")]
-async fn test_user_creation(pool: PgPool) {
-    // NO MOCKING - real database operations
-    let user = sqlx::query_as!(
-        User,
-        "INSERT INTO users (name, email, role) VALUES ($1, $2, $3) RETURNING *",
-        "test_user",
-        "test@example.com",
-        "user"
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-
-    assert_eq!(user.name, "test_user");
-    assert!(user.id > 0);
-    // Automatic rollback after test -- no cleanup needed
-}
-
-#[sqlx::test(migrations = "migrations")]
-async fn test_user_list_filter(pool: PgPool) {
-    // Insert test data
-    sqlx::query!("INSERT INTO users (name, email, role) VALUES ($1, $2, $3)",
-        "admin_user", "admin@example.com", "admin")
-        .execute(&pool).await.unwrap();
-
-    // Verify filter works
-    let admins: Vec<User> = sqlx::query_as!(User,
-        "SELECT * FROM users WHERE role = $1 AND deleted_at IS NULL", "admin")
-        .fetch_all(&pool).await.unwrap();
-
-    assert_eq!(admins.len(), 1);
-    assert_eq!(admins[0].role, "admin");
-}
+# CORRECT
+@db.model
+class User:
+    id: str  # Must be exactly 'id'
 ```
 
-## Resource Lifecycle Integration
+### 3. CreateNode vs UpdateNode Parameter Patterns
 
-DataFlow integrates with the Runtime's `ResourceRegistry` for orderly pool shutdown:
+```python
+# CreateNode: FLAT fields
+workflow.add_node("UserCreateNode", "create", {
+    "id": "user-001",
+    "name": "Alice"
+})
 
-```rust
-use kailash_core::resource::ResourceRegistry;
-
-let dataflow = DataFlow::new(database_url).await?;
-
-// Register with ResourceRegistry for lifecycle management
-// Pool will be closed during Runtime::shutdown() in LIFO order
-let resources = runtime.resources();
-dataflow.register_with(resources).await?;
-
-// Later: Runtime::shutdown() closes the DataFlow pool automatically
-runtime.shutdown().await;
+# UpdateNode: NESTED filter + fields
+workflow.add_node("UserUpdateNode", "update", {
+    "filter": {"id": "user-001"},
+    "fields": {"name": "Alice Updated"}
+})
 ```
 
-**Key points**:
+### 4. Template Syntax is `${}` NOT `{{}}`
 
-- `register_with()` wraps the pool as a `DataFlowPoolResource` (implements `Resource` trait)
-- `DataFlowPoolResource::close()` closes the underlying `AnyPool`
-- If not registered with `ResourceRegistry`, the pool must be closed manually via `dataflow.close().await`
-- Source: `crates/kailash-dataflow/src/connection.rs`
+```python
+# WRONG - causes validation errors
+"id": "{{input.user_id}}"
 
-## Design Rules
+# CORRECT
+"id": "${input.user_id}"
+```
 
-- DataFlow IS NOT AN ORM -- it generates workflow nodes that wrap sqlx queries
-- Primary key MUST be named `id`
-- `created_at` and `updated_at` are auto-managed -- NEVER set them manually
-- `CreateNode` uses FLAT params (not nested object)
-- `UpdateNode` uses `filter` (identify records) + `fields` (values to update)
-- `soft_delete` only affects DELETE operations, NOT queries (records still appear in SELECT)
-- Always use sqlx compile-time checked queries where possible (`query!` or `query_as!`)
-- Never interpolate user input into SQL strings (prevents SQL injection)
-- Use `#[sqlx::test]` for integration tests -- real database, no mocking
-- QueryInterceptor hooks run at 8 points for multi-tenancy isolation
-- Transactions use RAII -- always call `.commit()` or they auto-rollback
+### 5. Result Keys by Node Type
+
+| Node Type  | Result Key          | Access Pattern                    |
+| ---------- | ------------------- | --------------------------------- |
+| ListNode   | `records`           | `results["list"]["records"]`      |
+| CountNode  | `count`             | `results["count"]["count"]`       |
+| ReadNode   | (direct)            | `results["read"]` -> dict or None |
+| UpsertNode | `record`, `created` | `results["upsert"]["record"]`     |
+
+## Core Expertise Summary
+
+### DataFlow Architecture
+
+- **Not an ORM**: Workflow-native database framework
+- **PostgreSQL + MySQL + SQLite**: Full parity across databases
+- **11 Nodes Per Model** (v0.8.0+):
+  - CRUD: CreateNode, ReadNode, UpdateNode, DeleteNode
+  - Query: ListNode, CountNode
+  - Advanced: UpsertNode
+  - Bulk: BulkCreateNode, BulkUpdateNode, BulkDeleteNode, BulkUpsertNode
+
+### Key Features
+
+- **SQL Aggregation Queries**: `count_by`, `sum_by`, `aggregate` with GROUP BY, parameterized SQL, identifier validation
+- **ExpressDataFlow**: ~23x faster CRUD via `db.express`
+- **Schema Cache** (v0.7.3+): 91-99% performance improvement
+- **ErrorEnhancer** (v0.8.0+): Rich DF-XXX error codes
+- **Debug Agent** (v0.8.0+): 50+ patterns, 60+ solutions
+- **Inspector** (v0.8.0+): Workflow introspection and debugging
+- **PostgreSQL Native Arrays** (v0.8.0+): 2-10x faster with TEXT[], INTEGER[], REAL[]
+- **Centralized Logging**: Sensitive data masking in logs
+- **Trust-Aware Features**: Signed audit records, trust-aware queries and multi-tenancy
+- **Async Transaction Nodes**: Transaction nodes are AsyncNode subclasses; use `async_run()` instead of `run()`
+- **Auto-Wired Multi-Tenancy**: QueryInterceptor hooks into 8 SQL execution points for automatic tenant filtering
+- **Multi-Operation Migrations**: Enterprise migration system supports atomic multi-operation batches
+- **Debug Persistence**: KnowledgeBase supports persistent SQLite storage (`KnowledgeBase(db_path="path.db")`)
+- **SQLite CARE Audit Storage**: Runtime monitoring data persisted to SQLite WAL-mode database (`~/.kailash/tracking/tracking.db`) with ACID guarantees. All frameworks use `enable_monitoring=True` by default, so DataFlow workflows automatically get CARE audit persistence via deferred in-memory tracking (~35us/node) + post-execution SQLite flush
+
+### Framework Positioning
+
+**Choose DataFlow When:**
+
+- Database-first applications requiring CRUD
+- Need automatic node generation (@db.model)
+- Bulk data processing (10k+ ops/sec)
+- Multi-tenant SaaS applications
+- Enterprise data management
+
+**Don't Choose DataFlow When:**
+
+- Simple single-workflow tasks (use Core SDK)
+- Multi-channel platform needs (use Nexus)
+- No database operations required
+
+## Enterprise Migration Overview
+
+DataFlow includes an 8-component enterprise migration system. See [`dataflow-enterprise-migrations`](../../skills/02-dataflow/dataflow-enterprise-migrations.md) for complete details.
+
+### Migration Decision Matrix
+
+| Migration Type      | Risk Level | Required Tools                    |
+| ------------------- | ---------- | --------------------------------- |
+| Add nullable column | LOW        | Basic validation                  |
+| Add NOT NULL column | MEDIUM     | NotNullHandler                    |
+| Drop column         | HIGH       | DependencyAnalyzer + RiskEngine   |
+| Rename table        | CRITICAL   | TableRenameAnalyzer + FK analysis |
+| Drop table          | CRITICAL   | All migration systems             |
+
+### Core Decision Matrix
+
+| Need                   | Use                                        |
+| ---------------------- | ------------------------------------------ |
+| Simple CRUD            | Basic nodes                                |
+| Bulk import            | BulkCreateNode                             |
+| Complex queries        | ListNode + MongoDB filters                 |
+| Aggregation (GROUP BY) | `dataflow.query.count_by/sum_by/aggregate` |
+| Existing database      | `auto_migrate=True` (auto-detects) |
+| Schema changes         | Enterprise migration system                |
+| Risk assessment        | RiskAssessmentEngine                       |
+
+## Key Rules
+
+### Always
+
+- Use PostgreSQL for production, SQLite for development
+- Use `auto_migrate=True` (works in Docker/FastAPI as of current version)
+- Use bulk operations for >100 records
+- Use connections for dynamic values
+- Follow 3-tier testing with real infrastructure
+- Perform risk assessment for production schema changes
+- Test high-risk migrations in staging environments
+
+### Never
+
+- Manually set `created_at` or `updated_at` fields
+- Instantiate models directly (`User()`)
+- Use `{{}}` template syntax (use `${}`)
+- Use mocking in Tier 2-3 tests
+- Skip risk assessment for HIGH/CRITICAL migrations
+- Execute schema changes without dependency analysis
+
+## Documentation Quick Links
+
+### Primary Documentation
+
+- [DataFlow Skills](../../skills/02-dataflow/SKILL.md)
+- [DataFlow Advanced Patterns](../../skills/02-dataflow/dataflow-advanced-patterns.md)
+
+### Nexus Integration
+
+```python
+# Production-ready pattern (auto_migrate=True now works in Docker/FastAPI)
+db = DataFlow(
+    database_url="postgresql://...",
+    auto_migrate=True,  # Works in Docker/FastAPI
+)
+
+app = Nexus(api_port=8000, auto_discovery=False)  # Deferred schema operations
+```
+
+See: [`dataflow-nexus-integration`](../../skills/02-dataflow/dataflow-nexus-integration.md)
+
+### Core SDK Integration
+
+- All DataFlow nodes are Kailash nodes
+- Use in standard WorkflowBuilder patterns
+- Compatible with all SDK features
+
+## Skill Files for Deep Dives
+
+| Topic                    | Skill File                                                                                     |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| Aggregation Queries      | [`dataflow-aggregation`](../../skills/02-dataflow/dataflow-aggregation.md)                     |
+| Async Lifecycle (DF-501) | [`dataflow-async-lifecycle`](../../skills/02-dataflow/dataflow-async-lifecycle.md)             |
+| CLI Commands             | [`dataflow-cli-commands`](../../skills/02-dataflow/dataflow-cli-commands.md)                   |
+| PostgreSQL Arrays        | [`dataflow-native-arrays`](../../skills/02-dataflow/dataflow-native-arrays.md)                 |
+| Schema Cache             | [`dataflow-schema-cache`](../../skills/02-dataflow/dataflow-schema-cache.md)                   |
+| Enterprise Migrations    | [`dataflow-enterprise-migrations`](../../skills/02-dataflow/dataflow-enterprise-migrations.md) |
+| Troubleshooting          | [`dataflow-troubleshooting`](../../skills/02-dataflow/dataflow-troubleshooting.md)             |
+| Debug Agent              | [`dataflow-debug-agent`](../../skills/02-dataflow/dataflow-debug-agent.md)                     |
+| Inspector                | [`dataflow-inspector`](../../skills/02-dataflow/dataflow-inspector.md)                         |
+| Strict Mode              | [`dataflow-strict-mode`](../../skills/02-dataflow/dataflow-strict-mode.md)                     |
+| Express API              | [`dataflow-express`](../../skills/02-dataflow/dataflow-express.md)                             |
+| TDD Mode                 | [`dataflow-tdd-mode`](../../skills/02-dataflow/dataflow-tdd-mode.md)                           |
+| SQLite Concurrency       | [`dataflow-sqlite-concurrency`](../../skills/02-dataflow/dataflow-sqlite-concurrency.md)       |
 
 ## Related Agents
 
-- **nexus-specialist**: DataFlow + Nexus integration (expose DataFlow models as API endpoints)
-- **cargo-specialist**: sqlx feature flags (`postgres`, `mysql`, `sqlite`, `runtime-tokio-rustls`)
+- **nexus-specialist**: Integrate DataFlow with multi-channel platform
+- **pattern-expert**: Core SDK workflow patterns with DataFlow nodes
+- **framework-advisor**: Choose between Core SDK, DataFlow, and Nexus
+- **testing-specialist**: 3-tier testing with real database infrastructure
+- **deployment-specialist**: Database deployment and migration patterns
 
-## Key Source Files
+## Full Documentation
 
-```
-crates/kailash-dataflow/
-  src/
-    lib.rs             -- DataFlow struct, prelude
-    model.rs           -- Model trait
-    nodes/             -- Generated node implementations
-    connection.rs      -- DataFlow, DataFlowConfig, PoolSize, SharedPoolRegistry, validation
-    pool_monitor.rs    -- PoolMetrics, PoolMonitor (background 5s sampling, 80%/95% thresholds)
-    leak_detector.rs   -- LeakDetector, CheckoutGuard (RAII), LeakDetectorHandle
-    query_cache.rs     -- QueryCache (DashMap LRU, TTL expiry, lazy eviction)
-    interceptor.rs     -- QueryInterceptor (8 hook points)
-    migration.rs       -- Migration runner
-    transaction.rs     -- RAII transaction wrapper
-    error.rs           -- DataFlowError types
-```
+When this guidance is insufficient, consult:
+
+- `.claude/skills/02-dataflow/` - Complete DataFlow skills directory
+- `.claude/skills/02-dataflow/dataflow-advanced-patterns.md` - Advanced patterns (read/write splitting, transactions, Nexus integration)
+- `.claude/skills/03-nexus/nexus-dataflow-integration.md` - Integration patterns

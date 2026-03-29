@@ -12,16 +12,12 @@ ReAct combines:
 ## Implementation
 
 ```python
-from kailash.kaizen import Signature, InputField, OutputField
-
-# Signature is SUBCLASSED, not instantiated
 class ReActSignature(Signature):
-    task = InputField(description="Task to accomplish")
-    thought = OutputField(description="Reasoning about next action")
-    action = OutputField(description="Action to take")
-    observation = OutputField(description="Action result")
+    task: str = InputField(description="Task to accomplish")
+    thought: str = OutputField(description="Reasoning about next action")
+    action: str = OutputField(description="Action to take")
+    observation: str = OutputField(description="Action result")
 ```
 
 ## References
-- **Specialist**: `.claude/agents/frameworks/kaizen-specialist.md`
-- **Pattern**: ReAct single-agent example (reasoning + acting with tool use)
+- **Examples**: `examples/1-single-agent/react-agent/`

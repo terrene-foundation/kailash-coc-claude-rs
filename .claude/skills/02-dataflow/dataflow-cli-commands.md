@@ -2,17 +2,17 @@
 
 ## Overview
 
-DataFlow includes 5 CLI commands for workflow analysis, debugging, and generation.
+DataFlow v0.4.7+ includes 5 CLI commands for workflow analysis, debugging, and generation.
 
 ## Available Commands
 
-| Command    | Purpose                                         |
-| ---------- | ----------------------------------------------- |
-| `analyze`  | Analyze workflow structure and dependencies     |
-| `debug`    | Debug workflow issues with detailed diagnostics |
-| `generate` | Generate node code from models                  |
-| `perf`     | Performance analysis and profiling              |
-| `validate` | Validate workflow structure before execution    |
+| Command | Purpose |
+|---------|---------|
+| `analyze` | Analyze workflow structure and dependencies |
+| `debug` | Debug workflow issues with detailed diagnostics |
+| `generate` | Generate node code from models |
+| `perf` | Performance analysis and profiling |
+| `validate` | Validate workflow structure before execution |
 
 ## Command 1: analyze
 
@@ -39,7 +39,7 @@ dataflow debug my_workflow.py --node "user_create"
 
 # Output:
 # Node Debug Report: user_create
-# - Type: CreateUser
+# - Type: UserCreateNode
 # - Parameters: id, name, email
 # - Connections: 3 outgoing, 0 incoming
 # - Validation: PASSED
@@ -113,12 +113,16 @@ dataflow analyze my_workflow.py
 
 ## CLI Commands Overhead
 
-| Command  | Execution Time               |
-| -------- | ---------------------------- |
-| analyze  | <50ms for complex workflows  |
-| debug    | <100ms with full diagnostics |
-| validate | <25ms for structure checks   |
+| Command | Execution Time |
+|---------|----------------|
+| analyze | <50ms for complex workflows |
+| debug | <100ms with full diagnostics |
+| validate | <25ms for structure checks |
 
-## References
+## File Reference
 
-- **Specialist**: `.claude/agents/frameworks/dataflow-specialist.md`
+- Implementation: `src/dataflow/cli/*.py` (5 command files)
+
+## Version Requirements
+
+- DataFlow v0.4.7+

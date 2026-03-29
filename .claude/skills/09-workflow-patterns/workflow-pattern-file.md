@@ -10,16 +10,13 @@ Patterns for automated file processing, transformation, and batch operations.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
-> Related Skills: [`nodes-data-reference`](../08-nodes-reference/nodes-data-reference.md), [`workflow-pattern-etl`](workflow-pattern-etl.md)
+> SDK Version: `0.9.25+`
+> Related Skills: [`nodes-data-reference`](../nodes/nodes-data-reference.md), [`workflow-pattern-etl`](workflow-pattern-etl.md)
 > Related Subagents: `pattern-expert` (file workflows)
-
-> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
-> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
 
 ## Quick Reference
 
 File processing patterns:
-
 - **Batch file processing** - Process multiple files
 - **File transformation** - Convert formats
 - **Document extraction** - PDF, DOCX to text
@@ -28,102 +25,102 @@ File processing patterns:
 ## Pattern 1: Batch CSV Processing
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-# 1. List CSV files — use EmbeddedPythonNode for directory listing
-builder.add_node("EmbeddedPythonNode", "list_files", {
-    "code": """
-import os
-files = [f for f in os.listdir('data/input') if f.endswith('.csv')]
-    """,
-    "output_vars": ["files"]
+# 1. List CSV files
+workflow.add_node("FileListNode", "list_files", {
+    "directory": "data/input",
+    "pattern": "*.csv"
 })
 
 # 2. Process each file
-builder.add_node("EmbeddedPythonNode", "process_files", {
-    "code": """
-import csv, io
-results = []
-for f in files:
-    # Process each CSV file
-    results.append({'file': f, 'status': 'processed'})
-result = {'results': results}
-""",
-    "output_vars": ["result"]
+workflow.add_node("MapNode", "process_files", {
+    "input": "{{list_files.files}}",
+    "workflow": "process_single_csv"
 })
 
 # 3. Merge results
-builder.add_node("MergeNode", "merge_results", {})
-
-# 4. Write consolidated output
-builder.add_node("FileWriterNode", "write_output", {
-    "path": "data/output/consolidated.csv"
+workflow.add_node("MergeNode", "merge_results", {
+    "inputs": "{{process_files.results}}",
+    "strategy": "combine"
 })
 
-builder.connect("list_files", "outputs", "process_files", "inputs")
-builder.connect("process_files", "outputs", "merge_results", "input_1")
-builder.connect("merge_results", "merged", "write_output", "content")
+# 4. Write consolidated output
+workflow.add_node("CSVWriterNode", "write_output", {
+    "file_path": "data/output/consolidated.csv",
+    "data": "{{merge_results.combined}}",
+    "headers": ["id", "name", "value"]
+})
 
-reg = kailash.NodeRegistry()
+workflow.add_connection("list_files", "files", "process_files", "input")
+workflow.add_connection("process_files", "results", "merge_results", "inputs")
+workflow.add_connection("merge_results", "combined", "write_output", "data")
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
 ## Pattern 2: PDF Document Extraction
 
 ```python
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Read PDF document
-builder.add_node("PDFReaderNode", "extract_pdf", {
+workflow.add_node("DocumentProcessorNode", "extract_pdf", {
     "file_path": "{{input.pdf_path}}",
-    "extract_metadata": True
+    "extract_metadata": True,
+    "preserve_structure": True,
+    "page_numbers": True
 })
 
 # 2. Extract tables
-builder.add_node("EmbeddedPythonNode", "extract_tables", {
-    "code": "result = extract_tables(content)",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "extract_tables", {
+    "input": "{{extract_pdf.content}}",
+    "transformation": "extract_tables()"
 })
 
 # 3. Extract text
-builder.add_node("EmbeddedPythonNode", "extract_text", {
-    "code": "result = extract_text(content)",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "extract_text", {
+    "input": "{{extract_pdf.content}}",
+    "transformation": "extract_text()"
 })
 
 # 4. Analyze with AI
-builder.add_node("LLMNode", "analyze_document", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
+workflow.add_node("LLMNode", "analyze_document", {
+    "provider": "openai",
+    "model": "gpt-4",
     "prompt": "Summarize this document: {{extract_text.text}}"
 })
 
-# 5. Save results — use FileWriterNode for writing files
-builder.add_node("FileWriterNode", "save_results", {
-    "path": "output/{{input.pdf_name}}_analysis.json"
+# 5. Save results
+workflow.add_node("JSONWriterNode", "save_results", {
+    "file_path": "output/{{input.pdf_name}}_analysis.json",
+    "data": {
+        "metadata": "{{extract_pdf.metadata}}",
+        "tables": "{{extract_tables.tables}}",
+        "summary": "{{analyze_document.response}}"
+    },
+    "indent": 2
 })
 
-builder.connect("extract_pdf", "text", "extract_tables", "inputs")
-builder.connect("extract_pdf", "text", "extract_text", "inputs")
-builder.connect("extract_text", "text", "analyze_document", "prompt")
-builder.connect("analyze_document", "response", "save_results", "content")
+workflow.add_connection("extract_pdf", "content", "extract_tables", "input")
+workflow.add_connection("extract_pdf", "content", "extract_text", "input")
+workflow.add_connection("extract_text", "text", "analyze_document", "prompt")
+workflow.add_connection("analyze_document", "response", "save_results", "data")
 ```
 
 ## Pattern 3: File Format Conversion
 
 ```python
-import kailash
+workflow = WorkflowBuilder()
 
-builder = kailash.WorkflowBuilder()
-
-# 1. Detect format and route — use SwitchNode for multi-branch routing
-builder.add_node("SwitchNode", "detect_format", {
-    "cases": {
+# 1. Read source file
+workflow.add_node("ConditionalNode", "detect_format", {
+    "condition": "{{input.file_ext}}",
+    "branches": {
         ".csv": "read_csv",
         ".json": "read_json",
         ".xlsx": "read_excel"
@@ -131,90 +128,80 @@ builder.add_node("SwitchNode", "detect_format", {
 })
 
 # 2. Read different formats
-builder.add_node("CSVProcessorNode", "read_csv", {
-    "action": "read",
-    "source_path": "{{input.file_path}}"
-})
-
-builder.add_node("FileReaderNode", "read_json", {
+workflow.add_node("CSVReaderNode", "read_csv", {
     "file_path": "{{input.file_path}}"
 })
 
-builder.add_node("ExcelReaderNode", "read_excel", {
+workflow.add_node("JSONReaderNode", "read_json", {
+    "file_path": "{{input.file_path}}"
+})
+
+workflow.add_node("ExcelReaderNode", "read_excel", {
     "file_path": "{{input.file_path}}"
 })
 
 # 3. Normalize to common format
-builder.add_node("EmbeddedPythonNode", "normalize", {
-    "code": "result = normalize_to_dict_list(input)",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "normalize", {
+    "input": "{{read_csv.data || read_json.data || read_excel.data}}",
+    "transformation": "normalize_to_dict_list()"
 })
 
-# 4. Write in target format — use SwitchNode for multi-branch routing
-builder.add_node("SwitchNode", "write_format", {
-    "cases": {
+# 4. Write in target format
+workflow.add_node("ConditionalNode", "write_format", {
+    "condition": "{{input.target_format}}",
+    "branches": {
         "csv": "write_csv",
         "json": "write_json",
         "parquet": "write_parquet"
     }
 })
 
-builder.connect("detect_format", "matched", "normalize", "inputs")
-builder.connect("normalize", "outputs", "write_format", "input")
+workflow.add_connection("detect_format", "result", "normalize", "input")
+workflow.add_connection("normalize", "data", "write_format", "input")
 ```
 
 ## Pattern 4: Watch Folder Automation
 
 ```python
-import kailash
+workflow = WorkflowBuilder()
 
-builder = kailash.WorkflowBuilder()
-
-# 1. Receive file via webhook (no FileWatchNode exists — use WebhookNode or poll)
-builder.add_node("WebhookNode", "watch_folder", {
-    "path": "/files/new",
-    "method": "POST"
+# 1. Watch directory for new files
+workflow.add_node("FileWatchNode", "watch_folder", {
+    "directory": "data/inbox",
+    "pattern": "*.pdf",
+    "event": "created"
 })
 
-# 2. Validate file — use SchemaValidatorNode for validation
-builder.add_node("SchemaValidatorNode", "validate", {
-    "schema": {
-        "file_path": "string",
-        "file_size": "integer"
-    }
+# 2. Validate file
+workflow.add_node("FileValidateNode", "validate", {
+    "file_path": "{{watch_folder.file_path}}",
+    "min_size": 1024,  # 1KB minimum
+    "max_size": 10485760,  # 10MB maximum
+    "extensions": [".pdf"]
 })
 
 # 3. Process document
-builder.add_node("PDFReaderNode", "process", {
-    "file_path": "{{validate.valid}}"
+workflow.add_node("DocumentProcessorNode", "process", {
+    "file_path": "{{validate.file_path}}"
 })
 
-# 4. Move to processed folder — use EmbeddedPythonNode for file operations
-builder.add_node("EmbeddedPythonNode", "move_file", {
-    "code": """
-import os
-os.rename(source, destination)
-moved = True
-    """,
-    "output_vars": ["moved"]
+# 4. Move to processed folder
+workflow.add_node("FileMoveNode", "move_file", {
+    "source": "{{validate.file_path}}",
+    "destination": "data/processed/{{watch_folder.filename}}"
 })
 
 # 5. On error, move to failed folder
-builder.add_node("EmbeddedPythonNode", "move_failed", {
-    "code": """
-import os
-os.rename(source, destination)
-moved = True
-    """,
-    "output_vars": ["moved"]
+workflow.add_node("FileMoveNode", "move_failed", {
+    "source": "{{validate.file_path}}",
+    "destination": "data/failed/{{watch_folder.filename}}"
 })
 
-builder.connect("watch_folder", "body", "validate", "data")
-builder.connect("validate", "valid", "process", "file_path")
-builder.connect("process", "text", "move_file", "inputs")
-# Use RetryNode for error handling
-builder.add_node("RetryNode", "retry_process", {"max_retries": 3})
-builder.connect("retry_process", "output", "move_failed", "inputs")
+workflow.add_connection("watch_folder", "file_path", "validate", "file_path")
+workflow.add_connection("validate", "file_path", "process", "file_path")
+workflow.add_connection("process", "result", "move_file", "source")
+# Error handling connection
+workflow.add_error_handler("process", "move_failed")
 ```
 
 ## Best Practices
@@ -236,7 +223,10 @@ builder.connect("retry_process", "output", "move_failed", "inputs")
 
 ## Related Skills
 
-- **Data Nodes**: [`nodes-data-reference`](../08-nodes-reference/nodes-data-reference.md)
+- **Data Nodes**: [`nodes-data-reference`](../nodes/nodes-data-reference.md)
 - **ETL Patterns**: [`workflow-pattern-etl`](workflow-pattern-etl.md)
+
+## Documentation
+
 
 <!-- Trigger Keywords: file processing, batch file, document workflow, file automation, CSV processing, PDF extraction -->

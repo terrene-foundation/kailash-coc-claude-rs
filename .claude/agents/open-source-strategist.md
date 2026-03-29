@@ -1,6 +1,6 @@
 ---
 name: open-source-strategist
-description: "Open-core strategy advisor. Use for licensing decisions, open/proprietary boundaries, or community building."
+description: "Open-source strategy advisor. Use for licensing, open/proprietary boundaries, or community building decisions."
 model: inherit
 allowed-tools:
   - Read

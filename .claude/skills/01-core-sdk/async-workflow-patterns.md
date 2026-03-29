@@ -1,6 +1,6 @@
 ---
 name: async-workflow-patterns
-description: "Asynchronous workflow execution with Runtime for Docker and NexusApp deployments. Use when asking 'async workflow', 'Runtime', 'async execution', 'Docker deployment', 'async patterns', 'concurrent execution', 'async runtime', or 'asynchronous processing'."
+description: "Asynchronous workflow execution with AsyncLocalRuntime for Docker and FastAPI deployments. Use when asking 'async workflow', 'AsyncLocalRuntime', 'async execution', 'Docker deployment', 'FastAPI workflow', 'async patterns', 'concurrent execution', 'async runtime', or 'asynchronous processing'."
 ---
 
 # Async Workflow Patterns
@@ -10,29 +10,30 @@ Async Workflow Patterns guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `core-sdk`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
 - **Primary Use**: Async Workflow Patterns
 - **Category**: core-sdk
 - **Priority**: HIGH
-- **Trigger Keywords**: async workflow, Runtime, async execution, Docker deployment, NexusApp workflow
+- **Trigger Keywords**: async workflow, AsyncLocalRuntime, async execution, Docker deployment, FastAPI workflow
 
 ## Core Pattern
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Async Workflow Patterns implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -59,7 +60,7 @@ Use specialized subagents when:
 ## Documentation References
 
 ### Primary Sources
-- See the project's `CLAUDE.md` for architecture details
+- [`CLAUDE.md#L117-132`](../../{doc})
 
 ## Quick Tips
 
@@ -69,4 +70,4 @@ Use specialized subagents when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: async workflow, Runtime, async execution, Docker deployment, NexusApp workflow -->
+<!-- Trigger Keywords: async workflow, AsyncLocalRuntime, async execution, Docker deployment, FastAPI workflow -->

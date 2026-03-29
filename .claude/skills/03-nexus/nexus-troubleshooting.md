@@ -19,15 +19,14 @@ Common issues and solutions for Nexus platform.
 
 ```python
 # Use custom ports
-from kailash.nexus import NexusApp, NexusConfig
-app = NexusApp(config=NexusConfig(port=8001))
+app = Nexus(api_port=8001, mcp_port=3002)
 ```
 
 **Check port usage**:
 
 ```bash
-# Find process using port 3000
-lsof -i :3000
+# Find process using port 8000
+lsof -i :8000
 
 # Kill process
 kill -9 <PID>
@@ -40,15 +39,13 @@ kill -9 <PID>
 **Solution**:
 
 ```python
-# Ensure .build() is called, then wrap with Runtime
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {"code": "result = {'ok': True}", "output_vars": ["result"]})
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("my-workflow", lambda **inputs: rt.execute(workflow, inputs))
+# Ensure .build() is called
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "test", {"code": "result = {'ok': True}"})
+app.register("my-workflow", workflow.build())  # Don't forget .build()
 
-# Check registered handlers
-print(app.get_registered_handlers())
+# Check registered workflows
+print(list(app.workflows.keys()))
 ```
 
 ### 3. Auto-Discovery Blocking (with DataFlow)
@@ -58,11 +55,11 @@ print(app.get_registered_handlers())
 **Solution**:
 
 ```python
-# NexusApp has no auto_discovery param — register workflows manually
-app = NexusApp()
+# Disable auto_discovery when using DataFlow
+app = Nexus(auto_discovery=False)
 
-# auto_migrate=True (default) works in Docker
-db = kailash.DataFlow("postgresql://...")
+# DataFlow default: auto_migrate=True (default) works in Docker/FastAPI
+db = DataFlow("postgresql://...")
 ```
 
 ### 4. Import Errors
@@ -72,11 +69,11 @@ db = kailash.DataFlow("postgresql://...")
 **Solution**:
 
 ```bash
-# Install Kailash (Nexus included)
-pip install kailash-enterprise
+# Install Nexus
+pip install kailash-nexus
 
 # Verify installation
-python -c "import kailash; print('OK')"
+python -c "from nexus import Nexus; print('OK')"
 ```
 
 ### 5. Authentication Errors
@@ -87,10 +84,10 @@ python -c "import kailash; print('OK')"
 
 ```python
 # Configure authentication
-app = NexusApp()  # Auth configured via NexusAuthPlugin
+app = Nexus(enable_auth=True)
 
 # For API requests, include auth header
-curl -X POST http://localhost:3000/workflows/test/execute \
+curl -X POST http://localhost:8000/workflows/test/execute \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"inputs": {}}'
@@ -113,29 +110,22 @@ curl -X POST http://localhost:3000/workflows/test/execute \
 {"inputs": {"limit": "10"}}  # String instead of integer
 ```
 
-### 7. Workflow State Across Executions
+### 7. Session Not Found
 
-**Problem**: Need to track state across multiple workflow executions
+**Error**: `Session 'session-123' not found or expired`
 
-**Solution**: Nexus workflows are stateless by default. Use DataFlow for persistent state or pass state via `inputs`:
+**Solution**:
 
 ```python
-import kailash
-from kailash.nexus import NexusApp
+# Create session before use
+session_id = app.create_session(channel="api")
 
-app = NexusApp()
+# Or extend timeout
+app.session_manager.extend_timeout(session_id, 600)
 
-# Option 1: Pass state via inputs between executions
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-
-builder = kailash.WorkflowBuilder()
-builder.add_node("SomeNode", "step1", {"previous_run_id": "run-123"})
-result = rt.execute(builder.build(reg), inputs={"state": "from_previous"})
-
-# Option 2: Track lifecycle events via EventBus
-bus = app._nexus.event_bus()
-bus.subscribe(lambda e: print(f"Event: {e}"))
+# Check session exists
+if not app.session_manager.exists(session_id):
+    print("Session expired or invalid")
 ```
 
 ### 8. Slow Startup
@@ -146,10 +136,10 @@ bus.subscribe(lambda e: print(f"Event: {e}"))
 
 ```python
 # With DataFlow, use optimized settings
-app = NexusApp()  # Register workflows manually
-db = kailash.DataFlow(
+app = Nexus(auto_discovery=False)
+db = DataFlow(
     "postgresql://...",
-    auto_migrate=True,  # Default: Works in Docker
+    auto_migrate=True,  # default: Works in Docker/FastAPI
 )
 
 # Should now start in <2 seconds
@@ -162,8 +152,8 @@ db = kailash.DataFlow(
 **Solution**:
 
 ```python
-# Use try/except pattern in EmbeddedPythonNode
-builder.add_node("EmbeddedPythonNode", "process", {
+# Use try/except pattern in PythonCodeNode
+workflow.add_node("PythonCodeNode", "process", {
     "code": """
 try:
     param = my_param  # From API inputs
@@ -171,12 +161,11 @@ except NameError:
     param = None  # Not provided
 
 result = {'param': param}
-""",
-    "output_vars": ["result"]
+"""
 })
 
 # API request
-curl -X POST http://localhost:3000/workflows/process/execute \
+curl -X POST http://localhost:8000/workflows/process/execute \
   -d '{"inputs": {"my_param": "value"}}'
 ```
 
@@ -188,7 +177,7 @@ curl -X POST http://localhost:3000/workflows/process/execute \
 
 ```python
 # Use explicit connections with correct paths
-builder.connect(
+workflow.add_connection(
     "node1", "result.data",  # Full path to output
     "node2", "input"         # Input parameter name
 )
@@ -206,20 +195,19 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Or in Nexus
-app = NexusApp()  # Logging configured separately
+app = Nexus(log_level="DEBUG")
 ```
 
 ### 2. Add Debug Nodes
 
 ```python
 # Insert debug node to inspect data
-builder.add_node("EmbeddedPythonNode", "debug", {
+workflow.add_node("PythonCodeNode", "debug", {
     "code": """
 import json
 print(f"Debug data: {json.dumps(data, indent=2)}")
 result = data  # Pass through
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
@@ -227,35 +215,37 @@ result = data  # Pass through
 
 ```bash
 # Check overall health
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 
 # Check detailed status
-curl http://localhost:3000/health/detailed
+curl http://localhost:8000/health/detailed
 ```
 
 ### 4. Verify Workflow Registration
 
 ```python
-# List registered handlers
-print("Registered handlers:", app.get_registered_handlers())
+# List registered workflows
+print("Registered workflows:", list(app.workflows.keys()))
+
+# Get workflow details
+workflow_info = app.get_workflow_info("my-workflow")
+print(workflow_info)
 ```
 
 ### 5. Test Individual Nodes
 
 ```python
 # Test node in isolation
-import kailash
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
+runtime = LocalRuntime()
 
 # Create simple workflow with problem node
-test_builder = kailash.WorkflowBuilder()
-test_builder.add_node("ProblemNode", "test", {"param": "value"})
+test_workflow = WorkflowBuilder()
+test_workflow.add_node("ProblemNode", "test", {"param": "value"})
 
 # Execute and check result
-result = rt.execute(test_builder.build(reg))
+result, run_id = runtime.execute(test_workflow.build())
 print(f"Result: {result}")
 ```
 
@@ -263,7 +253,7 @@ print(f"Result: {result}")
 
 ```bash
 # Use -v for verbose output
-curl -v -X POST http://localhost:3000/workflows/test/execute \
+curl -v -X POST http://localhost:8000/workflows/test/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"param": "value"}}'
 
@@ -312,75 +302,79 @@ grep "my-workflow" nexus.log
 
 ### "Auto-discovery blocking"
 
-- NexusApp has no `auto_discovery` parameter
-- Register workflows manually with `app.register()`
+- Using DataFlow with auto_discovery=True
+- Set auto_discovery=False
 
 ## Performance Issues
 
 ### Slow API Responses
 
-NexusApp does not have `app.get_workflow_metrics()`. Monitor performance via
-external tools (Prometheus, reverse proxy logs) or add timing in your handlers:
-
 ```python
-import time
+# Check workflow execution time
+metrics = app.get_workflow_metrics("workflow-name")
+print(f"Avg execution time: {metrics['avg_execution_time']}s")
 
-@app.handler("timed_workflow", description="Workflow with timing")
-async def timed_workflow(data: str) -> dict:
-    start = time.time()
-    # ... workflow execution ...
-    elapsed = time.time() - start
-    return {"result": data, "execution_time_s": elapsed}
+# Optimize workflow
+# - Remove unnecessary nodes
+# - Optimize PythonCodeNode code
+# - Add caching
+# - Use async operations
 ```
 
 ### High Memory Usage
 
 ```python
-# Use EventBus to monitor resource usage
-bus = app._nexus.event_bus()
-bus.subscribe(lambda e: log_memory_usage(e) if e.get("type") == "workflow_completed" else None)
+# Check session cleanup
+app.session_manager.cleanup_expired()
 
-# Ensure workflows clean up resources
-app = NexusApp()
+# Configure session limits
+app = Nexus(
+    session_max_age=1800,  # 30 minutes
+    session_cleanup_interval=300  # 5 minutes
+)
 ```
 
 ### High CPU Usage
 
-NexusApp does not have `app.get_metrics()` or `app.api.*` attributes. Monitor
-CPU and concurrency via system-level tools or your reverse proxy.
+```python
+# Check concurrent requests
+metrics = app.get_metrics()
+print(f"Concurrent requests: {metrics['concurrent_requests']}")
+
+# Limit concurrency
+app.api.max_concurrent_requests = 50
+```
 
 ## Getting Help
 
-### 1. Enable Verbose Logging
+### 1. Check Documentation
+
+
+### 2. Enable Verbose Logging
 
 ```python
-app = NexusApp()  # Logging configured separately
+app = Nexus(log_level="DEBUG", log_format="json")
 ```
 
-### 2. Check GitHub Issues
+### 3. Check GitHub Issues
 
 Search for similar issues in the repository.
 
-### 3. Create Minimal Reproduction
+### 4. Create Minimal Reproduction
 
 ```python
 # Minimal example to reproduce issue
-import kailash
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
+app = Nexus()
 
-from kailash.nexus import NexusApp
-app = NexusApp()
-
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "test", {
-    "code": "result = {'test': True}",
-    "output_vars": ["result"]
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "test", {
+    "code": "result = {'test': True}"
 })
 
-workflow = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("test", lambda **inputs: rt.execute(workflow, inputs))
+app.register("test", workflow.build())
 app.start()
 ```
 

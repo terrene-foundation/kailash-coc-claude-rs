@@ -7,13 +7,16 @@ description: "API integration workflow patterns (REST, GraphQL, webhooks). Use w
 
 Patterns for integrating and orchestrating APIs in workflows.
 
-> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
-> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
+> **Skill Metadata**
+> Category: `workflow-patterns`
+> Priority: `HIGH`
+> SDK Version: `0.9.25+`
+> Related Skills: [`nodes-api-reference`](../nodes/nodes-api-reference.md), [`nexus-specialist`](../../03-nexus/nexus-specialist.md)
+> Related Subagents: `nexus-specialist` (API platform), `pattern-expert` (API workflows)
 
 ## Quick Reference
 
 API patterns enable:
-
 - **REST APIs** - GET, POST, PUT, DELETE operations
 - **GraphQL** - Query and mutation execution
 - **Webhooks** - Event-driven integrations
@@ -24,112 +27,171 @@ API patterns enable:
 ## Pattern 1: REST API Orchestration
 
 ```python
-import os
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Authenticate
-builder.add_node("HTTPRequestNode", "auth", {
+workflow.add_node("APICallNode", "auth", {
     "url": "https://api.example.com/auth/token",
     "method": "POST",
     "body": {
-        "client_id": os.environ["CLIENT_ID"],
-        "client_secret": os.environ["CLIENT_SECRET"],
-    },
+        "client_id": "{{secrets.client_id}}",
+        "client_secret": "{{secrets.client_secret}}"
+    }
 })
 
 # 2. Get user data
-builder.add_node("HTTPRequestNode", "get_user", {
+workflow.add_node("APICallNode", "get_user", {
     "url": "https://api.example.com/users/{{input.user_id}}",
     "method": "GET",
     "headers": {
-        "Authorization": "Bearer {{auth.body}}",
-    },
+        "Authorization": "Bearer {{auth.access_token}}"
+    }
 })
 
 # 3. Update user profile
-builder.add_node("HTTPRequestNode", "update_profile", {
+workflow.add_node("APICallNode", "update_profile", {
     "url": "https://api.example.com/users/{{input.user_id}}/profile",
     "method": "PUT",
     "headers": {
-        "Authorization": "Bearer {{auth.body}}",
+        "Authorization": "Bearer {{auth.access_token}}"
     },
-    "body": "{{input.profile_data}}",
+    "body": "{{input.profile_data}}"
 })
 
 # 4. Trigger webhook
-builder.add_node("HTTPRequestNode", "notify_webhook", {
+workflow.add_node("APICallNode", "notify_webhook", {
     "url": "{{input.webhook_url}}",
     "method": "POST",
     "body": {
         "event": "profile_updated",
         "user_id": "{{input.user_id}}",
-    },
+        "timestamp": "{{now}}"
+    }
 })
 
-builder.connect("auth", "body", "get_user", "headers")
-builder.connect("get_user", "body", "update_profile", "body")
-builder.connect("update_profile", "body", "notify_webhook", "body")
+workflow.add_connection("auth", "access_token", "get_user", "token")
+workflow.add_connection("get_user", "data", "update_profile", "user_data")
+workflow.add_connection("update_profile", "result", "notify_webhook", "body")
 
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf, {
-    "user_id": "12345",
-    "profile_data": {"name": "John Doe"},
-    "webhook_url": "https://webhook.site/...",
-})
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build(), inputs={
+        "user_id": "12345",
+        "profile_data": {"name": "John Doe"},
+        "webhook_url": "https://webhook.site/..."
+    })
 ```
 
 ## Pattern 2: Parallel API Calls
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Fetch data from multiple APIs in parallel
-builder.add_node("HTTPRequestNode", "api_weather", {
+workflow.add_node("APICallNode", "api_weather", {
     "url": "https://api.weather.com/current/{{input.city}}",
-    "method": "GET",
+    "method": "GET"
 })
 
-builder.add_node("HTTPRequestNode", "api_news", {
+workflow.add_node("APICallNode", "api_news", {
     "url": "https://api.news.com/headlines/{{input.city}}",
-    "method": "GET",
+    "method": "GET"
 })
 
-builder.add_node("HTTPRequestNode", "api_events", {
+workflow.add_node("APICallNode", "api_events", {
     "url": "https://api.events.com/search?location={{input.city}}",
-    "method": "GET",
+    "method": "GET"
 })
 
-# Merge results — MergeNode takes no config, output is "merged"
-builder.add_node("MergeNode", "merge_results", {})
+# Merge results
+workflow.add_node("MergeNode", "merge_results", {
+    "inputs": [
+        "{{api_weather.data}}",
+        "{{api_news.data}}",
+        "{{api_events.data}}"
+    ],
+    "strategy": "combine"
+})
 
 # No connections between parallel nodes - they run simultaneously
-builder.connect("api_weather", "body", "merge_results", "input_1")
-builder.connect("api_news", "body", "merge_results", "input_2")
-builder.connect("api_events", "body", "merge_results", "input_3")
+workflow.add_connection("api_weather", "data", "merge_results", "weather_data")
+workflow.add_connection("api_news", "data", "merge_results", "news_data")
+workflow.add_connection("api_events", "data", "merge_results", "events_data")
 ```
 
-## Pattern 3: GraphQL API Integration
+## Pattern 3: API with Retry and Backoff
 
 ```python
-import os
-import kailash
+workflow = WorkflowBuilder()
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+# 1. Initialize retry state
+workflow.add_node("SetVariableNode", "init_retry", {
+    "retry_count": 0,
+    "max_retries": 3
+})
 
-builder.add_node("HTTPRequestNode", "graphql_query", {
+# 2. Make API call
+workflow.add_node("APICallNode", "api_call", {
+    "url": "https://api.example.com/operation",
+    "method": "POST",
+    "body": "{{input.data}}",
+    "timeout": 30
+})
+
+# 3. Check response status
+workflow.add_node("ConditionalNode", "check_status", {
+    "condition": "{{api_call.status_code}} >= 200 AND {{api_call.status_code}} < 300",
+    "true_branch": "success",
+    "false_branch": "check_retry"
+})
+
+# 4. Check if should retry
+workflow.add_node("ConditionalNode", "check_retry", {
+    "condition": "{{init_retry.retry_count}} < {{init_retry.max_retries}}",
+    "true_branch": "backoff",
+    "false_branch": "failed"
+})
+
+# 5. Exponential backoff
+workflow.add_node("TransformNode", "calculate_delay", {
+    "input": "{{init_retry.retry_count}}",
+    "transformation": "2 ** value"  # 1, 2, 4 seconds
+})
+
+workflow.add_node("DelayNode", "backoff", {
+    "duration_seconds": "{{calculate_delay.result}}"
+})
+
+# 6. Increment retry counter
+workflow.add_node("TransformNode", "increment", {
+    "input": "{{init_retry.retry_count}}",
+    "transformation": "value + 1"
+})
+
+# Loop back
+workflow.add_connection("init_retry", "retry_count", "api_call", "retry")
+workflow.add_connection("api_call", "status_code", "check_status", "condition")
+workflow.add_connection("check_status", "output_false", "check_retry", "condition")
+workflow.add_connection("check_retry", "output_true", "calculate_delay", "input")
+workflow.add_connection("calculate_delay", "result", "backoff", "duration_seconds")
+workflow.add_connection("backoff", "done", "increment", "input")
+workflow.add_connection("increment", "result", "api_call", "retry")  # Retry
+```
+
+## Pattern 4: GraphQL API Integration
+
+```python
+workflow = WorkflowBuilder()
+
+# 1. GraphQL query
+workflow.add_node("APICallNode", "graphql_query", {
     "url": "https://api.example.com/graphql",
     "method": "POST",
     "headers": {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.environ['API_TOKEN']}",
+        "Authorization": "Bearer {{secrets.api_token}}"
     },
     "body": {
         "query": """
@@ -138,74 +200,143 @@ builder.add_node("HTTPRequestNode", "graphql_query", {
                     id
                     name
                     email
-                    posts { id title createdAt }
+                    posts {
+                        id
+                        title
+                        createdAt
+                    }
                 }
             }
         """,
-        "variables": {"id": "{{input.user_id}}"},
-    },
+        "variables": {
+            "id": "{{input.user_id}}"
+        }
+    }
 })
+
+# 2. Extract nested data
+workflow.add_node("TransformNode", "extract_posts", {
+    "input": "{{graphql_query.data.user.posts}}",
+    "transformation": "map(lambda p: {'id': p.id, 'title': p.title})"
+})
+
+# 3. GraphQL mutation
+workflow.add_node("APICallNode", "graphql_mutation", {
+    "url": "https://api.example.com/graphql",
+    "method": "POST",
+    "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{secrets.api_token}}"
+    },
+    "body": {
+        "query": """
+            mutation UpdateUser($id: ID!, $input: UserInput!) {
+                updateUser(id: $id, input: $input) {
+                    id
+                    name
+                    updatedAt
+                }
+            }
+        """,
+        "variables": {
+            "id": "{{input.user_id}}",
+            "input": "{{input.updates}}"
+        }
+    }
+})
+
+workflow.add_connection("graphql_query", "data", "extract_posts", "input")
+workflow.add_connection("extract_posts", "result", "graphql_mutation", "posts_data")
 ```
 
-## Pattern 4: Webhook Receiver with Nexus
+## Pattern 5: Webhook Receiver Workflow
 
 ```python
-from kailash.nexus import NexusApp
-import kailash
+from kailash.api.workflow_api import WorkflowAPI
 
-reg = kailash.NodeRegistry()
-app = NexusApp(preset="standard")
+workflow = WorkflowBuilder()
 
-@app.handler("webhook")
-async def handle_webhook(event_type: str, data: dict, signature: str) -> dict:
-    # Validate webhook signature
-    import hmac, hashlib, os
-    expected = hmac.new(
-        os.environ["WEBHOOK_SECRET"].encode(),
-        str(data).encode(),
-        hashlib.sha256,
-    ).hexdigest()
+# 1. Validate webhook signature
+workflow.add_node("TransformNode", "validate_signature", {
+    "input": "{{input.signature}}",
+    "expected": "{{secrets.webhook_secret}}",
+    "transformation": "hmac_sha256(input.body, expected)"
+})
 
-    if not hmac.compare_digest(signature, expected):
-        return {"error": "Invalid signature"}
+workflow.add_node("ConditionalNode", "check_signature", {
+    "condition": "{{validate_signature.result}} == {{input.signature}}",
+    "true_branch": "process",
+    "false_branch": "reject"
+})
 
-    # Route by event type
-    builder = kailash.WorkflowBuilder()
-    if event_type == "user.created":
-        builder.add_node("CreateUser", "create", {})
-    elif event_type == "user.updated":
-        builder.add_node("UpdateUser", "update", {})
+# 2. Parse webhook payload
+workflow.add_node("TransformNode", "parse_payload", {
+    "input": "{{input.body}}",
+    "transformation": "json.loads(value)"
+})
 
-    wf = builder.build(reg)
-    rt = kailash.Runtime(reg)
-    result = rt.execute(wf, data)
-    return result["results"]
+# 3. Route by event type
+workflow.add_node("ConditionalNode", "route_event", {
+    "condition": "{{parse_payload.event_type}}",
+    "branches": {
+        "user.created": "create_user",
+        "user.updated": "update_user",
+        "user.deleted": "delete_user"
+    }
+})
 
-app.start()
+# 4. Process each event type
+workflow.add_node("DatabaseExecuteNode", "create_user", {
+    "query": "INSERT INTO users (id, name, email) VALUES (?, ?, ?)",
+    "parameters": "{{parse_payload.data}}"
+})
+
+workflow.add_node("DatabaseExecuteNode", "update_user", {
+    "query": "UPDATE users SET name = ?, email = ? WHERE id = ?",
+    "parameters": "{{parse_payload.data}}"
+})
+
+workflow.add_node("DatabaseExecuteNode", "delete_user", {
+    "query": "DELETE FROM users WHERE id = ?",
+    "parameters": ["{{parse_payload.data.id}}"]
+})
+
+workflow.add_connection("validate_signature", "result", "check_signature", "condition")
+workflow.add_connection("check_signature", "output_true", "parse_payload", "input")
+workflow.add_connection("parse_payload", "event_type", "route_event", "condition")
+
+# Deploy as API endpoint
+api = WorkflowAPI(workflow.build())
+api.run(port=8000)  # POST /execute receives webhooks
 ```
 
 ## Best Practices
 
-1. **Authentication** - Store credentials in environment variables, never hardcode
+1. **Authentication** - Store credentials in secrets
 2. **Timeouts** - Set reasonable timeout values
 3. **Retry logic** - Implement exponential backoff
 4. **Rate limiting** - Respect API limits
-5. **Error handling** - Graceful degradation with fallbacks
+5. **Error handling** - Graceful degradation
 6. **Logging** - Track all API calls
-7. **Validation** - Verify responses before processing
+7. **Validation** - Verify responses
 8. **Parallel calls** - Use for independent APIs
 
 ## Common Pitfalls
 
 - **No retry logic** - Transient failures kill workflows
-- **Missing timeouts** - Hanging requests block execution
-- **Hard-coded credentials** - Security risk, use `.env`
-- **No rate limiting** - API bans and throttling
-- **Blocking parallel calls** - Sequential when parallel is possible
+- **Missing timeouts** - Hanging requests
+- **Hard-coded credentials** - Security risks
+- **No rate limiting** - API bans
+- **Blocking parallel calls** - Slow execution
+- **Poor error messages** - Hard to debug
 
 ## Related Skills
 
-- **Nexus Platform**: [`03-nexus`](../../03-nexus/SKILL.md)
-- **Error Handling**: [`17-gold-standards/gold-error-handling`](../../17-gold-standards/gold-error-handling.md)
+- **API Nodes**: [`nodes-api-reference`](../nodes/nodes-api-reference.md)
+- **Nexus Platform**: [`nexus-specialist`](../../03-nexus/nexus-specialist.md)
+- **Error Handling**: [`gold-error-handling`](../../17-gold-standards/gold-error-handling.md)
+
+## Documentation
+
 
 <!-- Trigger Keywords: API workflow, REST integration, API orchestration, webhook, API automation, GraphQL -->

@@ -5,7 +5,6 @@ You are an expert in circuit breaker patterns for Kailash SDK. Guide users throu
 ## Core Responsibilities
 
 ### 1. Circuit Breaker Implementation
-
 ```python
 class CircuitBreaker:
     """Circuit breaker for protecting against cascading failures."""
@@ -56,12 +55,11 @@ class CircuitBreaker:
 ```
 
 ### 2. Using Circuit Breaker in Workflows
-
 ```python
 # Global circuit breaker instance
 api_circuit_breaker = CircuitBreaker(failure_threshold=3, timeout=60)
 
-builder.add_node("EmbeddedPythonNode", "protected_api_call", {
+workflow.add_node("PythonCodeNode", "protected_api_call", {
     "code": """
 try:
     # Make API call through circuit breaker
@@ -86,18 +84,15 @@ except Exception as e:
         'status': 'error',
         'error': str(e)
     }
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ## When to Engage
-
 - User asks about "circuit breaker", "fault isolation", "resilience pattern"
 - User needs to protect against cascading failures
 - User wants fault tolerance
 
 ## Integration with Other Skills
-
 - Route to **resilience-enterprise** for resilience patterns
 - Route to **monitoring-enterprise** for monitoring circuit state

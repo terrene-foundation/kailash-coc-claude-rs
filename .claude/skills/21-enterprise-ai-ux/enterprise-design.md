@@ -8,7 +8,6 @@
 ---
 
 ## Table of Contents
-
 1. [Executive Summary](#executive-summary)
 2. [Core Design Challenges](#core-design-challenges)
 3. [Design Principles for AI Interfaces](#design-principles-for-ai-interfaces)
@@ -27,7 +26,6 @@
 ## Executive Summary
 
 ### Primary Goals
-
 1. **Reduce cognitive overload** while maintaining enterprise-grade transparency
 2. **Enable interactive widget responses** embedded in AI conversation stream
 3. **Support multi-conversation workflows** with context sharing
@@ -35,7 +33,6 @@
 5. **Create intuitive data source selection** with RBAC integration
 
 ### Success Metrics
-
 - Users can verify AI responses in < 5 seconds
 - Users can complete multi-conversation workflows without confusion
 - Interactive widgets render seamlessly in conversation stream
@@ -47,75 +44,60 @@
 ## Core Design Challenges
 
 ### Challenge 1: Interactive Widget Responses (PRIORITY)
-
 **Problem**: Current AI assistants are limited to text, markdown, and static charts. Users need interactive Flutter widgets embedded in responses with navigation capabilities.
 
 **User Story**:
-
 > "As an enterprise user, I want to interact with data visualizations, forms, and navigation elements directly within AI responses, rather than being limited to static content or external links."
 
 **Complexity**: Medium-High
-
 - Widget serialization/deserialization from backend to Flutter
 - State management for interactive widgets in conversation stream
 - Performance optimization for complex widgets
 - Deep linking and navigation from widgets
 
 ### Challenge 2: Multi-Conversation Workflows
-
 **Problem**: Enterprise users need to work across multiple conversations simultaneously and reference context from different conversations.
 
 **User Story**:
-
 > "As a research analyst, I want to branch from specific conversation turns, maintain multiple parallel conversations, and ask the AI to combine insights from different conversations."
 
 **Complexity**: High
-
 - Conversation tree visualization
 - Context sharing between conversations
 - Turn-level branching UI
 - Session management
 
 ### Challenge 3: Response Verification
-
 **Problem**: Enterprise users must verify AI responses for compliance, accuracy, and auditability.
 
 **User Story**:
-
 > "As a compliance officer, I need to see exactly which documents, pages, and snippets were used to generate each AI response, with the ability to verify by confidence level or anomaly detection."
 
 **Complexity**: Medium
-
 - Citation UI that doesn't overwhelm
 - Confidence scoring visualization
 - Inline document preview
 - Anomaly highlighting
 
 ### Challenge 4: Data Source Selection
-
 **Problem**: Users need granular control over which data sources the AI uses, respecting RBAC.
 
 **User Story**:
-
 > "As a department head, I want to select only certain data sources (e.g., my department's SharePoint + internal docs) for AI to use, excluding web search or other departments' data."
 
 **Complexity**: Medium
-
 - RBAC-aware UI
 - Multi-select with categorization
 - Persistent source preferences
 - Visual feedback on active sources
 
 ### Challenge 5: Document Upload & Management
-
 **Problem**: Users upload documents for AI to reference, but need visibility into which documents are being used.
 
 **User Story**:
-
 > "As a project manager, I want to upload project documents and see which documents the AI referenced when answering my questions, with the ability to remove documents from the active context."
 
 **Complexity**: Low-Medium
-
 - File upload UI with progress
 - Active document list visualization
 - Document relevance scoring
@@ -126,11 +108,9 @@
 ## Design Principles for AI Interfaces
 
 ### Principle 1: Progressive Disclosure of Complexity
-
 **Definition**: Show essential information by default, reveal details on demand.
 
 **Application**:
-
 ```
 DEFAULT VIEW (Clean):
 ┌────────────────────────────────────────────────────┐
@@ -158,34 +138,28 @@ EXPANDED VIEW (On click):
 ```
 
 **Benefits**:
-
 - Reduces cognitive overload
 - Allows verification without forcing it
 - Maintains clean conversation flow
 
 ### Principle 2: Inline Verification Without Context Switching
-
 **Definition**: Users can verify responses without leaving the conversation context.
 
 **Application**:
-
 - Inline document preview in slide-over (not new tab)
 - Snippet highlighting with context (before/after text)
 - Hover tooltips for quick confidence scores
 - Embedded page viewers for documents
 
 **Benefits**:
-
 - Reduces interruption
 - Faster verification workflow
 - Maintains conversation momentum
 
 ### Principle 3: Visual Hierarchy for AI Responses
-
 **Definition**: Different response types have distinct visual treatments.
 
 **Visual Hierarchy**:
-
 ```
 ┌────────────────────────────────────────────────────┐
 │ ┌─ DIRECT ANSWER (High Confidence) ──────────────┐ │
@@ -207,18 +181,15 @@ EXPANDED VIEW (On click):
 ```
 
 **Color Coding**:
-
 - **High Confidence (≥90%)**: Green accent, ✓ icon
 - **Medium Confidence (70-89%)**: Yellow accent, ⚠ icon
 - **Low Confidence (<70%)**: Orange accent, ⓘ icon
 - **Action Items**: Blue accent, ▶ icon
 
 ### Principle 4: Contextual Widget Integration
-
 **Definition**: Interactive widgets are seamlessly integrated into the conversation flow, not isolated.
 
 **Layout Pattern**:
-
 ```
 ┌────────────────────────────────────────────────────┐
 │ User: Show me Q2 sales breakdown by region        │
@@ -242,18 +213,15 @@ EXPANDED VIEW (On click):
 ```
 
 **Benefits**:
-
 - Natural conversation flow maintained
 - Immediate actionability
 - No context switching required
 - Progressive disclosure of details
 
 ### Principle 5: Conversation Branching as First-Class Citizen
-
 **Definition**: Multi-conversation workflows are core functionality, not an afterthought.
 
 **UI Treatment**:
-
 - Visual conversation tree
 - Turn-level branching indicators
 - Cross-conversation references
@@ -268,7 +236,6 @@ EXPANDED VIEW (On click):
 #### Backend → Frontend Widget Specification
 
 **Widget Descriptor Format** (JSON):
-
 ```json
 {
   "type": "widget",
@@ -299,7 +266,6 @@ EXPANDED VIEW (On click):
 #### Widget Type Specifications
 
 ##### 1. Chart Widget
-
 ```json
 {
   "widget_type": "chart",
@@ -337,7 +303,6 @@ EXPANDED VIEW (On click):
 ```
 
 **Flutter Implementation**:
-
 ```dart
 class ChartWidget extends StatelessWidget {
   final ChartWidgetDescriptor descriptor;
@@ -382,29 +347,18 @@ class ChartWidget extends StatelessWidget {
 ```
 
 ##### 2. Data Table Widget
-
 ```json
 {
   "widget_type": "table",
   "data": {
     "columns": [
-      { "key": "name", "label": "Name", "sortable": true },
-      {
-        "key": "revenue",
-        "label": "Revenue",
-        "sortable": true,
-        "format": "currency"
-      },
-      {
-        "key": "growth",
-        "label": "Growth",
-        "sortable": true,
-        "format": "percentage"
-      }
+      {"key": "name", "label": "Name", "sortable": true},
+      {"key": "revenue", "label": "Revenue", "sortable": true, "format": "currency"},
+      {"key": "growth", "label": "Growth", "sortable": true, "format": "percentage"}
     ],
     "rows": [
-      { "name": "Product A", "revenue": 123000, "growth": 0.23 },
-      { "name": "Product B", "revenue": 93000, "growth": 0.15 }
+      {"name": "Product A", "revenue": 123000, "growth": 0.23},
+      {"name": "Product B", "revenue": 98000, "growth": 0.15}
     ],
     "pagination": {
       "page": 1,
@@ -422,14 +376,13 @@ class ChartWidget extends StatelessWidget {
       "action_id": "export_table",
       "label": "Export CSV",
       "type": "download",
-      "params": { "format": "csv" }
+      "params": {"format": "csv"}
     }
   ]
 }
 ```
 
 ##### 3. Form Widget
-
 ```json
 {
   "widget_type": "form",
@@ -451,15 +404,15 @@ class ChartWidget extends StatelessWidget {
         "field_id": "date_range",
         "type": "date_range",
         "label": "Date Range",
-        "default": { "start": "2025-01-01", "end": "2025-03-31" }
+        "default": {"start": "2025-01-01", "end": "2025-03-31"}
       },
       {
         "field_id": "region",
         "type": "select",
         "label": "Region",
         "options": [
-          { "value": "north", "label": "North" },
-          { "value": "south", "label": "South" }
+          {"value": "north", "label": "North"},
+          {"value": "south", "label": "South"}
         ],
         "multi_select": true
       }
@@ -484,7 +437,6 @@ class ChartWidget extends StatelessWidget {
 ```
 
 ##### 4. Navigation Card Widget
-
 ```json
 {
   "widget_type": "navigation_card",
@@ -529,10 +481,9 @@ class ChartWidget extends StatelessWidget {
 #### Widget Rendering Pipeline
 
 **Step 1: Backend generates widget descriptor**
-
 ```python
 # Kailash SDK - AI Agent generates widget spec
-import kailash
+from kaizen.agents import BaseAgent
 
 class DashboardAgent(BaseAgent):
     async def generate_chart_response(self, user_query: str):
@@ -559,15 +510,13 @@ class DashboardAgent(BaseAgent):
 ```
 
 **Step 2: Stream to Flutter via WebSocket/SSE**
-
 ```python
 # Nexus API streaming
+from nexus import Nexus
 
-from kailash.nexus import NexusApp
+nexus = Nexus()
 
-app = NexusApp()
-
-@app.handler(name="chat_stream", description="Streaming chat endpoint")
+@nexus.stream_endpoint("/ai/chat")
 async def chat_stream(session_id: str, message: str):
     agent = DashboardAgent()
 
@@ -581,7 +530,6 @@ async def chat_stream(session_id: str, message: str):
 ```
 
 **Step 3: Flutter receives and renders**
-
 ```dart
 class ConversationMessage extends StatelessWidget {
   final Message message;
@@ -626,7 +574,6 @@ class ConversationMessage extends StatelessWidget {
 **Problem**: Interactive widgets in conversation stream need state management without polluting conversation history.
 
 **Solution**: Hybrid state management
-
 ```dart
 // 1. Widget-local state for transient interactions
 class ChartWidget extends StatefulWidget {
@@ -688,7 +635,6 @@ class FormWidget extends StatefulWidget {
 **Challenge**: Complex widgets in long conversations can impact performance.
 
 **Solutions**:
-
 1. **Lazy rendering**: Render only visible widgets
 2. **Widget caching**: Cache rendered widgets keyed by widget_id
 3. **Virtualization**: Use ListView.builder for conversation stream
@@ -728,7 +674,6 @@ class ConversationStream extends StatelessWidget {
 ### Conceptual Model
 
 **Mental Model**: Think of conversations as Git branches
-
 - Main conversation thread = main branch
 - Turn-level branching = feature branches
 - Context merging = git merge
@@ -739,7 +684,6 @@ class ConversationStream extends StatelessWidget {
 #### 1. Conversation Sidebar (Primary Navigation)
 
 **Layout**:
-
 ```
 ┌─ CONVERSATIONS ───────────────┐
 │ [+ New Chat]                  │
@@ -768,7 +712,6 @@ class ConversationStream extends StatelessWidget {
 ```
 
 **Features**:
-
 - Visual hierarchy: Active (bold, colored dot) > Recent > Starred
 - Nested branches shown with indentation
 - Badge count for unread/updated conversations
@@ -778,7 +721,6 @@ class ConversationStream extends StatelessWidget {
 #### 2. Turn-Level Branching UI
 
 **Inline Branch Creation**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ User: Show me Q2 sales breakdown                    │
@@ -795,7 +737,6 @@ class ConversationStream extends StatelessWidget {
 ```
 
 **When user clicks "Branch from here"**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ ┌─ Create Branch ──────────────────────────────────┐ │
@@ -813,7 +754,6 @@ class ConversationStream extends StatelessWidget {
 ```
 
 **After branching**:
-
 ```
 MAIN CONVERSATION          BRANCH CONVERSATION
 ┌─────────────────┐       ┌─────────────────────────┐
@@ -832,7 +772,6 @@ MAIN CONVERSATION          BRANCH CONVERSATION
 **Accessed via**: Sidebar icon or keyboard shortcut (Cmd+Shift+T)
 
 **Layout**:
-
 ```
 ┌─ Conversation Tree: Q2 Sales Analysis ─────────────────┐
 │                                                         │
@@ -856,7 +795,6 @@ MAIN CONVERSATION          BRANCH CONVERSATION
 ```
 
 **Interactions**:
-
 - Click node → Jump to that turn in conversation
 - Right-click → Context menu (branch, delete, merge)
 - Hover → Show turn preview tooltip
@@ -865,7 +803,6 @@ MAIN CONVERSATION          BRANCH CONVERSATION
 #### 4. Cross-Conversation References
 
 **User Input Pattern**:
-
 ```
 User: In conversation "Q2 Sales Analysis", you showed me revenue
 growth by region. Can you combine that with the customer churn
@@ -873,7 +810,6 @@ data from "HR Analytics" conversation to identify at-risk regions?
 ```
 
 **AI Detection & Linking**:
-
 ```dart
 class ConversationReferenceDetector {
   Future<List<ConversationReference>> detectReferences(String userMessage) async {
@@ -899,7 +835,6 @@ class ConversationReferenceDetector {
 ```
 
 **Visual Indicator in Message**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ User: In conversation [Q2 Sales ▸] you showed me    │
@@ -927,7 +862,6 @@ class ConversationReferenceDetector {
 **Accessed via**: Conversations menu → "Dashboard View"
 
 **Layout**:
-
 ```
 ┌─ Active Conversations Dashboard ─────────────────────────────┐
 │                                                               │
@@ -956,7 +890,6 @@ class ConversationReferenceDetector {
 ```
 
 **Benefits**:
-
 - See all active conversations at a glance
 - Quick resume from dashboard
 - Visual indicators of conversation health (active, stale, needs attention)
@@ -968,7 +901,6 @@ class ConversationReferenceDetector {
 ### Cognitive Load Challenge
 
 **Problem**: Enterprise users need to verify AI responses, but traditional citation UIs are overwhelming:
-
 - Long lists of sources break flow
 - Academic-style footnotes [1][2][3] require scrolling
 - External links force context switching
@@ -981,7 +913,6 @@ class ConversationReferenceDetector {
 #### Pattern 1: Collapsed Citation Bar (Default State)
 
 **Visual Design**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Based on your Q2 sales data, revenue increased  │
@@ -1000,7 +931,6 @@ class ConversationReferenceDetector {
 #### Pattern 2: Expanded Citation Panel
 
 **Visual Design**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Based on your Q2 sales data, revenue increased  │
@@ -1033,7 +963,6 @@ class ConversationReferenceDetector {
 ```
 
 **Key Features**:
-
 1. **Confidence badges** (color-coded):
    - Green (≥90%): High confidence
    - Yellow (70-89%): Medium confidence
@@ -1061,7 +990,6 @@ class ConversationReferenceDetector {
 ```
 
 **Interaction**:
-
 - Hover over `[1]` → Tooltip shows snippet
 - Click `[1]` → Scroll to full citation in panel
 - Ctrl+Click `[1]` → Open source document
@@ -1092,7 +1020,6 @@ class ConversationReferenceDetector {
 ```
 
 **Benefits**:
-
 - No context switching (no new tab)
 - Shows context around cited snippet
 - Highlighting makes relevant info obvious
@@ -1101,7 +1028,6 @@ class ConversationReferenceDetector {
 #### Pattern 5: Confidence Score Visualization
 
 **Visual Treatment**:
-
 ```
 Confidence Score Bar:
 ┌─────────────────────────────────────────┐
@@ -1119,7 +1045,6 @@ Badge Treatment:
 ```
 
 **Sorting by Confidence**:
-
 ```
 ┌─ Sources (5) ─────────────────────────────────┐
 │ Sort by: [Confidence (high→low) ▼]           │
@@ -1137,7 +1062,6 @@ Badge Treatment:
 #### Pattern 6: Anomaly Detection & Highlighting
 
 **Anomaly Types**:
-
 1. **Conflicting sources**: Two sources contradict each other
 2. **Outdated data**: Source is >6 months old
 3. **Low confidence**: Source confidence <70%
@@ -1145,7 +1069,6 @@ Badge Treatment:
 5. **Partial match**: Source only partially supports claim
 
 **Visual Treatment**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Based on your Q2 sales data, revenue increased  │
@@ -1174,7 +1097,6 @@ Badge Treatment:
 ```
 
 **Anomaly Detail View**:
-
 ```
 ┌─ Anomaly Detail: Conflicting Data ──────────────────┐
 │                                                      │
@@ -1339,7 +1261,6 @@ class _CitationPanelState extends State<CitationPanel> {
 ### Conceptual Model
 
 **User Mental Model**: Think of data sources as "search scopes" or "knowledge boundaries"
-
 - **Default**: All sources user has access to (RBAC-filtered)
 - **Focused**: User selects specific sources for precision
 - **Persistent**: Preferences saved per conversation
@@ -1349,13 +1270,11 @@ class _CitationPanelState extends State<CitationPanel> {
 #### 1. Data Source Selector (Primary UI)
 
 **Access Points**:
-
 1. Conversation input area (persistent icon)
 2. Settings menu → Data Sources
 3. Keyboard shortcut: Cmd+Shift+D
 
 **Layout - Collapsed State**:
-
 ```
 ┌─ Chat Input ────────────────────────────────────────┐
 │ [📊 4 sources ▼]  Type your message...     [Send →] │
@@ -1364,7 +1283,6 @@ class _CitationPanelState extends State<CitationPanel> {
 ```
 
 **Layout - Expanded State**:
-
 ```
 ┌─ Data Sources ──────────────────────────────────────┐
 │ Search sources: [_______________] 🔍                │
@@ -1403,7 +1321,6 @@ class _CitationPanelState extends State<CitationPanel> {
 ```
 
 **Key Features**:
-
 1. **Hierarchical categories**: Internal/Uploaded/External/Agents
 2. **RBAC integration**: Grayed-out sources user can't access with 🔒 icon
 3. **Search/filter**: Find sources by name
@@ -1414,7 +1331,6 @@ class _CitationPanelState extends State<CitationPanel> {
 #### 2. Active Sources Indicator
 
 **In conversation UI**:
-
 ```
 ┌─ Active Sources (4) ────────────────────────────────┐
 │ • SharePoint: Marketing Team                        │
@@ -1427,7 +1343,6 @@ class _CitationPanelState extends State<CitationPanel> {
 ```
 
 **Compact version (mobile)**:
-
 ```
 [4 sources active ▼] → Expands to show list
 ```
@@ -1435,7 +1350,6 @@ class _CitationPanelState extends State<CitationPanel> {
 #### 3. Source-Specific Permissions UI
 
 **When user hovers over locked source**:
-
 ```
 ┌─ HR Team (SharePoint) 🔒 ───────────────────────────┐
 │ You don't have access to this source.               │
@@ -1447,7 +1361,6 @@ class _CitationPanelState extends State<CitationPanel> {
 ```
 
 **Request access flow**:
-
 1. User clicks "Request Access"
 2. Modal opens with request form (reason, urgency)
 3. Request sent to admin/manager
@@ -1472,8 +1385,8 @@ User types: "What was our customer churn rate in Q2?"
 ```
 
 **Backend implementation** (Python + Kailash SDK):
-
 ```python
+from kaizen.agents import BaseAgent
 
 class SourceRecommendationAgent(BaseAgent):
     async def recommend_sources(self, user_query: str, available_sources: List[DataSource]):
@@ -1498,7 +1411,6 @@ class SourceRecommendationAgent(BaseAgent):
 #### 1. Primary Upload Methods
 
 **Method A: Drag & Drop**
-
 ```
 ┌─ Chat Input Area ───────────────────────────────────┐
 │                                                      │
@@ -1512,7 +1424,6 @@ class SourceRecommendationAgent(BaseAgent):
 ```
 
 **Method B: Click to Upload**
-
 ```
 User clicks [📎 Attach] button:
 
@@ -1534,7 +1445,6 @@ User clicks [📎 Attach] button:
 #### 2. Upload Progress
 
 **Single file upload**:
-
 ```
 ┌─ Uploading: Q2_Sales_Report.xlsx ───────────────────┐
 │ ████████████████░░░░ 72% (3.6 MB / 5.0 MB)          │
@@ -1544,7 +1454,6 @@ User clicks [📎 Attach] button:
 ```
 
 **Multiple file upload**:
-
 ```
 ┌─ Uploading 3 files ──────────────────────────────────┐
 │ ✓ Q2_Sales_Report.xlsx (5.0 MB) - Complete          │
@@ -1559,7 +1468,6 @@ User clicks [📎 Attach] button:
 #### 3. Processing Status
 
 **After upload, AI processes documents for embedding/indexing**:
-
 ```
 ┌─ Processing Documents ───────────────────────────────┐
 │ ✓ Q2_Sales_Report.xlsx - Indexed (3 sheets, 450 rows)│
@@ -1578,7 +1486,6 @@ User clicks [📎 Attach] button:
 **Access**: Click "📎 Uploaded Docs" in conversation header
 
 **Layout**:
-
 ```
 ┌─ Uploaded Documents (3) ─────────────────────────────┐
 │ Search: [_______________] 🔍                          │
@@ -1612,7 +1519,6 @@ User clicks [📎 Attach] button:
 ```
 
 **Key Features**:
-
 1. **Active/Inactive toggle**: Control which docs AI can access
 2. **Relevance score**: How relevant to current conversation (AI-scored)
 3. **Usage tracking**: How many times AI referenced this doc
@@ -1621,7 +1527,6 @@ User clicks [📎 Attach] button:
 #### 2. Document Referenced Indicator
 
 **In AI response**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Based on your uploaded Q2 Sales Report, revenue │
@@ -1643,7 +1548,6 @@ User clicks [📎 Attach] button:
 **Solution**: AI auto-prioritizes relevant docs + user can manually manage.
 
 **UI**:
-
 ```
 ┌─ Context Window ────────────────────────────────────┐
 │ ████████████████████░░░░░░ 75% of 128K token limit  │
@@ -1665,7 +1569,6 @@ User clicks [📎 Attach] button:
 ```
 
 **Smart Prioritization**:
-
 - AI analyzes user query → Scores documents by relevance
 - Top 3-5 most relevant docs included automatically
 - Rest excluded from context (but still available if user manually adds)
@@ -1679,7 +1582,6 @@ User clicks [📎 Attach] button:
 #### 1. Charts (Interactive)
 
 **Supported Chart Types**:
-
 - Bar charts (grouped, stacked, horizontal)
 - Line charts (single/multi-series, area)
 - Pie/donut charts
@@ -1689,7 +1591,6 @@ User clicks [📎 Attach] button:
 - Gantt charts (for timelines)
 
 **Example - Interactive Bar Chart**:
-
 ```dart
 class InteractiveBarChart extends StatefulWidget {
   final ChartWidgetDescriptor descriptor;
@@ -1724,7 +1625,6 @@ class InteractiveBarChart extends StatefulWidget {
 #### 2. Tables (Sortable, Filterable)
 
 **Features**:
-
 - Column sorting (ascending/descending)
 - Row filtering
 - Column toggling (show/hide)
@@ -1733,7 +1633,6 @@ class InteractiveBarChart extends StatefulWidget {
 - Export (CSV, XLSX)
 
 **Example - Data Table**:
-
 ```dart
 class InteractiveDataTable extends StatefulWidget {
   final TableWidgetDescriptor descriptor;
@@ -1789,7 +1688,6 @@ class _InteractiveDataTableState extends State<InteractiveDataTable> {
 **Use case**: Hide long content by default, expand on demand.
 
 **Example**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Here's a detailed analysis of your sales data.  │
@@ -1809,7 +1707,6 @@ class _InteractiveDataTableState extends State<InteractiveDataTable> {
 ```
 
 **Flutter Implementation**:
-
 ```dart
 class CollapsibleSection extends StatefulWidget {
   final String title;
@@ -1857,7 +1754,6 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
 **Use case**: Explain jargon without cluttering the response.
 
 **Example**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Your CAGR[ⓘ] for Q2 was 23%, indicating strong  │
@@ -1873,7 +1769,6 @@ Hover over [ⓘ]:
 ```
 
 **Flutter Implementation**:
-
 ```dart
 class TermWithTooltip extends StatelessWidget {
   final String term;
@@ -1908,7 +1803,6 @@ class TermWithTooltip extends StatelessWidget {
 **Use case**: AI references images/videos from documents or generates diagrams.
 
 **Example - Image Embed**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Here's the process flow diagram from page 5:    │
@@ -1922,7 +1816,6 @@ class TermWithTooltip extends StatelessWidget {
 ```
 
 **Example - Video Embed**:
-
 ```
 ┌─────────────────────────────────────────────────────┐
 │ AI: Here's the product demo video:                  │
@@ -2026,7 +1919,6 @@ Enterprise AI Hub
 #### Dashboard (Home)
 
 **Priority Hierarchy** (top to bottom):
-
 ```
 ┌────────────────────────────────────────────────────┐
 │ HEADER: Logo, Search, Profile                     │ ← Global nav
@@ -2046,7 +1938,6 @@ Enterprise AI Hub
 ```
 
 **Responsive Behavior**:
-
 - **Desktop**: 3-column grid for conversation cards
 - **Tablet**: 2-column grid
 - **Mobile**: Single column, stacked sections
@@ -2054,7 +1945,6 @@ Enterprise AI Hub
 #### Conversation View (Main App)
 
 **Layout Proportions** (Desktop):
-
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ APP BAR (60px height)                                       │
@@ -2071,7 +1961,6 @@ Enterprise AI Hub
 ```
 
 **Responsive Behavior**:
-
 - **Tablet**: Right panel becomes bottom sheet (slide up from bottom)
 - **Mobile**: Sidebar becomes hamburger menu, right panel = bottom sheet
 
@@ -2082,16 +1971,13 @@ Enterprise AI Hub
 ### Strategies to Reduce Overload
 
 #### Strategy 1: Progressive Disclosure (Already Discussed)
-
 - Start with minimal UI, expand on demand
 - Don't show all sources/citations by default
 
 #### Strategy 2: Visual Grouping (Gestalt Principles)
-
 **Group related elements using proximity, color, borders**
 
 Example:
-
 ```
 GOOD:
 ┌─ AI Response ──────────────────────────────────────┐
@@ -2112,11 +1998,9 @@ BAD:
 ```
 
 #### Strategy 3: Defer Non-Essential Information
-
 **Show only what user needs NOW, defer the rest**
 
 Example:
-
 ```
 IMMEDIATE NEED:
 ┌─────────────────────────────────────────────────────┐
@@ -2143,7 +2027,6 @@ DEFERRED (click to see):
 ```
 
 #### Strategy 4: Use Visual Hierarchy (Size, Color, Position)
-
 **Make important elements visually dominant**
 
 ```
@@ -2158,14 +2041,12 @@ HIGH IMPORTANCE (Large, Bold, Top):
 ```
 
 #### Strategy 5: Limit Choices (Hick's Law)
-
 **More options = slower decisions = higher cognitive load**
 
 **Bad**: 15 filter options visible at once
 **Good**: 3-5 most common filters visible + "Advanced filters" button
 
 Example:
-
 ```
 GOOD:
 ┌─ Filters ──────────────────────────────────────────┐
@@ -2188,21 +2069,17 @@ BAD:
 ```
 
 #### Strategy 6: Smart Defaults
-
 **Pre-select the most common options**
 
 Examples:
-
 - Data sources → Default to "All sources (RBAC-filtered)"
 - Confidence filter → Default to "All" (don't force filtering)
 - Date range → Default to "Last 30 days" (not "All time")
 
 #### Strategy 7: Inline Help & Contextual Guidance
-
 **Provide help exactly when/where needed**
 
 Example:
-
 ```
 ┌─ Upload Documents ──────────────────────────────────┐
 │ [Drag & Drop Area]                                  │
@@ -2217,7 +2094,6 @@ Example:
 ### NASA TLX Evaluation (Target Scores)
 
 **NASA Task Load Index** - Standard cognitive load measurement:
-
 1. **Mental Demand**: 4/10 (moderate)
 2. **Physical Demand**: 2/10 (very low - mostly clicking)
 3. **Temporal Demand**: 3/10 (not time-pressured)
@@ -2232,11 +2108,9 @@ Example:
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Weeks 1-2)
-
 **Goal**: Basic conversation UI with text responses
 
 **Deliverables**:
-
 - [ ] Dashboard (home page with active conversations)
 - [ ] Conversation sidebar (list of conversations)
 - [ ] Conversation view (message stream + input)
@@ -2245,13 +2119,11 @@ Example:
 - [ ] Document upload UI (basic)
 
 **Dependencies**:
-
 - Backend: Kailash SDK + Nexus API for streaming
 - Frontend: Flutter design system components
 - Database: DataFlow models for conversations, messages, sources
 
 **Acceptance Criteria**:
-
 - User can create new conversation
 - User can send message and receive AI response (text)
 - User can select data sources before querying
@@ -2260,11 +2132,9 @@ Example:
 ---
 
 ### Phase 2: Interactive Widgets (Weeks 3-4)
-
 **Goal**: Embed interactive widgets in AI responses
 
 **Deliverables**:
-
 - [ ] Widget descriptor format (JSON spec)
 - [ ] Backend: Widget generator (Python)
 - [ ] Frontend: Widget renderer (Flutter)
@@ -2274,13 +2144,11 @@ Example:
 - [ ] Navigation card widget
 
 **Dependencies**:
-
 - Phase 1 complete
 - fl_chart package (Flutter)
 - Kailash SDK: AI agents for widget generation
 
 **Acceptance Criteria**:
-
 - AI can generate chart widgets from data
 - User can interact with charts (tap, drill down)
 - User can sort/filter tables
@@ -2289,11 +2157,9 @@ Example:
 ---
 
 ### Phase 3: Citations & Verification (Weeks 5-6)
-
 **Goal**: Full response verification with citations
 
 **Deliverables**:
-
 - [ ] Citation panel (collapsed/expanded states)
 - [ ] Confidence score visualization
 - [ ] Snippet preview slide-over
@@ -2302,13 +2168,11 @@ Example:
 - [ ] Source conflict resolution
 
 **Dependencies**:
-
 - Phase 1 complete
 - Backend: Citation extraction (Kailash agents)
 - Backend: Confidence scoring (ML model)
 
 **Acceptance Criteria**:
-
 - Every AI response shows source count + avg confidence
 - User can expand to see full citation details
 - User can preview snippets without leaving conversation
@@ -2317,11 +2181,9 @@ Example:
 ---
 
 ### Phase 4: Multi-Conversation Workflow (Weeks 7-8)
-
 **Goal**: Support conversation branching and cross-referencing
 
 **Deliverables**:
-
 - [ ] Turn-level branching UI
 - [ ] Conversation tree visualization
 - [ ] Cross-conversation reference detection
@@ -2329,13 +2191,11 @@ Example:
 - [ ] Context sharing between conversations
 
 **Dependencies**:
-
 - Phase 1 complete
 - Backend: Conversation graph structure (DataFlow)
 - Backend: Context merging logic (Kailash agents)
 
 **Acceptance Criteria**:
-
 - User can branch from any conversation turn
 - User can view conversation tree
 - AI can detect and link cross-conversation references
@@ -2344,11 +2204,9 @@ Example:
 ---
 
 ### Phase 5: Advanced Features (Weeks 9-10)
-
 **Goal**: Polish and advanced capabilities
 
 **Deliverables**:
-
 - [ ] Smart source recommendations
 - [ ] Context window management UI
 - [ ] Collapsible sections
@@ -2358,11 +2216,9 @@ Example:
 - [ ] Command palette (Cmd+K)
 
 **Dependencies**:
-
 - Phases 1-4 complete
 
 **Acceptance Criteria**:
-
 - AI suggests relevant sources based on query
 - User is warned when approaching context limit
 - User can collapse long sections
@@ -2372,11 +2228,9 @@ Example:
 ---
 
 ### Phase 6: Admin & Governance (Weeks 11-12)
-
 **Goal**: Admin panel and compliance features
 
 **Deliverables**:
-
 - [ ] User management (RBAC)
 - [ ] Data source management (admin)
 - [ ] AI agent management (admin)
@@ -2385,13 +2239,11 @@ Example:
 - [ ] Usage analytics
 
 **Dependencies**:
-
 - All previous phases complete
 - Backend: Admin API (Nexus)
 - Backend: Audit trail (DataFlow)
 
 **Acceptance Criteria**:
-
 - Admin can manage users and roles
 - Admin can configure data sources and permissions
 - Admin can view audit logs

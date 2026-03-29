@@ -121,7 +121,7 @@ def validate_connection(workflow, source_id, source_param,
 
 ```python
 def validate_dataflow_result_access(code: str) -> bool:
-    """Validate kailash.DataFlow result access pattern."""
+    """Validate DataFlow result access pattern."""
     # ✅ CORRECT: results["node_id"]["result"]
     correct_pattern = r'results\[["\']\w+["\']\]\[["\'](result|data)["\']\]'
 
@@ -155,7 +155,7 @@ def validate_security(workflow) -> list[str]:
                 issues.append(f"{node_id}: SQL injection risk")
 
         # Check for code injection
-        if node.type == "EmbeddedPythonNode":
+        if node.type == "PythonCodeNode":
             if has_code_injection_risk(node.params.get("code", "")):
                 issues.append(f"{node_id}: Code injection risk")
 
@@ -203,9 +203,9 @@ def validate_security(workflow) -> list[str]:
 ### Automated Validation
 
 ```python
-import kailash
+from kailash.validation import WorkflowValidator
 
-validator = kailash.WorkflowValidator(workflow)
+validator = WorkflowValidator(workflow)
 
 # Run all validations
 results = validator.validate_all()
@@ -227,7 +227,7 @@ validate_parameters(node_type, params)
 validate_connection(workflow, source_id, source_param,
                    target_id, target_param)
 
-# kailash.DataFlow validation
+# DataFlow validation
 validate_dataflow_patterns(workflow)
 
 # Security validation
@@ -290,7 +290,7 @@ steps:
 ## Related Skills
 
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Compliance standards
-- **[15-error-troubleshooting](../15-error-troubleshooting/SKILL.md)** - Error troubleshooting
+- **[31-error-troubleshooting](../31-error-troubleshooting/SKILL.md)** - Error troubleshooting
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core patterns
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow patterns
 

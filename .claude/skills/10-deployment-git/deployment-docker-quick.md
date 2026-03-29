@@ -8,6 +8,7 @@ description: "Docker deployment quick start. Use when asking 'docker deployment'
 > **Skill Metadata**
 > Category: `deployment`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Dockerfile
 
@@ -23,21 +24,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Non-root user for security
-RUN useradd --create-home appuser
+# Create non-root user
+RUN useradd -r appuser
 USER appuser
 
-# Use async runtime (Docker-optimized)
+# Expose API port
+EXPOSE 8000
+
+# Kailash runtime configuration
 ENV RUNTIME_TYPE=async
 
-# Expose API port
-EXPOSE 3000
-
 # Health check using python (curl not available on slim images)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Run with async runtime
+# Run with async runtime (Docker-optimized)
 CMD ["python", "app.py"]
 ```
 
@@ -45,33 +46,20 @@ CMD ["python", "app.py"]
 
 ```python
 # app.py
-import kailash
 import os
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "chat", {
-    "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — provider auto-detected from model name
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": os.environ.get("LLM_MODEL", "gpt-4"),
     "prompt": "{{input.message}}"
 })
 
-# Deploy with NexusApp
-from kailash.nexus import NexusApp
-
-app = NexusApp()
-
-@app.handler("chat")
-def handle_chat(message: str):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("LLMNode", "chat", {
-        "model": os.environ["DEFAULT_LLM_MODEL"],  # from .env — provider auto-detected from model name
-        "prompt": message
-    })
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["chat"]
-
-app.start()  # Host/port configured via NexusConfig, not run() args
+# WorkflowAPI defaults to AsyncLocalRuntime (Docker-optimized)
+api = WorkflowAPI(workflow.build())
+api.run(host="0.0.0.0", port=8000)
 ```
 
 ## Build and Run
@@ -81,13 +69,12 @@ app.start()  # Host/port configured via NexusConfig, not run() args
 docker build -t my-kailash-app .
 
 # Run container
-docker run -p 3000:3000 \
+docker run -p 8000:8000 \
   -e OPENAI_API_KEY=${OPENAI_API_KEY} \
-  -e DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL} \
   my-kailash-app
 
 # Access API
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 ## Docker Compose
@@ -97,11 +84,10 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://user:${DB_PASSWORD}@db:5432/mydb
       - RUNTIME_TYPE=async
     depends_on:
       - db
@@ -109,9 +95,9 @@ services:
   db:
     image: postgres:15
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=mydb
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -129,7 +115,7 @@ docker-compose logs -f app
 
 ## Production Considerations
 
-1. **Use Runtime** - Default in NexusApp
+1. **Use AsyncLocalRuntime** - Default in WorkflowAPI
 2. **Environment variables** - For secrets
 3. **Health checks** - `/health` endpoint
 4. **Multi-stage builds** - Smaller images

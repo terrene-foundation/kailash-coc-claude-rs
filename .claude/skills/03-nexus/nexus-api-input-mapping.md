@@ -16,23 +16,23 @@ API Request: {"inputs": {"sector": "Tech", "limit": 10}}
      ↓
 Nexus receives as WorkflowRequest.inputs
      ↓
-Runtime executes: runtime.execute(workflow, inputs={...})
+Runtime executes: runtime.execute(workflow, parameters={...})
      ↓
-ALL nodes receive the FULL inputs dict
+ALL nodes receive the FULL inputs dict as parameters
      ↓
-EmbeddedPythonNode accesses via try/except pattern
+PythonCodeNode accesses via try/except pattern
 ```
 
 ## Key Concepts
 
 ### Terminology Mapping
 
-| API Layer           | Runtime Layer               | Node Layer              |
-| ------------------- | --------------------------- | ----------------------- |
-| `{"inputs": {...}}` | `inputs={...}`              | Variable access         |
-| Request body field  | Runtime execution input     | Injected local variable |
+| API Layer | Runtime Layer | Node Layer |
+|-----------|---------------|------------|
+| `{"inputs": {...}}` | `parameters={...}` | Variable access |
+| Request body field | Runtime execution parameter | Injected local variable |
 
-**Important**: Both the API and runtime use `inputs` as the parameter name.
+**Important**: The API uses `"inputs"` for clarity, but internally it becomes `parameters` in the runtime.
 
 ### Broadcasting Behavior
 
@@ -56,7 +56,7 @@ EmbeddedPythonNode accesses via try/except pattern
 }
 ```
 
-## EmbeddedPythonNode Parameter Access
+## PythonCodeNode Parameter Access
 
 ### WRONG Patterns
 
@@ -103,18 +103,16 @@ result = {'filters': filters, 'limit': lim}
 ## Complete Working Example
 
 ```python
-import kailash
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
 # Build workflow
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Node 1: Build filters from API inputs
-builder.add_node("EmbeddedPythonNode", "prepare_filters", {
+workflow.add_node("PythonCodeNode", "prepare_filters", {
     "code": """
 # Access optional parameters via try/except
 try:
@@ -144,31 +142,28 @@ result = {
     'filters': filters,
     'limit': lim
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 
 # Node 2: Execute search
-builder.add_node("ListContact", "search", {
+workflow.add_node("ContactListNode", "search", {
     "filter": {},   # Will be populated via connection
     "limit": 100
 })
 
 # Connect filter data from prepare_filters to search
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result.filters",
     "search", "filter"
 )
 
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result.limit",
     "search", "limit"
 )
 
 # Register
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("contact_search", lambda **inputs: rt.execute(wf, inputs))
+app.register("contact_search", workflow.build())
 app.start()
 ```
 
@@ -176,7 +171,7 @@ app.start()
 
 ```bash
 # Example 1: Search Technology sector
-curl -X POST http://localhost:3000/workflows/contact_search/execute \
+curl -X POST http://localhost:8000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -186,7 +181,7 @@ curl -X POST http://localhost:3000/workflows/contact_search/execute \
   }'
 
 # Example 2: Search with geography
-curl -X POST http://localhost:3000/workflows/contact_search/execute \
+curl -X POST http://localhost:8000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -197,7 +192,7 @@ curl -X POST http://localhost:3000/workflows/contact_search/execute \
   }'
 
 # Example 3: No filters (get all)
-curl -X POST http://localhost:3000/workflows/contact_search/execute \
+curl -X POST http://localhost:8000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": {
@@ -212,23 +207,23 @@ curl -X POST http://localhost:3000/workflows/contact_search/execute \
 
 ```python
 # ❌ WRONG: Template syntax not evaluated
-builder.add_node("ListContact", "search", {
+workflow.add_node("ContactListNode", "search", {
     "filter": "${prepare_filters.result.filters}",  # Not evaluated!
     "limit": "${prepare_filters.result.limit}"
 })
 
 # ✅ CORRECT: Use explicit connections
-builder.add_node("ListContact", "search", {
+workflow.add_node("ContactListNode", "search", {
     "filter": {},   # Default value
     "limit": 100
 })
 
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result.filters",
     "search", "filter"
 )
 
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result.limit",
     "search", "limit"
 )
@@ -238,13 +233,13 @@ builder.connect(
 
 ```python
 # ❌ WRONG: Missing 'result.' prefix
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "filters",  # Missing result.
     "search", "filter"
 )
 
 # ✅ CORRECT: Full path with dot notation
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result.filters",  # Full path
     "search", "filter"
 )
@@ -270,7 +265,7 @@ builder.connect(
 }
 
 # Use connections for node-to-node data flow
-builder.connect(
+workflow.add_connection(
     "prepare_filters", "result",
     "search", "input"
 )
@@ -293,7 +288,7 @@ Nexus supports both formats:
 ### Inspect Parameters
 
 ```python
-builder.add_node("EmbeddedPythonNode", "debug", {
+workflow.add_node("PythonCodeNode", "debug", {
     "code": """
 import json
 
@@ -318,8 +313,7 @@ result = {
         'limit_value': lim if has_limit else None
     }
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
@@ -333,16 +327,16 @@ logging.basicConfig(level=logging.DEBUG)
 ### Verify API Request
 
 ```bash
-curl -v -X POST http://localhost:3000/workflows/contact_search/execute \
+curl -v -X POST http://localhost:8000/workflows/contact_search/execute \
   -H "Content-Type: application/json" \
   -d '{"inputs": {"sector": "Technology"}}'
 ```
 
 ## Key Takeaways
 
-1. API `{"inputs": {...}}` → Runtime `inputs={...}` → Node variables
+1. API `{"inputs": {...}}` → Runtime `parameters={...}` → Node variables
 2. ALL nodes receive the FULL inputs dict (broadcast)
-3. Use try/except to access optional parameters in EmbeddedPythonNode
+3. Use try/except to access optional parameters in PythonCodeNode
 4. Use explicit connections, NOT template syntax in node config
 5. Access nested outputs with dot notation: `"result.filters"`
 6. Nexus broadcasts inputs; use connections for node-to-node data flow
@@ -353,7 +347,7 @@ curl -v -X POST http://localhost:3000/workflows/contact_search/execute \
 # API Request
 {"inputs": {"param1": "value1", "param2": 10}}
 
-# Inside EmbeddedPythonNode
+# Inside PythonCodeNode
 try:
     p1 = param1  # "value1"
 except NameError:
@@ -368,7 +362,7 @@ except NameError:
 result = {'processed': True, 'data': {'p1': p1, 'p2': p2}}
 
 # Connection to next node
-builder.connect(
+workflow.add_connection(
     "process", "result.data",
     "next_node", "input"
 )
@@ -376,11 +370,11 @@ builder.connect(
 
 ## Related Documentation
 
-- [EmbeddedPythonNode Best Practices](../../2-core-concepts/cheatsheet/031-pythoncode-best-practices.md)
+- [PythonCodeNode Best Practices](../../2-core-concepts/cheatsheet/031-pythoncode-best-practices.md)
 
 ## Related Skills
 
 - [nexus-api-patterns](#) - REST API usage
 - [nexus-multi-channel](#) - API, CLI, MCP overview
 - [nexus-troubleshooting](#) - Fix parameter issues
-- [pythoncode-parameters](#) - EmbeddedPythonNode parameter access
+- [pythoncode-parameters](#) - PythonCodeNode parameter access

@@ -5,7 +5,6 @@ You are an expert in advanced Kailash SDK capabilities. Guide users through comp
 ## Core Responsibilities
 
 ### 1. Advanced Workflow Patterns
-
 - Cyclic workflows and loops
 - Multi-path conditional routing
 - Parallel execution strategies
@@ -15,18 +14,18 @@ You are an expert in advanced Kailash SDK capabilities. Guide users through comp
 ### 2. Cyclic Workflow Pattern
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Initialize counter
-builder.add_node("EmbeddedPythonNode", "init", {
-    "code": "result = {'counter': 0, 'max_iterations': 5}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "init", {
+    "code": "result = {'counter': 0, 'max_iterations': 5}"
 })
 
 # Process iteration
-builder.add_node("EmbeddedPythonNode", "process", {
+workflow.add_node("PythonCodeNode", "process", {
     "code": """
 counter = data.get('counter', 0) + 1
 result = {
@@ -34,105 +33,92 @@ result = {
     'value': counter * 10,
     'continue': counter < data.get('max_iterations', 5)
 }
-""",
-    "output_vars": ["result"]
+"""
 })
 
-# Check continuation — use SwitchNode for routing between loop/exit branches
-builder.add_node("SwitchNode", "check", {
-    "cases": {"true": "process", "false": "exit"},
-    "default_branch": "exit"
+# Check continuation
+workflow.add_node("SwitchNode", "check", {
+    "cases": [
+        {"condition": "continue == True", "target": "process"},
+        {"condition": "continue == False", "target": "output"}
+    ]
 })
-# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Connections
-builder.connect("init", "outputs", "process", "data")
-builder.connect("process", "outputs", "check", "condition")
-builder.connect("check", "data", "process", "data")  # Loop back
+workflow.add_connection("init", "process", "result", "data")
+workflow.add_connection("process", "check", "result", "input")
+workflow.add_connection("check", "process", "output", "data")  # Loop back
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ### 3. Parallel Execution
 
 ```python
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Single source
-builder.add_node("EmbeddedPythonNode", "source", {
-    "code": "result = {'data': [1, 2, 3, 4, 5]}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "source", {
+    "code": "result = {'data': [1, 2, 3, 4, 5]}"
 })
 
 # Parallel processors
-builder.add_node("EmbeddedPythonNode", "processor_a", {
-    "code": "result = {'sum': sum(data)}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "processor_a", {
+    "code": "result = {'sum': sum(data)}"
 })
 
-builder.add_node("EmbeddedPythonNode", "processor_b", {
-    "code": "result = {'avg': sum(data) / len(data)}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "processor_b", {
+    "code": "result = {'avg': sum(data) / len(data)}"
 })
 
-builder.add_node("EmbeddedPythonNode", "processor_c", {
-    "code": "result = {'max': max(data), 'min': min(data)}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "processor_c", {
+    "code": "result = {'max': max(data), 'min': min(data)}"
 })
 
 # Merge results
-builder.add_node("MergeNode", "merge", {})
+workflow.add_node("MergeNode", "merge", {})
 
 # Connections for parallel execution
-builder.connect("source", "outputs", "processor_a", "data")
-builder.connect("source", "outputs", "processor_b", "data")
-builder.connect("source", "outputs", "processor_c", "data")
+workflow.add_connection("source", "processor_a", "result", "data")
+workflow.add_connection("source", "processor_b", "result", "data")
+workflow.add_connection("source", "processor_c", "result", "data")
 
-builder.connect("processor_a", "outputs", "merge", "sum_data")
-builder.connect("processor_b", "outputs", "merge", "avg_data")
-builder.connect("processor_c", "outputs", "merge", "stats_data")
+workflow.add_connection("processor_a", "merge", "result", "sum_data")
+workflow.add_connection("processor_b", "merge", "result", "avg_data")
+workflow.add_connection("processor_c", "merge", "result", "stats_data")
 ```
 
 ### 4. Dynamic Workflow Composition
 
 ```python
-import kailash
-
 def create_processing_workflow(processors):
     """Create workflow with dynamic number of processors."""
-    builder = kailash.WorkflowBuilder()
+    workflow = WorkflowBuilder()
 
-    builder.add_node("EmbeddedPythonNode", "source", {
-        "code": "result = input_data",
-        "output_vars": ["result"]
+    workflow.add_node("PythonCodeNode", "source", {
+        "code": "result = input_data"
     })
 
     # Add processors dynamically
     for i, processor_config in enumerate(processors):
         node_id = f"processor_{i}"
-        builder.add_node("EmbeddedPythonNode", node_id, processor_config)
+        workflow.add_node("PythonCodeNode", node_id, processor_config)
 
         # Connect to previous node
         prev_id = "source" if i == 0 else f"processor_{i-1}"
-        builder.connect(prev_id, "outputs", node_id, "input_data")
+        workflow.add_connection(prev_id, node_id, "result", "input_data")
 
-    return builder
+    return workflow
 ```
 
 ### 5. Advanced Error Handling
 
 ```python
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Risky operation
-builder.add_node("EmbeddedPythonNode", "risky_op", {
+workflow.add_node("PythonCodeNode", "risky_op", {
     "code": """
 try:
     result = {'status': 'success', 'data': 1 / value}
@@ -140,68 +126,61 @@ except ZeroDivisionError:
     result = {'status': 'error', 'error': 'division_by_zero'}
 except Exception as e:
     result = {'status': 'error', 'error': str(e)}
-""",
-    "output_vars": ["result"]
+"""
 })
 
-# Route based on status — SwitchNode matches condition input against case keys
-builder.add_node("SwitchNode", "error_router", {
-    "cases": {"success": "success_handler", "error": "error_handler"},
-    "default_branch": "error_handler"
+# Route based on status
+workflow.add_node("SwitchNode", "error_router", {
+    "cases": [
+        {"condition": "status == 'success'", "target": "success_handler"},
+        {"condition": "status == 'error'", "target": "error_handler"}
+    ]
 })
-# Connect the outputs to the error_router condition input
-builder.connect("risky_op", "outputs", "error_router", "condition")
-# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
 # Separate handlers
-builder.add_node("EmbeddedPythonNode", "success_handler", {
-    "code": "result = {'final': data['data']}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "success_handler", {
+    "code": "result = {'final': data['data']}"
 })
 
-builder.add_node("EmbeddedPythonNode", "error_handler", {
-    "code": "result = {'final': None, 'error': data['error']}",
-    "output_vars": ["result"]
+workflow.add_node("PythonCodeNode", "error_handler", {
+    "code": "result = {'final': None, 'error': data['error']}"
 })
 ```
 
 ### 6. Workflow Reusability
 
 ```python
-import kailash
-
 class WorkflowTemplates:
     """Reusable workflow templates."""
 
     @staticmethod
     def create_etl_pipeline(extract_config, transform_config, load_config):
-        builder = kailash.WorkflowBuilder()
+        workflow = WorkflowBuilder()
 
-        builder.add_node("EmbeddedPythonNode", "extract", extract_config)
-        builder.add_node("EmbeddedPythonNode", "transform", transform_config)
-        builder.add_node("EmbeddedPythonNode", "load", load_config)
+        workflow.add_node("PythonCodeNode", "extract", extract_config)
+        workflow.add_node("PythonCodeNode", "transform", transform_config)
+        workflow.add_node("PythonCodeNode", "load", load_config)
 
-        builder.connect("extract", "outputs", "transform", "data")
-        builder.connect("transform", "outputs", "load", "data")
+        workflow.add_connection("extract", "transform", "result", "data")
+        workflow.add_connection("transform", "load", "result", "data")
 
-        return builder
+        return workflow
 
     @staticmethod
     def create_validation_pipeline(validators):
-        builder = kailash.WorkflowBuilder()
+        workflow = WorkflowBuilder()
 
         for i, validator in enumerate(validators):
-            builder.add_node("EmbeddedPythonNode", f"validator_{i}", validator)
+            workflow.add_node("PythonCodeNode", f"validator_{i}", validator)
 
-        return builder
+        return workflow
 ```
 
 ### 7. Performance Optimization
 
 **Batch Processing**:
-
 ```python
-builder.add_node("EmbeddedPythonNode", "batch_processor", {
+workflow.add_node("PythonCodeNode", "batch_processor", {
     "code": """
 # Process in batches for efficiency
 batch_size = 100
@@ -210,15 +189,13 @@ for i in range(0, len(data), batch_size):
     batch = data[i:i+batch_size]
     results.extend([process_item(item) for item in batch])
 result = {'processed': results}
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 **Caching**:
-
 ```python
-builder.add_node("EmbeddedPythonNode", "cached_operation", {
+workflow.add_node("PythonCodeNode", "cached_operation", {
     "code": """
 # Use caching for expensive operations
 cache = globals().get('operation_cache', {})
@@ -230,15 +207,14 @@ else:
     result = expensive_operation(input_data)
     cache[key] = result
     globals()['operation_cache'] = cache
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 8. Resource Management
 
 ```python
-builder.add_node("EmbeddedPythonNode", "resource_handler", {
+workflow.add_node("PythonCodeNode", "resource_handler", {
     "code": """
 # Proper resource management
 try:
@@ -246,13 +222,11 @@ try:
     result = use_resource(resource)
 finally:
     release_resource(resource)
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ## When to Engage
-
 - User asks about "advanced SDK", "advanced features", "complex patterns"
 - User needs cyclic workflows or loops
 - User wants to optimize performance
@@ -267,8 +241,7 @@ finally:
 5. **Performance Impact**: Explain optimization considerations
 
 ## Integration with Other Skills
-
 - Route to **sdk-fundamentals** if basics unclear
-- Route to **workflow-pattern-cyclic** (in `09-workflow-patterns`) for detailed loop patterns
+- Route to **cyclic-guide-comprehensive** for detailed loop patterns
 - Route to **production-deployment-guide** for scaling
 - Route to **testing-best-practices** for testing complex workflows

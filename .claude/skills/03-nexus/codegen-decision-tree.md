@@ -9,7 +9,7 @@ tags: [nexus, codegen, decision-tree, anti-patterns, templates, scaffolding]
 
 Structured decision logic for codegen agents to select the right Kailash pattern. Every scaffolding task MUST start by traversing this tree.
 
-**Package**: `pip install kailash-enterprise`
+**Version**: 0.12.0
 
 ---
 
@@ -57,7 +57,7 @@ START: What are you building?
 +-- Background/batch processing?
 |   |
 |   +-- Event-driven (webhooks, queues)?
-|   |   --> Pattern 8 (WorkflowBuilder) + Pattern 9 (kailash.Runtime)
+|   |   --> Pattern 8 (WorkflowBuilder) + Pattern 9 (AsyncLocalRuntime)
 |   |   --> Use: WebhookNode, QueueNode triggers
 |   |
 |   +-- Scheduled jobs (cron)?
@@ -65,7 +65,7 @@ START: What are you building?
 |   |   --> Call workflow from APScheduler or Celery
 |   |
 |   +-- Bulk data import?
-|       --> Pattern 2 (DataFlow) with BulkCreate{Model}/BulkUpsert{Model}
+|       --> Pattern 2 (DataFlow) with BulkCreateNode/BulkUpsertNode
 |       --> Use batch_size parameter for memory efficiency
 |
 +-- Infrastructure/auth only?
@@ -75,8 +75,8 @@ START: What are you building?
     |   --> NexusAuthPlugin handles JWT, RBAC, tenant isolation
     |
     +-- Custom middleware?
-        --> Use presets or app._nexus.add_middleware() (tower middleware)
-        --> Nexus (Rust-backed) has add_middleware() and add_plugin()
+        --> app.add_middleware() + Starlette-compatible middleware
+        --> See: 01-nexus-native-middleware spec
 ```
 
 ---
@@ -89,32 +89,29 @@ START: What are you building?
 | Multi-tenant SaaS | Handler + DataFlow     | Auth + Multi-DataFlow | Multi-Tenant        |
 | AI chatbot        | Kaizen Agent + Handler | MCP Integration       | AI Agent            |
 | ETL pipeline      | WorkflowBuilder        | Custom Node           | None (manual)       |
-| Background job    | WorkflowBuilder        | kailash.Runtime       | None (manual)       |
+| Background job    | WorkflowBuilder        | AsyncLocalRuntime     | None (manual)       |
 | Public API        | Handler                | (no auth)             | SaaS API (modified) |
 
 ---
 
 ## Anti-Patterns (What NOT to Do)
 
-### Anti-Pattern 1: EmbeddedPythonNode for Business Logic
+### Anti-Pattern 1: PythonCodeNode for Business Logic
 
 **WRONG**:
 
 ```python
-# DON'T: EmbeddedPythonNode sandbox blocks imports
-builder.add_node("EmbeddedPythonNode", "process", {
+# DON'T: PythonCodeNode sandbox blocks imports
+workflow.add_node("PythonCodeNode", "process", {
     "code": """
 import asyncio  # BLOCKED!
 import httpx    # BLOCKED!
 from myapp.db import get_user  # BLOCKED!
 
 result = await httpx.get("https://api.example.com")
-""",
-    "output_vars": ["result"]
+"""
 })
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("process", lambda **inputs: rt.execute(wf, inputs))
+app.register("process", workflow.build())
 ```
 
 **RIGHT**:
@@ -132,21 +129,20 @@ async def process(data: dict) -> dict:
     return {"result": response.json()}
 ```
 
-**Why**: EmbeddedPythonNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
+**Why**: PythonCodeNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
 
 ---
 
-### Anti-Pattern 2: Accessing Private Internals
+### Anti-Pattern 2: Raw FastAPI Alongside Nexus
 
 **WRONG**:
 
 ```python
 # DON'T: Access private _gateway.app
-from kailash.nexus import NexusApp
-app = NexusApp()
-internal_app = app._gateway.app  # Private attribute!
+app = Nexus()
+fastapi_app = app._gateway.app  # Private attribute!
 
-@internal_app.get("/users")  # Bypasses Nexus features
+@fastapi_app.get("/users")  # Bypasses Nexus features
 async def get_users():
     return {"users": []}
 ```
@@ -155,16 +151,21 @@ async def get_users():
 
 ```python
 # DO: Use Nexus public APIs
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 
-# Use handler (recommended)
-@app.handler("get_users", description="List users")
+# Option 1: Use handler (recommended)
+@app.handler("get_users")
 async def get_users() -> dict:
     return {"users": []}
 
-# NOTE: app.include_router() and @app.endpoint() do NOT exist.
-# Use @app.handler() for all endpoint registration.
+# Option 2: Include existing router
+from myapp.legacy import legacy_router
+app.include_router(legacy_router, prefix="/legacy")
+
+# Option 3: Custom endpoint (API-only)
+@app.endpoint("/health", methods=["GET"])
+async def health():
+    return {"status": "ok"}
 ```
 
 **Why**: Using `_gateway.app` bypasses Nexus middleware, auth, and breaks in future versions.
@@ -198,20 +199,28 @@ async def verify_token(request: Request):
 **RIGHT**:
 
 ```python
-# DO: Use NexusAuthPlugin (correct imports)
-from kailash.nexus import NexusApp, NexusAuthPlugin
-from kailash.nexus import JwtConfig, RbacConfig
+# DO: Use NexusAuthPlugin (CORRECT WS02 imports)
+from nexus.auth.plugin import NexusAuthPlugin
+from nexus.auth import JWTConfig, TenantConfig
 import os
 
-app = NexusApp()
+app = Nexus()
 auth = NexusAuthPlugin(
-    jwt=JwtConfig(
-        secret_key=os.environ["JWT_SECRET"],     # Must be >= 32 chars for HS256
+    jwt=JWTConfig(
+        secret=os.environ["JWT_SECRET"],     # CORRECT: 'secret', NOT 'secret_key'
         algorithm="HS256",
+        exempt_paths=["/health"],             # CORRECT: 'exempt_paths'
     ),
-    rbac=RbacConfig(roles={"admin": ["*"], "member": ["content.read", "content.write"]}),
-    tenant_header="X-Tenant-ID",
+    rbac={                                    # Plain dict, NOT RBACConfig
+        "admin": ["*"],
+        "member": ["contacts:read", "contacts:create"],
+    },
+    tenant_isolation=TenantConfig(            # TenantConfig object, NOT True
+        jwt_claim="tenant_id",
+        admin_role="admin",                   # CORRECT: singular string
+    ),
 )
+app.add_plugin(auth)
 ```
 
 **Why**: Auth is complex (refresh tokens, RBAC, tenant isolation). NexusAuthPlugin handles edge cases.
@@ -226,17 +235,18 @@ auth = NexusAuthPlugin(
 # DON'T: Create DataFlow per request
 @app.handler("get_user")
 async def get_user(user_id: str) -> dict:
-    db = kailash.DataFlow("postgresql://...")  # New instance every request!
+    db = DataFlow("postgresql://...")  # New instance every request!
     # Connection pool exhausted after ~20 requests
 ```
 
 **RIGHT**:
 
 ```python
-from kailash.dataflow import db
-
 # DO: Create at module level, reuse across requests
-df = kailash.DataFlow("postgresql://...")
+db = DataFlow(
+    "postgresql://...",
+    pool_size=20
+)
 
 @db.model
 class User:
@@ -245,9 +255,9 @@ class User:
 
 @app.handler("get_user")
 async def get_user(user_id: str) -> dict:
-    # Reuse module-level df instance
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ReadUser", "read", {"id": user_id})
+    # Reuse module-level db instance
+    workflow = WorkflowBuilder()
+    workflow.add_node("UserReadNode", "read", {"id": user_id})
     # ...
 ```
 
@@ -262,10 +272,10 @@ async def get_user(user_id: str) -> dict:
 ```python
 # DON'T: Unnecessary complexity for simple operations
 def create_user(name: str, email: str):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ValidateInputNode", "validate", {"name": name, "email": email})
-    builder.add_node("CreateUser", "create", {})
-    builder.connect("validate", "validated", "create", "data")
+    workflow = WorkflowBuilder()
+    workflow.add_node("ValidateInputNode", "validate", {"name": name, "email": email})
+    workflow.add_node("UserCreateNode", "create", {})
+    workflow.add_connection("validate", "validated", "create", "data")
     # 20 lines for what should be 5
 ```
 
@@ -278,15 +288,15 @@ async def create_user(name: str, email: str) -> dict:
     if not email or "@" not in email:
         return {"error": "Invalid email"}
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateUser", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("UserCreateNode", "create", {
         "id": f"user-{uuid.uuid4()}",
         "name": name,
         "email": email
     })
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    return result["results"]["create"]
+    runtime = AsyncLocalRuntime()
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
+    return results["create"]
 ```
 
 **Why**: WorkflowBuilder shines for multi-step orchestration. For simple CRUD, handlers are cleaner.
@@ -313,12 +323,10 @@ def test_create_user(mock_db):
 **RIGHT**:
 
 ```python
-from kailash.dataflow import db
-
 # DO: Use real database in integration tests
 @pytest.fixture
 def real_db():
-    df = kailash.DataFlow("sqlite:///:memory:")  # Real SQLite
+    db = DataFlow("sqlite:///:memory:")  # Real SQLite
 
     @db.model
     class User:
@@ -326,19 +334,19 @@ def real_db():
         name: str
         email: str
 
-    yield df
-    df.close()
+    yield db
+    db.close()
 
 def test_create_user(real_db):
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateUser", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("UserCreateNode", "create", {
         "id": "test-123",
         "name": "John",
         "email": "john@example.com"
     })
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
-    assert result["results"]["create"]["id"] == "test-123"
+    runtime = LocalRuntime()
+    results, _ = runtime.execute(workflow.build())
+    assert results["create"]["id"] == "test-123"
 ```
 
 **Why**: Mocks hide real integration issues. Use `:memory:` SQLite for fast, real tests.
@@ -351,22 +359,16 @@ def test_create_user(real_db):
 
 ```python
 # DON'T: Access private attributes
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 app._gateway.app.add_middleware(SomeMiddleware)  # Private!
 ```
 
 **RIGHT**:
 
 ```python
-# DO: Use Nexus public APIs (presets, rate limiting, CORS)
-from kailash.nexus import NexusApp
-app = NexusApp()
-app.add_rate_limit(max_requests=100, window_secs=60)
-app.add_cors(["https://example.com"])
-# For custom tower middleware, use the Rust Nexus engine:
-# app._nexus.add_middleware(config)
-# app._nexus.add_plugin(plugin)
+# DO: Use public middleware API
+app = Nexus()
+app.add_middleware(SomeMiddleware, config={"key": "value"})
 ```
 
 **Why**: `_gateway` is implementation detail. Public APIs are stable across versions.
@@ -386,7 +388,7 @@ SaaS API Backend Template
 Production-ready API with auth, database, and multi-channel support.
 
 Provides:
-- REST API at http://localhost:3000
+- REST API at http://localhost:8000
 - MCP tools at ws://localhost:3001
 - CLI via `nexus execute <workflow>`
 - JWT authentication with RBAC
@@ -396,11 +398,14 @@ Provides:
 import os
 import uuid
 
-import kailash
-from kailash.dataflow import db
-from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin, JwtConfig, RbacConfig
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
+from nexus.auth.plugin import NexusAuthPlugin
+from nexus.auth import JWTConfig, TenantConfig
+from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_user
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
+from fastapi import Depends
 
 # ============================================================================
 # Configuration (from environment)
@@ -408,33 +413,49 @@ reg = kailash.NodeRegistry()
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///app.db")
 JWT_SECRET = os.environ["JWT_SECRET"]  # REQUIRED
-API_PORT = int(os.environ.get("API_PORT", "3000"))
+API_PORT = int(os.environ.get("API_PORT", "8000"))
+MCP_PORT = int(os.environ.get("MCP_PORT", "3001"))
 
 # ============================================================================
 # Initialize Frameworks
 # ============================================================================
 
-app = NexusApp(config=NexusConfig(port=API_PORT))
-
-df = kailash.DataFlow(
-    DATABASE_URL,
-    auto_migrate=True,
+app = Nexus(
+    api_port=API_PORT,
+    mcp_port=MCP_PORT,
+    auto_discovery=False  # CRITICAL: Prevents blocking with DataFlow
 )
 
-rt = kailash.Runtime(reg)
+db = DataFlow(
+    database_url=DATABASE_URL,
+    auto_migrate=True,  # default: Works in Docker/FastAPI
+)
+
+runtime = AsyncLocalRuntime()  # Initialize once at module level
 
 # ============================================================================
-# Authentication
+# Authentication (CORRECT WS02 imports and parameters)
 # ============================================================================
 
 auth = NexusAuthPlugin(
-    jwt=JwtConfig(
-        secret_key=JWT_SECRET,                         # >= 32 chars for HS256
+    jwt=JWTConfig(
+        secret=JWT_SECRET,                         # CORRECT: `secret`
         algorithm="HS256",
+        exempt_paths=["/health", "/docs"],          # CORRECT: `exempt_paths`
     ),
-    rbac=RbacConfig(roles={"admin": ["*"], "member": ["content.read", "content.write"], "viewer": ["content.read"]}),
-    tenant_header="X-Tenant-ID",
+    rbac={                                          # Plain dict, NOT RBACConfig
+        "admin": ["*"],
+        "member": ["users:read", "contacts:read", "contacts:create", "contacts:update"],
+        "viewer": ["users:read", "contacts:read"],
+    },
+    tenant_isolation=TenantConfig(                  # TenantConfig object, NOT True
+        jwt_claim="tenant_id",
+        allow_admin_override=True,
+        admin_role="admin",                         # CORRECT: singular string
+    ),
 )
+
+app.add_plugin(auth)
 
 # ============================================================================
 # Models
@@ -466,20 +487,20 @@ async def create_contact(
     email: str,
     name: str,
     company: str = None,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("contacts:create")),
 ) -> dict:
     """Create a contact in the authenticated user's organization."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateContact", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("ContactCreateNode", "create", {
         "id": f"contact-{uuid.uuid4()}",
         "email": email,
         "name": name,
         "company": company,
-        "created_by": "system",
+        "created_by": user.user_id,
     })
 
-    result = rt.execute(builder.build(reg))
-    return result["results"]["create"]
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
+    return results["create"]
 
 
 @app.handler("list_contacts", description="List contacts with filters")
@@ -487,49 +508,49 @@ async def list_contacts(
     company: str = None,
     limit: int = 20,
     offset: int = 0,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("contacts:read")),
 ) -> dict:
     """List contacts in the authenticated user's organization."""
     filters = {}
     if company:
-        filters["company"] = {"$like": f"%{company}%"}
+        filters["company"] = {"$regex": company}
 
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ListContact", "list", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("ContactListNode", "list", {
         "filter": filters,
         "limit": limit,
         "offset": offset,
         "order_by": ["-created_at"]
     })
 
-    result = rt.execute(builder.build(reg))
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
     return {
-        "contacts": result["results"]["list"]["records"],
-        "total": result["results"]["list"]["total"]
+        "contacts": results["list"]["items"],
+        "total": results["list"]["total"]
     }
 
 
 @app.handler("delete_contact", description="Delete a contact")
 async def delete_contact(
     contact_id: str,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("contacts:delete")),
 ) -> dict:
     """Soft-delete a contact."""
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("DeleteContact", "delete", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("ContactDeleteNode", "delete", {
         "filter": {"id": contact_id},
         "soft_delete": True
     })
 
-    result = rt.execute(builder.build(reg))
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
     return {"deleted": True, "id": contact_id}
 
 # ============================================================================
 # Public Endpoints (No Auth)
 # ============================================================================
 
-@app.handler("health_check", description="Health check endpoint")
-async def health_check() -> dict:
+@app.endpoint("/health", methods=["GET"])
+async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
 # ============================================================================
@@ -538,7 +559,7 @@ async def health_check() -> dict:
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(df.create_tables_async())
+    asyncio.run(db.create_tables_async())
     app.start()
 ```
 
@@ -564,10 +585,10 @@ Provides:
 import os
 from dataclasses import dataclass
 
-import kailash
-from kailash.nexus import NexusApp, NexusConfig
-from kailash.kaizen import BaseAgent
-from kailash.kaizen import Signature, InputField, OutputField
+from nexus import Nexus
+from kaizen.core.base_agent import BaseAgent
+from kaizen.signatures import Signature, InputField, OutputField
+from kailash.runtime import AsyncLocalRuntime
 
 # ============================================================================
 # Configuration
@@ -575,7 +596,8 @@ from kailash.kaizen import Signature, InputField, OutputField
 
 @dataclass
 class AgentConfig:
-    model: str = os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
+    llm_provider: str = "openai"
+    model: str = "gpt-4"
     temperature: float = 0.7
     max_tokens: int = 2000
     max_turns: int = 10
@@ -626,11 +648,11 @@ class AnalysisAgent(BaseAgent):
 # Initialize
 # ============================================================================
 
-app = NexusApp(config=NexusConfig(port=3000))
-# Register workflows manually (no auto_discovery param)
+app = Nexus(api_port=8000, mcp_port=3001, auto_discovery=False)
 
 config = AgentConfig(
-    model=os.environ.get("LLM_MODEL", "gpt-4o")  # provider auto-detected from model name
+    llm_provider=os.environ.get("LLM_PROVIDER", "openai"),
+    model=os.environ.get("LLM_MODEL", "gpt-4")
 )
 
 chat_agent = ChatAgent(config)
@@ -684,11 +706,14 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-import kailash
-from kailash.dataflow import db
-from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin, JwtConfig, RbacConfig
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
+from nexus.auth.plugin import NexusAuthPlugin
+from nexus.auth import JWTConfig, TenantConfig
+from nexus.auth.dependencies import RequirePermission
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
+from fastapi import Depends
 
 # ============================================================================
 # Configuration
@@ -699,6 +724,9 @@ class DatabaseConfig:
     primary_url: str
     analytics_url: str
     audit_url: str
+    pool_size: int = 20
+    analytics_pool_size: int = 30
+    audit_pool_size: int = 10
 
 config = DatabaseConfig(
     primary_url=os.environ.get("PRIMARY_DATABASE_URL", "sqlite:///primary.db"),
@@ -710,16 +738,16 @@ config = DatabaseConfig(
 # Database Instances
 # ============================================================================
 
-primary_df = kailash.DataFlow(
-    config.primary_url,
+primary_db = DataFlow(
+    database_url=config.primary_url,
 )
 
-analytics_df = kailash.DataFlow(
-    config.analytics_url,
+analytics_db = DataFlow(
+    database_url=config.analytics_url,
 )
 
-audit_df = kailash.DataFlow(
-    config.audit_url,
+audit_db = DataFlow(
+    database_url=config.audit_url,
     echo=False
 )
 
@@ -727,13 +755,13 @@ audit_df = kailash.DataFlow(
 # Models
 # ============================================================================
 
-@db.model
+@primary_db.model
 class Organization:
     id: str
     name: str
     plan: str = "free"
 
-@db.model
+@primary_db.model
 class User:
     id: str
     email: str
@@ -741,7 +769,7 @@ class User:
     role: str = "member"
     org_id: str
 
-@db.model
+@primary_db.model
 class Project:
     id: str
     name: str
@@ -750,7 +778,7 @@ class Project:
     created_by: str
     status: str = "active"
 
-@db.model
+@analytics_db.model
 class PageView:
     id: str
     user_id: str
@@ -758,7 +786,7 @@ class PageView:
     page: str
     timestamp: datetime
 
-@db.model
+@audit_db.model
 class AuditLog:
     id: str
     org_id: str
@@ -770,22 +798,36 @@ class AuditLog:
     timestamp: datetime
 
 # ============================================================================
-# Nexus + Auth
+# Nexus + Auth (CORRECT WS02 imports)
 # ============================================================================
 
-app = NexusApp(config=NexusConfig(
-    port=int(os.environ.get("API_PORT", "3000")),
-))
+app = Nexus(
+    api_port=int(os.environ.get("API_PORT", "8000")),
+    mcp_port=int(os.environ.get("MCP_PORT", "3001")),
+    auto_discovery=False
+)
 
 auth = NexusAuthPlugin(
-    jwt=JwtConfig(
-        secret_key=os.environ["JWT_SECRET"],
+    jwt=JWTConfig(
+        secret=os.environ["JWT_SECRET"],           # CORRECT: `secret`
         algorithm="HS256",
+        exempt_paths=["/health", "/docs"],          # CORRECT: `exempt_paths`
     ),
-    rbac=RbacConfig(roles={"owner": ["*"], "admin": ["*"], "member": ["content.read", "content.write"], "viewer": ["content.read"]}),
-    tenant_header="X-Tenant-ID",
+    rbac={                                          # Plain dict, NOT RBACConfig
+        "owner": ["*"],
+        "admin": ["users:*", "projects:*", "analytics:read"],
+        "member": ["projects:read", "projects:create", "projects:update"],
+        "viewer": ["projects:read", "analytics:read"],
+    },
+    tenant_isolation=TenantConfig(                  # TenantConfig object, NOT True
+        jwt_claim="tenant_id",
+        allow_admin_override=True,
+        admin_role="owner",                         # CORRECT: singular string
+    ),
 )
-rt = kailash.Runtime(reg)
+
+app.add_plugin(auth)
+runtime = AsyncLocalRuntime()
 
 # ============================================================================
 # Handlers
@@ -795,50 +837,50 @@ rt = kailash.Runtime(reg)
 async def create_project(
     name: str,
     description: str = None,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("projects:create")),
 ) -> dict:
     project_id = f"proj-{uuid.uuid4()}"
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("CreateProject", "create", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("ProjectCreateNode", "create", {
         "id": project_id,
         "name": name,
         "description": description,
-        "created_by": "system",
+        "created_by": user.user_id,
         "status": "active"
     })
-    result = rt.execute(builder.build(reg))
-    return result["results"]["create"]
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
+    return results["create"]
 
 @app.handler("list_projects", description="List organization projects")
 async def list_projects(
     status: str = "active",
     limit: int = 50,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("projects:read")),
 ) -> dict:
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("ListProject", "list", {
+    workflow = WorkflowBuilder()
+    workflow.add_node("ProjectListNode", "list", {
         "filter": {"status": status},
         "limit": limit,
         "order_by": ["-created_at"]
     })
-    result = rt.execute(builder.build(reg))
-    return {"projects": result["results"]["list"]["records"], "total": result["results"]["list"]["total"]}
+    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
+    return {"projects": results["list"]["items"], "total": results["list"]["total"]}
 
 @app.handler("get_analytics", description="Get usage analytics")
 async def get_analytics(
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("analytics:read")),
 ) -> dict:
     return {"page_views": 0, "api_calls": 0}
 
 @app.handler("get_audit_log", description="Get audit log")
 async def get_audit_log(
     limit: int = 100,
-    # Auth enforced by NexusAuthPlugin middleware
+    user=Depends(RequirePermission("audit:read")),
 ) -> dict:
     return {"audit_logs": [], "total": 0}
 
-@app.handler("health_check", description="Health check endpoint")
-async def health_check() -> dict:
+@app.endpoint("/health", methods=["GET"])
+async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
 # ============================================================================
@@ -846,9 +888,9 @@ async def health_check() -> dict:
 # ============================================================================
 
 async def initialize_databases():
-    await primary_df.create_tables_async()
-    await analytics_df.create_tables_async()
-    await audit_df.create_tables_async()
+    await primary_db.create_tables_async()
+    await analytics_db.create_tables_async()
+    await audit_db.create_tables_async()
 
 if __name__ == "__main__":
     import asyncio
@@ -877,14 +919,15 @@ Before implementing, verify:
 ```python
 # ALWAYS start with these settings
 
-app = NexusApp()
-# Register workflows manually (no auto_discovery param)
-
-db = kailash.DataFlow(
-    auto_migrate=True,  # Default
+app = Nexus(
+    auto_discovery=False,  # CRITICAL for DataFlow integration
 )
 
-rt = kailash.Runtime(reg)
+db = DataFlow(
+    auto_migrate=True,  # default: Works in Docker/FastAPI
+)
+
+runtime = AsyncLocalRuntime()  # CRITICAL for async contexts
 
 # Use type annotations on handlers
 @app.handler("my_handler")
@@ -895,20 +938,16 @@ async def my_handler(param: str, optional: int = 10) -> dict:
 ### Auth Import Cheat Sheet
 
 ```python
-# Correct imports
-from kailash.nexus import NexusApp, NexusAuthPlugin, NexusConfig
-from kailash.nexus import JwtConfig, RbacConfig
+# CORRECT imports (WS02 actual)
+from nexus.auth.plugin import NexusAuthPlugin
+from nexus.auth import JWTConfig, TenantConfig, RateLimitConfig, AuditConfig
+from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_user
 
-# Correct constructor
-auth = NexusAuthPlugin(
-    jwt=JwtConfig(secret_key=...),               # Only: secret_key, expiry_secs, algorithm, issuer
-    rbac=RbacConfig(roles={"admin": ["*"], "user": ["users.read"]}),    # Optional
-    tenant_header="X-Tenant-ID",                 # Optional string, NOT TenantConfig
-)
-
-# NexusApp constructor
-app = NexusApp(config=NexusConfig(port=3000))     # NOT NexusApp(port=3000)
-app.add_rate_limit(max_requests=100, window_secs=60)  # NOT RateLimitConfig
+# CORRECT parameter names
+JWTConfig(secret=..., exempt_paths=[...])       # NOT secret_key, NOT exclude_paths
+TenantConfig(admin_role="admin")                 # NOT admin_roles (singular string)
+rbac={"admin": ["*"]}                            # Plain dict, NOT RBACConfig(roles={...})
+tenant_isolation=TenantConfig(jwt_claim="...")    # TenantConfig object, NOT True
 ```
 
 ## Validation Tests

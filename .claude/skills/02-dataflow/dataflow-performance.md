@@ -24,17 +24,40 @@ Performance tuning for DataFlow applications with connection pooling, caching, a
 ## Core Pattern
 
 ```python
-import kailash
+from dataflow import DataFlow
 
 # Production-optimized configuration
-config = kailash.DataFlowConfig(
-    "postgresql://...",
-    max_connections=20,          # Increase from default 10
-    min_connections=2,           # Keep warm connections
-    max_lifetime_secs=3600,      # Recycle after 1 hour
+db = DataFlow(
+    database_url="postgresql://...",
+
+    # Connection pooling
+    pool_size=20,              # Base connections
+    pool_max_overflow=30,      # Extra connections
+    pool_recycle=3600,         # Recycle after 1 hour
+    pool_pre_ping=True,        # Validate connections
+
+    # Performance
+    monitoring=True,
+    slow_query_threshold=100,  # Log queries >100ms
+
+    # Caching (if Redis available)
+    cache_enabled=True,
+    cache_ttl=300  # 5 minutes
 )
 
-df = kailash.DataFlow("postgresql://...", config=config)
+# Add indexes to models
+@db.model
+class Product:
+    name: str
+    category: str
+    price: float
+    active: bool
+
+    __indexes__ = [
+        {"fields": ["category", "active"]},
+        {"fields": ["price"]},
+        {"fields": ["created_at"]}
+    ]
 ```
 
 ## Performance Optimization Strategies
@@ -42,12 +65,11 @@ df = kailash.DataFlow("postgresql://...", config=config)
 ### 1. Connection Pooling
 
 ```python
-config = kailash.DataFlowConfig(
-    "postgresql://...",
-    max_connections=20,           # 2x CPU cores typical
-    max_lifetime_secs=3600,
+db = DataFlow(
+    pool_size=20,           # 2x CPU cores typical
+    pool_max_overflow=30,
+    pool_recycle=3600
 )
-db = kailash.DataFlow("postgresql://...", config=config)
 ```
 
 ### 2. Use Bulk Operations
@@ -55,10 +77,10 @@ db = kailash.DataFlow("postgresql://...", config=config)
 ```python
 # Slow - 1 op at a time
 for product in products:
-    builder.add_node("CreateProduct", f"create_{product['id']}", product)
+    workflow.add_node("ProductCreateNode", f"create_{product['id']}", product)
 
 # Fast - 10-100x faster
-builder.add_node("BulkCreateProduct", "import", {
+workflow.add_node("ProductBulkCreateNode", "import", {
     "data": products,
     "batch_size": 1000
 })
@@ -81,7 +103,7 @@ class User:
 ### 4. Enable Caching
 
 ```python
-builder.add_node("ListProduct", "cached_query", {
+workflow.add_node("ProductListNode", "cached_query", {
     "filter": {"active": True},
     "cache_key": "active_products",
     "cache_ttl": 300
@@ -92,7 +114,7 @@ builder.add_node("ListProduct", "cached_query", {
 
 ```python
 # Good - selective filter first
-builder.add_node("ListProduct", "query", {
+workflow.add_node("ProductListNode", "query", {
     "filter": {
         "active": True,  # Most selective first
         "category": "electronics",
@@ -101,7 +123,7 @@ builder.add_node("ListProduct", "query", {
 })
 
 # Good - field selection
-builder.add_node("ListUser", "names_only", {
+workflow.add_node("UserListNode", "names_only", {
     "fields": ["id", "name"],  # Only needed fields
     "filter": {"active": True}
 })
@@ -109,43 +131,45 @@ builder.add_node("ListUser", "names_only", {
 
 ### 6. Schema Cache
 
-Thread-safe schema introspection cache. SchemaCache is a **separate class**, NOT a DataFlow constructor parameter.
+Thread-safe table existence cache eliminating redundant migration checks, providing 91-99% performance improvement for multi-operation workflows.
 
 ```python
-import kailash
-from kailash.dataflow import SchemaCache
+from dataflow import DataFlow
 
-df = kailash.DataFlow("postgresql://...")
+# Default (cache enabled, no TTL)
+db = DataFlow("postgresql://...")
 
-# Create SchemaCache separately
-cache = SchemaCache()              # No TTL (never expires)
-cache = SchemaCache(ttl_secs=300)  # 5-minute TTL
+# Custom configuration
+db = DataFlow(
+    "postgresql://...",
+    schema_cache_enabled=True,      # Enable/disable cache
+    schema_cache_ttl=300,            # TTL in seconds (None = no expiration)
+    schema_cache_max_size=10000,    # Max cached tables
+    schema_cache_validation=False,  # Schema checksum validation
+)
 
 # Performance Impact
-# First call: fetches from DB
-tables = cache.get_tables(df)
-# Subsequent calls: returns cached (instant)
-tables = cache.get_tables(df)
+# First operation: ~1500ms (cache miss with migration check)
+# Subsequent operations: ~1ms (cache hit) - 99% faster!
 
-# Column and index introspection
-columns = cache.get_columns(df, "users")
-indexes = cache.get_indexes(df, "users")
+# Cache Management
+metrics = db._schema_cache.get_metrics()
+print(f"Hit rate: {metrics['hit_rate']:.2%}")  # Should be >90%
 
 # Clear cache
-cache.invalidate()
+db._schema_cache.clear()
+
+# Clear specific table
+db._schema_cache.clear_table("User", database_url)
 ```
 
-> **Note**: DataFlow has NO `_schema_cache` attribute and NO `schema_cache_*` constructor params. SchemaCache is a standalone object.
-
 **When to Clear Cache:**
-
 - After manual schema modifications
 - After external migrations
 - For debugging schema issues
 - Cache auto-clears on DataFlow schema operations
 
 **Performance Characteristics:**
-
 - **First operation**: ~1500ms (cache miss)
 - **Subsequent operations**: ~1ms (cache hit) - **99% faster**
 - **Multi-operation workflows**: 91-99% overall improvement
@@ -165,15 +189,14 @@ cache.invalidate()
 ### Mistake 1: Small Connection Pool
 
 ```python
-# Wrong - default max_connections=10 may exhaust under load
-db = kailash.DataFlow("postgresql://...")
+# Wrong - pool exhaustion
+db = DataFlow(pool_size=5)
 ```
 
 **Fix: Adequate Pool**
 
 ```python
-config = kailash.DataFlowConfig("postgresql://...", max_connections=20)
-db = kailash.DataFlow("postgresql://...", config=config)
+db = DataFlow(pool_size=20, pool_max_overflow=30)
 ```
 
 ### Mistake 2: Single Operations for Bulk
@@ -181,21 +204,27 @@ db = kailash.DataFlow("postgresql://...", config=config)
 ```python
 # Wrong - very slow
 for item in items:
-    builder.add_node("CreateItem", f"create_{item['id']}", item)
+    workflow.add_node("ItemCreateNode", f"create_{item['id']}", item)
 ```
 
 **Fix: Use Bulk Operations**
 
 ```python
-builder.add_node("BulkCreateItem", "import", {
+workflow.add_node("ItemBulkCreateNode", "import", {
     "data": items,
     "batch_size": 1000
 })
 ```
 
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
+
 ## Quick Tips
 
-- max_connections = 2x CPU cores (typical)
+- pool_size = 2x CPU cores (typical)
 - Use bulk operations for >100 records
 - Add indexes to queried fields
 - Enable caching for read-heavy

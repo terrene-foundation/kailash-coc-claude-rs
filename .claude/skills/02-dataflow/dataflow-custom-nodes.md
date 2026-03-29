@@ -8,6 +8,7 @@ description: "Extend DataFlow with custom nodes beyond the auto-generated 11. Us
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 > Related Skills: [`dataflow-specialist`](dataflow-specialist.md)
 
 ## Add Custom Workflow Nodes
@@ -15,9 +16,10 @@ description: "Extend DataFlow with custom nodes beyond the auto-generated 11. Us
 DataFlow auto-generates 11 nodes per model, but you can add custom business logic:
 
 ```python
-import kailash
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
 
-df = kailash.DataFlow("sqlite:///app.db")
+db = DataFlow("sqlite:///app.db")
 
 @db.model
 class User:
@@ -26,14 +28,14 @@ class User:
     status: str
 
 # Use auto-generated nodes
-builder = kailash.WorkflowBuilder()
-builder.add_node("CreateUser", "create_user", {
+workflow = WorkflowBuilder()
+workflow.add_node("UserCreateNode", "create_user", {
     "email": "{{input.email}}",
     "status": "active"
 })
 
 # Add custom business logic node
-builder.add_node("HTTPRequestNode", "send_welcome_email", {
+workflow.add_node("APICallNode", "send_welcome_email", {
     "url": "https://api.sendgrid.com/mail/send",
     "method": "POST",
     "body": {
@@ -43,38 +45,39 @@ builder.add_node("HTTPRequestNode", "send_welcome_email", {
     }
 })
 
-# Add conditional logic -- ConditionalNode takes NO config params.
-# Inputs: condition, if_value, else_value. Output: result.
-builder.add_node("ConditionalNode", "check_domain", {})
+# Add custom validation node
+workflow.add_node("ConditionalNode", "check_domain", {
+    "condition": "{{create_user.email}}.endswith('@company.com')",
+    "true_branch": "internal_user",
+    "false_branch": "external_user"
+})
 
-builder.connect("create_user", "email", "send_welcome_email", "to")
-builder.connect("create_user", "email", "check_domain", "condition")
-builder.connect("create_user", "email", "check_domain", "if_value")
-builder.connect("create_user", "email", "check_domain", "else_value")
+workflow.add_connection("create_user", "email", "send_welcome_email", "to")
+workflow.add_connection("send_welcome_email", "result", "check_domain", "input")
 ```
 
 ## Custom Aggregation Nodes
 
 ```python
 # Use DataFlow nodes + custom aggregation
-builder.add_node("ListUser", "get_users", {
+workflow.add_node("UserListNode", "get_users", {
     "filters": {"status": "active"}
 })
 
-# Custom aggregation with EmbeddedPythonNode
-builder.add_node("EmbeddedPythonNode", "calculate_metrics", {
-    "code": """
-total = len(input)
-domains = {}
-for user in input:
-    domain = user['email'].split('@')[1]
-    domains[domain] = domains.get(domain, 0) + 1
-result = {'total': total, 'domains': domains}
-    """,
-    "output_vars": ["result"]
+# Custom aggregation with TransformNode
+workflow.add_node("TransformNode", "calculate_metrics", {
+    "input": "{{get_users.users}}",
+    "transformation": """
+        total = len(input)
+        domains = {}
+        for user in input:
+            domain = user['email'].split('@')[1]
+            domains[domain] = domains.get(domain, 0) + 1
+        return {'total': total, 'domains': domains}
+    """
 })
 
-builder.connect("get_users", "users", "calculate_metrics", "input")
+workflow.add_connection("get_users", "users", "calculate_metrics", "input")
 ```
 
 ## Best Practices
@@ -83,5 +86,8 @@ builder.connect("get_users", "users", "calculate_metrics", "input")
 2. **Add business logic nodes** - API calls, validations, notifications
 3. **Compose workflows** - Combine DataFlow + Core SDK nodes
 4. **Keep models simple** - DataFlow handles data, custom nodes handle logic
+
+## Documentation
+
 
 <!-- Trigger Keywords: custom dataflow nodes, extend dataflow, custom operations, dataflow business logic -->

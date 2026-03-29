@@ -10,6 +10,7 @@ Directoryreader Patterns guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `advanced`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,17 +22,18 @@ Directoryreader Patterns guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Directoryreader Patterns implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -50,17 +52,20 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 
 - 💡 **Use Glob Patterns**: Specify patterns like `**/*.csv` or `logs/**/*.log` for flexible file matching
 - 💡 **Filter by Metadata**: Use file_size_min/max, modified_after/before to process only relevant files
 - 💡 **Handle Large Directories**: Enable pagination with max_files to avoid memory issues in folders with 1000s of files
-- 💡 **Combine with EmbeddedPythonNode**: Read directory list, then process each file conditionally based on content
+- 💡 **Combine with PythonCodeNode**: Read directory list, then process each file conditionally based on content
 - 💡 **Recursive vs Flat**: Set recursive=True for deep scans, False for single-level directory listing
 
 ## Keywords for Auto-Trigger

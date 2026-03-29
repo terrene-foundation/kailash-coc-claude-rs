@@ -10,6 +10,7 @@ Common Mistakes Catalog guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `patterns`
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,17 +22,18 @@ Common Mistakes Catalog guide with patterns, examples, and best practices.
 ## Core Pattern
 
 ```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # Common Mistakes Catalog implementation
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # See source documentation for specific node types and parameters
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
+
 
 ## Common Use Cases
 
@@ -54,6 +56,10 @@ Use specialized subagents when:
 - Production deployment required
 - Deep analysis necessary
 - Enterprise patterns needed
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

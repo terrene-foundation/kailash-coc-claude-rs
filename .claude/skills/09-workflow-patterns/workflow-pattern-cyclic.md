@@ -10,16 +10,13 @@ Patterns for implementing loops, iterations, and cyclic workflows.
 > **Skill Metadata**
 > Category: `workflow-patterns`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 > Related Skills: [`workflow-pattern-etl`](workflow-pattern-etl.md), [`pattern-expert`](../../01-core-sdk/pattern-expert.md)
 > Related Subagents: `pattern-expert` (cyclic workflows)
-
-> **Note**: `{{...}}` values in node configs below are illustrative placeholders.
-> Actual data flows via `builder.connect()` — template syntax does NOT work at runtime.
 
 ## Quick Reference
 
 Cyclic workflows enable:
-
 - **Loop until condition** - Repeat until success/threshold
 - **Batch processing** - Process items in chunks
 - **Retry logic** - Automatic retry with backoff
@@ -28,207 +25,221 @@ Cyclic workflows enable:
 ## Pattern 1: Loop Until Condition
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Initialize counter
-builder.add_node("EmbeddedPythonNode", "init_counter", {
-    "code": "result = {'counter': 0}",
-    "output_vars": ["result"]
+workflow.add_node("SetVariableNode", "init_counter", {
+    "variable_name": "counter",
+    "value": 0
 })
 
 # 2. Process iteration
-builder.add_node("HTTPRequestNode", "check_status", {
+workflow.add_node("APICallNode", "check_status", {
     "url": "https://api.example.com/status",
     "method": "GET"
 })
 
-# 3. Evaluate condition — ConditionalNode takes no config; condition/if_value/else_value via connections
-builder.add_node("ConditionalNode", "check_complete", {})
-
-# 4. Increment counter
-builder.add_node("EmbeddedPythonNode", "increment", {
-    "code": "result = value + 1",
-    "output_vars": ["result"]
+# 3. Evaluate condition
+workflow.add_node("ConditionalNode", "check_complete", {
+    "condition": "{{check_status.status}} == 'completed'",
+    "true_branch": "complete",
+    "false_branch": "increment"
 })
 
-# 5. Check max iterations — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_max", {})
+# 4. Increment counter
+workflow.add_node("TransformNode", "increment", {
+    "input": "{{init_counter.counter}}",
+    "transformation": "value + 1"
+})
 
-# 6. Wait before retry — WaitNode uses duration_ms, output is "data"
-builder.add_node("WaitNode", "wait", {
-    "duration_ms": 5000
+# 5. Check max iterations
+workflow.add_node("ConditionalNode", "check_max", {
+    "condition": "{{increment.result}} < 10",
+    "true_branch": "wait",
+    "false_branch": "timeout"
+})
+
+# 6. Wait before retry
+workflow.add_node("DelayNode", "wait", {
+    "duration_seconds": 5
 })
 
 # 7. Loop back (connect to check_status)
-builder.connect("init_counter", "outputs", "check_status", "url")
-builder.connect("check_status", "body", "check_complete", "condition")
-builder.connect("check_complete", "result", "increment", "inputs")
-builder.connect("increment", "outputs", "check_max", "condition")
-builder.connect("check_max", "result", "wait", "data")
-builder.connect("wait", "data", "check_status", "url")  # Loop!
+workflow.add_connection("init_counter", "counter", "check_status", "input")
+workflow.add_connection("check_status", "status", "check_complete", "condition")
+workflow.add_connection("check_complete", "output_false", "increment", "input")
+workflow.add_connection("increment", "result", "check_max", "condition")
+workflow.add_connection("check_max", "output_true", "wait", "trigger")
+workflow.add_connection("wait", "done", "check_status", "input")  # Loop!
 
-reg = kailash.NodeRegistry()
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
 ## Pattern 2: Batch Processing
 
 ```python
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Load all items
-builder.add_node("SQLQueryNode", "load_items", {
-    "query": "SELECT id, data FROM items WHERE processed = FALSE LIMIT 100"
+workflow.add_node("DatabaseQueryNode", "load_items", {
+    "query": "SELECT id, data FROM items WHERE processed = FALSE",
+    "batch_size": 100
 })
 
 # 2. Split into batches
-builder.add_node("EmbeddedPythonNode", "split_batches", {
-    "code": """
-items = results
-batch_size = 10
-batches = [items[i:i+batch_size] for i in range(0, len(items), batch_size)]
-result = {'batches': batches, 'count': len(batches)}
-""",
-    "output_vars": ["result"]
+workflow.add_node("BatchSplitNode", "split_batches", {
+    "input": "{{load_items.results}}",
+    "batch_size": 10
 })
 
 # 3. Process each batch
-builder.add_node("EmbeddedPythonNode", "process_batch", {
-    "code": """
-ids = [item['id'] for batch in batches for item in batch]
-result = {'ids': ids, 'processed': len(ids)}
-""",
-    "output_vars": ["result"]
+workflow.add_node("MapNode", "process_batch", {
+    "input": "{{split_batches.batches}}",
+    "operation": "process_item"
 })
 
 # 4. Update database
-builder.add_node("SQLQueryNode", "mark_processed", {
+workflow.add_node("DatabaseExecuteNode", "mark_processed", {
     "query": "UPDATE items SET processed = TRUE WHERE id IN ({{process_batch.ids}})"
 })
 
-# 5. Check for more items — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_more", {})
+# 5. Check for more items
+workflow.add_node("ConditionalNode", "check_more", {
+    "condition": "{{load_items.has_more}} == true",
+    "true_branch": "load_items",  # Loop back!
+    "false_branch": "complete"
+})
 
-builder.connect("load_items", "rows", "split_batches", "inputs")
-builder.connect("split_batches", "outputs", "process_batch", "inputs")
-builder.connect("process_batch", "outputs", "mark_processed", "body")
-builder.connect("mark_processed", "row_count", "check_more", "condition")
-builder.connect("check_more", "result", "load_items", "body")
+workflow.add_connection("load_items", "results", "split_batches", "input")
+workflow.add_connection("split_batches", "batches", "process_batch", "input")
+workflow.add_connection("process_batch", "ids", "mark_processed", "ids")
+workflow.add_connection("mark_processed", "result", "check_more", "condition")
+workflow.add_connection("check_more", "output_true", "load_items", "trigger")
 ```
 
 ## Pattern 3: Exponential Backoff Retry
 
 ```python
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Initialize retry state
-builder.add_node("EmbeddedPythonNode", "init_retry", {
-    "code": "result = {'retry_count': 0, 'backoff_seconds': 1}",
-    "output_vars": ["result"]
+workflow.add_node("SetVariableNode", "init_retry", {
+    "retry_count": 0,
+    "backoff_seconds": 1
 })
 
 # 2. Execute operation
-builder.add_node("HTTPRequestNode", "api_call", {
+workflow.add_node("APICallNode", "api_call", {
     "url": "https://api.example.com/operation",
     "method": "POST",
-    "timeout_ms": 30000
+    "timeout": 30
 })
 
-# 3. Check success — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_success", {})
+# 3. Check success
+workflow.add_node("ConditionalNode", "check_success", {
+    "condition": "{{api_call.status_code}} == 200",
+    "true_branch": "success",
+    "false_branch": "check_retry"
+})
 
-# 4. Check retry count — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_retry", {})
+# 4. Check retry count
+workflow.add_node("ConditionalNode", "check_retry", {
+    "condition": "{{init_retry.retry_count}} < 5",
+    "true_branch": "calculate_backoff",
+    "false_branch": "failed"
+})
 
 # 5. Calculate exponential backoff
-builder.add_node("EmbeddedPythonNode", "calculate_backoff", {
-    "code": "result = value * 2",  # Exponential: 1, 2, 4, 8, 16 seconds
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "calculate_backoff", {
+    "input": "{{init_retry.backoff_seconds}}",
+    "transformation": "value * 2"  # Exponential: 1, 2, 4, 8, 16 seconds
 })
 
-# 6. Wait with backoff — WaitNode uses duration_ms, output is "data"
-builder.add_node("WaitNode", "backoff_wait", {
-    "duration_ms": 1000
+# 6. Wait with backoff
+workflow.add_node("DelayNode", "backoff_wait", {
+    "duration_seconds": "{{calculate_backoff.result}}"
 })
 
 # 7. Increment retry counter
-builder.add_node("EmbeddedPythonNode", "increment_retry", {
-    "code": "result = value + 1",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "increment_retry", {
+    "input": "{{init_retry.retry_count}}",
+    "transformation": "value + 1"
 })
 
 # 8. Loop back to retry
-builder.connect("init_retry", "outputs", "api_call", "url")
-builder.connect("api_call", "status_code", "check_success", "condition")
-builder.connect("check_success", "result", "check_retry", "condition")
-builder.connect("check_retry", "result", "calculate_backoff", "inputs")
-builder.connect("calculate_backoff", "outputs", "backoff_wait", "data")
-builder.connect("backoff_wait", "data", "increment_retry", "inputs")
-builder.connect("increment_retry", "outputs", "api_call", "url")  # Loop!
+workflow.add_connection("init_retry", "retry_count", "api_call", "retry")
+workflow.add_connection("api_call", "status_code", "check_success", "condition")
+workflow.add_connection("check_success", "output_false", "check_retry", "condition")
+workflow.add_connection("check_retry", "output_true", "calculate_backoff", "input")
+workflow.add_connection("calculate_backoff", "result", "backoff_wait", "duration_seconds")
+workflow.add_connection("backoff_wait", "done", "increment_retry", "input")
+workflow.add_connection("increment_retry", "result", "api_call", "retry")  # Loop!
 ```
 
 ## Pattern 4: Iterative Refinement
 
 ```python
-import os
-import kailash
-
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # 1. Initial prompt
-builder.add_node("EmbeddedPythonNode", "init_prompt", {
-    "code": "result = {'prompt': 'Write a product description for: ' + input_data.get('product_name', ''), 'iteration': 0}",
-    "output_vars": ["result"]
+workflow.add_node("SetVariableNode", "init_prompt", {
+    "prompt": "Write a product description for: {{product_name}}",
+    "iteration": 0
 })
 
 # 2. Generate content (LLM)
-builder.add_node("LLMNode", "generate", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
+workflow.add_node("LLMNode", "generate", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "{{init_prompt.prompt}}"
 })
 
 # 3. Evaluate quality
-builder.add_node("LLMNode", "evaluate", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
+workflow.add_node("LLMNode", "evaluate", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "Rate this description 1-10: {{generate.response}}"
 })
 
-# Data flows via connect(), NOT template strings:
-builder.connect("init_prompt", "outputs", "generate", "prompt")
-builder.connect("generate", "response", "evaluate", "prompt")
-
-# 4. Check quality threshold — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_quality", {})
+# 4. Check quality threshold
+workflow.add_node("ConditionalNode", "check_quality", {
+    "condition": "{{evaluate.score}} >= 8",
+    "true_branch": "approved",
+    "false_branch": "refine"
+})
 
 # 5. Refine prompt with feedback
-builder.add_node("LLMNode", "refine", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
-    "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.response}}"
+workflow.add_node("LLMNode", "refine", {
+    "provider": "openai",
+    "model": "gpt-4",
+    "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.feedback}}"
 })
 
-# 6. Check max iterations — ConditionalNode takes no config
-builder.add_node("ConditionalNode", "check_max", {})
+# 6. Check max iterations
+workflow.add_node("ConditionalNode", "check_max", {
+    "condition": "{{init_prompt.iteration}} < 3",
+    "true_branch": "increment",
+    "false_branch": "use_best"
+})
 
 # 7. Increment iteration
-builder.add_node("EmbeddedPythonNode", "increment", {
-    "code": "result = value + 1",
-    "output_vars": ["result"]
+workflow.add_node("TransformNode", "increment", {
+    "input": "{{init_prompt.iteration}}",
+    "transformation": "value + 1"
 })
 
 # Loop back for refinement
-builder.connect("init_prompt", "outputs", "generate", "prompt")
-builder.connect("generate", "response", "evaluate", "prompt")
-builder.connect("evaluate", "response", "check_quality", "condition")
-builder.connect("check_quality", "result", "refine", "prompt")
-builder.connect("refine", "response", "check_max", "condition")
-builder.connect("check_max", "result", "increment", "inputs")
-builder.connect("increment", "outputs", "generate", "prompt")  # Loop!
+workflow.add_connection("init_prompt", "prompt", "generate", "prompt")
+workflow.add_connection("generate", "response", "evaluate", "prompt")
+workflow.add_connection("evaluate", "score", "check_quality", "condition")
+workflow.add_connection("check_quality", "output_false", "refine", "input")
+workflow.add_connection("refine", "response", "check_max", "condition")
+workflow.add_connection("check_max", "output_true", "increment", "input")
+workflow.add_connection("increment", "result", "generate", "iteration")  # Loop!
 ```
 
 ## Best Practices
@@ -252,6 +263,9 @@ builder.connect("increment", "outputs", "generate", "prompt")  # Loop!
 
 - **ETL Patterns**: [`workflow-pattern-etl`](workflow-pattern-etl.md)
 - **Error Handling**: [`gold-error-handling`](../../17-gold-standards/gold-error-handling.md)
-- **Conditional Logic**: [`nodes-logic-reference`](../08-nodes-reference/nodes-logic-reference.md)
+- **Conditional Logic**: [`nodes-logic-reference`](../nodes/nodes-logic-reference.md)
+
+## Documentation
+
 
 <!-- Trigger Keywords: loop workflow, cyclic, iterate, repeat until, workflow cycles, retry logic, batch processing -->

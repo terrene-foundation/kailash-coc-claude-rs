@@ -1,6 +1,6 @@
 ---
 name: gold-standards
-description: "Mandatory best practices and gold standards for Kailash SDK development including absolute imports, parameter passing, error handling, testing policies (NO MOCKING in Tiers 2-3), workflow design, custom node development, security, documentation, and test creation. Use when asking about 'best practices', 'standards', 'gold standards', 'mandatory rules', 'required patterns', 'absolute imports', 'NO MOCKING', 'testing policy', 'error handling standards', 'security best practices', 'documentation standards', or 'workflow design standards'."
+description: "Mandatory best practices and gold standards for Kailash SDK development including absolute imports, parameter passing, error handling, testing policies (Real infrastructure recommended in Tiers 2-3), workflow design, custom node development, security, documentation, and test creation. Use when asking about 'best practices', 'standards', 'gold standards', 'mandatory rules', 'required patterns', 'absolute imports', 'Real infrastructure recommended', 'testing policy', 'error handling standards', 'security best practices', 'documentation standards', or 'workflow design standards'."
 ---
 
 # Kailash Gold Standards - Mandatory Best Practices
@@ -13,7 +13,7 @@ Gold standards are **mandatory** practices for:
 - Absolute imports (no relative imports)
 - Parameter passing patterns
 - Error handling strategies
-- Testing policies (NO MOCKING in Tiers 2-3)
+- Testing policies (Real infrastructure recommended in Tiers 2-3)
 - Workflow design principles
 - Custom node development
 - Security requirements
@@ -30,21 +30,21 @@ Gold standards are **mandatory** practices for:
 - **[gold-absolute-imports](gold-absolute-imports.md)** - Absolute import requirement
   - **Rule**: ALWAYS use absolute imports, NEVER relative
   - **Reason**: Prevents import errors, enables refactoring
-  - **Pattern**: `import kailash`
+  - **Pattern**: `from kailash.workflow.builder import WorkflowBuilder`
   - **Never**: `from ..workflow import builder`
 
 #### Parameter Passing (MANDATORY)
 - **[gold-parameter-passing](gold-parameter-passing.md)** - Parameter standards
   - **Rule**: Use 4-parameter connection format
-  - **Pattern**: `builder.connect(source_id, source_param, target_id, target_param)`
+  - **Pattern**: `workflow.add_connection(source_id, source_param, target_id, target_param)`
   - **Rule**: Access results with dict pattern
-  - **Pattern**: `result["results"]["node_id"]["result"]`
-  - **Never**: `result["results"]["node_id"].result`
+  - **Pattern**: `results["node_id"]["result"]`
+  - **Never**: `results["node_id"].result`
 
 ### Testing Standards
 
-#### NO MOCKING Policy (MANDATORY)
-- **[gold-mocking-policy](gold-mocking-policy.md)** - NO MOCKING in Tiers 2-3
+#### Real infrastructure recommended Policy (MANDATORY)
+- **[gold-mocking-policy](gold-mocking-policy.md)** - Real infrastructure recommended in Tiers 2-3
   - **Rule**: NO mocking in integration (Tier 2) or E2E (Tier 3) tests
   - **Reason**: Mocking hides real-world issues
   - **Required**: Use real databases, APIs, infrastructure
@@ -78,8 +78,8 @@ Gold standards are **mandatory** practices for:
 
 #### Workflow Design (MANDATORY)
 - **[gold-workflow-design](gold-workflow-design.md)** - Workflow standards
-  - **Rule**: Always call `.build(reg)` before execution
-  - **Pattern**: `rt.execute(builder.build(reg))`
+  - **Rule**: Always call `.build()` before execution
+  - **Pattern**: `runtime.execute(workflow.build())`
   - **Rule**: Use string-based node API
   - **Rule**: Validate inputs before processing
   - **Rule**: Single responsibility per workflow
@@ -118,59 +118,55 @@ All workflow patterns follow the **canonical 4-parameter pattern** from `/01-cor
 ### 1. Absolute Imports ALWAYS
 ```python
 # ✅ CORRECT (Gold Standard)
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 # ❌ WRONG (Violates Gold Standard)
 from ..workflow.builder import WorkflowBuilder
-from .runtime import Runtime
+from .runtime import LocalRuntime
 ```
 
-### 2. NO MOCKING in Tiers 2-3
+### 2. Real infrastructure recommended in Tiers 2-3
 ```python
 # ✅ CORRECT (Gold Standard - Tier 2)
-def test_dataflow_crud(db: kailash.DataFlow):  # Real database
+def test_dataflow_crud(db: DataFlow):  # Real database
     """Test with real PostgreSQL/SQLite."""
     workflow = db.create_workflow(...)
-    reg = kailash.NodeRegistry()
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    results = runtime.execute(workflow.build())
     # Verify in actual database
 
 # ❌ WRONG (Violates Gold Standard)
 def test_dataflow_crud():
     """Test with mocked database."""
-    db = Mock(spec=kailash.DataFlow)  # NO MOCKING in Tier 2!
+    db = Mock(spec=DataFlow)  # Real infrastructure recommended in Tier 2!
     db.create_workflow.return_value = mock_workflow
 ```
 
 ### 3. 4-Parameter Connections ALWAYS
 ```python
 # ✅ CORRECT (Gold Standard)
-builder.connect("node1", "result", "node2", "input_data")
+workflow.add_connection("node1", "result", "node2", "input_data")
 
 # ❌ WRONG (Violates Gold Standard)
-builder.connect("node1", "node2")
+workflow.add_connection("node1", "node2")
 ```
 
-### 4. Always Call .build(reg)
+### 4. Always Call .build()
 ```python
 # ✅ CORRECT (Gold Standard)
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+results = runtime.execute(workflow.build())
 
 # ❌ WRONG (Violates Gold Standard)
-result = rt.execute(builder.build())  # Missing registry
+results = runtime.execute(workflow)
 ```
 
 ### 5. Dict-Based Result Access
 ```python
 # ✅ CORRECT (Gold Standard)
-value = result["results"]["node_id"]["result"]
-run_id = result["run_id"]
+value = results["node_id"]["result"]
 
 # ❌ WRONG (Violates Gold Standard)
-value = results["node_id"]["result"]  # Wrong: result is a dict with "results" key
+value = results["node_id"].result
 ```
 
 ### 6. Environment Variables for Secrets
@@ -203,7 +199,7 @@ def create_user(email):
 ```python
 # ✅ CORRECT (Gold Standard)
 try:
-    result = rt.execute(builder.build(reg))
+    results = runtime.execute(workflow.build())
 except WorkflowExecutionError as e:
     logger.error(f"Workflow failed: {e}")
     raise
@@ -212,7 +208,7 @@ finally:
 
 # ❌ WRONG (Violates Gold Standard)
 try:
-    result = rt.execute(builder.build(reg))
+    results = runtime.execute(workflow.build())
 except:  # Too broad, swallows errors
     pass  # Silent failure!
 ```
@@ -222,7 +218,7 @@ except:  # Too broad, swallows errors
 ### Before Every Commit
 - [ ] All imports are absolute
 - [ ] All connections use 4 parameters
-- [ ] Called `.build(reg)` before execute
+- [ ] Called `.build()` before execute
 - [ ] No hardcoded secrets
 - [ ] Error handling present
 - [ ] Tests written (TDD)
@@ -257,7 +253,7 @@ python -m kailash.validation.gold_standards check-security
 
 ### Code Review Focus
 - Check absolute imports
-- Verify NO MOCKING policy
+- Verify Real infrastructure recommended policy
 - Validate connection format
 - Check error handling
 - Verify TDD approach
@@ -269,7 +265,7 @@ python -m kailash.validation.gold_standards check-security
 
 **Absolute Imports**: Prevent import errors during refactoring
 
-**NO MOCKING**: Catch real database issues, API timeouts, race conditions
+**Real infrastructure recommended**: Catch real database issues, API timeouts, race conditions
 
 **4-Parameter Connections**: Prevent wrong data routing
 
@@ -286,6 +282,8 @@ python -m kailash.validation.gold_standards check-security
 ### Correct Import Pattern
 ```python
 # ✅ CORRECT: Absolute imports
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
 # ❌ WRONG: Relative imports
 from ..workflow import builder  # NEVER use this
@@ -293,13 +291,11 @@ from ..workflow import builder  # NEVER use this
 
 ### Correct Execution Pattern
 ```python
-# ✅ CORRECT: Always .build(reg)
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+# ✅ CORRECT: Always .build()
+results, run_id = runtime.execute(workflow.build())
 
-# ❌ WRONG: Missing .build(reg)
-result = rt.execute(workflow)  # WILL FAIL
+# ❌ WRONG: Missing .build()
+results = runtime.execute(workflow)  # WILL FAIL
 ```
 
 ### Correct Testing Pattern
@@ -325,7 +321,7 @@ Use this skill:
 ## Related Skills
 
 - **[16-validation-patterns](../16-validation-patterns/SKILL.md)** - Validation tools
-- **[15-error-troubleshooting](../15-error-troubleshooting/SKILL.md)** - Error patterns
+- **[31-error-troubleshooting](../31-error-troubleshooting/SKILL.md)** - Error patterns
 - **[12-testing-strategies](../12-testing-strategies/SKILL.md)** - Testing strategies
 - **[01-core-sdk](../01-core-sdk/SKILL.md)** - Core patterns
 

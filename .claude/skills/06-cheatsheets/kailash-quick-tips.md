@@ -10,6 +10,7 @@ Kailash SDK Quick Tips guide with patterns, examples, and best practices.
 > **Skill Metadata**
 > Category: `patterns`
 > Priority: `MEDIUM`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -20,31 +21,19 @@ Kailash SDK Quick Tips guide with patterns, examples, and best practices.
 
 ## Core Pattern
 
-The API is Rust-backed. All types come from a single `import kailash`.
-
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("NodeType", "node_id", {"param": "value"})
-builder.connect("node1", "output", "node2", "input")
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-result = rt.execute(wf)
-# result is dict: {"results": {...}, "run_id": "...", "metadata": {...}}
+# Kailash Quick Tips implementation
+workflow = WorkflowBuilder()
+
+# See source documentation for specific node types and parameters
+
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-**Framework Types** (all from `import kailash`):
-
-| Framework  | Key Types |
-|------------|-----------|
-| Core       | `NodeRegistry`, `WorkflowBuilder`, `Runtime` |
-| DataFlow   | `DataFlow`, `ModelDefinition`, `FieldDef`, `FieldType`, `FilterCondition` |
-| Nexus      | `Nexus`, `NexusConfig`, `Preset`, `HandlerParam`, `McpServer` |
-| Kaizen     | `Agent`, `AgentConfig`, `LlmClient`, `CostTracker`, `ToolDef`, `ToolRegistry` |
-| Enterprise | `RbacEvaluator`, `AbacEvaluator`, `AuditLogger`, `TenantRegistry` |
-| Trust      | `TrustLevel`, `TrustPosture`, `EatpPosture`, `VerificationConfig` |
 
 ## Common Use Cases
 
@@ -67,6 +56,10 @@ Use specialized subagents when:
 - Production deployment required
 - Deep analysis necessary
 - Enterprise patterns needed
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

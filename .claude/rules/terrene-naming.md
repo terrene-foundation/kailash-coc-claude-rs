@@ -1,93 +1,42 @@
-# Terrene Foundation Naming & Terminology
+# Terrene Foundation Naming
 
 ## Scope
 
-These rules apply to all documents, code comments, and user-facing strings that reference the Terrene Foundation, its frameworks, or its open-source projects.
+These rules apply to ALL new content and edits in this repository.
 
-## MUST Rules
+## Rules
 
-### 1. Foundation Name
+### Foundation Name
 
-The Foundation MUST be referred to as **Terrene Foundation**.
+The Foundation is **Terrene Foundation** (Singapore CLG).
 
-- **Correct**: Terrene Foundation, the Foundation
-- **Incorrect**: OCEAN Foundation (historical name, only acceptable in historical context with explicit note)
-- **Domain**: `terrene.foundation` / `terrene.dev`
-- **GitHub org**: `terrene-foundation`
+- Domain: `terrene.foundation`
+- Developer portal: `terrene.dev`
+- GitHub org: `terrene-foundation`
 
-### 2. IP Ownership
+### Foundation Independence
 
-- Foundation owns all open-source IP — fully transferred, irrevocable
-- No suggestion of structural relationship between Foundation and any commercial entity
-- The Foundation's constitution prevents open-washing, rent-seeking, and self-interest
+The Foundation is a fully independent entity. There is NO structural relationship between the Foundation and any commercial entity.
 
-### 3. Framework Terminology
+1. **All open-source IP was fully and irrevocably transferred to the Foundation**
+2. **Kailash Python SDK is Foundation-owned** (Apache 2.0) — not "contributed by" or "licensed from" any entity
+3. **The constitution prevents open-washing, rent-seeking, and self-interest** by ANY contributor
+4. **Anyone can build commercial products on Foundation standards** — that is the intended model
+5. **No contributor has exclusive rights, special access, or structural advantage**
+6. **Never describe any commercial entity as having a "partnership" or "relationship" with the Foundation** — contributors operate under a uniform contributor framework
 
-| Term     | Full Name                                      | Notes                                                           |
-| -------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| **CARE** | Collaborative Autonomous Reflective Enterprise | Governance philosophy                                           |
-| **EATP** | Enterprise Agent Trust Protocol                | Trust verification protocol                                     |
-| **CO**   | Cognitive Orchestration                        | Domain-agnostic base methodology                                |
-| **COC**  | Cognitive Orchestration for Codegen            | NOT "COC for Codegen" (redundant — the C already means Codegen) |
-| **CDI**  | _(reserved)_                                   | Future specification                                            |
+See `rules/independence.md` for the full no-commercial-coupling policy.
 
-### 4. CARE Planes
+### License Accuracy
 
-- **Trust Plane** + **Execution Plane**
-- NOT "operational plane" or "governance plane"
+- Specifications (CARE, EATP, CO, CDI): **CC BY 4.0** (NOT CC-BY-SA — ShareAlike would prevent proprietary implementations)
+- Open source code (Kailash Python, EATP SDK, CO Toolkit, CARE Platform, Praxis): **Apache 2.0**
+- BSL 1.1 is **NOT** open source — use "source-available" or "open-core"
 
-### 5. EATP Elements (Canonical Order)
+### Canonical Terminology
 
-1. Genesis Record
-2. Delegation Record
-3. Constraint Envelope
-4. Capability Attestation
-5. Audit Anchor
-
-### 6. EATP Constraint Dimensions
-
-Five dimensions: **Financial, Operational, Temporal, Data Access, Communication**
-
-### 7. EATP Distinction
-
-EATP provides **traceability**, not accountability. Traceability is necessary for accountability but not sufficient.
-
-### 8. Licensing
-
-| Asset Type                                    | License              | Notes                                                             |
-| --------------------------------------------- | -------------------- | ----------------------------------------------------------------- |
-| Specifications (CARE, EATP, CO, CDI)          | **CC BY 4.0**        | NOT CC-BY-SA. No ShareAlike.                                      |
-| Open source code (Kailash Python, CO Toolkit) | **Apache 2.0**       | Foundation-owned. CARE platform uses kailash-py.                  |
-| Kailash RS (ALL crates including eatp)        | **Proprietary**      | Aegis product. Users access via bindings only, never source code. |
-| BSL 1.1 code                                  | **Source-available** | NOT "open source" — use "source-available" or "open-core"         |
-
-### 9. The Trinity
-
-```
-CARE (Philosophy: What is the human for?)
-  |-- EATP (Trust Protocol: How do we keep the human accountable?)
-  |-- CO (Methodology: How does the human structure AI's work?)
-       |-- COC (Codegen) — mature, in production
-       |-- CO for Compliance — planned
-       |-- CO for Finance — planned
-```
-
-CARE, EATP, and CO are peers inheriting from CARE as parent philosophy.
-
-## MUST NOT Rules
-
-### 1. No Redundant Naming
-
-MUST NOT say "COC for Codegen" — the C in COC already means Codegen.
-
-### 2. No Wrong License References
-
-MUST NOT reference CC-BY-SA for specifications. The correct license is CC BY 4.0.
-
-### 3. No Structural Relationship Claims
-
-MUST NOT suggest any structural relationship between the Terrene Foundation and any commercial entity.
-
-### 4. No "Open Source" for BSL
-
-MUST NOT describe BSL 1.1 licensed code as "open source". Use "source-available" or "open-core".
+- CARE planes: **Trust Plane** + **Execution Plane** (NOT operational/governance plane)
+- Constraint dimensions: **Financial, Operational, Temporal, Data Access, Communication** (these exact five names — no synonyms, no reordering)
+- CO = Cognitive Orchestration (domain-agnostic base methodology)
+- COC = Cognitive Orchestration for Codegen (CO applied to software development)
+- CO sits in the trinity: CARE (philosophy) + EATP (protocol) + CO (methodology)

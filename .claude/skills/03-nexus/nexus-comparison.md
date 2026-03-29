@@ -1,72 +1,90 @@
 ---
 name: nexus-comparison
-description: "Nexus vs building from scratch. Use when asking 'why nexus' or 'nexus benefits'."
+description: "Nexus vs alternatives (FastAPI, Flask, Typer). Use when asking 'nexus vs fastapi', 'why nexus', or 'nexus benefits'."
 ---
 
-# Nexus vs Building From Scratch
+# Nexus vs Alternatives
 
 > **Skill Metadata**
 > Category: `nexus`
 > Priority: `MEDIUM`
-> Package: `pip install kailash-enterprise`
+> SDK Version: `0.9.25+`
 
-## Why Nexus
+## Nexus vs FastAPI
 
-| Feature                    | Nexus (kailash-enterprise) | Manual Approach                |
-| -------------------------- | -------------------------- | ------------------------------ |
-| **API**                    | Built-in                   | Assemble framework + routing   |
-| **CLI**                    | Built-in                   | Separate CLI tool needed       |
-| **MCP**                    | Built-in                   | Manual protocol implementation |
-| **Session Management**     | Unified across channels    | Manual per-channel             |
-| **Auth (JWT/RBAC/Tenant)** | NexusAuthPlugin            | Build from scratch             |
-| **Workflow Integration**   | Native                     | Manual orchestration           |
+| Feature | Nexus | FastAPI |
+|---------|-------|---------|
+| **API** | ✅ Built-in | ✅ Native |
+| **CLI** | ✅ Built-in | ❌ Need Typer |
+| **MCP** | ✅ Built-in | ❌ Manual setup |
+| **Session Management** | ✅ Unified | ❌ Manual |
+| **Workflow Integration** | ✅ Native | ❌ Manual |
+| **Learning Curve** | Low | Medium |
 
 ## When to Use Nexus
 
 ```python
-# Use Nexus when you need:
+# ✅ Use Nexus when you need:
 # - API + CLI + MCP in one app
 # - Session management across channels
 # - Direct workflow execution
-# - Built-in auth, rate limiting, monitoring
+# - Minimal boilerplate
 
-import kailash
+from nexus import Nexus
 
-from kailash.nexus import NexusApp
-app = NexusApp()
-
-@app.handler("greet", description="Greet a user")
-async def greet(name: str) -> dict:
-    return {"message": f"Hello, {name}!"}
-
-app.start()  # API + CLI + MCP all ready
+app = Nexus(workflow, name="MyApp")
+app.run()  # All channels ready!
 ```
 
-## When NOT to Use Nexus
+## When to Use FastAPI
 
-- Pure library code with no server component
-- Embedding workflows in an existing application server (use `kailash.Runtime` directly)
-- Standalone scripts (use `kailash.WorkflowBuilder` + `kailash.Runtime`)
+```python
+# ✅ Use FastAPI when you need:
+# - Pure REST API only
+# - Custom middleware/auth
+# - Full control over routing
+# - Non-workflow logic
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.post("/execute")
+def execute():
+    # Manual workflow execution
+    pass
+```
+
+## Migration from FastAPI to Nexus
+
+```python
+# Before (FastAPI)
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.post("/chat")
+def chat(message: str):
+    # Build workflow
+    # Execute workflow
+    # Return results
+    pass
+
+# After (Nexus)
+from nexus import Nexus
+
+app = Nexus(chat_workflow, name="ChatApp")
+app.run()  # API + CLI + MCP!
+```
 
 ## Key Benefits
 
-1. **Zero boilerplate** -- Single decorator deploys to all channels
-2. **Unified sessions** -- Same session across API/CLI/MCP
-3. **Native workflows** -- Direct WorkflowBuilder and DataFlow integration
-4. **Built-in CLI** -- Automatic CLI generation from handlers
-5. **MCP ready** -- AI agent integration out of the box
-6. **Auth included** -- NexusAuthPlugin for JWT, RBAC, tenant isolation
-
-## Installation
-
-```bash
-pip install kailash-enterprise  # Nexus included alongside DataFlow, Kaizen, Enterprise
-```
+1. **Zero boilerplate** - One line deploys all channels
+2. **Unified sessions** - Same session across API/CLI/MCP
+3. **Native workflows** - Direct workflow execution
+4. **Built-in CLI** - Automatic CLI generation
+5. **MCP ready** - Claude Desktop integration
 
 ## Documentation
 
-- [nexus-quickstart](nexus-quickstart.md) -- Get started in 30 seconds
-- [nexus-handler-support](nexus-handler-support.md) -- Handler decorator patterns
-- [nexus-auth-plugin](nexus-auth-plugin.md) -- Authentication and RBAC
 
-<!-- Trigger Keywords: why nexus, nexus benefits, nexus alternatives -->
+<!-- Trigger Keywords: nexus vs fastapi, why nexus, nexus benefits, nexus vs flask, nexus alternatives -->

@@ -10,6 +10,7 @@ Query Routing for database operations and query management.
 > **Skill Metadata**
 > Category: `database`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
@@ -21,31 +22,31 @@ Query Routing for database operations and query management.
 ## Core Pattern
 
 ```python
-import kailash
-
-# In the Rust-backed SDK, nodes are string-based via builder.add_node()
-builder = kailash.WorkflowBuilder()
+from kailash.nodes.data.workflow_connection_pool import WorkflowConnectionPool
+from kailash.nodes.data.query_router import QueryRouterNode
 
 # Intelligent connection pool with query routing
-builder.add_node("DatabaseConnectionNode", "smart_pool", {
-    "database_type": "postgresql",
-    "host": "localhost",
-    "database": "myapp",
-    "user": "dbuser",
-    "password": "secret",
-    "min_connections": 3,
-    "max_connections": 30
-})
+pool = WorkflowConnectionPool(
+    name="smart_pool",
+    database_type="postgresql",
+    host="localhost",
+    database="myapp",
+    user="dbuser",
+    password="secret",
+    min_connections=3,
+    max_connections=30,
+    adaptive_sizing=True,       # Dynamic scaling
+    enable_query_routing=True   # Pattern tracking
+)
 
-# Route queries using SwitchNode based on query type
-builder.add_node("SwitchNode", "router", {
-    "cases": {"read": "read_handler", "write": "write_handler"},
-    "default_branch": "read_handler"
-})
-
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+# Query router with read/write splitting
+router = QueryRouterNode(
+    name="router",
+    connection_pool="smart_pool",
+    enable_read_write_split=True,
+    cache_size=1000,
+    pattern_learning=True
+)
 ```
 
 ## Common Use Cases
@@ -65,10 +66,13 @@ result = rt.execute(builder.build(reg))
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
-
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **sdk-navigator**: Error resolution, parameter issues
 - **testing-specialist**: Comprehensive testing strategies
+
+## Documentation References
+
+### Primary Sources
 
 ## Quick Tips
 

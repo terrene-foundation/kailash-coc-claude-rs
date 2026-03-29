@@ -10,7 +10,6 @@ Production-ready code templates and boilerplate for common Kailash development t
 ## Overview
 
 Complete templates for:
-
 - Basic workflows
 - Cyclic workflows
 - Custom node development
@@ -24,7 +23,6 @@ Complete templates for:
 ### Workflow Templates
 
 #### Basic Workflow
-
 - **[template-workflow-basic](template-workflow-basic.md)** - Standard workflow template
   - WorkflowBuilder setup
   - Node addition pattern
@@ -34,9 +32,8 @@ Complete templates for:
   - Error handling
 
 #### Cyclic Workflow
-
 - **[template-cyclic-workflow](template-cyclic-workflow.md)** - Cyclic workflow template
-  - LoopNode setup
+  - CycleNode setup
   - Convergence checking
   - State persistence
   - Iteration limits
@@ -45,20 +42,18 @@ Complete templates for:
 ### Custom Development Templates
 
 #### Custom Node
-
 - **[template-custom-node](template-custom-node.md)** - Custom node template
-  - Handler function definition
-  - `register_callback()` registration
-  - Input/output parameter declaration
+  - Node class structure
+  - Parameter definition
+  - Execute method implementation
   - Input validation
   - Output formatting
   - Error handling
-  - Workflow integration
+  - Registration pattern
 
 #### MCP Server
-
 - **[template-mcp-server](template-mcp-server.md)** - MCP server template
-  - McpServer initialization
+  - MCPServer initialization
   - Tool registration
   - Resource definition
   - Transport configuration
@@ -68,7 +63,6 @@ Complete templates for:
 ### Test Templates
 
 #### Unit Tests (Tier 1)
-
 - **[template-test-unit](template-test-unit.md)** - Unit test template
   - Test class structure
   - Fixture setup
@@ -78,17 +72,15 @@ Complete templates for:
   - Fast execution pattern
 
 #### Integration Tests (Tier 2)
-
 - **[template-test-integration](template-test-integration.md)** - Integration test template
   - Real database setup
   - Workflow execution testing
-  - NO MOCKING policy
+  - Real infrastructure recommended policy
   - Real infrastructure fixtures
   - Resource cleanup
   - Result validation
 
 #### End-to-End Tests (Tier 3)
-
 - **[template-test-e2e](template-test-e2e.md)** - E2E test template
   - Full system setup
   - API testing pattern
@@ -110,17 +102,14 @@ Complete templates for:
 ### Template Categories
 
 **Workflow Development**:
-
 - `template-workflow-basic` → Standard workflows
 - `template-cyclic-workflow` → Iterative workflows
 
 **Custom Development**:
-
 - `template-custom-node` → New node types
 - `template-mcp-server` → MCP integration
 
 **Testing**:
-
 - `template-test-unit` → Fast unit tests
 - `template-test-integration` → Real infrastructure tests
 - `template-test-e2e` → Complete system tests
@@ -132,74 +121,73 @@ All templates follow the **canonical 4-parameter pattern** from `/01-core-sdk`.
 ### Basic Workflow Template
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
 def create_workflow():
     """Create a basic workflow using canonical 4-param pattern (see /01-core-sdk)."""
-    builder = kailash.WorkflowBuilder()
+    workflow = WorkflowBuilder()
 
     # Add nodes (4-param: NodeType, ID, config, connections)
-    builder.add_node("EmbeddedPythonNode", "node1", {
-        "code": "result = input_data * 2",
-        "output_vars": ["result"]
+    workflow.add_node("PythonCodeNode", "node1", {
+        "code": "result = input_data * 2"
     })
-    builder.add_node("EmbeddedPythonNode", "node2", {
-        "code": "result = input_data + 10",
-        "output_vars": ["result"]
+    workflow.add_node("PythonCodeNode", "node2", {
+        "code": "result = input_data + 10"
     })
 
     # Add connections (4-param: src_id, src_param, tgt_id, tgt_param)
-    builder.connect("node1", "outputs", "node2", "input_data")
+    workflow.add_connection("node1", "result", "node2", "input_data")
 
-    return builder.build(reg)
+    return workflow
 
-# Execute
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
-result = rt.execute(create_workflow())
-print(result["results"]["node2"]["outputs"])
+# Execute with context manager (always .build() before execute)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(create_workflow().build())
+    print(results["node2"]["result"])
 ```
 
 ### Custom Node Template
 
 ```python
-import kailash
+from kailash.nodes.base import BaseNode
 
-reg = kailash.NodeRegistry()
+class MyCustomNode(BaseNode):
+    """Custom node implementation."""
 
-def my_custom_handler(inputs):
-    """Custom node handler."""
-    input_data = inputs.get("input_data")
-    if not input_data:
-        raise ValueError("Missing input_data")
+    def __init__(self, node_id: str, **params):
+        super().__init__(node_id)
+        self.my_param = params.get("my_param")
 
-    result = input_data * 2
-    return {"result": result}
+    def execute(self, inputs: dict) -> dict:
+        """Execute node logic."""
+        # Validate inputs
+        if "input_data" not in inputs:
+            raise ValueError("Missing input_data")
 
-# Register the custom node
-reg.register_callback(
-    "MyCustomNode",
-    my_custom_handler,
-    ["input_data"],   # input parameter names
-    ["result"]        # output parameter names
-)
+        # Process
+        result = self.process(inputs["input_data"])
 
-# Use in workflow
-builder = kailash.WorkflowBuilder()
-builder.add_node("MyCustomNode", "node1", {"input_data": 21})
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
+        # Return output
+        return {"result": result}
+
+    def process(self, data):
+        """Custom processing logic."""
+        return data * 2
 ```
 
 ### Integration Test Template
 
 ```python
 import pytest
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
+from dataflow import DataFlow
 
 @pytest.fixture
 def db():
     """Real database for testing."""
-    df = kailash.DataFlow("postgresql://test:test@localhost:5433/test_db")
+    db = DataFlow("postgresql://test:test@localhost:5433/test_db")
     db.create_tables()
     yield db
     db.drop_tables()
@@ -207,32 +195,27 @@ def db():
 @pytest.fixture
 def runtime():
     """Real runtime."""
-    reg = kailash.NodeRegistry()
-    return kailash.Runtime(reg)
+    return LocalRuntime()
 
 def test_workflow_execution(runtime):
     """Tier 2: Integration test with real execution."""
     # Arrange
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EmbeddedPythonNode", "calc", {
-        "code": "result = 2 + 2",
-        "output_vars": ["result"]
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "calc", {
+        "code": "result = 2 + 2"
     })
 
     # Act
-    rt = kailash.Runtime(reg)
-    result = rt.execute(builder.build(reg))
+    results, run_id = runtime.execute(workflow.build())
 
     # Assert
-    assert result["results"]["calc"]["outputs"] == 4
-    assert result["run_id"] is not None
+    assert results["calc"]["result"] == 4
+    assert run_id is not None
 ```
 
 ## Best Practices
 
 ### Using Templates
-
 - ✅ Start with template, then customize
 - ✅ Keep template structure
 - ✅ Follow naming conventions
@@ -243,7 +226,6 @@ def test_workflow_execution(runtime):
 - ❌ NEVER ignore resource cleanup
 
 ### Template Customization
-
 - Keep core structure intact
 - Add custom logic in designated areas
 - Maintain error handling patterns
@@ -251,7 +233,6 @@ def test_workflow_execution(runtime):
 - Update docstrings
 
 ### Testing Templates
-
 - Test with real data
 - Verify all code paths
 - Check error handling
@@ -261,7 +242,6 @@ def test_workflow_execution(runtime):
 ## When to Use This Skill
 
 Use this skill when you need:
-
 - Starting point for new code
 - Boilerplate for common tasks
 - Reference implementation
@@ -271,15 +251,15 @@ Use this skill when you need:
 
 ## Template Selection Guide
 
-| Task                 | Template                    | Why                |
-| -------------------- | --------------------------- | ------------------ |
-| **New workflow**     | `template-workflow-basic`   | Standard structure |
-| **Iterative logic**  | `template-cyclic-workflow`  | Cycle pattern      |
-| **Custom node**      | `template-custom-node`      | Node structure     |
-| **MCP integration**  | `template-mcp-server`       | MCP setup          |
-| **Fast tests**       | `template-test-unit`        | Unit testing       |
-| **Real infra tests** | `template-test-integration` | Integration        |
-| **Full system**      | `template-test-e2e`         | End-to-end         |
+| Task | Template | Why |
+|------|----------|-----|
+| **New workflow** | `template-workflow-basic` | Standard structure |
+| **Iterative logic** | `template-cyclic-workflow` | Cycle pattern |
+| **Custom node** | `template-custom-node` | Node structure |
+| **MCP integration** | `template-mcp-server` | MCP setup |
+| **Fast tests** | `template-test-unit` | Unit testing |
+| **Real infra tests** | `template-test-integration` | Integration |
+| **Full system** | `template-test-e2e` | End-to-end |
 
 ## Related Skills
 
@@ -292,7 +272,6 @@ Use this skill when you need:
 ## Support
 
 For template help, invoke:
-
 - `pattern-expert` - Pattern selection
 - `tdd-implementer` - Test-first development
 - `sdk-navigator` - Find examples

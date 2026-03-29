@@ -8,54 +8,55 @@ description: "Validate node parameters. Use when asking 'validate parameters', '
 > **Skill Metadata**
 > Category: `validation`
 > Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
 ## Parameter Validation
 
 ```python
-import os
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
 # Valid: All required parameters
-builder.add_node("LLMNode", "llm1", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
+workflow.add_node("LLMNode", "llm1", {
+    "provider": "openai",
+    "model": "gpt-4",
     "prompt": "Hello"
 })
 
 # Invalid: Missing required 'prompt'
-# builder.add_node("LLMNode", "llm2", {
-#     "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o")
+# workflow.add_node("LLMNode", "llm2", {
+#     "provider": "openai",
+#     "model": "gpt-4"
 # })  # Error!
 
 # Validate at build time
-reg = kailash.NodeRegistry()
-builder.build(reg)  # Raises error if parameters invalid
+workflow.build()  # Raises error if parameters invalid
 ```
 
-## Validation Methods
+## Validation Methods (Internal)
 
-Validation is built into the WorkflowBuilder and Runtime:
+Both LocalRuntime and AsyncLocalRuntime use ValidationMixin for shared validation logic:
 
 ```python
-# builder.build(reg) validates:
-# 1. Workflow structure (DAG validity, no orphan nodes)
-# 2. Connection contracts (output→input parameter compatibility)
-# 3. Required parameters are provided
-# 4. Node types exist in the registry
-# 5. No duplicate node IDs
+# ValidationMixin provides 5 validation methods:
+# 1. validate_workflow() - Validates complete workflow structure
+# 2. _validate_connection_contracts() - Validates connection parameter contracts
+# 3. _validate_conditional_execution_prerequisites() - Validates conditional node setup
+# 4. _validate_switch_results() - Validates SwitchNode output structure
+# 5. _validate_conditional_execution_results() - Validates conditional execution results
 ```
 
 ### Runtime Validation
 
 ```python
+from kailash.runtime.local import LocalRuntime
 
-reg = kailash.NodeRegistry()
-rt = kailash.Runtime(reg)
+runtime = LocalRuntime()
 
 # Validation happens at execution time
 try:
-    result = rt.execute(builder.build(reg))
+    results, run_id = runtime.execute(workflow.build())
 except WorkflowValidationError as e:
     print(f"Validation failed: {e}")
 ```
@@ -65,28 +66,36 @@ except WorkflowValidationError as e:
 Define parameter contracts for validation:
 
 ```python
-import kailash
+from kailash.nodes.base import Node, NodeParameter
+from typing import Dict, Any
 
-def validated_handler(inputs):
-    """Custom node with parameter validation."""
-    file_path = inputs.get("file_path")
-    if not file_path:
-        raise ValueError("file_path is required")
+class ValidatedNode(Node):
+    def get_parameters(self) -> Dict[str, NodeParameter]:
+        """Define parameter validation contract."""
+        return {
+            "file_path": NodeParameter(
+                type=str,
+                required=True,
+                description="Path to input file"
+            ),
+            "threshold": NodeParameter(
+                type=int,
+                required=False,
+                default=100,
+                description="Processing threshold"
+            )
+        }
 
-    threshold = inputs.get("threshold", 100)
+    def run(self, **kwargs) -> Dict[str, Any]:
+        # Parameters are pre-validated by runtime
+        file_path = kwargs["file_path"]  # Guaranteed to exist
+        threshold = kwargs.get("threshold", 100)  # Has default
 
-    # Business logic validation
-    if threshold < 0:
-        raise ValueError("threshold must be non-negative")
+        # Business logic validation
+        if threshold < 0:
+            raise ValueError("threshold must be non-negative")
 
-    return {"result": process(file_path, threshold)}
-
-registry = kailash.NodeRegistry()
-registry.register_callback(
-    "ValidatedNode", validated_handler,
-    ["file_path", "threshold"],  # inputs
-    ["result"]                   # outputs
-)
+        return {"result": process(file_path, threshold)}
 ```
 
 ## Validation Errors
@@ -94,9 +103,9 @@ registry.register_callback(
 ### Missing Required Parameters
 
 ```python
-# Error: Missing 'action' and 'source_path'
-builder.add_node("CSVProcessorNode", "reader", {
-    "delimiter": ","  # action and source_path are required!
+# Error: Missing 'file_path'
+workflow.add_node("CSVReaderNode", "reader", {
+    "delimiter": ","  # file_path is required!
 })
 # Raises: WorkflowValidationError
 ```
@@ -104,9 +113,9 @@ builder.add_node("CSVProcessorNode", "reader", {
 ### Invalid Parameter Types
 
 ```python
-# Error: Wrong type for 'max_retries'
-builder.add_node("RetryNode", "retry", {
-    "max_retries": "3"  # Should be int, not str
+# Error: Wrong type for 'threshold'
+workflow.add_node("FilterNode", "filter", {
+    "threshold": "100"  # Should be int, not str
 })
 # Raises: WorkflowValidationError
 ```
@@ -115,9 +124,8 @@ builder.add_node("RetryNode", "retry", {
 
 ```python
 # Error: Unknown parameter 'unknown_param'
-builder.add_node("CSVProcessorNode", "reader", {
-    "action": "read",
-    "source_path": "data.csv",
+workflow.add_node("CSVReaderNode", "reader", {
+    "file_path": "data.csv",
     "unknown_param": "value"  # Not defined in node contract
 })
 # Raises: WorkflowValidationError
@@ -125,16 +133,16 @@ builder.add_node("CSVProcessorNode", "reader", {
 
 ## Connection Validation
 
-The builder validates connection contracts at build time:
+ValidationMixin validates connection contracts:
 
 ```python
 # Valid: Output type matches input type
-builder.add_node("CSVProcessorNode", "reader", {"action": "read", "source_path": "data.csv"})
-builder.add_node("DataMapperNode", "transformer", {})
-builder.connect("reader", "rows", "transformer", "input_data")
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+workflow.add_node("DataTransformerNode", "transformer", {})
+workflow.add_connection("reader", "data", "transformer", "input_data")
 
 # Invalid: Type mismatch
-# builder.connect("reader", "metadata", "transformer", "input_data")
+# workflow.add_connection("reader", "metadata", "transformer", "input_data")
 # Raises: WorkflowValidationError (if contracts enforce types)
 ```
 
@@ -154,17 +162,17 @@ builder.connect("reader", "rows", "transformer", "input_data")
 
 ## Documentation References
 
-### Implementation
+### Primary Sources
 
-- Validation is built into `WorkflowBuilder.build(reg)` and `Runtime.execute()`
-- No separate validation module needed — validation is integrated into the build/execute pipeline
+### Internal Implementation
+- Provides shared validation logic for LocalRuntime and AsyncLocalRuntime
 
 ## Quick Tips
 
-- Validation happens at `builder.build(reg)` and `rt.execute()`
+- Validation happens at `workflow.build()` and `runtime.execute()`
 - Define parameter contracts with `get_parameters()` in custom nodes
 - Use required=True for mandatory parameters
 - Add business logic validation in `run()` method
-- Runtime validates workflows at build time and execution time
+- Both LocalRuntime and AsyncLocalRuntime use identical validation logic
 
 <!-- Trigger Keywords: validate parameters, check node params, parameter validation, node parameters -->

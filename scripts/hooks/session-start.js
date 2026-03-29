@@ -3,9 +3,10 @@
  * Hook: session-start
  * Event: SessionStart
  * Purpose: Discover env config, validate model-key pairings, create .env if
- *          missing, output model configuration prominently.
+ *          missing, inject session notes into Claude context, output model
+ *          configuration prominently.
  *
- * Framework-agnostic -- works with any Kailash project.
+ * Framework-agnostic — works with any Kailash project.
  *
  * Exit Codes:
  *   0 = success (continue)
@@ -30,8 +31,16 @@ const {
   detectActiveWorkspace,
   derivePhase,
   getTodoProgress,
-  getSessionNotes,
+  findAllSessionNotes,
 } = require("./lib/workspace-utils");
+const { checkVersion } = require("./lib/version-utils");
+
+// Timeout fallback — prevents hanging the Claude Code session
+const TIMEOUT_MS = 10000;
+const _timeout = setTimeout(() => {
+  console.log(JSON.stringify({ continue: true }));
+  process.exit(1);
+}, TIMEOUT_MS);
 
 let input = "";
 process.stdin.setEncoding("utf8");
@@ -39,8 +48,15 @@ process.stdin.on("data", (chunk) => (input += chunk));
 process.stdin.on("end", () => {
   try {
     const data = JSON.parse(input);
-    initializeSession(data);
-    console.log(JSON.stringify({ continue: true }));
+    const result = initializeSession(data);
+    const output = { continue: true };
+    if (result.sessionNotesContext) {
+      output.hookSpecificOutput = {
+        hookEventName: "SessionStart",
+        additionalContext: result.sessionNotesContext,
+      };
+    }
+    console.log(JSON.stringify(output));
     process.exit(0);
   } catch (error) {
     console.error(`[HOOK ERROR] ${error.message}`);
@@ -50,6 +66,7 @@ process.stdin.on("end", () => {
 });
 
 function initializeSession(data) {
+  const result = { sessionNotesContext: null };
   const session_id = (data.session_id || "unknown").replace(
     /[^a-zA-Z0-9_-]/g,
     "_",
@@ -89,6 +106,20 @@ function initializeSession(data) {
   // ── Detect framework ──────────────────────────────────────────────────
   const framework = detectFramework(cwd);
 
+  // ── Detect DataFlow pool config ─────────────────────────────────────
+  const poolInfo = detectPoolConfig(cwd);
+  if (poolInfo.isPostgresql) {
+    if (poolInfo.hasPoolOverride) {
+      console.error(
+        "[DataFlow] Pool size override detected (DATAFLOW_POOL_SIZE). Auto-scaling disabled.",
+      );
+    } else {
+      console.error(
+        "[DataFlow] Pool auto-scaling active. Override with DATAFLOW_POOL_SIZE=N if needed.",
+      );
+    }
+  }
+
   // ── Log observation ───────────────────────────────────────────────────
   try {
     const observationsFile = path.join(learningDir, "observations.jsonl");
@@ -110,14 +141,11 @@ function initializeSession(data) {
     );
   } catch {}
 
-  // ── Load previous session ─────────────────────────────────────────────
+  // ── Version check (human-facing, stderr only) ─────────────────────────
   try {
-    const sessionFile = path.join(sessionDir, `${session_id}.json`);
-    const lastSessionFile = path.join(sessionDir, "last-session.json");
-    if (fs.existsSync(sessionFile)) {
-      /* loaded */
-    } else if (fs.existsSync(lastSessionFile)) {
-      /* loaded */
+    const versionResult = checkVersion(cwd);
+    for (const msg of versionResult.messages) {
+      console.error(msg);
     }
   } catch {}
 
@@ -127,20 +155,44 @@ function initializeSession(data) {
     if (ws) {
       const phase = derivePhase(ws.path, cwd);
       const todos = getTodoProgress(ws.path);
-      const notes = getSessionNotes(ws.path);
       console.error(
         `[WORKSPACE] ${ws.name} | Phase: ${phase} | Todos: ${todos.active} active / ${todos.completed} done`,
       );
-      if (notes) {
-        const staleTag = notes.stale ? " (stale)" : "";
-        console.error(`[WORKSPACE] Session notes${staleTag}: ${notes.age}`);
+    }
+  } catch {}
+
+  // ── Session notes (inject into Claude context + human-facing stderr) ─
+  try {
+    const allNotes = findAllSessionNotes(cwd);
+    if (allNotes.length > 0) {
+      for (const note of allNotes) {
+        const staleTag = note.stale ? " (STALE)" : "";
+        const label = note.workspace ? ` [${note.workspace}]` : " [root]";
+        console.error(
+          `[SESSION-NOTES]${label} ${note.relativePath}${staleTag} — updated ${note.age}`,
+        );
+      }
+
+      // Build context for Claude — include all non-stale notes, or latest if all stale
+      const contextParts = [];
+      for (const note of allNotes) {
+        const label = note.workspace ? `[${note.workspace}]` : "[root]";
+        const staleMark = note.stale ? " (STALE — may be outdated)" : "";
+        contextParts.push(
+          `## Session Notes ${label}${staleMark} — updated ${note.age}\n\n${note.content}`,
+        );
+      }
+      if (contextParts.length > 0) {
+        result.sessionNotesContext =
+          "# Previous Session Notes\n\nRead these to understand where the last session left off.\n\n" +
+          contextParts.join("\n\n---\n\n");
       }
     }
   } catch {}
 
-  // ── Package freshness & COC sync check ──────────────────────────────
+  // ── Package freshness & version consistency check ───────────────────
   try {
-    checkPackageFreshness(cwd);
+    checkPythonPackageFreshness(cwd);
   } catch (e) {
     console.error(`[FRESHNESS] Check failed: ${e.message}`);
   }
@@ -152,7 +204,7 @@ function initializeSession(data) {
 
     // Detail each model-key validation
     for (const v of discovery.validations) {
-      const icon = v.status === "ok" ? "\u2713" : "\u2717";
+      const icon = v.status === "ok" ? "✓" : "✗";
       console.error(`[ENV]   ${icon} ${v.message}`);
     }
 
@@ -173,122 +225,164 @@ function initializeSession(data) {
       "[ENV] No .env file found. API keys and models not configured.",
     );
   }
+
+  return result;
 }
 
 /**
- * Check package freshness and COC sync status.
- * For USE repos: verify installed SDK package is latest.
- * For all: check if COC template has newer commits.
+ * Check version consistency across pyproject.toml and __init__.py for all packages.
+ * Also check COC sync freshness for USE repos.
  */
-function checkPackageFreshness(cwd) {
-  const { execSync } = require("child_process");
+function checkPythonPackageFreshness(cwd) {
+  // Check all packages for version consistency
+  const packageDirs = [
+    {
+      name: "kailash",
+      pyproject: "pyproject.toml",
+      init: "src/kailash/__init__.py",
+    },
+  ];
 
-  const hasPyproject = fs.existsSync(path.join(cwd, "pyproject.toml"));
-  const hasRequirements = fs.existsSync(path.join(cwd, "requirements.txt"));
-  const hasGemfile = fs.existsSync(path.join(cwd, "Gemfile"));
-
-  // For projects with Python: check kailash-enterprise version
-  if (hasPyproject || hasRequirements) {
+  // Also check packages/ subdirectories
+  const packagesDir = path.join(cwd, "packages");
+  if (fs.existsSync(packagesDir)) {
     try {
-      const installed = execSync(
-        "pip show kailash-enterprise 2>/dev/null | grep Version | awk '{print $2}'",
-        { encoding: "utf8", timeout: 10000 },
-      ).trim();
-      const latest = execSync(
-        "pip index versions kailash-enterprise 2>/dev/null | head -1 | grep -oP '\\d+\\.\\d+\\.\\d+'",
-        { encoding: "utf8", timeout: 15000 },
-      ).trim();
-
-      if (installed && latest && installed !== latest) {
-        console.error(
-          `[FRESHNESS] WARNING: kailash-enterprise ${installed} installed, but ${latest} is available. ` +
-            `Run: pip install --upgrade kailash-enterprise`,
-        );
-      } else if (installed) {
-        console.error(`[FRESHNESS] kailash-enterprise ${installed} (latest)`);
-      }
-    } catch {
-      // pip commands may fail -- non-fatal
-    }
-  }
-
-  // For projects with Ruby: check kailash gem version
-  if (hasGemfile) {
-    try {
-      const installed = execSync(
-        "gem list kailash --local 2>/dev/null | grep kailash | grep -oP '\\d+\\.\\d+\\.\\d+'",
-        { encoding: "utf8", timeout: 10000 },
-      ).trim();
-      if (installed) {
-        console.error(`[FRESHNESS] kailash gem ${installed}`);
+      const subDirs = fs.readdirSync(packagesDir);
+      for (const sub of subDirs) {
+        const subPath = path.join(packagesDir, sub);
+        const pyproject = path.join(subPath, "pyproject.toml");
+        if (fs.existsSync(pyproject)) {
+          // Find the __init__.py
+          const srcDir = path.join(subPath, "src");
+          if (fs.existsSync(srcDir)) {
+            try {
+              const srcSubs = fs.readdirSync(srcDir);
+              for (const s of srcSubs) {
+                const initPath = path.join(srcDir, s, "__init__.py");
+                if (fs.existsSync(initPath)) {
+                  packageDirs.push({
+                    name: sub,
+                    pyproject: path.join("packages", sub, "pyproject.toml"),
+                    init: path.join("packages", sub, "src", s, "__init__.py"),
+                  });
+                }
+              }
+            } catch {}
+          }
+        }
       }
     } catch {}
   }
 
-  // Check COC template sync status
-  try {
-    // Look for a .coc-sync-marker file that records last sync commit
-    const markerPath = path.join(cwd, ".claude", ".coc-sync-marker");
-    if (fs.existsSync(markerPath)) {
-      const marker = fs.readFileSync(markerPath, "utf8").trim();
-      const markerData = JSON.parse(marker);
-      const lastSync = markerData.synced_at || "unknown";
-      const templateCommit = markerData.template_commit || "unknown";
-      console.error(
-        `[COC-SYNC] Last synced: ${lastSync} (template: ${templateCommit})`,
-      );
+  let mismatches = 0;
+  for (const pkg of packageDirs) {
+    try {
+      const pyprojectPath = path.join(cwd, pkg.pyproject);
+      const initPath = path.join(cwd, pkg.init);
 
-      // Check if sync is older than 7 days
-      if (markerData.synced_at) {
-        const syncDate = new Date(markerData.synced_at);
+      if (!fs.existsSync(pyprojectPath) || !fs.existsSync(initPath)) continue;
+
+      const pyproject = fs.readFileSync(pyprojectPath, "utf8");
+      const init = fs.readFileSync(initPath, "utf8");
+
+      const pyVersionMatch = pyproject.match(/version\s*=\s*"([^"]+)"/);
+      const initVersionMatch = init.match(/__version__\s*=\s*"([^"]+)"/);
+
+      if (pyVersionMatch && initVersionMatch) {
+        if (pyVersionMatch[1] !== initVersionMatch[1]) {
+          console.error(
+            `[FRESHNESS] VERSION MISMATCH in ${pkg.name}: ` +
+              `pyproject.toml=${pyVersionMatch[1]}, __init__.py=${initVersionMatch[1]}. ` +
+              `Update __init__.py before release!`,
+          );
+          mismatches++;
+        }
+      } else if (pyVersionMatch && !initVersionMatch) {
+        console.error(
+          `[FRESHNESS] ${pkg.name}: __init__.py missing __version__. ` +
+            `Add __version__ = "${pyVersionMatch[1]}" to ${pkg.init}`,
+        );
+        mismatches++;
+      }
+    } catch {}
+  }
+
+  if (mismatches === 0) {
+    console.error(`[FRESHNESS] All package versions consistent`);
+  } else {
+    console.error(
+      `[FRESHNESS] ${mismatches} version mismatch(es) found — FIX BEFORE RELEASE`,
+    );
+  }
+
+  // Check COC sync freshness (for USE repos that have a sync marker)
+  const markerPath = path.join(cwd, ".claude", ".coc-sync-marker");
+  if (fs.existsSync(markerPath)) {
+    try {
+      const marker = JSON.parse(fs.readFileSync(markerPath, "utf8").trim());
+      if (marker.synced_at) {
         const daysSince =
-          (Date.now() - syncDate.getTime()) / (1000 * 60 * 60 * 24);
+          (Date.now() - new Date(marker.synced_at).getTime()) /
+          (1000 * 60 * 60 * 24);
         if (daysSince > 7) {
           console.error(
             `[COC-SYNC] WARNING: COC sync is ${Math.floor(daysSince)} days old. ` +
-              `Run COC sync to get latest agents, skills, and rules from template.`,
+              `Run COC sync to get latest agents, skills, and rules.`,
           );
+        } else {
+          console.error(`[COC-SYNC] Last synced: ${marker.synced_at}`);
         }
       }
-    } else {
-      console.error(
-        "[COC-SYNC] No sync marker found. Consider running COC sync to align with template.",
-      );
-    }
-  } catch {}
+    } catch {}
+  }
 }
 
 function detectFramework(cwd) {
   try {
     const files = fs.readdirSync(cwd);
-
-    // ── Python detection ────────────────────────────────────────────────
     for (const file of files.filter((f) => f.endsWith(".py")).slice(0, 10)) {
       try {
         const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/@db\.model/.test(content) || /from kailash\.dataflow/.test(content))
+        if (/@db\.model/.test(content) || /from dataflow/.test(content))
           return "dataflow";
-        if (/from kailash\.nexus/.test(content) || /NexusApp/.test(content))
+        if (/from nexus/.test(content) || /Nexus\(/.test(content))
           return "nexus";
-        if (/from kailash\.kaizen/.test(content) || /BaseAgent/.test(content))
+        if (/from kaizen/.test(content) || /BaseAgent/.test(content))
           return "kaizen";
       } catch {}
     }
-
-    // ── Ruby detection ──────────────────────────────────────────────────
-    for (const file of files.filter((f) => f.endsWith(".rb")).slice(0, 10)) {
-      try {
-        const content = fs.readFileSync(path.join(cwd, file), "utf8");
-        if (/Kailash::DataFlow/.test(content)) return "dataflow";
-        if (/Kailash::Nexus/.test(content)) return "nexus";
-        if (/Kailash::Kaizen/.test(content)) return "kaizen";
-        if (/Kailash::Enterprise/.test(content)) return "enterprise";
-        if (/require\s+["']kailash["']/.test(content)) return "core-sdk";
-      } catch {}
-    }
-
     return "core-sdk";
   } catch {
     return "unknown";
   }
+}
+
+function detectPoolConfig(cwd) {
+  const result = { isPostgresql: false, hasPoolOverride: false };
+  try {
+    const envPath = path.join(cwd, ".env");
+    if (!fs.existsSync(envPath)) return result;
+    const content = fs.readFileSync(envPath, "utf8");
+    const lines = content.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const eqIndex = trimmed.indexOf("=");
+      const key = trimmed.slice(0, eqIndex).trim();
+      const value = trimmed
+        .slice(eqIndex + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
+      if (
+        (key === "DATABASE_URL" || key === "DATAFLOW_DATABASE_URL") &&
+        (/postgresql/i.test(value) || /postgres/i.test(value))
+      ) {
+        result.isPostgresql = true;
+      }
+      if (key === "DATAFLOW_POOL_SIZE" && value.length > 0) {
+        result.hasPoolOverride = true;
+      }
+    }
+  } catch {}
+  return result;
 }

@@ -5,36 +5,31 @@ You are an expert in intelligent query routing patterns including read/write spl
 ## Core Responsibilities
 
 ### 1. Read/Write Splitting
-
 ```python
-import kailash
+workflow = WorkflowBuilder()
 
-builder = kailash.WorkflowBuilder()
-
-# Route to read replica for queries — SwitchNode matches condition input against case keys
-builder.add_node("SwitchNode", "query_router", {
-    "cases": {"SELECT": "read_replica", "INSERT": "primary_db", "UPDATE": "primary_db", "DELETE": "primary_db"},
-    "default_branch": "primary_db"
+# Route to read replica for queries
+workflow.add_node("SwitchNode", "query_router", {
+    "cases": [
+        {"condition": "query_type == 'SELECT'", "target": "read_replica"},
+        {"condition": "query_type in ['INSERT', 'UPDATE', 'DELETE']", "target": "primary_db"}
+    ]
 })
-# Connect query_type as the condition input
-builder.connect("source", "query_type", "query_router", "condition")
-# SwitchNode outputs: "matched" (branch name) and "data" (forwarded)
 
-builder.add_node("SQLQueryNode", "read_replica", {
+workflow.add_node("SQLReaderNode", "read_replica", {
     "connection_string": "${READ_REPLICA_URL}",
     "query": query
 })
 
-builder.add_node("SQLQueryNode", "primary_db", {
+workflow.add_node("SQLReaderNode", "primary_db", {
     "connection_string": "${PRIMARY_DB_URL}",
     "query": query
 })
 ```
 
 ### 2. Query Optimization
-
 ```python
-builder.add_node("EmbeddedPythonNode", "optimize_query", {
+workflow.add_node("PythonCodeNode", "optimize_query", {
     "code": """
 # Analyze query and route appropriately
 if is_simple_query(query):
@@ -46,15 +41,13 @@ elif is_complex_query(query):
 else:
     # Use primary database
     result = primary_db.query(query)
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ### 3. Load Balancing
-
 ```python
-builder.add_node("EmbeddedPythonNode", "load_balancer", {
+workflow.add_node("PythonCodeNode", "load_balancer", {
     "code": """
 # Round-robin across read replicas
 replica_index = get_next_replica_index()
@@ -63,18 +56,15 @@ replicas = ['replica1', 'replica2', 'replica3']
 selected_replica = replicas[replica_index % len(replicas)]
 
 result = {'replica': selected_replica, 'connection_string': get_replica_url(selected_replica)}
-""",
-    "output_vars": ["result"]
+"""
 })
 ```
 
 ## When to Engage
-
 - User asks about "query routing", "read write split", "database routing"
 - User needs database optimization
 - User wants load balancing
 
 ## Integration with Other Skills
-
 - Route to **dataflow-specialist** for DataFlow patterns
 - Route to **production-deployment-guide** for deployment

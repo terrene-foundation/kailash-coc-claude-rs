@@ -39,9 +39,9 @@ db_password = os.environ["DATABASE_PASSWORD"]
 def process_user_input(user_data):
     return db.execute(f"SELECT * FROM users WHERE id = {user_data}")
 
-# ✅ CORRECT - Parameterized queries (via kailash.DataFlow)
-builder.add_node("User_Read", "read_user", {
-    "id": validated_user_id  # kailash.DataFlow handles parameterization
+# ✅ CORRECT - Parameterized queries (via DataFlow)
+workflow.add_node("User_Read", "read_user", {
+    "id": validated_user_id  # DataFlow handles parameterization
 })
 ```
 
@@ -49,12 +49,12 @@ builder.add_node("User_Read", "read_user", {
 
 ```python
 # ❌ WRONG - HTTP in production
-builder.add_node("HTTPRequestNode", "api", {
+workflow.add_node("APICallNode", "api", {
     "url": "http://api.example.com/data"  # Insecure!
 })
 
 # ✅ CORRECT - HTTPS always
-builder.add_node("HTTPRequestNode", "api", {
+workflow.add_node("APICallNode", "api", {
     "url": "https://api.example.com/data"
 })
 ```
@@ -98,7 +98,7 @@ builder.add_node("HTTPRequestNode", "api", {
 | Vulnerability | Prevention Pattern |
 |--------------|-------------------|
 | SQL Injection | Use DataFlow parameterized nodes |
-| Code Injection | Avoid `eval()`, use EmbeddedPythonNode safely |
+| Code Injection | Avoid `eval()`, use PythonCodeNode safely |
 | Credential Exposure | Environment variables, secret managers |
 | XSS | Output encoding, CSP headers |
 | CSRF | Token validation, SameSite cookies |

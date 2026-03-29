@@ -1,6 +1,6 @@
 ---
 name: architecture-decisions
-description: "Architecture decision guides for Kailash SDK including framework selection (Core SDK vs DataFlow vs Nexus vs Kaizen), runtime selection (Async vs Sync), database selection (PostgreSQL vs SQLite), node selection, and test tier selection. Use when asking about 'which framework', 'choose framework', 'which runtime', 'which database', 'which node', 'architecture decision', 'when to use', 'Core SDK vs DataFlow', 'PostgreSQL vs SQLite', 'Runtime vs Runtime', or 'test tier selection'."
+description: "Architecture decision guides for Kailash SDK including framework selection (Core SDK vs DataFlow vs Nexus vs Kaizen), runtime selection (Async vs Sync), database selection (PostgreSQL vs SQLite), node selection, and test tier selection. Use when asking about 'which framework', 'choose framework', 'which runtime', 'which database', 'which node', 'architecture decision', 'when to use', 'Core SDK vs DataFlow', 'PostgreSQL vs SQLite', 'AsyncLocalRuntime vs LocalRuntime', or 'test tier selection'."
 ---
 
 # Kailash Architecture Decisions
@@ -12,7 +12,7 @@ Decision guides for selecting the right frameworks, runtimes, databases, nodes, 
 Comprehensive decision guides for:
 
 - Framework selection (Core SDK, DataFlow, Nexus, Kaizen)
-- Runtime selection (Runtime vs Runtime)
+- Runtime selection (AsyncLocalRuntime vs LocalRuntime)
 - Database selection (PostgreSQL vs SQLite)
 - Node selection for specific tasks
 - Test tier selection (Unit, Integration, E2E)
@@ -31,11 +31,12 @@ Comprehensive decision guides for:
 
 ### Runtime Selection
 
-- **[decide-runtime](decide-runtime.md)** - Runtime selection
-  - Docker/NexusApp deployments
-  - CLI/Scripts
+- **[decide-runtime](decide-runtime.md)** - AsyncLocalRuntime vs LocalRuntime
+  - Docker/FastAPI → AsyncLocalRuntime
+  - CLI/Scripts → LocalRuntime
   - Performance implications
-  - Always use `kailash.Runtime(reg)`
+  - Threading considerations
+  - Auto-detection with get_runtime()
 
 ### Database Selection
 
@@ -51,7 +52,7 @@ Comprehensive decision guides for:
 - **[decide-node-for-task](decide-node-for-task.md)** - Choose the right node
   - AI tasks → AI nodes
   - API calls → API nodes
-  - Custom logic → EmbeddedPythonNode
+  - Custom logic → PythonCodeNode
   - Database → Database nodes or DataFlow
   - File operations → File nodes
   - Conditional logic → SwitchNode
@@ -71,7 +72,7 @@ Comprehensive decision guides for:
 
 | Need                  | Framework    | Why                       |
 | --------------------- | ------------ | ------------------------- |
-| **Custom workflows**  | Core SDK     | Full control, 139+ nodes  |
+| **Custom workflows**  | Core SDK     | Full control, 140+ nodes  |
 | **Database CRUD**     | DataFlow     | Auto-generated nodes      |
 | **Multi-channel API** | Nexus        | API + CLI + MCP instantly |
 | **AI agents**         | Kaizen       | Signature-based agents    |
@@ -80,11 +81,11 @@ Comprehensive decision guides for:
 ### Runtime Selection Flow
 
 ```
-Are you deploying to Docker/NexusApp/Kubernetes?
-  ├─ YES → kailash.Runtime(reg)
+Are you deploying to Docker/FastAPI/Kubernetes?
+  ├─ YES → AsyncLocalRuntime (async-first, no threads)
   └─ NO → Is this a CLI/script?
-       ├─ YES → kailash.Runtime(reg)
-       └─ NO → Use kailash.Runtime(reg)
+       ├─ YES → LocalRuntime (sync execution)
+       └─ NO → Use get_runtime() for auto-detection
 ```
 
 ### Database Selection Flow
@@ -103,10 +104,10 @@ What's your use case?
 
 ```
 What task are you doing?
-  ├─ Custom Python logic → EmbeddedPythonNode
-  ├─ LLM/AI tasks → LLMNode (auto-detects provider from model name)
-  ├─ Database operations → kailash.DataFlow auto-generated nodes
-  ├─ HTTP API calls → HTTPRequestNode
+  ├─ Custom Python logic → PythonCodeNode
+  ├─ LLM/AI tasks → LLMNode, OpenAINode, AnthropicNode
+  ├─ Database operations → DataFlow auto-generated nodes
+  ├─ HTTP API calls → APICallNode
   ├─ File reading → FileReaderNode
   ├─ Conditional routing → SwitchNode
   └─ Not sure? → Check nodes-quick-index
@@ -128,7 +129,7 @@ What are you testing?
 
 - ✅ Use Core SDK for custom workflows
 - ✅ Use DataFlow for database operations (don't use SQLAlchemy/Django ORM)
-- ✅ Use Nexus for multi-channel platforms
+- ✅ Use Nexus for multi-channel platforms (don't use FastAPI directly)
 - ✅ Use Kaizen for AI agents (don't build from scratch)
 - ✅ Combine frameworks as needed
 - ❌ NEVER use ORM when DataFlow can generate nodes
@@ -137,9 +138,11 @@ What are you testing?
 
 ### Runtime Decisions
 
-- ✅ Always use `kailash.Runtime(reg)` -- handles all contexts
-- ✅ Always pass `reg` (NodeRegistry) to Runtime and builder.build()
-- ✅ Result is a dict with keys `results`, `run_id`, `metadata`
+- ✅ Docker/FastAPI → AsyncLocalRuntime (mandatory)
+- ✅ CLI/Scripts → LocalRuntime
+- ✅ Use get_runtime() when unsure
+- ❌ NEVER use LocalRuntime in Docker (causes hangs)
+- ❌ NEVER mix runtimes in same application
 
 ### Database Decisions
 
@@ -155,7 +158,7 @@ What are you testing?
 Use this skill when you need to:
 
 - Choose between Core SDK, DataFlow, Nexus, or Kaizen
-- Select Runtime vs Runtime
+- Select AsyncLocalRuntime vs LocalRuntime
 - Decide between PostgreSQL and SQLite
 - Find the right node for a task
 - Determine test tier for a test case
@@ -168,14 +171,14 @@ Use this skill when you need to:
 
 ```
 1. What's the primary use case?
-   - Database CRUD → Start with kailash.DataFlow
+   - Database CRUD → Start with DataFlow
    - Multi-channel API → Start with Nexus
    - AI agents → Start with Kaizen
    - Custom workflows → Start with Core SDK
 
 2. What's the deployment target?
-   - Docker/K8s → Use kailash.Runtime(reg)
-   - CLI tool → Use kailash.Runtime(reg)
+   - Docker/K8s → Use AsyncLocalRuntime
+   - CLI tool → Use LocalRuntime
 
 3. What's the database?
    - Production → PostgreSQL

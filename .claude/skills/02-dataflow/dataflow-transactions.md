@@ -10,152 +10,93 @@ Distributed transaction patterns with saga and two-phase commit support.
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `MEDIUM`
-> Related Skills: [`dataflow-crud-operations`](#), [`workflow-pattern-cyclic`](../09-workflow-patterns/workflow-pattern-cyclic.md)
+> SDK Version: `0.9.25+ / DataFlow 0.6.0`
+> Related Skills: [`dataflow-crud-operations`](#), [`cycle-workflows-basics`](#)
 > Related Subagents: `dataflow-specialist` (complex transactions)
 
 ## Quick Reference
 
-- **DistributedTransactionManagerNode**: Unified entry point for distributed transactions
-- **Operations**: `begin`, `enlist`, `status`, `list`, `rollback`, `commit`
-- **Transaction Types**: `saga` (compensating) or `2pc` (two-phase commit)
-- **Related Nodes**: `SagaCoordinatorNode`, `SagaStepNode`, `TwoPhaseCommitCoordinatorNode`, `TransactionContextNode`
-
-## DistributedTransactionManagerNode
-
-Operations-based node for managing distributed transactions.
-
-### Inputs
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `operation` | String | Yes | `begin`, `enlist`, `status`, `list`, `rollback`, `commit` |
-| `transaction_type` | String | No | `saga` or `2pc` (for `begin`) |
-| `transaction_id` | String | No | Transaction identifier (for `enlist`/`status`/`rollback`/`commit`) |
-| `resource` | Object | No | Resource to enlist |
-| `timeout_seconds` | Integer | No | Transaction timeout (default: 300) |
-
-### Outputs
-
-| Name | Type | Description |
-|------|------|-------------|
-| `transaction_id` | String | Transaction identifier |
-| `status` | String | Transaction status |
-| `enlisted_resources` | Array | Resources in the transaction |
-| `active_transactions` | Integer | Count of active transactions |
-| `transaction_type` | String | `saga` or `2pc` |
+- **Saga**: Compensating transactions for rollback
+- **2PC**: Two-phase commit for ACID guarantees
+- **Pattern**: Use TransactionManagerNode or context managers
 
 ## Core Pattern
 
 ```python
-import kailash
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
+workflow = WorkflowBuilder()
 
-# 1. Begin a saga transaction
-builder.add_node("DistributedTransactionManagerNode", "begin_tx", {
-    "operation": "begin",
+# Distributed transaction with saga pattern
+workflow.add_node("TransactionManagerNode", "payment_flow", {
     "transaction_type": "saga",
-    "timeout_seconds": 30
+    "steps": [
+        {
+            "node": "PaymentCreateNode",
+            "compensation": "PaymentRollbackNode"
+        },
+        {
+            "node": "OrderUpdateNode",
+            "compensation": "OrderRevertNode"
+        },
+        {
+            "node": "InventoryUpdateNode",
+            "compensation": "InventoryRestoreNode"
+        }
+    ],
+    "timeout": 30,
+    "retry_attempts": 3
 })
-
-# 2. Enlist resources
-builder.add_node("DistributedTransactionManagerNode", "enlist_payment", {
-    "operation": "enlist",
-    "transaction_id": "tx-123",
-    "resource": {"type": "payment", "amount": 99.99}
-})
-
-# 3. Commit the transaction
-builder.add_node("DistributedTransactionManagerNode", "commit_tx", {
-    "operation": "commit",
-    "transaction_id": "tx-123"
-})
-
-rt = kailash.Runtime(reg)
-result = rt.execute(builder.build(reg))
-# result["results"]["begin_tx"]["transaction_id"] -> "tx-123"
-# result["results"]["begin_tx"]["status"] -> "active"
 ```
 
-## Transaction Operations
+## Transaction Patterns
 
-### Begin
+### Saga Pattern
 
 ```python
-builder.add_node("DistributedTransactionManagerNode", "begin", {
-    "operation": "begin",
-    "transaction_type": "saga",     # or "2pc"
-    "timeout_seconds": 60
+workflow.add_node("TransactionManagerNode", "saga", {
+    "transaction_type": "saga",
+    "steps": [
+        {"node": "Step1Node", "compensation": "Undo1Node"},
+        {"node": "Step2Node", "compensation": "Undo2Node"}
+    ]
 })
-# Returns: {"transaction_id": "...", "status": "active", "transaction_type": "saga"}
 ```
 
-### Enlist Resource
+### Two-Phase Commit
 
 ```python
-builder.add_node("DistributedTransactionManagerNode", "enlist", {
-    "operation": "enlist",
-    "transaction_id": "tx-123",
-    "resource": {"type": "inventory", "item_id": "item-456", "quantity": 1}
+workflow.add_node("TransactionManagerNode", "2pc", {
+    "transaction_type": "two_phase_commit",
+    "steps": [...]
 })
-# Returns: {"transaction_id": "tx-123", "enlisted_resources": [...]}
 ```
 
-### Check Status
+## Documentation References
+
+### Primary Sources
+
+### Related Documentation
+
+## Async Transaction Nodes
+
+Transaction nodes are `AsyncNode` subclasses. Use `async_run()` instead of `run()`:
 
 ```python
-builder.add_node("DistributedTransactionManagerNode", "check", {
-    "operation": "status",
-    "transaction_id": "tx-123"
-})
-# Returns: {"transaction_id": "tx-123", "status": "active", ...}
+# Transaction nodes require async execution
+result = await transaction_node.async_run(context)
 ```
 
-### Commit
-
-```python
-builder.add_node("DistributedTransactionManagerNode", "commit", {
-    "operation": "commit",
-    "transaction_id": "tx-123"
-})
-# Returns: {"transaction_id": "tx-123", "status": "committed"}
-```
-
-### Rollback
-
-```python
-builder.add_node("DistributedTransactionManagerNode", "rollback", {
-    "operation": "rollback",
-    "transaction_id": "tx-123"
-})
-# Returns: {"transaction_id": "tx-123", "status": "rolled_back"}
-```
-
-### List Active
-
-```python
-builder.add_node("DistributedTransactionManagerNode", "list_all", {
-    "operation": "list"
-})
-# Returns: {"active_transactions": 3, ...}
-```
-
-## Related Transaction Nodes
-
-| Node | Purpose |
-|------|---------|
-| `SagaCoordinatorNode` | Orchestrate multi-step saga with automatic compensation |
-| `SagaStepNode` | Define individual saga steps with forward/compensating actions |
-| `TwoPhaseCommitCoordinatorNode` | 2PC protocol with prepare/commit/abort phases |
-| `TransactionContextNode` | Manage transaction context (begin/commit/rollback) |
+When using `AsyncLocalRuntime`, transaction nodes are executed natively in the async pipeline. With `LocalRuntime`, they are automatically wrapped in the thread pool.
 
 ## Quick Tips
 
-- Use saga for long-running, eventually-consistent transactions
-- Use 2PC for strong ACID consistency across resources
-- Set appropriate `timeout_seconds` to prevent orphaned transactions
-- Use `list` operation to monitor active transactions
-- All transaction nodes use the standard async `Node` trait -- execute via `Runtime`
+- Use saga for long-running transactions
+- Use 2PC for strong consistency
+- Define compensation actions
+- Set appropriate timeouts
+- Transaction nodes are AsyncNode -- use `async_run()` not `run()`
+
+## Keywords for Auto-Trigger
 
 <!-- Trigger Keywords: DataFlow transactions, saga, distributed transactions, 2PC, transaction coordination, compensating transactions -->

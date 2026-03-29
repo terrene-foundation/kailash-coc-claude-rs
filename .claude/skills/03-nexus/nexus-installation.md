@@ -8,54 +8,53 @@ description: "Nexus installation and setup. Use when asking 'install nexus', 'ne
 > **Skill Metadata**
 > Category: `nexus`
 > Priority: `HIGH`
-> Related Skills: [`nexus-quickstart`](nexus-quickstart.md)
+> SDK Version: `0.9.25+`
+> Related Skills: [`nexus-specialist`](nexus-specialist.md), [`nexus-quickstart`](nexus-quickstart.md)
 
 ## Installation
 
 ```bash
-# Install Kailash (Nexus included)
-pip install kailash-enterprise
+# Install Nexus
+pip install kailash-nexus
 
 # Verify installation
-python -c "import kailash; print('Nexus installed successfully')"
+python -c "from nexus import Nexus; print('Nexus installed successfully')"
 ```
 
 ## Requirements
 
-- Python 3.10+
-- kailash-enterprise (includes Nexus, DataFlow, Kaizen, Enterprise)
+- Python 3.9+
+- kailash SDK 0.9.25+
+- FastAPI (for API mode)
+- Click (for CLI mode)
 
 ## Quick Setup
 
 ```python
-import kailash
-
-reg = kailash.NodeRegistry()
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
 # Create workflow
-builder = kailash.WorkflowBuilder()
-builder.add_node("LLMNode", "chat", {
-    "model": os.environ.get("DEFAULT_LLM_MODEL", "gpt-4o"),  # provider auto-detected from model name
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": "gpt-4",
     "prompt": "{{input.message}}"
 })
 
 # Create Nexus app
-from kailash.nexus import NexusApp
-app = NexusApp()
-wf = builder.build(reg)
-rt = kailash.Runtime(reg)
-app.register("chat", lambda **inputs: rt.execute(wf, inputs))
+app = Nexus(workflow.build(), name="ChatApp")
 
 # Run all channels
 if __name__ == "__main__":
-    app.start()
+    app.run()
 ```
 
 ## Running Modes
 
 ```bash
 # API mode (default)
-python app.py --mode api --port 3000
+python app.py --mode api --port 8000
 
 # CLI mode
 python app.py --mode cli
@@ -63,5 +62,8 @@ python app.py --mode cli
 # MCP mode (for Claude Desktop)
 python app.py --mode mcp
 ```
+
+## Documentation
+
 
 <!-- Trigger Keywords: install nexus, nexus setup, nexus requirements, nexus installation -->
