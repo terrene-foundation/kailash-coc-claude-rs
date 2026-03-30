@@ -1,0 +1,15 @@
+{
+  "source": "kailash/.claude",
+  "source_version": "1.0.0",
+  "target": "kailash-coc-claude-rs/.claude",
+  "variant": "rs",
+  "synced_at": "2026-03-30T01:14:08Z",
+  "stats": {
+    "added": 62,
+    "updated": 7,
+    "unchanged": 587,
+    "template_only_preserved": 13,
+    "excluded": 30
+  },
+  "hook_verification": "9/9 scripts present"
+}
