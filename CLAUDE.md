@@ -191,17 +191,4 @@ end
 | **Kaizen**     | AI agent framework                     | included                         | included              |
 | **Enterprise** | RBAC, ABAC, audit, multi-tenancy       | included                         | included              |
 
-All frameworks ship in a single package per language. Python: `pip install kailash-enterprise` (import via `import kailash`). Ruby: `gem install kailash` (require via `require "kailash"`).
-
-### Enterprise Infrastructure (Progressive Scaling)
-
-The Runtime auto-configures infrastructure from environment variables. Same code at every level -- no replatforming.
-
-| Level | Trigger                               | Behavior                                 |
-| ----- | ------------------------------------- | ---------------------------------------- |
-| 0     | No env vars (default)                 | In-memory stores                         |
-| 0.5   | `KAILASH_DATABASE_URL=sqlite:...`     | SQLite checkpoint, rest in-memory        |
-| 1     | `KAILASH_DATABASE_URL=postgres://...` | All PostgreSQL-backed stores             |
-| 2     | Level 1 + `KAILASH_WORKERS=4`         | Multi-worker with distributed task queue |
-
-Five internal stores (checkpoint, execution, DLQ, idempotency, saga) scale together. Additional env vars: `KAILASH_CHECKPOINT_POLICY`, `KAILASH_IDEMPOTENCY`, `KAILASH_DB_MAX_CONNECTIONS`. See `skills/01-core-sdk/enterprise-infrastructure.md` for full reference.
+All frameworks ship in a single package per language. Python: `pip install kailash-enterprise` (import via `import kailash`). Ruby: `gem install kailash` (require via `require "kailash"`). Enterprise infrastructure auto-scales via env vars — see `skills/01-core-sdk/enterprise-infrastructure.md`.

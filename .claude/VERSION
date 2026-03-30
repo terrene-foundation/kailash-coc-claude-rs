@@ -8,7 +8,7 @@
     "type": "coc-source",
     "version": "1.0.0",
     "build_version": "1.0.0",
-    "synced_at": "2026-03-30T00:00:00Z"
+    "synced_at": "2026-03-30T01:14:08Z"
   },
   "changelog": [
     {
@@ -21,6 +21,19 @@
         "artifact-flow.md rule",
         "Project-level /cc-audit command",
         "Version tracking with upstream check"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-03-30",
+      "summary": "Gate 2 sync: 62 new rs variant files + global updates",
+      "changes": [
+        "Added 62 rs variant_only files (L3 autonomy, kaizen-agents, python-bindings, enterprise-infra, EATP trust-plane, ruby-bindings, PACT governance, GSF CAP, management)",
+        "Added guides/co-setup/07-sync-flow.md and 08-versioning.md",
+        "Added kaizen-delegate.md and kaizen-agents-security.md globals",
+        "Updated 4 core-sdk variant_only files (connection-patterns, custom-node-guide, runtime-execution, workflow-quickstart)",
+        "Updated kaizen-agents-governance.md variant_only",
+        "Updated guides/co-setup/README.md"
       ]
     }
   ]
