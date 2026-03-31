@@ -17,6 +17,7 @@ Source: `crates/kailash-dataflow/src/`
 | `dataflow-multi-tenancy.md`   | QueryInterceptor, TenantContext, TenantContextMiddleware, tenant propagation               | Row-level tenant isolation, per-tenant queries, admin bypass            |
 | `dataflow-gotchas.md`         | 15 common pitfalls: PK naming, timestamp auto-management, Create vs Update params          | Debugging errors, understanding validation failures, avoiding mistakes  |
 | `dataflow-pool-prevention.md` | Pool auto-scaling, monitoring, leak detection, query cache, lightweight pool, shared pools | Pool exhaustion, connection management, health checks, pool sizing      |
+| `dataflow-sync-express.md`    | DataFlowExpressSync: blocking CRUD for CLI/scripts/FFI, block_on pattern, transaction sync | Sync/blocking DataFlow, non-async contexts, C ABI, Go, Java, Ruby FFI   |
 
 ## Quick Navigation
 
@@ -38,6 +39,9 @@ Source: `crates/kailash-dataflow/src/`
 - **"How do bulk operations work?"** -> `dataflow-crud-patterns.md`
 - **"How do I inspect the database schema at runtime?"** -> `dataflow-quickstart.md` (Inspector section)
 - **"How do I use DataFlow from Python?"** -> `dataflow-quickstart.md` (Python binding section)
+- **"How do I use DataFlow without async/tokio?"** -> `dataflow-sync-express.md`
+- **"How do I use DataFlow from CLI tools or scripts?"** -> `dataflow-sync-express.md`
+- **"How do I use DataFlow from C/Go/Java/Ruby?"** -> `dataflow-sync-express.md` (FFI section)
 
 ## Key Concepts
 
