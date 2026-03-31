@@ -5,11 +5,11 @@ description: "PACT governance framework patterns for D/T/R addressing, knowledge
 
 # PACT Governance Framework Patterns
 
-Principled Architecture for Constrained Trust (PACT) -- organizational governance for AI agents. D/T/R addressing, knowledge clearance, operating envelopes, access enforcement, and verification gradient.
+Principled Architecture for Constrained Trust (PACT) — organizational governance for AI agents. D/T/R addressing, knowledge clearance, operating envelopes, access enforcement, and verification gradient.
 
 **Crate**: `crates/kailash-pact/` (proprietary, `publish = false`)
 **Depends on**: `kailash-governance` + `eatp` (both proprietary, `publish = false`)
-**Tests**: 1,369+ (governance 555 + eatp 58 + pact 58 + Python 109 + bridge enforcement 10)
+**Tests**: 1,396+ (governance 565 + eatp 58 + pact 58 + Python 109 + bridge enforcement 10)
 **PyO3**: `from kailash import PactGovernanceEngine, PactAddress, PactDimensionName, PactVacancyDesignation, PactBridgeApprovalStatus`
 
 ## Quick Start
@@ -35,6 +35,7 @@ let org = OrgDefinition {
             name: "CTO".to_string(),
             ..Default::default()
         }],
+        departments: vec![],  // nested sub-departments (v3.6.1)
     }],
 };
 
@@ -62,23 +63,24 @@ let verdict = engine.verify_action("D1-R1", "read", &ctx)?;
 
 ## 8 User Flows
 
-| #   | Flow                | Entry Point                                     | Key Invariant                                 |
-| --- | ------------------- | ----------------------------------------------- | --------------------------------------------- |
-| 1   | Compile org         | `GovernanceEngine::new(org_def)`                | Grammar: D/T must be followed by R            |
-| 2   | Access check        | `engine.check_access(role_id, item, posture)`   | 5-step fail-closed algorithm                  |
-| 3   | Posture ceiling     | Implicit in step 2                              | `effective = min(clearance, posture_ceiling)` |
-| 4   | Action verification | `engine.verify_action(addr, action, ctx)`       | 4-zone gradient, worst-zone wins              |
-| 5   | NEVER_DELEGATED     | Implicit in flow 4                              | 7 actions always HELD                         |
-| 6   | Bridge access       | Step 3e in flow 2                               | Bilateral vs unilateral directionality        |
-| 7   | Bridge approval     | `engine.request_bridge()` / `approve_bridge()`  | LCA approver, Pending->Approved gate          |
-| 8   | Frozen context      | `engine.get_context(addr, posture)`             | No `&mut self`, no Deserialize                |
-| 9   | Python integration  | `from kailash import PactGovernanceEngine`      | 25+ types, thread-safe                        |
-| 10  | Role discovery      | `engine.list_roles()` / `get_node_by_role_id()` | All roles (not just heads), v3.4.1            |
-| 11  | Address resolution  | `engine.resolve_role_id("D1-R1")`               | Resolves D/T/R address OR config ID, v3.4.1   |
-| 12  | Vacancy designation | `engine.set_vacancy_designation()`              | Acting occupant, 24h expiry, fail-closed      |
-| 13  | Auto-suspension     | `RoleConfig::auto_suspend_on_vacancy`           | BFS cascade, opt-in per-role                  |
-| 14  | LCA computation     | `Address::lowest_common_ancestor(a, b)`         | O(depth), grammar-validated                   |
-| 15  | Dimension scoping   | `DelegationRecord::dimension_scope`             | BTreeSet<DimensionName>, subset tightening    |
+| #   | Flow                | Entry Point                                     | Key Invariant                                      |
+| --- | ------------------- | ----------------------------------------------- | -------------------------------------------------- |
+| 1   | Compile org         | `GovernanceEngine::new(org_def)`                | Grammar: D/T must be followed by R                 |
+| 2   | Access check        | `engine.check_access(role_id, item, posture)`   | 5-step fail-closed algorithm                       |
+| 3   | Posture ceiling     | Implicit in step 2                              | `effective = min(clearance, posture_ceiling)`      |
+| 4   | Action verification | `engine.verify_action(addr, action, ctx)`       | 4-zone gradient, worst-zone wins                   |
+| 5   | NEVER_DELEGATED     | Implicit in flow 4                              | 7 actions always HELD                              |
+| 6   | Bridge access       | Step 3e in flow 2                               | Bilateral vs unilateral directionality             |
+| 7   | Bridge approval     | `engine.request_bridge()` / `approve_bridge()`  | LCA approver, Pending→Approved gate                |
+| 8   | Frozen context      | `engine.get_context(addr, posture)`             | No `&mut self`, no Deserialize                     |
+| 9   | Python integration  | `from kailash import PactGovernanceEngine`      | 25+ types, thread-safe                             |
+| 10  | Role discovery      | `engine.list_roles()` / `get_node_by_role_id()` | All roles (not just heads), v3.4.1                 |
+| 11  | Address resolution  | `engine.resolve_role_id("D1-R1")`               | Resolves D/T/R address OR config ID, v3.4.1        |
+| 12  | Vacancy designation | `engine.set_vacancy_designation()`              | Acting occupant, 24h expiry, fail-closed           |
+| 13  | Auto-suspension     | `RoleConfig::auto_suspend_on_vacancy`           | BFS cascade, opt-in per-role                       |
+| 14  | LCA computation     | `Address::lowest_common_ancestor(a, b)`         | O(depth), grammar-validated                        |
+| 15  | Dimension scoping   | `DelegationRecord::dimension_scope`             | BTreeSet<DimensionName>, subset tightening         |
+| 16  | Nested departments  | `DepartmentConfig::departments` (v3.6.1)        | Recursive D-R-D-R, `compile_department()` recurses |
 
 See `workspaces/kailash-pact-rs/03-user-flows/01-governance-flows.md` for detailed storyboards.
 
@@ -86,15 +88,22 @@ See `workspaces/kailash-pact-rs/03-user-flows/01-governance-flows.md` for detail
 
 ```
 D1-R1              # Department head
+D1-R1-R2           # Dept-level role (reports to head)
 D1-R1-T1-R1        # Team lead within department
-D1-R1-T1-R1-R1     # Sub-role within team
+D1-R1-T1-R1-R2     # Sub-role within team
 D2-R1              # Second department head
+D1-R1-D1-R1        # Nested sub-department head (v3.6.1)
+D1-R1-D1-R1-D1-R1  # 3-level nested department head (v3.6.1)
+D1-R1-D1-R1-T1-R1  # Team inside nested sub-department (v3.6.1)
 ```
 
 - Every D or T segment MUST be immediately followed by R
+- Nested departments follow D-R-D-R grammar: sub-dept attaches under parent head's address
+- `DepartmentConfig.departments` field enables recursive nesting (v3.6.1)
 - `Address::parse()` validates grammar at construction time
 - `Address::ancestors()` returns all grammar-valid ancestor addresses (e.g., `D1-R1-T1-R1` yields `[D1-R1, D1-R1-T1-R1]`)
 - `Address::lowest_common_ancestor(a, b)` returns the deepest grammar-valid common prefix, or `None` if disjoint
+- `get_node_by_role_id()` resolves roles at any nesting depth (v3.6.1)
 - MAX_SEGMENTS = 100 (DoS prevention)
 - Case-insensitive parsing
 
@@ -102,17 +111,17 @@ D2-R1              # Second department head
 
 ```
 Step 0: Preconditions (role exists, not vacant, same org)
-Step 1: PUBLIC shortcut (classification == Public -> ALLOW)
+Step 1: PUBLIC shortcut (classification == Public → ALLOW)
 Step 2: Clearance gate
-  +-- effective_clearance = min(role_clearance, posture_ceiling(posture))
-  +-- effective_clearance >= item.classification? (else DENY)
-  +-- role.compartments >= item.compartments? (else DENY)
+  ├─ effective_clearance = min(role_clearance, posture_ceiling(posture))
+  ├─ effective_clearance >= item.classification? (else DENY)
+  └─ role.compartments ⊇ item.compartments? (else DENY)
 Step 3: Containment paths
-  +-- 3a: Same unit (team/department) -> ALLOW
-  +-- 3b: Supervisor -> subordinate (downward visibility) -> ALLOW
-  +-- 3c: Team inherits department -> ALLOW
-  +-- 3d: KSP grants cross-unit access -> ALLOW (directional, expiry-checked)
-  +-- 3e: Bridge grants cross-boundary access -> ALLOW (bilateral/unilateral, expiry-checked)
+  ├─ 3a: Same unit (team/department) → ALLOW
+  ├─ 3b: Supervisor → subordinate (downward visibility) → ALLOW
+  ├─ 3c: Team inherits department → ALLOW
+  ├─ 3d: KSP grants cross-unit access → ALLOW (directional, expiry-checked)
+  └─ 3e: Bridge grants cross-boundary access → ALLOW (bilateral/unilateral, expiry-checked)
 Step 4: Default DENY
 ```
 
@@ -229,12 +238,12 @@ Worst zone across all 5 dimensions wins.
 
 ```
 RoleEnvelope (standing, set by supervisor)
-  +-- per-dimension: Financial, Operational, Temporal, DataAccess, Communication
+  └─ per-dimension: Financial, Operational, Temporal, DataAccess, Communication
 TaskEnvelope (ephemeral, narrows only)
-  +-- same 5 dimensions, cannot widen parent
+  └─ same 5 dimensions, cannot widen parent
 
-EffectiveEnvelope = intersect(ancestor_chain) intersection task_envelope
-  +-- version_hash = SHA-256(all ancestor versions) for TOCTOU defense
+EffectiveEnvelope = intersect(ancestor_chain) ∩ task_envelope
+  └─ version_hash = SHA-256(all ancestor versions) for TOCTOU defense
 ```
 
 **Key invariants**:
@@ -245,7 +254,7 @@ EffectiveEnvelope = intersect(ancestor_chain) intersection task_envelope
 - Vacancy designation = acting occupant can operate on behalf of vacant role (24h default expiry)
 - Suspended roles = BLOCKED: auto-suspension cascade from vacant parent (opt-in via `auto_suspend_on_vacancy`)
 - Unknown actions = HELD (fail-safe): actions not in allowed AND not in denied produce HELD.
-- Bridge approval: Pending/Rejected bridges do NOT grant access (v3.5.0+). Use request_bridge -> approve_bridge flow.
+- Bridge approval: Pending/Rejected bridges do NOT grant access (v3.5.0+). Use request_bridge → approve_bridge flow.
 - Child cannot widen parent (monotonic tightening)
 - `FiniteF64` rejects NaN/Inf at construction
 
@@ -297,24 +306,24 @@ These align with the posture ceiling mapping in `clearance::posture_ceiling()`:
 
 ### Decision API
 
-- `verify_action(role_address, action, context)` -> `GovernanceVerdict`
-- `check_access(role_id, knowledge_item, posture)` -> `AccessDecision`
-- `compute_envelope(role_address, task_id)` -> `EffectiveEnvelopeSnapshot`
+- `verify_action(role_address, action, context)` → `GovernanceVerdict`
+- `check_access(role_id, knowledge_item, posture)` → `AccessDecision`
+- `compute_envelope(role_address, task_id)` → `EffectiveEnvelopeSnapshot`
 
 ### Query API
 
-- `get_context(role_address, posture)` -> `GovernanceContext` (frozen, read-only)
-- `get_node(address)` -> `Option<OrgNode>`
-- `get_vacancy_status()` -> `VacancyStatus`
+- `get_context(role_address, posture)` → `GovernanceContext` (frozen, read-only)
+- `get_node(address)` → `Option<OrgNode>`
+- `get_vacancy_status()` → `VacancyStatus`
 
 ### Mutation API
 
 - `grant_clearance(clearance)` / `revoke_clearance(role_id)`
 - `create_bridge(bridge)` / `remove_bridge(bridge_id)`
-- `request_bridge(bridge)` -> Pending status; `approve_bridge(bridge_id, approver)` / `reject_bridge(bridge_id, approver)` -> LCA-based approver
+- `request_bridge(bridge)` → Pending status; `approve_bridge(bridge_id, approver)` / `reject_bridge(bridge_id, approver)` → LCA-based approver
 - `create_ksp(ksp)` / `remove_ksp(ksp_id)`
 - `set_role_envelope(envelope)` / `set_task_envelope(envelope)` / `delete_task_envelope(task_id)`
-- `set_vacancy_designation(role_address, acting_occupant, duration_hours)` -> 24h default expiry
+- `set_vacancy_designation(role_address, acting_occupant, duration_hours)` → 24h default expiry
 - `clear_vacancy_designation(role_address)`
 
 ### DelegationBuilder (v3.5.0)
@@ -350,9 +359,9 @@ let mut agent = PactGovernedAgent::new(engine, "D1-R1-T1-R1", "Supervised")?;
 agent.register_tool("read_file", Some(0.0), None)?;
 agent.register_tool("deploy", Some(500.0), Some("production"))?;
 
-// Execute -- verify-before-act, fail-closed
+// Execute — verify-before-act, fail-closed
 let result = agent.execute_tool("read_file", || Ok(()))?;
-// Unregistered tools -> PactError::Governance (default-deny)
+// Unregistered tools → PactError::Governance (default-deny)
 ```
 
 ## Kaizen Integration
@@ -411,7 +420,7 @@ print(f"Allowed: {verdict.allowed}, Zone: {verdict.zone}")
 # v3.4.1 APIs
 roles = engine.list_roles()           # All roles, not just heads
 node = engine.get_node_by_role_id("cto")  # Lookup by config ID
-role_id = engine.resolve_role_id("D1-R1")  # Address -> config role ID
+role_id = engine.resolve_role_id("D1-R1")  # Address → config role ID
 ```
 
 Build: `maturin develop --release` (PACT always included, no feature flag needed)
@@ -457,11 +466,11 @@ assert!(verdict.is_allowed());
 **Evaluation algorithm** (6 steps, fail-closed):
 
 1. Never-delegated check (7 actions always HELD)
-2. Registration check -> unregistered = BLOCKED
-3. Clearance check -> tool requires higher = BLOCKED
-4. Financial: transaction amount -> exceeds limit = HELD, >=80% = FLAGGED
-5. Financial: daily spending -> projected exceeds = HELD, >=80% = FLAGGED
-6. Default -> AUTO_APPROVED
+2. Registration check → unregistered = BLOCKED
+3. Clearance check → tool requires higher = BLOCKED
+4. Financial: transaction amount → exceeds limit = HELD, ≥80% = FLAGGED
+5. Financial: daily spending → projected exceeds = HELD, ≥80% = FLAGGED
+6. Default → AUTO_APPROVED
 
 **NaN/Inf protection**: All financial values validated with `is_finite()`. Non-finite = BLOCKED.
 
@@ -475,7 +484,7 @@ assert!(verdict.is_allowed());
 
 ## Security Invariants
 
-- GovernanceContext: Serialize only (NO Deserialize -- anti-forgery)
+- GovernanceContext: Serialize only (NO Deserialize — anti-forgery)
 - FiniteF64: Rejects NaN/Inf at construction
 - `evaluate_financial`: checks `is_finite()` for transaction_amount AND daily_total
 - NEVER_DELEGATED_ACTIONS: 7 actions always HELD regardless of envelope
