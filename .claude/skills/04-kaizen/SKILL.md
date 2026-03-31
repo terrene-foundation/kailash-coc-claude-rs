@@ -19,7 +19,7 @@ AI agent framework for building intelligent agents with kailash-enterprise.
 | [kaizen-cost-tracking](kaizen-cost-tracking.md)             | LLM cost tracking and budget management               |
 | [kaizen-budget-tracking](kaizen-budget-tracking.md)         | Two-phase budget enforcement for tool agents          |
 | [kaizen-trust-architecture](kaizen-trust-architecture.md)   | Three-layer trust stack map (EATP/Trust-Plane/Kaizen) |
-| [kaizen-streaming](kaizen-streaming.md)                     | Streaming agent responses                             |
+| [kaizen-streaming](kaizen-streaming.md)                     | TaodRunner Python binding, CallerEvent streaming      |
 | [kaizen-a2a-protocol](kaizen-a2a-protocol.md)               | Agent-to-Agent protocol (cards & registry)            |
 | [kaizen-a2a](kaizen-a2a.md)                                 | A2A messaging, discovery, and delegation              |
 | [kaizen-checkpoint](kaizen-checkpoint.md)                   | Checkpoint/resume with known issues & interrupts      |

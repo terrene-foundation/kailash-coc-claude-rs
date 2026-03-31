@@ -1,26 +1,50 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
-  "released": "2026-03-29",
+  "released": "2026-03-31",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "1.0.0",
-    "build_version": "1.0.0",
-    "synced_at": "2026-03-30T01:14:08Z"
+    "version": "1.2.0",
+    "build_version": "3.5.0",
+    "synced_at": "2026-03-31T10:30:00Z"
   },
   "changelog": [
     {
-      "version": "1.0.0",
-      "date": "2026-03-29",
-      "summary": "Initial versioned release with variant architecture",
+      "version": "1.2.0",
+      "date": "2026-03-31",
+      "summary": "Gate 2 sync: DataFlowExpressSync skill, 48 new rs variant files, 64 global refreshes",
       "changes": [
-        "Downstream merge /sync command",
-        "Proposal-based /codify flow",
-        "artifact-flow.md rule",
-        "Project-level /cc-audit command",
-        "Version tracking with upstream check"
+        "NEW skills/02-dataflow/dataflow-sync-express.md — blocking CRUD for CLI/scripts/FFI",
+        "NEW skills/01-core/ directory (13 files) — Rust core SDK primitives",
+        "NEW skills/05-enterprise/ directory (10 files) — ABAC, RBAC, SSO, audit",
+        "NEW skills/10-governance/SKILL.md — Rust governance patterns",
+        "NEW skills/29-trust-plane/ directory (7 files) — trust-plane crate reference",
+        "NEW skills/31-l3-autonomy/ directory (8 files) — L3 autonomous agent crate",
+        "NEW skills/32-kaizen-agents/ directory (8 files) — orchestration crate",
+        "NEW skills/03-nexus/nexus-k8s-probes.md — K8s probe patterns (global)",
+        "NEW skills/04-kaizen/kaizen-agent-reference.md — agent reference (global)",
+        "Updated 64 global files (agents, rules, skills, guides)",
+        "Refreshed all rs variant overlays (testing, architecture, code-templates, validation, gold-standards, error-troubleshooting)"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-03-30",
+      "summary": "Gate 2 sync: framework-first rule, layer selection, streaming + PACT updates",
+      "changes": [
+        "NEW rules/framework-first.md — Engine-over-Primitives three-layer model",
+        "NEW skills/04-kaizen/kaizen-delegate-vs-baseagent.md — Delegate vs BaseAgent decision guide",
+        "Updated agents/framework-advisor.md — Step 2b layer selection",
+        "Updated agents/frameworks/dataflow-specialist.md — Layer Preference section",
+        "Updated agents/frameworks/nexus-specialist.md — Layer Preference section",
+        "Updated skills/13-architecture-decisions/decide-framework.md — Within-Framework Layer Selection",
+        "Updated skills/29-pact/SKILL.md — DelegationBuilder, vacancy designation, bridge approval, LCA, 21 Python types",
+        "Updated skills/04-kaizen/kaizen-streaming.md — Complete rewrite with TaodRunner Python binding",
+        "Updated skills/04-kaizen/SKILL.md — Streaming description updated",
+        "Updated skills/04-kaizen/kaizen-agents-hydration-streaming.md — Python Binding TaodRunner section",
+        "Updated skills/01-core-sdk/SKILL.md — kaizen-agents and kailash-governance crate map updates"
       ]
     },
     {
@@ -34,6 +58,18 @@
         "Updated 4 core-sdk variant_only files (connection-patterns, custom-node-guide, runtime-execution, workflow-quickstart)",
         "Updated kaizen-agents-governance.md variant_only",
         "Updated guides/co-setup/README.md"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-03-29",
+      "summary": "Initial versioned release with variant architecture",
+      "changes": [
+        "Downstream merge /sync command",
+        "Proposal-based /codify flow",
+        "artifact-flow.md rule",
+        "Project-level /cc-audit command",
+        "Version tracking with upstream check"
       ]
     }
   ]

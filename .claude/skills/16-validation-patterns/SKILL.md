@@ -1,303 +1,250 @@
 ---
 name: validation-patterns
-description: "Validation patterns and compliance checking for Kailash SDK including parameter validation, DataFlow pattern validation, connection validation, absolute import validation, workflow structure validation, and security validation. Use when asking about 'validation', 'validate', 'check compliance', 'verify', 'lint', 'code review', 'parameter validation', 'connection validation', 'import validation', 'security validation', or 'workflow validation'."
+description: "Validation patterns and compliance checking for Kailash Rust SDK including parameter validation, DataFlow pattern validation, connection validation, use statement validation, workflow structure validation, and security validation. Use when asking about 'validation', 'validate', 'check compliance', 'verify', 'lint', 'code review', 'parameter validation', 'connection validation', 'import validation', 'security validation', or 'workflow validation'."
 ---
 
 # Kailash Validation Patterns
 
-Comprehensive validation patterns and compliance checking for Kailash SDK development.
+Comprehensive validation patterns and compliance checking for Kailash Rust SDK development.
 
 ## Overview
 
 Validation tools and patterns for:
-- Parameter validation
-- DataFlow pattern compliance
-- Connection validation
-- Absolute import checking
-- Workflow structure validation
-- Security validation
+
+- Parameter validation (ValueMap, ParamDef)
+- DataFlow pattern compliance (ModelDefinition, sqlx)
+- Connection validation (builder.connect 4-parameter format)
+- Use statement checking (absolute paths, correct crate imports)
+- Workflow structure validation (builder.build(&registry)?)
+- Security validation (no unsafe, sqlx::query!, cargo audit)
 
 ## Reference Documentation
 
 ### Core Validations
 
 #### Parameter Validation
+
 - **[validate-parameters](validate-parameters.md)** - Node parameter validation
-  - Required parameters checking
-  - Type validation
-  - Value range validation
-  - Format validation
-  - Default value handling
+  - Required parameters via ParamDef
+  - Value type checking
+  - ValueMap construction
+  - Build-time validation
 
 #### Connection Validation
+
 - **[validate-connections](validate-connections.md)** - Connection validation
-  - 4-parameter format check
+  - 4-parameter `builder.connect()` format
   - Source/target node existence
   - Parameter name validation
-  - Type compatibility
-  - Circular dependency detection
+  - Circular dependency detection via build
 
 #### Workflow Structure
+
 - **[validate-workflow-structure](validate-workflow-structure.md)** - Workflow validation
   - Node ID uniqueness
   - Connection validity
-  - Dead-end detection
-  - Entry point validation
-  - Exit point validation
+  - `builder.build(&registry)?` as validation boundary
+  - Registry completeness
 
 ### Framework-Specific Validations
 
 #### DataFlow Patterns
-- **[validate-dataflow-patterns](validate-dataflow-patterns.md)** - DataFlow compliance
-  - Result access pattern: `results["node_id"]["result"]`
-  - String ID preservation
-  - Multi-instance isolation
-  - Transaction patterns
-  - Model decorator usage
 
-#### Absolute Imports
-- **[validate-absolute-imports](validate-absolute-imports.md)** - Import validation
-  - Absolute vs relative imports
-  - Module path correctness
-  - Circular import detection
-  - Missing import detection
+- **[validate-dataflow-patterns](validate-dataflow-patterns.md)** - DataFlow compliance
+  - ModelDefinition usage
+  - sqlx compile-time query checking
+  - Auto-generated node usage
+  - Transaction patterns
+  - Environment-based connection strings
+
+#### Use Statements
+
+- **[validate-absolute-imports](validate-absolute-imports.md)** - Use statement validation
+  - Correct crate paths (`use kailash_core::...`)
+  - Feature-gated imports
+  - Re-export awareness
+  - Circular dependency avoidance
 
 #### Security Validation
+
 - **[validate-security](validate-security.md)** - Security checks
-  - Secret exposure
-  - SQL injection risks
-  - Code injection risks
-  - File path traversal
-  - API key handling
+  - No unsafe blocks (application code)
+  - `sqlx::query!` for compile-time SQL checking
+  - `cargo audit` for dependency vulnerabilities
+  - Environment variables for secrets
+  - No hardcoded credentials
 
 ## Validation Patterns
 
 ### Parameter Validation Pattern
 
-```python
-def validate_node_parameters(node_type: str, params: dict) -> bool:
-    """Validate node parameters."""
-    required = NODE_REQUIREMENTS[node_type]
+```rust
+use kailash_core::value::{Value, ValueMap};
+use kailash_core::node::ParamDef;
 
-    # Check required parameters
-    for param in required:
-        if param not in params:
-            raise ValueError(f"Missing required parameter: {param}")
-
-    # Check types
-    for param, value in params.items():
-        expected_type = PARAM_TYPES[node_type][param]
-        if not isinstance(value, expected_type):
-            raise TypeError(f"Invalid type for {param}")
-
-    return True
+fn validate_node_params(params: &ValueMap, required: &[ParamDef]) -> Result<(), String> {
+    for param_def in required {
+        if param_def.required && !params.contains_key(param_def.name.as_ref()) {
+            return Err(format!("Missing required parameter: {}", param_def.name));
+        }
+    }
+    Ok(())
+}
 ```
 
 ### Connection Validation Pattern
 
-```python
-def validate_connection(workflow, source_id, source_param,
-                       target_id, target_param) -> bool:
-    """Validate 4-parameter connection."""
-    # Check nodes exist
-    if source_id not in workflow.nodes:
-        raise ValueError(f"Source node {source_id} not found")
-    if target_id not in workflow.nodes:
-        raise ValueError(f"Target node {target_id} not found")
+```rust
+use kailash_core::WorkflowBuilder;
+use kailash_core::value::ValueMap;
 
-    # Check parameters exist
-    source_node = workflow.nodes[source_id]
-    if source_param not in source_node.outputs:
-        raise ValueError(f"Source param {source_param} not found")
+let mut builder = WorkflowBuilder::new();
+builder.add_node("LLMNode", "node1", ValueMap::new());
+builder.add_node("JSONTransformNode", "node2", ValueMap::new());
 
-    target_node = workflow.nodes[target_id]
-    if target_param not in target_node.inputs:
-        raise ValueError(f"Target param {target_param} not found")
+// 4-parameter connection -- validated at build time
+builder.connect("node1", "result", "node2", "data");
 
-    return True
+// builder.build(&registry)? validates all connections
+let workflow = builder.build(&registry)?;
 ```
 
 ### DataFlow Pattern Validation
 
-```python
-def validate_dataflow_result_access(code: str) -> bool:
-    """Validate DataFlow result access pattern."""
-    # ✅ CORRECT: results["node_id"]["result"]
-    correct_pattern = r'results\[["\']\w+["\']\]\[["\'](result|data)["\']\]'
+```rust
+use kailash_dataflow::{DataFlow, ModelDefinition, FieldType};
 
-    # ❌ WRONG: results["node_id"].result
-    wrong_pattern = r'results\[["\']\w+["\']\]\.\w+'
+// CORRECT: Use ModelDefinition
+let user_model = ModelDefinition::new("User")
+    .field("id", FieldType::Integer, |f| f.primary_key())
+    .field("name", FieldType::String, |f| f.required())
+    .build()?;
 
-    if re.search(wrong_pattern, code):
-        raise ValueError("Use results[id]['result'], not results[id].result")
-
-    if not re.search(correct_pattern, code):
-        warnings.warn("Consider using standard result access pattern")
-
-    return True
+// WRONG: Manual SQL string construction
+// let query = format!("INSERT INTO users (name) VALUES ('{}')", name);
 ```
 
 ### Security Validation Pattern
 
-```python
-def validate_security(workflow) -> list[str]:
-    """Run security validations."""
-    issues = []
+```rust
+// CORRECT: Environment variables for secrets
+dotenvy::dotenv().ok();
+let api_key = std::env::var("OPENAI_API_KEY")
+    .map_err(|_| anyhow::anyhow!("OPENAI_API_KEY not set"))?;
 
-    for node_id, node in workflow.nodes.items():
-        # Check for hardcoded secrets
-        if has_hardcoded_secrets(node.params):
-            issues.append(f"{node_id}: Hardcoded secrets detected")
+// CORRECT: Compile-time checked SQL
+let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
+    .fetch_one(&pool)
+    .await?;
 
-        # Check for SQL injection risks
-        if node.type == "SQLQueryNode":
-            if has_sql_injection_risk(node.params.get("query", "")):
-                issues.append(f"{node_id}: SQL injection risk")
+// WRONG: Hardcoded secrets
+// let api_key = "sk-abc123...";
 
-        # Check for code injection
-        if node.type == "PythonCodeNode":
-            if has_code_injection_risk(node.params.get("code", "")):
-                issues.append(f"{node_id}: Code injection risk")
-
-    return issues
+// WRONG: String-interpolated SQL
+// let query = format!("SELECT * FROM users WHERE id = {}", user_id);
 ```
 
 ## Validation Checklists
 
 ### Pre-Execution Checklist
-- [ ] All required parameters provided
-- [ ] All connections use 4-parameter format
-- [ ] No missing node IDs
+
+- [ ] All required parameters provided in ValueMap
+- [ ] All connections use 4-parameter `builder.connect()` format
 - [ ] No duplicate node IDs
-- [ ] All referenced nodes exist
-- [ ] No circular dependencies
-- [ ] Called .build() before execute
-- [ ] Using correct runtime type
+- [ ] All referenced nodes exist in builder
+- [ ] Called `builder.build(&registry)?` before execute
+- [ ] Registry contains all required node types
 
 ### DataFlow Checklist
-- [ ] Result access uses `results["id"]["result"]` pattern
-- [ ] String IDs preserved (no UUID conversion)
-- [ ] One DataFlow instance per database
-- [ ] Deferred schema operations enabled
-- [ ] Transaction boundaries correct
-- [ ] Model decorators properly applied
+
+- [ ] Models use `ModelDefinition::new().field().build()?`
+- [ ] Database URL from `std::env::var("DATABASE_URL")?`
+- [ ] Using auto-generated nodes (CreateX, ReadX, etc.)
+- [ ] Compile-time SQL with `sqlx::query!` or `sqlx::query_as!`
+- [ ] Connection pooling configured for production
 
 ### Security Checklist
-- [ ] No hardcoded secrets
-- [ ] No SQL injection risks
-- [ ] No code injection risks
-- [ ] No file path traversal risks
-- [ ] API keys from environment
-- [ ] Sensitive data encrypted
-- [ ] Input validation present
 
-### Import Checklist
-- [ ] All imports are absolute
-- [ ] No circular imports
-- [ ] All modules exist
-- [ ] Import paths correct
-- [ ] No unused imports
+- [ ] No hardcoded secrets (API keys, passwords, tokens)
+- [ ] No `unsafe` blocks in application code
+- [ ] SQL uses `sqlx::query!` (compile-time checked) or bound parameters
+- [ ] All secrets from `std::env::var()` with `.env` file
+- [ ] `cargo audit` clean
+- [ ] `cargo deny check` passing
 
-## Validation Tools
+### Use Statement Checklist
 
-### Automated Validation
+- [ ] All imports use full crate paths (`use kailash_core::...`)
+- [ ] Feature-gated imports wrapped in `#[cfg(feature = "...")]`
+- [ ] No circular crate dependencies
+- [ ] Using re-exports from prelude where available
 
-```python
-from kailash.validation import WorkflowValidator
+## Pre-Commit Validation
 
-validator = WorkflowValidator(workflow)
-
-# Run all validations
-results = validator.validate_all()
-
-if not results.is_valid:
-    for error in results.errors:
-        print(f"Error: {error}")
-    for warning in results.warnings:
-        print(f"Warning: {warning}")
+```bash
+# Run all checks before commit
+cargo test --workspace                           # Unit tests
+cargo clippy --workspace -- -D warnings          # Lint (no warnings)
+cargo fmt --all --check                          # Format check
+cargo audit                                      # Dependency vulnerabilities
 ```
 
-### Manual Validation
+### CI/CD Validation
 
-```python
-# Parameter validation
-validate_parameters(node_type, params)
-
-# Connection validation
-validate_connection(workflow, source_id, source_param,
-                   target_id, target_param)
-
-# DataFlow validation
-validate_dataflow_patterns(workflow)
-
-# Security validation
-issues = validate_security(workflow)
+```yaml
+# In CI pipeline
+steps:
+  - name: Validate
+    run: |
+      cargo test --workspace
+      cargo clippy --workspace -- -D warnings
+      cargo fmt --all --check
+      cargo audit
 ```
 
 ## Critical Validation Rules
 
 ### Must Validate
-- ✅ All parameters before execution
-- ✅ All connections before building
-- ✅ Security risks before deployment
-- ✅ Import correctness before commit
-- ✅ DataFlow patterns in code review
+
+- All parameters before execution via `builder.build(&registry)?`
+- All connections before building
+- Security risks before deployment
+- Use statement correctness before commit
+- DataFlow patterns in code review
 
 ### Never Skip
-- ❌ NEVER skip parameter validation
-- ❌ NEVER skip connection validation
-- ❌ NEVER skip security validation
-- ❌ NEVER deploy without validation
-- ❌ NEVER commit without import checks
+
+- NEVER skip `builder.build(&registry)?` -- it is the validation boundary
+- NEVER skip security validation
+- NEVER deploy without `cargo audit`
+- NEVER commit without `cargo clippy -- -D warnings`
+- NEVER use raw SQL strings when DataFlow or `sqlx::query!` is available
 
 ## When to Use This Skill
 
 Use this skill when you need to:
+
 - Validate workflow before execution
 - Check parameter correctness
 - Verify connection format
 - Audit security issues
 - Review DataFlow patterns
-- Check import compliance
+- Check use statement compliance
 - Perform code review
-- Ensure gold standards compliance
-
-## Integration with Development
-
-### Pre-Commit Validation
-```bash
-# Run validation before commit
-python -m kailash.validation.cli validate-all
-```
-
-### CI/CD Validation
-```yaml
-# In CI pipeline
-steps:
-  - name: Validate Workflows
-    run: |
-      python -m kailash.validation.cli validate-all
-      python -m kailash.validation.cli check-security
-```
-
-### Code Review Validation
-- Check parameter usage
-- Verify connection format
-- Audit security issues
-- Validate DataFlow patterns
-- Check import statements
+- Ensure standards compliance
 
 ## Related Skills
 
-- **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Compliance standards
-- **[31-error-troubleshooting](../31-error-troubleshooting/SKILL.md)** - Error troubleshooting
-- **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core patterns
+- **[14-architecture-decisions](../../14-architecture-decisions/SKILL.md)** - Architecture decisions
+- **[13-testing-strategies](../../13-testing-strategies/SKILL.md)** - Testing strategies
+- **[01-core](../../01-core/SKILL.md)** - Core patterns
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow patterns
 
 ## Support
 
 For validation help, invoke:
-- `gold-standards-validator` - Compliance checking
-- `pattern-expert` - Pattern validation
-- `testing-specialist` - Test validation
-- `sdk-navigator` - Find validation guides
+
+- `intermediate-reviewer` - Code review (MANDATORY after changes)
+- `security-reviewer` - Security audit (MANDATORY before commit)
+- `rust-architect` - Cross-crate pattern validation
+- `cargo-specialist` - Dependency and workspace validation
