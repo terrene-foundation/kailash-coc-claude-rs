@@ -1,55 +1,26 @@
 {
-  "source": "kailash/.claude",
+  "source": "loom/.claude",
   "source_version": "1.2.0",
   "target": "kailash-coc-claude-rs/.claude",
   "variant": "rs",
-  "synced_at": "2026-03-31T10:30:00Z",
-  "sync_type": "gate2_full",
-  "stats": {
-    "added": 50,
-    "updated": 70,
-    "unchanged": 533,
-    "excluded": 16,
-    "total_artifacts": 655
-  },
-  "phase1_globals": {
-    "added": 2,
-    "updated": 64,
-    "unchanged": 449,
-    "excluded": 16,
-    "description": "Global files with rs variant overlay applied"
-  },
-  "phase2_variant_only": {
-    "added": 48,
-    "updated": 6,
-    "unchanged": 84,
-    "missing": 0,
-    "description": "RS variant-only files (no global equivalent)"
-  },
-  "high_priority_additions": [
-    "skills/03-nexus/nexus-k8s-probes.md (NEW global)",
-    "skills/04-kaizen/kaizen-agent-reference.md (NEW global)",
-    "skills/02-dataflow/dataflow-sync-express.md (NEW variant-only)",
-    "skills/01-core/ (13 files, NEW rs-only directory)",
-    "skills/05-enterprise/ (10 files, NEW rs-only directory)",
-    "skills/10-governance/SKILL.md (NEW rs-only)",
-    "skills/29-trust-plane/ (7 files, NEW rs-only directory)",
-    "skills/31-l3-autonomy/ (8 files, NEW rs-only directory)",
-    "skills/32-kaizen-agents/ (8 files, NEW rs-only directory)",
-    "skills/33-gsf-cap/ (7 files, existing rs-only directory)",
-    "skills/management/ (3 files, existing rs-only directory)"
-  ],
-  "key_variant_updates": [
-    "skills/01-core-sdk/SKILL.md (rs variant refreshed)",
-    "skills/02-dataflow/SKILL.md (rs variant refreshed)",
-    "skills/04-kaizen/kaizen-agents-governance.md (rs variant refreshed)",
-    "skills/12-testing-strategies/* (rs variants refreshed)",
-    "skills/13-architecture-decisions/* (rs variants refreshed)",
-    "skills/14-code-templates/* (rs variants refreshed)",
-    "skills/16-validation-patterns/* (rs variants refreshed)",
-    "skills/17-gold-standards/* (rs variants refreshed)",
-    "skills/31-error-troubleshooting/* (rs variants refreshed)"
-  ],
-  "hook_verification": "9/9 scripts present",
-  "scripts_hooks_status": "16/16 files identical to kailash/scripts/hooks/"
+  "synced_at": "2026-03-31T14:30:00Z",
+  "sync_type": "gate2_incremental",
+  "stats": {"updated": 20, "unchanged": 637, "added": 0},
+  "artifacts_updated": [
+    "commands/codify.md",
+    "guides/co-setup/05-variant-architecture.md",
+    "guides/co-setup/06-artifact-lifecycle.md",
+    "guides/co-setup/07-sync-flow.md",
+    "guides/co-setup/08-versioning.md",
+    "rules/artifact-flow.md",
+    "skills/01-core-sdk/connection-patterns.md",
+    "skills/01-core-sdk/custom-node-guide.md",
+    "skills/01-core-sdk/runtime-execution.md",
+    "skills/01-core-sdk/workflow-quickstart.md",
+    "skills/02-dataflow/dataflow-quickstart.md",
+    "skills/04-kaizen/kaizen-agents-governance.md",
+    "skills/29-pact/SKILL.md",
+    "skills/29-pact/pact-dtr-addressing.md",
+    "skills/29-pact/pact-governance-engine.md"
+  ]
 }
