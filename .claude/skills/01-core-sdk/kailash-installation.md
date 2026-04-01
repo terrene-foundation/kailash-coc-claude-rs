@@ -16,7 +16,7 @@ Complete guide for installing the Kailash SDK using pip, poetry, virtual environ
 
 - **Basic Install**: `pip install kailash`
 - **Poetry**: `poetry add kailash`
-- **With All Dependencies**: `pip install kailash[all]`
+- **With All Dependencies**: `pip install kailash`
 - **Python Requirement**: 3.8+
 - **Verify**: Import `WorkflowBuilder` and `LocalRuntime`
 
@@ -49,7 +49,7 @@ pip install kailash
 pip install kailash==0.9.25
 
 # Install with all optional dependencies
-pip install kailash[all]
+pip install kailash
 ```
 
 ### Option 2: Poetry Installation (Recommended)
@@ -92,7 +92,7 @@ pip install -r requirements.txt
 | **Poetry** | Team projects, dependency management | `poetry add kailash` |
 | **Virtual env** | Isolated development | `python -m venv env && pip install kailash` |
 | **Docker** | Production, infrastructure | `docker-compose up -d` |
-| **With extras** | Full feature set | `pip install kailash[all]` |
+| **With extras** | Full feature set | `pip install kailash` |
 
 ## Common Mistakes
 
@@ -134,7 +134,7 @@ from kailash.nodes.ai import LLMAgentNode  # ImportError: No module named 'opena
 ### ✅ Fix: Install With Dependencies
 ```bash
 # Correct - Install all optional dependencies
-pip install kailash[all]
+pip install kailash
 ```
 
 ## Verification Test
@@ -189,7 +189,7 @@ Use `deployment-specialist` subagent when:
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | `ImportError: No module named 'kailash'` | Wrong Python environment | Verify: `pip list \| grep kailash`, reinstall if needed |
-| `ModuleNotFoundError: pydantic` | Missing dependencies | Install with extras: `pip install kailash[all]` |
+| `ModuleNotFoundError: pydantic` | Missing dependencies | Install with extras: `pip install kailash` |
 | `Python version incompatible` | Python < 3.8 | Upgrade to Python 3.8+ |
 | Docker services not starting | Port conflicts or Docker issues | Run: `docker-compose down -v && docker-compose up -d` |
 

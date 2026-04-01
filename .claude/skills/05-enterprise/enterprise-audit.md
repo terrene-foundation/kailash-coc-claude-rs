@@ -404,9 +404,9 @@ All audit types are `Send + Sync`:
 
 ## Source Files
 
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/audit/types.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/audit/stores.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/audit/logger.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/audit/hooks.rs`
+- `crates/kailash-enterprise/src/audit/types.rs`
+- `crates/kailash-enterprise/src/audit/stores.rs`
+- `crates/kailash-enterprise/src/audit/logger.rs`
+- `crates/kailash-enterprise/src/audit/hooks.rs`
 
 <!-- Trigger Keywords: audit logging, AuditEvent, AuditLogger, AuditStore, audit trail, audit hooks, TracingAuditStore, InMemoryAuditStore, audit filter, audit query, redaction, workflow audit, authorization logging, authentication logging, data modification audit, AuditActor, AuditResource, AuditOutcome, AuditLevel, AuditHook, ActorExtractor -->

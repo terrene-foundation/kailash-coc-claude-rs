@@ -322,9 +322,9 @@ All compliance types are `Send + Sync`:
 
 ## Source Files
 
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/compliance/report.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/compliance/eatp_report.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/compliance/care_report.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/compliance/mod.rs`
+- `crates/kailash-enterprise/src/compliance/report.rs`
+- `crates/kailash-enterprise/src/compliance/eatp_report.rs`
+- `crates/kailash-enterprise/src/compliance/care_report.rs`
+- `crates/kailash-enterprise/src/compliance/mod.rs`
 
 <!-- Trigger Keywords: compliance report, EATP compliance, CARE compliance, ComplianceReport, EatpReportGenerator, CareReportGenerator, compliance findings, compliance status, audit report, trust compliance, governance report, evidence integrity, delegation compliance, ComplianceSection, ComplianceFinding, FindingSeverity, compliance assessment, EATP v0.8.0, CARE Framework -->
