@@ -244,7 +244,7 @@ All tenancy types are `Send + Sync`:
 
 ## Source Files
 
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/tenancy/mod.rs`
-- `/Users/esperie/repos/dev/kailash/crates/kailash-enterprise/src/context.rs`
+- `crates/kailash-enterprise/src/tenancy/mod.rs`
+- `crates/kailash-enterprise/src/context.rs`
 
 <!-- Trigger Keywords: multi-tenancy, TenantContext, TenantRegistry, tenant isolation, tenant propagation, tenant bypass, TenantInfo, TenantStatus, tenant metadata, tenant registration, EnterpriseContext tenant, data isolation, tenant_id, tenant context, tenant middleware, tenant validation, bypass mode -->

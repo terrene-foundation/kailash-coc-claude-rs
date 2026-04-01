@@ -1,14 +1,16 @@
 # Project Skills
 
-This directory is for **your project-specific skills** — knowledge that Claude Code should retain about YOUR application, not the Kailash SDK itself. Add files here for domain models, API contracts, deployment config, or business rules.
+Cross-cutting project patterns that span multiple crates or binding languages.
 
-## Included Skills
+## Skills Index
 
-| Skill | File | Purpose |
-|-------|------|---------|
-| Pool Safety | `pool-safety.md` | Connection pool lifecycle and cleanup patterns |
-| L3 Binding Parity | `l3-binding-parity.md` | v3.2.0 L3 Agent Autonomy type reference for Python and Ruby |
+| Skill                     | File                           | Purpose                                                         |
+| ------------------------- | ------------------------------ | --------------------------------------------------------------- |
+| Enterprise Infra Bindings | `enterprise-infra-bindings.md` | v2.8.0 infra binding patterns (Saga, TaskQueue, IdempotencyKey) |
+| L3 Binding Parity         | `l3-binding-parity.md`         | v3.2.0 L3 Agent Autonomy binding patterns across 7 languages    |
 
-## Adding Your Own
+## Redirects (moved to numbered directories)
 
-Create a `.md` file with YAML frontmatter (`name`, `description`) and content. For Kailash SDK patterns, see the numbered skill directories — those are maintained by COC sync.
+- Aggregation patterns → `skills/02-dataflow/aggregation-patterns.md`
+- Budget tracking patterns → `skills/07-eatp-reference/budget-tracking-patterns.md`
+- Trust architecture map → `skills/29-trust-plane/trust-architecture-map.md`
