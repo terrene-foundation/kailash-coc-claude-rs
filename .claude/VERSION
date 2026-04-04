@@ -1,16 +1,33 @@
 {
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
-  "released": "2026-04-01",
+  "released": "2026-04-04",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "1.1.0",
-    "build_version": "3.6.4",
-    "synced_at": "2026-04-01T18:00:00Z"
+    "version": "1.4.0",
+    "build_version": "3.7.0",
+    "synced_at": "2026-04-04T00:00:00Z"
   },
   "changelog": [
+    {
+      "version": "1.4.0",
+      "date": "2026-04-04",
+      "summary": "Agent/skill ontology reorganization v1.4.0 + v3.8 auth middleware patterns",
+      "changes": [
+        "RESTRUCTURED: agents/ into 7 subdirectories (analysis, frameworks, frontend, implementation, management, quality, release, testing)",
+        "CONSOLIDATED: 33→26 agents (analyst, reviewer, release-specialist, repo-ops absorb 7 deleted agents)",
+        "MIGRATED: 7 agents→skills (care/co/coc/eatp-expert, sdk-navigator, framework-advisor → skills/co-reference/)",
+        "TIGHTENED: 8 agents avg 266→77 lines, 12 SKILL.md files under 200 lines",
+        "NEW: skills/co-reference/ (6 spec files)",
+        "NEW: variants/rs/skills/18-security-patterns/security-auth-middleware-rs.md (v3.8 red team)",
+        "UPDATED: security-reviewer — auth middleware patterns A1-A9",
+        "UPDATED: dataflow-specialist — delegation rule",
+        "UPDATED: kaizen-specialist — budget reservation warning",
+        "DELETED: rules/branch-protection.md, rules/no-stubs.md (merged into git.md, zero-tolerance.md)"
+      ]
+    },
     {
       "version": "1.3.0",
       "date": "2026-04-01",

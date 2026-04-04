@@ -1,261 +1,228 @@
 ---
 name: error-connection-params
-description: "Fix connection parameter errors in Kailash workflows. Use when encountering 'InvalidConnection', 'unknown node type', 'connection parameter order', 'wrong connection syntax', or '4-parameter connection' errors."
+description: "Fix connection parameter errors in Kailash workflows. Use when encountering 'target node not found', 'connection parameter order', 'wrong connection syntax', or '4-parameter connection' errors."
 ---
 
 # Error: Connection Parameter Issues
 
-Fix connection-related errors including wrong parameter order, missing parameters, and invalid connection issues in the Kailash Rust SDK.
+Fix connection-related errors including wrong parameter order, missing parameters, and target node not found issues.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (error-resolution)
 > Priority: `CRITICAL` (Very common error #2)
+> SDK Version: `0.9.0+`
 > Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`connection-patterns`](../../01-core-sdk/connection-patterns.md)
+> Related Subagents: `pattern-expert` (complex connection debugging)
 
 ## Common Error Messages
 
 ```
-BuildError::InvalidConnection { source_node: "prep", source_output: "result",
-    target_node: "missing_node", target_input: "data", reason: "target node not found" }
-
-"invalid connection from prep.result to missing_node.data: target node not found"
-"unknown node type: NonExistentNode"
+Node 'result' not found in workflow
+Node 'X' not found in workflow
+TypeError: add_connection() takes 5 positional arguments but 4 were given
+Connection mapping error: output key 'X' not found
 ```
-
-In Rust, many connection errors are caught at **build time** by `builder.build(&registry)?` rather than at runtime. The compiler also prevents type errors that would be runtime exceptions in dynamic languages.
 
 ## Root Causes
 
-1. **Wrong parameter order** - Swapping source_output and target node positions
-2. **Missing node ID** - Referencing a node that was not added to the builder
-3. **Node type not in registry** - Using a type name not registered in `NodeRegistry`
-4. **Wrong output/input names** - Using parameter names the node does not declare
+1. **Wrong parameter order** - Swapping from_output and to_node
+2. **Missing node ID** - Referencing non-existent node
+3. **Wrong number of parameters** - Using deprecated 3-parameter syntax
+4. **Nested output access** - Missing dot notation for nested fields
 
 ## Quick Fixes
 
-### :x: Error 1: Wrong Parameter Order (VERY COMMON)
-
-```rust
-let mut builder = WorkflowBuilder::new();
-builder.add_node("JSONTransformNode", "prepare_filters", config.clone());
-builder.add_node("HTTPRequestNode", "execute_search", ValueMap::new());
-
-// Wrong - parameters swapped (source_output and target positions)
-builder.connect(
-    "prepare_filters",   // source node OK
-    "execute_search",    // source_output WRONG (should be "result")
-    "result",            // target node WRONG (should be "execute_search")
-    "input",             // target_input OK
-);
-// BuildError: "invalid connection from prepare_filters.execute_search to result.input: ..."
+### ❌ Error 1: Wrong Parameter Order (VERY COMMON)
+```python
+# Wrong - parameters swapped (from_output and to_node positions)
+workflow.add_connection(
+    "prepare_filters",   # from_node ✓
+    "execute_search",    # from_output ✗ (should be "result")
+    "result",            # to_node ✗ (should be "execute_search")
+    "input"              # to_input ✓
+)
+# Error: "Target node 'result' not found in workflow"
 ```
 
-### :white_check_mark: Fix: Correct Parameter Order
-
-```rust
-// Correct - proper order: source, source_output, target, target_input
-builder.connect(
-    "prepare_filters",   // source: node ID
-    "result",            // source_output: output field from source
-    "execute_search",    // target: node ID
-    "input",             // target_input: input field on target
-);
+### ✅ Fix: Correct Parameter Order
+```python
+# Correct - proper order: from_node, from_output, to_node, to_input
+workflow.add_connection(
+    "prepare_filters",   # from_node: source node ID
+    "result",            # from_output: output field from source
+    "execute_search",    # to_node: target node ID
+    "input"              # to_input: input field on target
+)
 ```
 
 **Mnemonic**: **Source first** (node + output), **then Target** (node + input)
 
-### :x: Error 2: Node Type Not in Registry
-
-```rust
-let registry = Arc::new(NodeRegistry::default());
-
-let mut builder = WorkflowBuilder::new();
-builder.add_node("NonExistentNode", "my_node", ValueMap::new());
-
-let workflow = builder.build(&registry)?;
-// BuildError::UnknownNodeType { type_name: "NonExistentNode" }
+### ❌ Error 2: Only 3 Parameters (Deprecated)
+```python
+# Wrong - old 3-parameter syntax (deprecated in v0.8.0+)
+workflow.add_connection("reader", "processor", "data")
 ```
 
-### :white_check_mark: Fix: Use Registered Node Types
-
-```rust
-let mut registry = NodeRegistry::default();
-// Register your custom nodes, or use a pre-populated registry
-
-let mut builder = WorkflowBuilder::new();
-builder.add_node("JSONTransformNode", "my_node", ValueMap::new());
-
-let registry = Arc::new(registry);
-let workflow = builder.build(&registry)?; // OK - JSONTransformNode is registered
+### ✅ Fix: Use 4 Parameters
+```python
+# Correct - modern 4-parameter syntax
+workflow.add_connection("reader", "data", "processor", "data")
+#                       ^source ^output  ^target   ^input
 ```
 
-### :x: Error 3: Referencing Non-Existent Node in Connection
+### ❌ Error 3: Missing Nested Path
+```python
+# If node outputs: {'result': {'filters': {...}, 'limit': 50}}
 
-```rust
-let mut builder = WorkflowBuilder::new();
-builder.add_node("JSONTransformNode", "prep", ValueMap::new());
-
-// Wrong - "search" was never added via add_node
-builder.connect("prep", "result", "search", "data");
-
-let workflow = builder.build(&registry)?;
-// BuildError::InvalidConnection { ... reason: "target node not found" }
+# Wrong - missing nested path
+workflow.add_connection(
+    "prepare_filters", "filters",  # ✗ 'filters' is nested under 'result'
+    "search", "filter"
+)
+# Error: "Output key 'filters' not found on node 'prepare_filters'"
 ```
 
-### :white_check_mark: Fix: Add All Nodes Before Connecting
+### ✅ Fix: Use Dot Notation
+```python
+# Correct - full path to nested value
+workflow.add_connection(
+    "prepare_filters", "result.filters",  # ✓ Full nested path
+    "search", "filter"
+)
 
-```rust
-let mut builder = WorkflowBuilder::new();
-builder.add_node("JSONTransformNode", "prep", ValueMap::new());
-builder.add_node("HTTPRequestNode", "search", ValueMap::new()); // Add the target node
-
-builder.connect("prep", "result", "search", "data"); // Now both nodes exist
+workflow.add_connection(
+    "prepare_filters", "result.limit",
+    "search", "limit"
+)
 ```
 
 ## Complete Example: Before & After
 
-### :x: Wrong Code (All Common Mistakes)
+### ❌ Wrong Code (All Common Mistakes)
+```python
+workflow = WorkflowBuilder()
 
-```rust
-use kailash_core::{WorkflowBuilder, NodeRegistry};
-use kailash_value::{Value, ValueMap};
-use std::sync::Arc;
+workflow.add_node("PythonCodeNode", "prep", {
+    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
+})
 
-let mut builder = WorkflowBuilder::new();
+workflow.add_node("UserListNode", "search", {})
 
-builder.add_node("JSONTransformNode", "prep", ValueMap::from([
-    ("expression".into(), Value::String("@.filters".into())),
-]));
+# WRONG: Only 3 parameters
+workflow.add_connection("prep", "search", "filters")
 
-builder.add_node("HTTPRequestNode", "search", ValueMap::new());
+# WRONG: Wrong order (swapped output and target)
+workflow.add_connection("prep", "search", "filters", "filter")
 
-// WRONG: Parameter order swapped
-builder.connect("prep", "search", "result", "data");
-
-// WRONG: Target node does not exist
-builder.connect("prep", "result", "missing_node", "data");
-
-let registry = Arc::new(NodeRegistry::default());
-let workflow = builder.build(&registry)?; // BuildError!
+# WRONG: Missing nested path
+workflow.add_connection("prep", "filters", "search", "filter")
 ```
 
-### :white_check_mark: Correct Code
+### ✅ Correct Code
+```python
+workflow = WorkflowBuilder()
 
-```rust
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_value::{Value, ValueMap};
-use std::sync::Arc;
+workflow.add_node("PythonCodeNode", "prep", {
+    "code": "result = {'filters': {'status': 'active'}, 'limit': 10}"
+})
 
-let mut builder = WorkflowBuilder::new();
+workflow.add_node("UserListNode", "search", {})
 
-builder.add_node("JSONTransformNode", "prep", ValueMap::from([
-    ("expression".into(), Value::String("@.filters".into())),
-]));
-
-builder.add_node("HTTPRequestNode", "search", ValueMap::new());
-
-// CORRECT: 4 parameters in right order
-builder.connect("prep", "result", "search", "data");
-
-let registry = Arc::new(NodeRegistry::default());
-let workflow = builder.build(&registry)?; // OK
-
-let runtime = Runtime::new(RuntimeConfig::default(), registry);
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
+# CORRECT: 4 parameters in right order with nested path
+workflow.add_connection("prep", "result.filters", "search", "filter")
+workflow.add_connection("prep", "result.limit", "search", "limit")
 ```
 
 ## 4-Parameter Connection Pattern
 
 ### Parameter Breakdown
-
-```rust
-builder.connect(
-    source,         // 1. Source node ID (&str)
-    source_output,  // 2. Output field name from source (&str)
-    target,         // 3. Target node ID (&str)
-    target_input,   // 4. Input parameter name on target (&str)
-);
+```python
+workflow.add_connection(
+    from_node,    # 1. Source node ID (string)
+    from_output,  # 2. Output field name from source (use dot notation for nested)
+    to_node,      # 3. Target node ID (string)
+    to_input      # 4. Input parameter name on target
+)
 ```
 
 ### Common Patterns
 
-| Scenario         | source_output | Example                                                   |
-| ---------------- | ------------- | --------------------------------------------------------- |
-| **Simple field** | `"data"`      | `builder.connect("reader", "data", "processor", "input")` |
-| **Result field** | `"result"`    | `builder.connect("prep", "result", "process", "input")`   |
-| **Named output** | `"count"`     | `builder.connect("counter", "count", "display", "value")` |
+| Scenario | from_output | Example |
+|----------|-------------|---------|
+| **Simple field** | `"data"` | `workflow.add_connection("reader", "data", "processor", "input")` |
+| **Nested field** | `"result.data"` | `workflow.add_connection("prep", "result.data", "process", "input")` |
+| **Deep nesting** | `"result.user.email"` | `workflow.add_connection("fetch", "result.user.email", "send", "to")` |
+| **Array element** | `"result.items[0]"` | Not supported - use PythonCodeNode to extract |
 
 ## Debugging Connection Errors
 
 ### Step 1: Verify Node IDs Exist
+```python
+# List all node IDs in your workflow
+node_ids = ["prep", "search", "process"]  # Your nodes
 
-```rust
-// All node IDs used in connect() must match add_node() IDs
-let mut builder = WorkflowBuilder::new();
-builder.add_node("JSONTransformNode", "prep", ValueMap::new());   // ID: "prep"
-builder.add_node("HTTPRequestNode", "search", ValueMap::new());   // ID: "search"
-
-builder.connect("prep", "result", "search", "input");  // Both "prep" and "search" exist
+# Check connection references match
+workflow.add_connection("prep", "result", "search", "input")  # ✓ Both exist
+workflow.add_connection("prep", "result", "missing", "input")  # ✗ 'missing' not in workflow
 ```
 
 ### Step 2: Check Output Structure
+```python
+# Debug by printing node outputs
+results, run_id = runtime.execute(workflow.build())
 
-```rust
-// After execution, inspect what a node actually outputs
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
-
-// See available output keys for a node
-if let Some(prep_output) = result.results.get("prep") {
-    for key in prep_output.keys() {
-        println!("prep output key: {key}");
-    }
-}
+print(f"prep outputs: {results['prep'].keys()}")  # See available keys
+# If output is: {'result': {'filters': {}, 'limit': 10}}
+# Then use: "result.filters" and "result.limit"
 ```
 
 ### Step 3: Verify Parameter Order
-
-```rust
-// Remember the order: source, source_output, target, target_input
-//                     ^SOURCE^  ^SOURCE^^^^  ^TARGET^  ^TARGET^^^
-builder.connect(
-    "source_node",     // 1. source
-    "output_field",    // 2. source_output
-    "target_node",     // 3. target
-    "input_param",     // 4. target_input
-);
+```python
+# Remember the order: from_node, from_output, to_node, to_input
+#                     ^SOURCE^^  ^SOURCE^^^  ^TARGET^  ^TARGET^
+workflow.add_connection(
+    "source_node",     # 1. from_node
+    "output_field",    # 2. from_output
+    "target_node",     # 3. to_node
+    "input_param"      # 4. to_input
+)
 ```
-
-## Rust Compile-Time Safety
-
-Unlike dynamic languages, the Rust compiler catches many errors at compile time:
-
-| Error Type              | Dynamic Language         | Rust                                                |
-| ----------------------- | ------------------------ | --------------------------------------------------- |
-| Wrong method name       | Runtime `AttributeError` | Compile error: method not found                     |
-| Wrong argument count    | Runtime `TypeError`      | Compile error: wrong number of args                 |
-| Type mismatch in config | Runtime error            | `Value` enum is type-safe                           |
-| Missing `.build()`      | Runtime `TypeError`      | Compile error: `WorkflowBuilder` has no `execute()` |
-
-Build-time errors (from `builder.build(&registry)?`) catch graph-level issues:
-
-- Unknown node types (`BuildError::UnknownNodeType`)
-- Invalid connections (`BuildError::InvalidConnection`)
-- Duplicate node IDs (`BuildError::DuplicateNodeId`)
-- Cycles in DAG mode (`BuildError::CycleDetected`)
 
 ## Related Patterns
 
-- **Connection basics**: See `crates/kailash-core/src/workflow.rs` for `connect()` API
-- **Error types**: See `crates/kailash-core/src/error.rs` for `BuildError` variants
+- **Connection basics**: [`connection-patterns`](../../01-core-sdk/connection-patterns.md)
+- **Workflow creation**: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
 - **Other errors**: [`error-missing-build`](error-missing-build.md), [`error-parameter-validation`](error-parameter-validation.md)
-- **CLAUDE.md**: Essential patterns and workflow architecture
+- **Parameter passing**: [`param-passing-quick`](../../01-core-sdk/param-passing-quick.md)
+
+## When to Escalate to Subagent
+
+Use `pattern-expert` subagent when:
+- Complex multi-node connection patterns
+- Cyclic workflow connection issues
+- Advanced parameter mapping
+- Connection optimization for performance
+
+## Documentation References
+
+### Primary Sources
+- **Pattern Expert**: [`.claude/agents/pattern-expert.md` (lines 294-338)](../../../../.claude/agents/pattern-expert.md#L294-L338)
+
+### Related Documentation
+- **Critical Rules**: [`CLAUDE.md` (line 140)](../../../../CLAUDE.md#L140)
 
 ## Quick Tips
 
-- :bulb: **Mnemonic**: Source (node + output) -> Target (node + input)
-- :bulb: **Debug order**: If "node not found" in build error, check if you swapped source_output and target
-- :bulb: **Registry check**: Ensure your node type is registered in `NodeRegistry` before building
-- :bulb: **Verify IDs**: All node IDs in `connect()` must match IDs from `add_node()`
-- :bulb: **Inspect outputs**: Use `result.results.get("node_id")` to see available output fields
+- 💡 **Mnemonic**: Source (node + output) → Target (node + input)
+- 💡 **Debug order**: If "node not found", check if you swapped from_output and to_node
+- 💡 **Nested access**: Use dot notation (`result.data`) for nested fields
+- 💡 **Verify IDs**: Ensure all referenced node IDs actually exist in workflow
+- 💡 **Check output**: Print `results[node].keys()` to see available output fields
 
-<!-- Trigger Keywords: target node not found, InvalidConnection, connection error, connection parameter order, wrong connection syntax, 4-parameter connection, connect error, connection mapping error, node not found in workflow, connection issues, BuildError -->
+## Version Notes
+
+- **v0.9.0+**: 4-parameter syntax became standard
+- **v0.8.0+**: 3-parameter syntax deprecated
+- **All versions**: Parameter order critical for correct execution
+
+<!-- Trigger Keywords: target node not found, connection error, connection parameter order, wrong connection syntax, 4-parameter connection, add_connection error, connection mapping error, node not found in workflow, connection issues -->

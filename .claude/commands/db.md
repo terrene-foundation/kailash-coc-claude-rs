@@ -8,8 +8,8 @@ Load the DataFlow skill for zero-config database operations with automatic model
 
 Before loading DataFlow patterns, check that this project uses Kailash DataFlow:
 
-- Python: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`; `import kailash` in source files
-- Ruby: Look for `kailash` in `Gemfile` or `*.gemspec`; `require "kailash"` / `Kailash::DataFlow` in source files
+- Look for `kailash-dataflow` or `dataflow` in `requirements.txt`, `pyproject.toml`
+- Look for `from dataflow` / `import dataflow` in source files
 
 If not found, inform the user: "This project doesn't appear to use Kailash DataFlow. These patterns may not apply. Continue anyway?"
 
@@ -32,30 +32,18 @@ If not found, inform the user: "This project doesn't appear to use Kailash DataF
 
 ## Quick Pattern
 
-**Python** (`import kailash`):
-
 ```python
-import kailash
+from dataflow import DataFlow
 
-df = kailash.DataFlow("sqlite:///app.db")
-model = kailash.ModelDefinition("User", "users")
-model.field("id", kailash.FieldType.integer(), primary_key=True)
-model.field("name", kailash.FieldType.text())
-model.field("email", kailash.FieldType.text())
-filter = kailash.FilterCondition("name", "eq", "Alice")
-```
+db = DataFlow("sqlite:///app.db")
 
-**Ruby** (`require "kailash"`):
+@db.model
+class User:
+    id: int = field(primary_key=True)
+    name: str
+    created_at: datetime = field(auto_now_add=True)  # Auto-managed
 
-```ruby
-require "kailash"
-
-config = Kailash::DataFlow::Config.new("sqlite::memory:")
-model = Kailash::DataFlow::ModelDefinition.new("User", "users")
-model.add_field("id", "integer", primary_key: true)
-model.add_field("name", "text", required: true)
-model.add_field("email", "text", nullable: true)
-filter = Kailash::DataFlow::FilterCondition.new("name", "eq", "Alice")
+# Creates 11 nodes automatically: CreateUser, ReadUser, UpdateUser, etc.
 ```
 
 ## Critical Gotchas
@@ -73,7 +61,7 @@ filter = Kailash::DataFlow::FilterCondition.new("name", "eq", "Alice")
 When working with DataFlow, deploy:
 
 - **dataflow-specialist** — Database operations, auto-generated nodes, bulk operations
-- **testing-specialist** — Real database test fixtures (NO MOCKING)
+- **testing-specialist** — Real database test fixtures (Real infrastructure recommended)
 
 ## Related Commands
 

@@ -1,332 +1,203 @@
 ---
 name: template-test-integration
-description: "Generate Kailash integration test template (Tier 2). Use when requesting 'integration test template', 'Tier 2 test', 'real infrastructure test', 'NO MOCKING test', or 'integration test example'."
+description: "Generate Kailash integration test template (Tier 2). Use when requesting 'integration test template', 'Tier 2 test', 'real infrastructure test', 'Real infrastructure recommended test', or 'integration test example'."
 ---
 
 # Integration Test Template (Tier 2)
 
-Integration test template with real infrastructure (NO MOCKING policy). Uses `#[cfg(feature = "integration")]` gating.
+Integration test template with real Docker services (Real infrastructure recommended policy).
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `HIGH`
-> Related Skills: [`CLAUDE.md`](../../../../CLAUDE.md), [`template-test-unit`](template-test-unit.md), [`template-test-e2e`](template-test-e2e.md)
-> Related Subagents: `testing-specialist` (NO MOCKING policy), `tdd-implementer`
+> SDK Version: `0.9.25+`
+> Related Skills: [`test-3tier-strategy`](../../4-operations/testing/test-3tier-strategy.md), [`template-test-unit`](template-test-unit.md), [`template-test-e2e`](template-test-e2e.md)
+> Related Subagents: `testing-specialist` (Real infrastructure recommended policy), `tdd-implementer`
 
 ## Quick Reference
 
 - **Purpose**: Test component interactions with real services
-- **Speed**: < 5 seconds per test
+- **Speed**: <5 seconds per test
 - **Dependencies**: Real Docker services (PostgreSQL, Redis, etc.)
-- **Location**: `tests/` directory or `crates/*/tests/`
-- **Mocking**: FORBIDDEN -- use real services only
-- **Run**: `cargo test --workspace --features integration`
-- **Requires**: `.env` with `DATABASE_URL` etc., Docker services running
+- **Location**: `tests/integration/`
+- **Mocking**: ❌ **FORBIDDEN** - use real services only
 
 ## Integration Test Template
 
-```rust
-//! Integration tests for [Component] with real infrastructure.
-//!
-//! Run: cargo test -p kailash-dataflow --features integration
+```python
+"""Integration tests for [Component] with real infrastructure"""
 
-#[cfg(feature = "integration")]
-mod integration_tests {
-    use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-    use kailash_core::value::{Value, ValueMap};
-    use std::sync::Arc;
+import pytest
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
 
-    /// Load environment and return database URL.
-    fn database_url() -> String {
-        dotenvy::dotenv().ok();
-        std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set in .env for integration tests")
-    }
+@pytest.mark.integration
+class Test[Component]Integration:
+    """Integration tests with real Docker services."""
 
-    fn test_registry() -> Arc<NodeRegistry> {
-        Arc::new(NodeRegistry::default())
-    }
+    def test_database_integration(self, test_database_url):
+        """Test workflow with real database operations."""
+        workflow = WorkflowBuilder()
 
-    #[tokio::test]
-    async fn test_database_workflow() {
-        let db_url = database_url();
-        let registry = test_registry();
+        # Use real database node
+        workflow.add_node("AsyncSQLDatabaseNode", "db_write", {
+            "connection_string": test_database_url,
+            "query": "INSERT INTO test_table (name, value) VALUES ($1, $2)",
+            "params": ["test_name", 42]
+        })
 
-        let mut builder = WorkflowBuilder::new();
+        workflow.add_node("AsyncSQLDatabaseNode", "db_read", {
+            "connection_string": test_database_url,
+            "query": "SELECT * FROM test_table WHERE name = $1",
+            "params": ["test_name"]
+        })
 
-        // Use real database node with real connection
-        builder.add_node("SQLQueryNode", "db_write", ValueMap::from([
-            ("connection_string".into(), Value::String(db_url.clone().into())),
-            ("query".into(), Value::String(
-                "INSERT INTO test_items (name, value) VALUES ($1, $2)".into(),
-            )),
-            ("params".into(), Value::Array(vec![
-                Value::String("test_name".into()),
-                Value::Integer(42),
-            ])),
-        ]));
+        workflow.add_connection("db_write", "result", "db_read", "trigger")
 
-        builder.add_node("SQLQueryNode", "db_read", ValueMap::from([
-            ("connection_string".into(), Value::String(db_url.into())),
-            ("query".into(), Value::String(
-                "SELECT * FROM test_items WHERE name = $1".into(),
-            )),
-            ("params".into(), Value::Array(vec![
-                Value::String("test_name".into()),
-            ])),
-        ]));
+        # Execute with real database
+        runtime = LocalRuntime()
+        results, run_id = runtime.execute(workflow.build())
 
-        builder.connect("db_write", "result", "db_read", "trigger");
+        # Verify real database operations
+        assert results["db_read"]["data"] is not None
+        assert len(results["db_read"]["data"]) > 0
 
-        let workflow = builder.build(&registry)
-            .expect("Workflow should build");
+    def test_node_interaction(self):
+        """Test multiple nodes working together."""
+        workflow = WorkflowBuilder()
 
-        let runtime = Runtime::new(RuntimeConfig::default(), registry);
-        let result = runtime.execute(&workflow, ValueMap::new()).await
-            .expect("Execution should succeed with real database");
+        # Node 1: Data source
+        workflow.add_node("PythonCodeNode", "source", {
+            "code": "result = {'items': [1, 2, 3, 4, 5]}"
+        })
 
-        // Verify real database operations
-        assert!(result.results.contains_key("db_read"));
-    }
+        # Node 2: Processor
+        workflow.add_node("PythonCodeNode", "process", {
+            "code": """
+items = input_data
+filtered = [x for x in items if x > 2]
+result = {'filtered': filtered, 'count': len(filtered)}
+"""
+        })
 
-    #[tokio::test]
-    async fn test_multi_node_pipeline() {
-        let registry = test_registry();
+        # Node 3: Validator
+        workflow.add_node("PythonCodeNode", "validate", {
+            "code": """
+data = input_data
+valid = data['count'] > 0 and len(data['filtered']) == data['count']
+result = {'valid': valid, 'data': data}
+"""
+        })
 
-        let mut builder = WorkflowBuilder::new();
+        # Connect nodes
+        workflow.add_connection("source", "result.items", "process", "input_data")
+        workflow.add_connection("process", "result", "validate", "input_data")
 
-        // Node 1: Source data
-        builder.add_node("LogNode", "source", ValueMap::from([
-            ("message".into(), Value::String("source data".into())),
-        ]));
+        # Execute
+        runtime = LocalRuntime()
+        results, run_id = runtime.execute(workflow.build())
 
-        // Node 2: Transform
-        builder.add_node("JSONTransformNode", "transform", ValueMap::from([
-            ("expression".into(), Value::String("@".into())),
-        ]));
-
-        // Node 3: Validate
-        builder.add_node("LogNode", "validate", ValueMap::from([
-            ("message".into(), Value::String("validated".into())),
-        ]));
-
-        // Connect pipeline
-        builder.connect("source", "output", "transform", "data");
-        builder.connect("transform", "result", "validate", "input");
-
-        let workflow = builder.build(&registry)
-            .expect("Workflow should build");
-
-        let runtime = Runtime::new(RuntimeConfig::default(), registry);
-        let result = runtime.execute(&workflow, ValueMap::new()).await
-            .expect("Pipeline execution should succeed");
-
-        assert!(result.results.contains_key("source"));
-        assert!(result.results.contains_key("transform"));
-        assert!(result.results.contains_key("validate"));
-        assert_eq!(result.results.len(), 3);
-    }
-}
-```
-
-## DataFlow Integration Test Template
-
-```rust
-//! Integration tests for DataFlow models with real PostgreSQL.
-
-#[cfg(feature = "integration")]
-mod dataflow_integration {
-    use kailash_dataflow::{DataFlow, Connection};
-
-    async fn setup_db() -> DataFlow {
-        dotenvy::dotenv().ok();
-        let url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL required");
-        let conn = Connection::new(&url).await
-            .expect("Failed to connect to test database");
-        DataFlow::new(conn)
-    }
-
-    #[tokio::test]
-    async fn test_model_crud_operations() {
-        let df = setup_db().await;
-
-        // Create -- real database insert
-        let created = df.execute_node("CreateUser", kailash_core::value::ValueMap::from([
-            ("name".into(), kailash_core::value::Value::String("Alice".into())),
-            ("email".into(), kailash_core::value::Value::String("alice@example.com".into())),
-        ])).await;
-
-        assert!(created.is_ok(), "Create should succeed with real DB");
-
-        // Read -- real database query
-        let read = df.execute_node("ListUser", kailash_core::value::ValueMap::new()).await;
-        assert!(read.is_ok(), "List should succeed with real DB");
-    }
-
-    #[tokio::test]
-    async fn test_transaction_rollback() {
-        let df = setup_db().await;
-
-        // Start transaction
-        let tx = df.begin().await.expect("Transaction should start");
-
-        // Insert within transaction
-        let _ = tx.execute_node("CreateUser", kailash_core::value::ValueMap::from([
-            ("name".into(), kailash_core::value::Value::String("Rollback Test".into())),
-            ("email".into(), kailash_core::value::Value::String("rollback@test.com".into())),
-        ])).await;
-
-        // Rollback
-        tx.rollback().await.expect("Rollback should succeed");
-
-        // Verify not persisted
-        let result = df.execute_node("ListUser", kailash_core::value::ValueMap::from([
-            ("filter".into(), kailash_core::value::Value::String("name = 'Rollback Test'".into())),
-        ])).await;
-
-        // Should not find the rolled-back record
-        assert!(result.is_ok());
-    }
-}
-```
-
-## Nexus HTTP Integration Test Template
-
-```rust
-//! Integration tests for Nexus HTTP handlers.
-
-#[cfg(feature = "integration")]
-mod nexus_integration {
-    use kailash_nexus::{NexusApp, Preset};
-    use axum::body::Body;
-    use axum::http::{Request, StatusCode};
-    use tower::ServiceExt;
-
-    #[tokio::test]
-    async fn test_handler_returns_200() {
-        let app = NexusApp::builder()
-            .preset(Preset::Lightweight)
-            .build()
-            .expect("App should build");
-
-        app.register("health", || async {
-            axum::Json(serde_json::json!({"status": "ok"}))
-        }).await.expect("Registration should succeed");
-
-        let router = app.into_router();
-
-        let response = router
-            .oneshot(
-                Request::builder()
-                    .uri("/health")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .expect("Request should succeed");
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-}
+        # Validate integration
+        assert results["validate"]["result"]["valid"] is True
+        assert results["validate"]["result"]["data"]["count"] == 3
 ```
 
 ## Docker Setup Required
 
 ```bash
-# Start test infrastructure before running integration tests
-docker compose -f tests/docker-compose.yml up -d
-
-# Verify services are ready
-docker compose -f tests/docker-compose.yml ps
-
-# Run integration tests
-cargo test --workspace --features integration
-
-# Tear down after testing
-docker compose -f tests/docker-compose.yml down -v
+# MUST run before integration tests
+# Start test infrastructure (Docker containers)
 ```
 
-## NO MOCKING Policy -- Tier 2 and Tier 3
+## Fixtures for Real Services
 
-### FORBIDDEN in Tier 2
+```python
+import pytest
 
-```rust
-// WRONG: Do not mock databases
-struct MockDatabase;
-impl Database for MockDatabase {
-    fn query(&self, _: &str) -> Vec<Row> { vec![] }  // Fake!
-}
+@pytest.fixture(scope="session")
+def test_database_url():
+    """Provide real test database URL."""
+    return "postgresql://test:test@localhost:5433/test_db"
 
-// WRONG: Do not use test doubles for infrastructure
-fn test_with_fake_redis() {
-    let fake = HashMap::new();  // Not a real Redis!
-}
+@pytest.fixture(scope="session")
+def test_redis_url():
+    """Provide real Redis URL."""
+    return "redis://localhost:6380/0"
+
+@pytest.fixture(autouse=True)
+def cleanup_database(test_database_url):
+    """Clean database before each test."""
+    import psycopg2
+    conn = psycopg2.connect(test_database_url)
+    cursor = conn.cursor()
+    cursor.execute("TRUNCATE TABLE test_table CASCADE")
+    conn.commit()
+    conn.close()
+
+    yield
+
+    # Cleanup after test
+    conn = psycopg2.connect(test_database_url)
+    cursor = conn.cursor()
+    cursor.execute("TRUNCATE TABLE test_table CASCADE")
+    conn.commit()
+    conn.close()
 ```
 
-### USE REAL SERVICES
+## Real infrastructure recommended Policy
 
-```rust
-// CORRECT: Use real PostgreSQL from Docker
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_with_real_db() {
-    dotenvy::dotenv().ok();
-    let url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
-    let pool = sqlx::PgPool::connect(&url).await.expect("DB connect");
+### ❌ FORBIDDEN in Tier 2
+```python
+# ❌ Don't mock databases
+@patch('database.connect')
+def test_database_integration(mock_db):
+    mock_db.return_value = fake_connection
 
-    sqlx::query("INSERT INTO items (name) VALUES ($1)")
-        .bind("test")
-        .execute(&pool)
-        .await
-        .expect("Insert should succeed");
-
-    let rows = sqlx::query("SELECT * FROM items WHERE name = $1")
-        .bind("test")
-        .fetch_all(&pool)
-        .await
-        .expect("Query should succeed");
-
-    assert!(!rows.is_empty());
-}
+# ❌ Don't mock SDK components
+@patch('kailash.nodes.CSVReaderNode')
+def test_workflow(mock_node):
+    mock_node.execute.return_value = fake_data
 ```
 
-## Quick Tips
-
-- Gate all integration tests with `#[cfg(feature = "integration")]`
-- Load `.env` with `dotenvy::dotenv().ok()` at the start of each test
-- Use `#[tokio::test]` for all async tests
-- Keep tests under 5 seconds
-- NO MOCKING -- this is an absolute rule for Tier 2 and Tier 3
-- Clean up test data in each test (use transactions + rollback, or truncate)
-- Call `runtime.shutdown().await` when tests register resources (database pools, etc.)
-- Run with: `cargo test --workspace --features integration`
+### ✅ USE REAL SERVICES
+```python
+# ✅ Use real database from Docker
+def test_database_integration(test_database_url):
+    # Uses actual PostgreSQL from Docker
+    workflow.add_node("AsyncSQLDatabaseNode", "db", {
+        "connection_string": test_database_url,
+        "query": "SELECT * FROM users"
+    })
+```
 
 ## Related Patterns
 
 - **Unit tests**: [`template-test-unit`](template-test-unit.md)
 - **E2E tests**: [`template-test-e2e`](template-test-e2e.md)
-- **Testing rules**: See `rules/testing.md` for NO MOCKING policy
+- **Testing strategy**: [`test-3tier-strategy`](../../4-operations/testing/test-3tier-strategy.md)
+- **Real infrastructure recommended policy**: [`gold-mocking-policy`](../../17-gold-standards/gold-mocking-policy.md)
 
 ## When to Escalate
 
 Use `testing-specialist` when:
-
 - Complex test infrastructure needed
 - Custom Docker setup required
 - CI/CD integration
 
 Use `tdd-implementer` when:
-
 - Test-first development approach
 - Complete test suite design
 
 ## Documentation References
 
 ### Primary Sources
+- **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 178-209)](../../../../.claude/agents/testing-specialist.md#L178-L209)
 
-- **Testing Rules**: [`rules/testing.md`](../../../../rules/testing.md) -- 3-tier strategy, NO MOCKING
-- **CLAUDE.md**: [`CLAUDE.md`](../../../../CLAUDE.md) -- `cargo test --workspace --features integration`
-- **DataFlow Tests**: [`crates/kailash-dataflow/tests/`](../../../../crates/kailash-dataflow/tests/) -- Reference integration tests
+## Quick Tips
 
-<!-- Trigger Keywords: integration test template, Tier 2 test, real infrastructure test, NO MOCKING test, integration test example, integration test boilerplate, Docker test template -->
+- 💡 **Real services**: Use Docker for databases, Redis, etc.
+- 💡 **<5 seconds**: Keep tests fast
+- 💡 **Real infrastructure recommended**: Absolute rule for Tier 2
+- 💡 **Cleanup**: Always clean test data before/after
+
+<!-- Trigger Keywords: integration test template, Tier 2 test, real infrastructure test, Real infrastructure recommended test, integration test example, integration test boilerplate, Docker test template -->

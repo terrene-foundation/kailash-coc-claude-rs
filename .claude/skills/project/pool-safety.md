@@ -1,6 +1,6 @@
 # Connection Pool Safety Verification
 
-Pre-deployment skill that verifies database connection pool configuration is safe for production. Invoke during `/deploy` or manually before any deployment. Covers Python and Ruby applications using `kailash-enterprise`.
+Pre-deployment skill that verifies database connection pool configuration is safe for production. Invoke during `/deploy` or manually before any deployment.
 
 ## When to Run
 
@@ -14,14 +14,11 @@ Pre-deployment skill that verifies database connection pool configuration is saf
 Search for `DATAFLOW_MAX_CONNECTIONS` in the project's `.env`, `.env.production`, `docker-compose.yml`, and deployment manifests.
 
 ```bash
-# Check all env files and deployment configs
-grep -r "DATAFLOW_MAX_CONNECTIONS" .env* docker-compose*.yml deploy/ k8s/ config/ 2>/dev/null
+# Check all env files
+grep -r "DATAFLOW_MAX_CONNECTIONS" .env* docker-compose*.yml deploy/ k8s/ 2>/dev/null
 
-# Check if it's used in Python code
-grep -rn "DATAFLOW_MAX_CONNECTIONS" src/ app/ lib/ --include="*.py" 2>/dev/null
-
-# Check if it's used in Ruby code
-grep -rn "DATAFLOW_MAX_CONNECTIONS" src/ app/ lib/ --include="*.rb" 2>/dev/null
+# Check if it's used in code
+grep -rn "DATAFLOW_MAX_CONNECTIONS" src/ app/ 2>/dev/null
 ```
 
 **If not found**: BLOCK deployment. Add to `.env`:
@@ -36,31 +33,22 @@ DATAFLOW_MAX_CONNECTIONS=10
 
 Search for DataFlow workflow execution inside middleware, decorators, or request hooks.
 
-### Python
-
 ```bash
 # Find middleware files
 find . -name "middleware*.py" -o -name "*middleware*.py" | head -20
 
 # Search for DB queries in middleware
-grep -rn "execute\|Runtime\|DataFlow\|ReadUser\|ReadSession\|WorkflowBuilder\|add_node.*Read" \
+grep -rn "execute_async\|execute_workflow\|runtime.execute\|DataFlow\|ReadUser\|ReadSession" \
   $(find . -name "middleware*.py" -o -name "*middleware*.py" 2>/dev/null) 2>/dev/null
-```
 
-### Ruby
-
-```bash
-# Find middleware files
-find . -name "*middleware*.rb" | head -20
-
-# Search for DB queries in middleware
-grep -rn "Kailash::Runtime\|Kailash::DataFlow\|WorkflowBuilder\|add_node.*Read" \
-  $(find . -name "*middleware*.rb" 2>/dev/null) 2>/dev/null
+# Search for workflow builders in middleware
+grep -rn "WorkflowBuilder\|add_node.*Read" \
+  $(find . -name "middleware*.py" -o -name "*middleware*.py" 2>/dev/null) 2>/dev/null
 ```
 
 **If found**: BLOCK deployment. Report each file and line number. The fix is to replace DB queries with:
 - JWT claim extraction (preferred for auth)
-- In-memory TTL cache (`cachetools.TTLCache` in Python, `lru_cache` gem in Ruby)
+- In-memory TTL cache (`cachetools.TTLCache`) for session lookups
 - Redis cache for distributed deployments
 
 ## Step 3: Verify Pool Math
@@ -68,14 +56,14 @@ grep -rn "Kailash::Runtime\|Kailash::DataFlow\|WorkflowBuilder\|add_node.*Read" 
 Collect these values and verify the inequality:
 
 1. **`DATAFLOW_MAX_CONNECTIONS`** — from Step 1
-2. **`num_workers`** — from server config, Dockerfile, or deployment manifest
+2. **`num_workers`** — from Gunicorn/uvicorn config, Dockerfile, or deployment manifest
 
 ```bash
-# Check Gunicorn/uvicorn config (Python)
+# Check Gunicorn config
 grep -rn "workers\|WEB_CONCURRENCY" gunicorn*.py Procfile docker-compose*.yml 2>/dev/null
 
-# Check Puma config (Ruby)
-grep -rn "workers\|WEB_CONCURRENCY" config/puma.rb Procfile 2>/dev/null
+# Check uvicorn config
+grep -rn "workers" uvicorn*.py 2>/dev/null
 ```
 
 3. **`postgres_max_connections`** — from RDS/CloudSQL config or PostgreSQL settings
@@ -85,7 +73,7 @@ grep -rn "workers\|WEB_CONCURRENCY" config/puma.rb Procfile 2>/dev/null
 | Variable                    | Value    | Source                  |
 | --------------------------- | -------- | ----------------------- |
 | `DATAFLOW_MAX_CONNECTIONS`  | ___      | `.env` / deploy config  |
-| `num_workers`               | ___      | Server config           |
+| `num_workers`               | ___      | Gunicorn/uvicorn config |
 | `postgres_max_connections`  | ___      | RDS/CloudSQL/pg config  |
 | **Pool total**              | ___ x ___ = ___ |                   |
 | **Safe limit (70%)**        | ___ x 0.7 = ___ |                   |
@@ -96,15 +84,12 @@ grep -rn "workers\|WEB_CONCURRENCY" config/puma.rb Procfile 2>/dev/null
 ## Step 4: Check Health Endpoint
 
 ```bash
-# Find health check endpoints (Python)
+# Find health check endpoints
 grep -rn "health\|healthz\|readyz\|liveness" src/ app/ --include="*.py" 2>/dev/null
 
-# Find health check endpoints (Ruby)
-grep -rn "health\|healthz\|readyz\|liveness" app/ lib/ config/ --include="*.rb" 2>/dev/null
-
 # Check if health endpoints use DataFlow workflows
-grep -A 10 "health" $(grep -rl "health\|healthz" src/ app/ lib/ --include="*.py" --include="*.rb" 2>/dev/null) 2>/dev/null | \
-  grep -i "workflow\|dataflow\|execute\|add_node\|Runtime"
+grep -A 10 "health" $(grep -rl "health\|healthz" src/ app/ --include="*.py" 2>/dev/null) 2>/dev/null | \
+  grep -i "workflow\|dataflow\|execute\|add_node"
 ```
 
 **If health endpoints use DataFlow workflows**: WARN. Replace with `SELECT 1` raw query.
@@ -112,14 +97,13 @@ grep -A 10 "health" $(grep -rl "health\|healthz" src/ app/ lib/ --include="*.py"
 ## Step 5: Check for Pool-Per-Request Anti-Pattern
 
 ```bash
-# Find DataFlow/pool instantiation inside route handlers (Python)
-grep -rn "DataFlow(\|create_pool" src/ app/ --include="*.py" 2>/dev/null
+# Find DataFlow instantiation inside route handlers
+grep -rn "DataFlow(" src/ app/ --include="*.py" 2>/dev/null
 
-# Find DataFlow/pool instantiation inside route handlers (Ruby)
-grep -rn "DataFlow.new\|ConnectionPool.new" app/ lib/ --include="*.rb" 2>/dev/null
+# Check if DataFlow is created at module/app level (correct) or inside functions (wrong)
 ```
 
-**If pool is instantiated inside route handlers or non-singleton functions**: BLOCK. Move to application startup/lifespan.
+**If DataFlow is instantiated inside route handlers or non-singleton functions**: BLOCK. Move to application lifespan/startup.
 
 ## Output Format
 

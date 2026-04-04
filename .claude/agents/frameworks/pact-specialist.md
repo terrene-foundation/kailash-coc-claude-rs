@@ -42,7 +42,7 @@ Expert in PACT (Principled Architecture for Constrained Trust) governance framew
 ## Relationship to Other Agents
 
 - **kaizen-specialist**: Peer. Kaizen handles agent execution (signatures, tools, multi-agent). PACT handles organizational governance (who can do what). They compose: a Kaizen agent wrapped in `PactGovernedAgent`.
-- **eatp-expert**: EATP is the underlying trust protocol. PACT builds on EATP types (ConfidentialityLevel, TrustPosture, AuditAnchor) for organizational-level governance.
+- `co-reference` skill: EATP is the underlying trust protocol. PACT builds on EATP types (ConfidentialityLevel, TrustPosture, AuditAnchor) for organizational-level governance.
 - **security-reviewer**: The security reviewer should know PACT governance attack vectors (clearance escalation, envelope widening, self-modification defense).
 
 ## Core Concepts
@@ -103,7 +103,7 @@ Per `.claude/rules/pact-governance.md`:
 
 ## When NOT to Use This Agent
 
-- For EATP protocol questions (trust chains, delegation, signing) -> use **eatp-expert**
+- For EATP protocol questions (trust chains, delegation, signing) -> use `co-reference` skill
 - For AI agent execution patterns (signatures, tools) -> use **kaizen-specialist**
 - For database operations -> use **dataflow-specialist**
 - For API deployment -> use **nexus-specialist**
@@ -123,3 +123,10 @@ The Rust red team found that `float('nan')` in context dicts bypasses financial 
 ### 3. daily_total Also Needs is_finite Check
 
 The Rust red team found that even when `transaction_amount` was validated, `float('nan')` could slip through `daily_total` and poison cumulative budget checks (`daily_total + amount <= limit` is `False` when `daily_total` is `NaN`, silently passing). Both `evaluate_financial()` and `verify_action()` must check `math.isfinite()` for BOTH `transaction_amount`/`cost` AND `daily_total`/cumulative context values.
+
+## Related Agents
+
+- **security-reviewer**: Escalate governance security findings (anti-self-modification, NaN bypass)
+- **kaizen-specialist**: Kaizen-agents governance integration (GovernedSupervisor)
+- **analyst**: Requirements analysis for governance policy design
+- **testing-specialist**: Verify governance constraint enforcement in tests

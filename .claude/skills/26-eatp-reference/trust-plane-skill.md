@@ -112,6 +112,6 @@ Five dimensions from EATP (see `docs/00-authority/05-trust-framework.md`):
 For complex trust-plane work, invoke:
 
 - **trust-plane-specialist** — Crate-level patterns and architecture
-- **eatp-expert** — EATP protocol questions
+- `co-reference` skill — EATP protocol questions
 - **ffi-specialist** — Binding implementation
 - **security-reviewer** — Security audit of trust operations

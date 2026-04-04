@@ -9,7 +9,7 @@ The standalone EATP SDK (`pip install kailash`) provides cryptographic trust cha
 
 ```bash
 pip install kailash
-# Trust dependencies (pynacl, pydantic, jsonschema, click) are included in base install
+# Trust dependencies (pynacl, pydantic, jsonschema, click) are included in the base install
 ```
 
 ## Minimal 4-Operation Lifecycle

@@ -163,7 +163,7 @@ The trust-plane exposes an MCP server for AI agent integration via HTTP/SSE tran
 
 - `skills/26-eatp-reference/ -- EATP trust protocol reference
 - `skills/26-eatp-reference/` -- EATP protocol reference
-- `skills/27-care-reference/` -- CARE governance framework
+- `skills/co-reference/` -- CARE governance framework
 
 ## Related Agents
 
