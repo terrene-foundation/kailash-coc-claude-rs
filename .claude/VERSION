@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-04",
@@ -7,10 +7,23 @@
     "name": "kailash",
     "type": "coc-source",
     "version": "1.4.0",
-    "build_version": "3.7.0",
-    "synced_at": "2026-04-04T00:00:00Z"
+    "build_version": "3.8.0",
+    "synced_at": "2026-04-04T08:00:00Z"
   },
   "changelog": [
+    {
+      "version": "1.5.0",
+      "date": "2026-04-04",
+      "summary": "Red team fixes: cross-refs, 3 new SKILL.md indexes, phantom nodes, auth middleware",
+      "changes": [
+        "FIX: 4 stale cross-refs (07-eatp→26-eatp, 08-care/27-care→co-reference)",
+        "NEW: 05-enterprise/SKILL.md, 06-python-bindings/SKILL.md, 28-ruby-bindings/SKILL.md",
+        "GLOBAL: 22 sub-skill phantom node fixes",
+        "GLOBAL: 10 broken ../nodes/ cross-refs fixed",
+        "GLOBAL: testing-strategies test dir names",
+        "NEW: 18-security-patterns/security-auth-middleware-rs.md (v3.8 red team)"
+      ]
+    },
     {
       "version": "1.4.0",
       "date": "2026-04-04",
