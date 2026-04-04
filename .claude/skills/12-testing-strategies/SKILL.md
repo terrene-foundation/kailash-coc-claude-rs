@@ -1,397 +1,92 @@
 ---
 name: testing-strategies
-description: "Comprehensive testing strategies for the Kailash Rust SDK including the 3-tier testing approach with NO MOCKING policy for Tiers 2-3. Use when asking about 'testing', 'test strategy', '3-tier testing', 'unit tests', 'integration tests', 'end-to-end tests', 'testing workflows', 'testing DataFlow', 'testing Nexus', 'NO MOCKING', 'real infrastructure', 'test organization', or 'testing best practices'."
+description: "Comprehensive testing strategies for Kailash applications including the 3-tier testing approach with Real infrastructure recommended policy for Tiers 2-3. Use when asking about 'testing', 'test strategy', '3-tier testing', 'unit tests', 'integration tests', 'end-to-end tests', 'testing workflows', 'testing DataFlow', 'testing Nexus', 'Real infrastructure recommended', 'real infrastructure', 'test organization', or 'testing best practices'."
 ---
 
 # Kailash Testing Strategies
 
-Comprehensive testing approach for the Kailash Rust SDK using the 3-tier testing strategy with NO MOCKING policy.
+3-tier testing strategy with real infrastructure policy for Kailash applications.
 
-## Overview
+## Sub-File Index
 
-Kailash testing philosophy:
+- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete 3-tier guide: tier definitions, fixture patterns, CI/CD integration
 
-- **4-Tier Strategy**: Regression, Unit, Integration, End-to-End
-- **Regression-First**: Every bug fix starts with a failing regression test
-- **NO MOCKING Policy**: Tiers 2-3 use real infrastructure
-- **Real Database Testing**: Actual PostgreSQL/SQLite via sqlx
-- **Real API Testing**: Live HTTP calls
-- **Real LLM Testing**: Actual model calls (with caching)
+## 3-Tier Strategy
 
-## Reference Documentation
+| Tier            | Scope               | Mocking                | Speed      | Infrastructure             |
+| --------------- | ------------------- | ---------------------- | ---------- | -------------------------- |
+| 1 - Unit        | Functions, classes  | Allowed                | <1s/test   | None                       |
+| 2 - Integration | Workflows, DB, APIs | Real infra recommended | 1-10s/test | Real DB, real runtime      |
+| 3 - E2E         | Complete user flows | Real infra recommended | 10s+/test  | Real HTTP, real everything |
 
-### Core Strategy
+### Real Infrastructure Policy (Tiers 2-3)
 
-- **[test-3tier-strategy](test-3tier-strategy.md)** - Complete testing guide
-  - Tier 0: Regression Tests (reproduce known bugs, permanent guards)
-  - Tier 1: Unit Tests (trait-based test doubles allowed)
-  - Tier 2: Integration Tests (NO MOCKING)
-  - Tier 3: End-to-End Tests (NO MOCKING)
-  - Test organization
-  - Helper function patterns
-  - CI/CD integration
+**Why**: Mocking hides database constraints, API timeouts, race conditions, connection pool exhaustion, schema migration issues, and LLM token limits.
 
-## 4-Tier Testing Strategy
+**What to use instead**: Test databases (Docker containers), test API endpoints, test LLM accounts (with caching), temp directories.
 
-### Tier 0: Regression Tests
+### Key Fixtures
 
-**Scope**: Reproduce known bugs, permanent guards against re-introduction
-**Mocking**: Depends on bug scope (Tier 1 rules for unit-level bugs, Tier 2 rules for integration bugs)
-**Speed**: Varies
-**Lifetime**: PERMANENT — regression tests are never deleted
+```python
+@pytest.fixture
+def db():
+    """Real database for testing."""
+    db = DataFlow("postgresql://test:test@localhost:5433/test_db")
+    db.create_tables()
+    yield db
+    db.drop_tables()
 
-Every bug fix MUST start with a failing regression test that reproduces the exact bug from the GitHub issue. The test MUST fail before the fix and pass after.
-
-```rust
-// crates/kailash-dataflow/tests/regression_dataflow.rs
-
-/// Regression: GitHub issue #31 — CreateUser node silently drops explicit `id`
-/// when the model has `auto_increment: true`.
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn issue_31_create_includes_explicit_pk() {
-    dotenvy::dotenv().ok();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
-    // Reproduce the exact bug from the issue body
-    // ...
-    assert!(result.contains_key("id"), "explicit PK must not be silently dropped");
-}
+@pytest.fixture
+def runtime():
+    return LocalRuntime()
 ```
-
-**Why Tier 0 exists:** Four consecutive DataFlow regressions (#22, #23, #28, #31) shipped because fixes were verified by code review alone, not by running the exact reproduction steps from the issue. Regression tests are the cheapest insurance against re-introducing known bugs.
-
-**Naming convention:**
-
-- File: `tests/regression_*.rs` (e.g., `tests/regression_dataflow.rs`)
-- Function: `issue_{number}_{short_description}` (e.g., `issue_31_create_includes_explicit_pk`)
-
-### Tier 1: Unit Tests
-
-**Scope**: Individual functions and structs
-**Mocking**: ✅ Trait-based test doubles allowed
-**Speed**: Fast (< 1s per test)
-
-```rust
-#[test]
-fn test_workflow_builder() {
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("LogNode", "node1", ValueMap::new());
-
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry);
-    assert!(workflow.is_ok());
-}
-```
-
-### Tier 2: Integration Tests
-
-**Scope**: Component integration (workflows, database, APIs)
-**Mocking**: ❌ NO MOCKING
-**Speed**: Medium (1-10s per test)
-
-```rust
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_dataflow_crud() {
-    dotenvy::dotenv().ok();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
-
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("SQLQueryNode", "create", ValueMap::from([
-        ("connection_string".into(), Value::String(db_url.into())),
-        ("query".into(), Value::String("INSERT INTO users (name) VALUES ($1) RETURNING id".into())),
-        ("parameters".into(), Value::Array(vec![Value::String("Test".into())])),
-    ]));
-
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-    let result = runtime.execute(&workflow, ValueMap::new()).await.expect("execution failed");
-
-    assert!(result.results.contains_key("create"));
-}
-```
-
-### Tier 3: End-to-End Tests
-
-**Scope**: Complete user workflows
-**Mocking**: ❌ NO MOCKING
-**Speed**: Slow (10s+ per test)
-
-```rust
-#[tokio::test]
-#[cfg(feature = "e2e")]
-async fn test_user_registration_flow() {
-    // Real HTTP request to actual axum API
-    let client = reqwest::Client::new();
-    let response = client.post("http://localhost:3000/api/register")
-        .json(&serde_json::json!({
-            "email": "test@example.com",
-            "name": "Test User"
-        }))
-        .send()
-        .await
-        .expect("request failed");
-
-    assert_eq!(response.status(), 200);
-    let body: serde_json::Value = response.json().await.expect("json parse failed");
-    assert!(body["user_id"].is_string());
-}
-```
-
-## NO MOCKING Policy
-
-### Why No Mocking in Tiers 2-3?
-
-**Real Issues Found**:
-
-- Database constraint violations
-- API timeout problems
-- Race conditions
-- Connection pool exhaustion
-- Schema migration issues
-- LLM token limits
-
-**Mocking Hides**:
-
-- Real-world latency
-- Actual error conditions
-- Integration bugs
-- Performance issues
-
-### What to Use Instead
-
-**Real Infrastructure**:
-
-- Test databases (Docker containers)
-- Test API endpoints
-- Test LLM accounts (with caching)
-- Test file systems (temp directories via `tempfile` crate)
 
 ## Test Organization
 
-### Directory Structure
-
 ```
-crates/kailash-core/
-  src/
-    lib.rs           # #[cfg(test)] mod tests at bottom
-  tests/
-    integration/     # #[cfg(feature = "integration")]
-    e2e/             # #[cfg(feature = "e2e")]
-
-crates/kailash-dataflow/
-  tests/
-    concurrency_test.rs
-    integration/
-
-tests/                # Workspace-level integration tests
-  docker-compose.test.yml
+tests/
+  tier1_unit/          # Mocking allowed
+  tier2_integration/   # Real infrastructure
+  tier3_e2e/           # Full system
+  conftest.py          # Shared fixtures
 ```
 
-### Test Module Patterns
+## Component Testing Summary
 
-```rust
-// In src/lib.rs or src/module.rs — Tier 1 unit tests
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_workflow_builder_creates_workflow() {
-        // ...
-    }
-}
-
-// In tests/integration/mod.rs — Tier 2
-#[cfg(feature = "integration")]
-mod integration {
-    #[tokio::test]
-    async fn test_with_real_database() {
-        // ...
-    }
-}
-```
-
-## Testing Different Components
-
-### Testing Workflows
-
-```rust
-#[tokio::test]
-async fn test_workflow_execution() {
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("JSONTransformNode", "calc", ValueMap::from([
-        ("expression".into(), Value::String("@.value".into())),
-    ]));
-
-    let registry = Arc::new(NodeRegistry::default());
-    let workflow = builder.build(&registry).expect("build failed");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-
-    let inputs = ValueMap::from([
-        ("data".into(), Value::Object(ValueMap::from([
-            ("value".into(), Value::Integer(42)),
-        ]))),
-    ]);
-    let result = runtime.execute(&workflow, inputs).await.expect("execution failed");
-
-    assert!(result.results.contains_key("calc"));
-}
-```
-
-### Testing DataFlow
-
-```rust
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_dataflow_operations() {
-    dotenvy::dotenv().ok();
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL required");
-    let pool = sqlx::PgPool::connect(&db_url).await.expect("connect failed");
-
-    // Real database operations via sqlx
-    let row = sqlx::query!("SELECT 1 as value")
-        .fetch_one(&pool)
-        .await
-        .expect("query failed");
-
-    assert_eq!(row.value, Some(1));
-}
-```
-
-### Testing Nexus
-
-```rust
-#[tokio::test]
-#[cfg(feature = "e2e")]
-async fn test_nexus_api() {
-    let client = reqwest::Client::new();
-
-    let response = client.post("http://localhost:3000/api/workflow/test_workflow")
-        .json(&serde_json::json!({"input": "data"}))
-        .send()
-        .await
-        .expect("request failed");
-
-    assert_eq!(response.status(), 200);
-    let body: serde_json::Value = response.json().await.expect("json parse failed");
-    assert!(body.get("result").is_some());
-}
-```
-
-### Testing Kaizen Agents
-
-```rust
-#[tokio::test]
-#[cfg(feature = "integration")]
-async fn test_agent_execution() {
-    dotenvy::dotenv().ok();
-
-    // Real LLM call (use caching to reduce costs)
-    let agent = MyAgent::new();
-    let result = agent.run("Test query").await.expect("agent failed");
-
-    assert!(!result.output.is_empty());
-}
-```
+| Component     | Tier | Key Point                                                  |
+| ------------- | ---- | ---------------------------------------------------------- |
+| Workflows     | 2    | Real runtime execution, verify `results["node"]["result"]` |
+| DataFlow      | 2    | Real DB, verify with read-back after write                 |
+| Nexus API     | 3    | Real HTTP requests to running server                       |
+| Kaizen Agents | 2    | Real LLM calls with response caching                       |
 
 ## Critical Rules
 
-- ✅ Tier 0: Every bug fix starts with a failing regression test
-- ✅ Tier 0: Regression tests are permanent — NEVER delete them
-- ✅ Tier 1: Trait-based test doubles for external dependencies
-- ✅ Tier 2-3: Use real infrastructure
-- ✅ Use Docker for test databases
-- ✅ Clean up resources after tests
-- ✅ Cache LLM responses for cost
-- ✅ Run Tier 0-1 in CI, Tier 2-3 optionally
-- ❌ NEVER publish a bug fix without a regression test
-- ❌ NEVER use mockall/mock frameworks in Tier 2-3
-- ❌ NEVER mock database in Tier 2-3
-- ❌ NEVER mock HTTP calls in Tier 2-3
-- ❌ NEVER skip resource cleanup
-- ❌ NEVER commit test credentials (use `.env`)
+- Tier 1: Mock external dependencies
+- Tier 2-3: Real infrastructure, no `@patch`/`MagicMock`/`unittest.mock`
+- Docker for test databases
+- Clean up resources after every test
+- Cache LLM responses for cost control
+- Run Tier 1 in CI always; Tier 2-3 optionally
+- Never commit test credentials
 
 ## Running Tests
 
-### Local Development
-
 ```bash
-# Run all unit tests
-cargo test --workspace
-
-# Run by tier
-cargo test --workspace --test 'regression_*'  # Tier 0: Regression
-cargo test --workspace                        # Tier 1: Unit
-cargo test --workspace --features integration # Tier 2: Integration
-cargo test --workspace --features e2e         # Tier 3: E2E
-
-# Run with coverage
-cargo tarpaulin --workspace --out Html
-# or
-cargo llvm-cov --workspace --html
+pytest tests/tier1_unit/        # Fast CI
+pytest tests/tier2_integration/ # With real infra
+pytest tests/tier3_e2e/         # Full system
+pytest --cov=app --cov-report=html  # Coverage
 ```
-
-### CI/CD
-
-```bash
-# Fast CI (Tier 1 only)
-cargo test --workspace
-cargo clippy --workspace -- -D warnings
-
-# Full CI (all tiers)
-docker compose -f tests/docker-compose.test.yml up -d
-cargo test --workspace --features integration,e2e
-docker compose -f tests/docker-compose.test.yml down
-```
-
-## When to Use This Skill
-
-Use this skill when you need to:
-
-- Understand Kailash testing philosophy
-- Set up test infrastructure
-- Write integration tests
-- Test workflows with real execution
-- Test DataFlow with real databases
-- Test Nexus APIs end-to-end
-- Organize test suites
-- Configure CI/CD testing
-
-## Best Practices
-
-### Test Quality
-
-- Write descriptive test names (snake_case)
-- Use AAA pattern (Arrange, Act, Assert)
-- Test both success and failure cases
-- Clean up resources properly
-- Use helper functions for setup/teardown
-
-### Performance
-
-- Use test database containers
-- Cache expensive operations
-- Run tests in parallel (when safe) via `cargo test -- --test-threads=N`
-- Feature-gate slow tests with `#[cfg(feature = "integration")]`
-
-### Maintenance
-
-- Keep tests close to code (`#[cfg(test)] mod tests`)
-- Update tests with code changes
-- Review test coverage regularly
-- Remove obsolete tests
 
 ## Related Skills
 
-- **[02-dataflow](../../02-dataflow/SKILL.md)** - DataFlow testing
-- **[03-nexus](../../03-nexus/SKILL.md)** - API testing
-- **[26-gold-standards](../../26-gold-standards/SKILL.md)** - Testing best practices
+- **[07-development-guides](../07-development-guides/SKILL.md)** - Testing patterns
+- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Testing best practices
+- **[02-dataflow](../02-dataflow/SKILL.md)** - DataFlow testing
+- **[03-nexus](../03-nexus/SKILL.md)** - API testing
 
 ## Support
-
-For testing help, invoke:
 
 - `testing-specialist` - Testing strategies and patterns
 - `tdd-implementer` - Test-driven development

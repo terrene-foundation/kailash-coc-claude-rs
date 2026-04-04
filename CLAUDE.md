@@ -27,13 +27,13 @@ See `rules/env-models.md` for full details.
 
 When you discover a missing feature, endpoint, or record — **implement or create it**. Do not note it as a gap and move on. The only acceptable skip is explicit user instruction.
 
-See `rules/e2e-god-mode.md` and `rules/no-stubs.md` for enforcement details.
+See `rules/e2e-god-mode.md` and `rules/zero-tolerance.md` for enforcement details.
 
-### 4. Mandatory Reviews
+### 4. Recommended Reviews
 
-- **Code review** (intermediate-reviewer) after EVERY file change — see `rules/agents.md` Rule 1
-- **Security review** (security-reviewer) before EVERY commit — NO exceptions — see `rules/agents.md` Rule 2
-- **NO MOCKING** in Tier 2/3 tests — use real infrastructure — see `rules/testing.md`
+- **Code review** (reviewer) after file changes — RECOMMENDED — see `rules/agents.md`
+- **Security review** (security-reviewer) before commits — strongly recommended — see `rules/agents.md`
+- **Real infrastructure recommended** in Tier 2/3 tests — see `rules/testing.md`
 
 ## Workspace Commands
 
@@ -64,26 +64,18 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | **Autonomous execution model**        | `rules/autonomous-execution.md` | **Global — 10x multiplier**                         |
 | **LLM-first agent reasoning**         | `rules/agent-reasoning.md`      | `**/kaizen/**`, `**/*agent*`                        |
 | Agent orchestration & review mandates | `rules/agents.md`               | Global                                              |
-| Branch protection & PR workflow       | `rules/branch-protection.md`    | Global                                              |
 | CC artifact quality                   | `rules/cc-artifacts.md`         | `.claude/**`, `scripts/hooks/**`                    |
 | Plain-language communication          | `rules/communication.md`        | Global                                              |
 | Connection pool safety                | `rules/connection-pool.md`      | Database connection code                            |
-| DataFlow pool configuration           | `rules/dataflow-pool.md`        | `**/dataflow/**`                                    |
-| Deployment & cloud release            | `rules/deployment.md`           | Global                                              |
 | Documentation standards               | `rules/documentation.md`        | `README.md`, `docs/**`, `CHANGELOG.md`              |
 | E2E god-mode testing                  | `rules/e2e-god-mode.md`         | `tests/e2e/**`, `**/*e2e*`, `**/*playwright*`       |
-| EATP SDK conventions                  | `rules/eatp.md`                 | `**/trust/**`, `**/eatp/**`                         |
 | API keys & model names                | `rules/env-models.md`           | `**/*.py`, `**/*.ts`, `**/*.js`, `.env*`            |
 | Git commits, branches, PRs            | `rules/git.md`                  | Global                                              |
-| Infrastructure SQL safety             | `rules/infrastructure-sql.md`   | `**/db/**`, `**/infrastructure/**`                  |
 | Journal knowledge trail               | `rules/journal.md`              | Global                                              |
-| No stubs, TODOs, or placeholders      | `rules/no-stubs.md`             | Global                                              |
-| PACT governance security              | `rules/pact-governance.md`      | `**/pact/**`, `**/governance/**`                    |
 | Kailash SDK execution patterns        | `rules/patterns.md`             | `**/*.py`, `**/*.rb`, `**/*.ts`, `**/*.js`          |
 | Security (secrets, injection)         | `rules/security.md`             | Global                                              |
 | Terrene naming & terminology          | `rules/terrene-naming.md`       | Global                                              |
-| 3-tier testing, no mocking Tiers 2-3  | `rules/testing.md`              | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
-| Trust-plane security                  | `rules/trust-plane-security.md` | `**/trust/**`                                       |
+| 3-tier testing, real infra Tiers 2-3  | `rules/testing.md`              | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
 | Zero-tolerance enforcement            | `rules/zero-tolerance.md`       | **Global — overrides all**                          |
 | Auto-generated workflow instincts     | `rules/learned-instincts.md`    | Global                                              |
 
@@ -91,12 +83,9 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 
 ## Agents
 
-### Analysis & Planning
+### Analysis (`agents/analysis/`)
 
-- **deep-analyst** — Failure analysis, complexity assessment
-- **requirements-analyst** — Requirements breakdown, ADR creation
-- **sdk-navigator** — Find patterns before coding
-- **framework-advisor** — Choose Core SDK, DataFlow, Nexus, or Kaizen
+- **analyst** — Failure point analysis, risk assessment, requirements breakdown, ADRs
 
 ### Framework Specialists (`agents/frameworks/`)
 
@@ -104,43 +93,44 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 - **nexus-specialist** — Multi-channel platform (API/CLI/MCP)
 - **kaizen-specialist** — AI agents, signatures, multi-agent coordination
 - **mcp-specialist** — MCP server implementation
+- **pact-specialist** — Organizational governance (D/T/R, envelopes, clearance)
 
-### Core Implementation
+### Implementation (`agents/implementation/`)
 
 - **pattern-expert** — Workflow patterns, nodes, parameters
 - **tdd-implementer** — Test-first development
-- **intermediate-reviewer** — Code review after changes (MANDATORY)
-- **gold-standards-validator** — Compliance checking
 - **build-fix** — Fix build/type errors with minimal changes
-- **security-reviewer** — Security audit before commits (MANDATORY)
 
-### Frontend & Design (`agents/frontend/`)
+### Quality (`agents/quality/`)
+
+- **reviewer** — Code review, doc validation, cross-reference accuracy
+- **gold-standards-validator** — Compliance checking
+- **security-reviewer** — Security audit before commits
+
+### Frontend (`agents/frontend/`)
 
 - **react-specialist** — React/Next.js frontends
 - **flutter-specialist** — Flutter mobile/desktop apps
-- **frontend-developer** — Responsive UI components
 - **uiux-designer** — Enterprise UI/UX design
-- **ai-ux-designer** — AI interaction patterns
 
-### Testing & QA
+### Testing (`agents/testing/`)
 
-- **testing-specialist** — 3-tier strategy with real infrastructure
-- **documentation-validator** — Test code examples
-- **e2e-runner** — Playwright E2E test generation
-- **value-auditor** — Enterprise demo QA from buyer perspective
+- **testing-specialist** — 3-tier strategy with real infrastructure, Playwright E2E
 
-### Release & Operations (`agents/management/`)
+### Release (`agents/release/`)
 
-- **git-release-specialist** — Git workflows, CI, releases, version management
-- **deployment-specialist** — Deployment onboarding, package/cloud release, Docker/K8s
+- **release-specialist** — CI/CD, publishing, deployment, version management
+
+### Management (`agents/management/`)
+
 - **todo-manager** — Project task tracking
 - **gh-manager** — GitHub issue/project management
 
-### Standards (`agents/standards/`)
+### Other
 
-- **care-expert** — CARE governance framework
-- **coc-expert** — COC development methodology
-- **eatp-expert** — EATP trust protocol
+- **claude-code-architect** — CC artifact quality auditing
+- **open-source-strategist** — Licensing, community building
+- **value-auditor** — Enterprise demo QA from buyer perspective
 
 ## Skills Navigation
 

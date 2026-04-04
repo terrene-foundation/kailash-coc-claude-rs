@@ -2,19 +2,18 @@
 
 ## Purpose
 
-Load the testing strategies skill for 3-tier testing with NO MOCKING policy enforcement in Tier 2-3.
+Load the testing strategies skill for 3-tier testing with Real infrastructure recommended policy enforcement in Tier 2-3.
 
 ## Step 0: Detect Project Testing Stack
 
 Before loading test patterns, check what the project uses:
 
 - Look at `requirements.txt`, `pyproject.toml`, `setup.py` for `pytest`, `unittest`
-- Look at `Gemfile` for `rspec`, `minitest`
 - Look at `package.json` for `jest`, `vitest`, `mocha`, `playwright`
 - Look at `pubspec.yaml` for `flutter_test`, `integration_test`
 - Look for existing test directories (`tests/`, `test/`, `__tests__/`, `spec/`)
 
-Adapt examples to the project's testing framework. The 3-tier strategy and NO MOCKING policy apply universally regardless of framework.
+Adapt examples to the project's testing framework. The 3-tier strategy and Real infrastructure recommended policy apply universally regardless of framework.
 
 ## Quick Reference
 
@@ -22,13 +21,13 @@ Adapt examples to the project's testing framework. The 3-tier strategy and NO MO
 | ------------- | ------------------------------------------- |
 | `/test`       | Load testing patterns and tier strategy     |
 | `/test tier1` | Show unit test patterns (mocking allowed)   |
-| `/test tier2` | Show integration test patterns (NO MOCKING) |
-| `/test tier3` | Show E2E test patterns (NO MOCKING)         |
+| `/test tier2` | Show integration test patterns (Real infrastructure recommended) |
+| `/test tier3` | Show E2E test patterns (Real infrastructure recommended)         |
 
 ## What You Get
 
 - 3-tier testing strategy
-- NO MOCKING enforcement (Tier 2-3)
+- Real infrastructure recommended enforcement (Tier 2-3)
 - Real infrastructure patterns
 - Coverage requirements
 
@@ -52,7 +51,7 @@ def db():
     conn.close()
 
 def test_user_creation(db):
-    # NO MOCKING - real database operations
+    # Real infrastructure recommended - real database operations
     db.execute("INSERT INTO users (name) VALUES (?)", ("test",))
     result = db.execute("SELECT * FROM users WHERE name = ?", ("test",)).fetchone()
     assert result is not None
@@ -63,7 +62,7 @@ def test_user_creation(db):
 ```python
 @pytest.fixture
 def db():
-    df = kailash.DataFlow("sqlite:///:memory:")
+    db = DataFlow("sqlite:///:memory:")
     yield db
     db.close()
 
@@ -72,30 +71,18 @@ def test_user_creation(db):
     assert result.id is not None
 ```
 
-## Critical Rule - NO MOCKING in Tier 2-3
+## Critical Rule - Real infrastructure recommended in Tier 2-3
 
 ```python
-# PROHIBITED in integration/e2e tests (Python)
+# PROHIBITED in integration/e2e tests (any framework)
 @patch('module.function')
 MagicMock()
 unittest.mock
 from mock import Mock
 mocker.patch()
-```
-
-```ruby
-# PROHIBITED in integration/e2e tests (Ruby)
-allow(obj).to receive(:method)
-expect(obj).to receive(:method)
-double("name")
-instance_double(Class)
-```
-
-```javascript
-// PROHIBITED in integration/e2e tests (JS/TS)
-jest.mock();
-jest.spyOn();
-vi.mock();
+jest.mock()
+jest.spyOn()
+vi.mock()
 ```
 
 ## Agent Teams
@@ -104,11 +91,11 @@ When writing tests, deploy these agents as a team:
 
 - **testing-specialist** — 3-tier strategy, test architecture, coverage requirements
 - **tdd-implementer** — Test-first methodology, red-green-refactor cycle
-- **intermediate-reviewer** — Review test quality after writing
+- **reviewer** — Review test quality after writing
 
 For E2E tests, additionally deploy:
 
-- **e2e-runner** — Playwright/Marionette test generation
+- **testing-specialist** — Playwright/Marionette test generation
 - **value-auditor** — Validate from user/buyer perspective, not just technical assertions
 
 ## Related Commands

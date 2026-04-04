@@ -1,583 +1,311 @@
-# Runtime Execution Skill
+---
+name: runtime-execution
+description: "Execute workflows with LocalRuntime or AsyncLocalRuntime, with parameter overrides and configuration options. Use when asking 'execute workflow', 'runtime.execute', 'LocalRuntime', 'AsyncLocalRuntime', 'run workflow', 'execution options', 'runtime parameters', 'content-aware detection', or 'workflow execution'."
+---
 
-Configuration and execution patterns for the Kailash Runtime.
+# Runtime Execution Options
 
-## Usage
+Runtime Execution Options guide with patterns, examples, and best practices.
 
-`/runtime-execution` -- Reference for RuntimeConfig, execute() vs execute_sync(), and reading results
+> **Skill Metadata**
+> Category: `core-sdk`
+> Priority: `HIGH`
+> SDK Version: `0.9.25+`
 
-## The Runtime
+## Quick Reference
 
-```rust
-use kailash_core::{Runtime, RuntimeConfig, NodeRegistry};
-use kailash_value::ValueMap;
-use std::sync::Arc;
+- **Primary Use**: Runtime Execution Options
+- **Category**: core-sdk
+- **Priority**: HIGH
+- **Trigger Keywords**: execute workflow, runtime.execute, LocalRuntime, AsyncLocalRuntime, run workflow
 
-// Runtime is created once and reused across workflow executions
-let runtime = Runtime::new(RuntimeConfig::default(), Arc::new(registry));
+## Core Patterns
 
-// Async execution (preferred for services)
-let result = runtime.execute(&workflow, inputs).await?;
+### Synchronous Execution (CLI/Scripts)
 
-// Sync execution (for CLI, scripts, tests without async context)
-let result = runtime.execute_sync(&workflow, inputs)?;
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
+
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+
+# Context manager ensures proper cleanup (RECOMMENDED)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
-## RuntimeConfig
+### Asynchronous Execution (Docker/FastAPI)
 
-```rust
-use kailash_core::RuntimeConfig;
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
 
-let config = RuntimeConfig {
-    // Enable debug logging for node execution (very verbose)
-    debug: false,
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
 
-    // Allow workflows with cycles (default: false, DAG only)
-    enable_cycles: false,
-
-    // What to do when a conditional branch is not taken
-    // SkipBranches: skip nodes on unmet branches (default)
-    // EvaluateAll: evaluate all branches regardless of condition
-    conditional_execution: ConditionalMode::SkipBranches,
-
-    // Connection validation strictness at execution time
-    // Strict: fail on any connection issues (default)
-    // Warn: log warnings but continue
-    // Off: skip validation
-    connection_validation: ValidationMode::Strict,
-
-    // Enable runtime monitoring/metrics collection
-    enable_monitoring: false,
-
-    // Enable resource limit enforcement
-    enable_resource_limits: false,
-
-    // Maximum nodes executing concurrently (semaphore-controlled)
-    // Level-based parallelism: nodes in the same DAG level run in parallel
-    max_concurrent_nodes: 16,
-
-    // Enable security checks during execution
-    enable_security: false,
-
-    // Enable audit logging during execution
-    enable_audit: false,
-
-    // Per-node execution timeout (None = no timeout)
-    node_timeout: None,
-
-    // Total workflow execution timeout (None = no timeout)
-    workflow_timeout: None,
-};
-
-let runtime = Runtime::new(config, registry);
+# AsyncLocalRuntime for async execution (Docker-optimized)
+runtime = AsyncLocalRuntime()
+results, run_id = await runtime.execute_workflow_async(workflow.build(), inputs={})
 ```
 
-## ExecutionResult
+### Runtime Configuration Options
 
-```rust
-pub struct ExecutionResult {
-    /// Unique identifier for this execution run
-    pub run_id: String,
+Both runtimes share 29 configuration parameters:
 
-    /// Per-node output maps: node_id -> output ValueMap
-    pub results: HashMap<String, ValueMap>,
+```python
+# Common configuration options
+runtime = LocalRuntime(
+    debug=True,                                    # Enable debug logging
+    enable_cycles=True,                            # Allow cyclic workflows
+    conditional_execution=True,                    # Enable conditional nodes
+    connection_validation="strict",                # Validation mode: strict, warn, off
+    content_aware_success_detection=True,          # Detect {"success": False} patterns
+    max_iterations=100,                            # Max cycle iterations
+    convergence_threshold=0.001                    # Cycle convergence threshold
+)
 
-    /// Execution metadata (timing, node counts, etc.)
-    pub metadata: ExecutionMetadata,
-}
+# Get validation metrics (LocalRuntime public API)
+metrics = runtime.get_validation_metrics()
+runtime.reset_validation_metrics()
 ```
 
-## Accessing Results
+## Parameter Passing at Runtime
 
-```rust
-let result = runtime.execute(&workflow, inputs).await?;
-
-// Check the unique run ID
-println!("Run: {}", result.run_id);
-
-// Access output from a specific node by ID
-let node_output = result.results.get("my_transform_node");
-if let Some(outputs) = node_output {
-    // Access a specific output field
-    if let Some(value) = outputs.get("result") {
-        println!("Result: {:?}", value);
-    }
-}
-
-// Pattern: get or error
-let output = result.results
-    .get("final_node")
-    .ok_or("node 'final_node' not in results")?;
-
-// Pattern: get string value
-let text = result.results
-    .get("text_node")
-    .and_then(|o| o.get("text"))
-    .and_then(|v| v.as_str())
-    .unwrap_or("default");
-
-// Iterate all node results
-for (node_id, outputs) in &result.results {
-    println!("Node '{}': {} outputs", node_id, outputs.len());
-    for (key, val) in outputs {
-        println!("  {}: {:?}", key, val);
-    }
-}
+```python
+# Override node parameters at runtime
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(
+        workflow.build(),
+        parameters={
+            "reader": {"file_path": "custom.csv"},     # Override node config
+            "filter": {"threshold": 100}               # Add runtime parameter
+        }
+    )
 ```
 
-## Execution Model (Level-Based Parallelism)
+## Runtime Architecture
 
-```
-Workflow DAG:
-  A → B → D
-  A → C → D
+Both LocalRuntime and AsyncLocalRuntime inherit from BaseRuntime and use shared mixins for consistent behavior:
 
-Level 0: [A]        -- runs first (no dependencies)
-Level 1: [B, C]     -- runs in parallel (both depend only on A)
-Level 2: [D]        -- runs last (depends on B and C)
-```
+**BaseRuntime Foundation**:
 
-The Runtime pre-computes execution levels at `builder.build()` time and uses `tokio::spawn` + a semaphore to run nodes at the same level concurrently.
+- Provides 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
+- Manages execution metadata (run IDs, workflow caching)
+- Common initialization and validation modes (strict, warn, off)
 
-## Passing Inputs to Workflows
+**Shared Mixins**:
 
-```rust
-use kailash_value::{Value, ValueMap};
-use std::sync::Arc;
+- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
+- **ValidationMixin**: Workflow structure validation (5 methods)
+  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
+  - \_validate_connection_contracts(): Validates connection parameter contracts
+  - \_validate_conditional_execution_prerequisites(): Validates conditional execution setup
+  - \_validate_switch_results(): Validates switch node results
+  - \_validate_conditional_execution_results(): Validates conditional execution results
+- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
+  - Pattern detection and cycle detection
+  - Node skipping and hierarchical execution
+  - Conditional workflow orchestration
 
-// Build input ValueMap
-let mut inputs = ValueMap::new();
-inputs.insert(Arc::from("text"), Value::String(Arc::from("hello world")));
-inputs.insert(Arc::from("count"), Value::Integer(10));
-inputs.insert(Arc::from("enabled"), Value::Bool(true));
-inputs.insert(Arc::from("config"), Value::Object({
-    let mut m = std::collections::BTreeMap::new();
-    m.insert(Arc::from("timeout"), Value::Integer(30));
-    m
-}));
+**LocalRuntime-Specific Features**:
 
-// Pass to execute
-let result = runtime.execute(&workflow, inputs).await?;
-```
+- \_generate_enhanced_validation_error(): Enhanced error messages with context
+- \_build_connection_context(): Builds connection context for errors
+- get_validation_metrics(): Public API for retrieving validation metrics
+- reset_validation_metrics(): Public API for resetting validation metrics
 
-## Common Patterns
+**ParameterHandlingMixin Not Used**:
+LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
 
-### Re-using Runtime for Multiple Executions
+All existing usage patterns remain unchanged.
 
-```rust
-// Create once, execute many times
-let runtime = Arc::new(Runtime::new(RuntimeConfig::default(), registry));
-let workflow = Arc::new(builder.build(&registry)?);
+## AsyncLocalRuntime Extensions
 
-// Multiple concurrent executions (each with different inputs)
-let handles: Vec<_> = (0..10).map(|i| {
-    let runtime = Arc::clone(&runtime);
-    let workflow = Arc::clone(&workflow);
-    tokio::spawn(async move {
-        let mut inputs = ValueMap::new();
-        inputs.insert(Arc::from("id"), Value::Integer(i));
-        runtime.execute(&workflow, inputs).await
-    })
-}).collect();
+AsyncLocalRuntime inherits from LocalRuntime and adds async-specific capabilities:
 
-for handle in handles {
-    let result = handle.await??;
-    println!("Run ID: {}", result.run_id);
-}
-```
+### Async-Specific Components
 
-### Debug Mode for Development
+**WorkflowAnalyzer**: Analyzes workflows to determine optimal execution strategy
 
-```rust
-let config = RuntimeConfig {
-    debug: true,  // Logs each node before and after execution
-    ..RuntimeConfig::default()
-};
-let runtime = Runtime::new(config, registry);
-```
+- Detects async vs sync nodes
+- Identifies execution levels (dependency-based)
+- Calculates concurrency opportunities
 
-### Strict Connection Validation
+**ExecutionContext**: Async execution context with integrated resource access
 
-```rust
-// Default is Strict -- always prefer this in production
-let config = RuntimeConfig {
-    connection_validation: ValidationMode::Strict,
-    ..RuntimeConfig::default()
-};
-```
+- Integrated ResourceRegistry support
+- Execution variables management
+- Performance metrics collection
 
-### High-Concurrency Configuration
+**Execution Strategies**: Automatically selects optimal execution path
 
-```rust
-let config = RuntimeConfig {
-    max_concurrent_nodes: 32,  // Allow more parallel node execution
-    enable_resource_limits: true,
-    ..RuntimeConfig::default()
-};
-```
+- Pure Async: All AsyncNode instances (maximum concurrency)
+- Mixed: Combination of sync/async nodes (balanced)
+- Sync-Only: All sync nodes in thread pool (compatibility)
 
-## Resource Lifecycle (Three-Layer Model)
+**Level-Based Parallelism**: Executes independent nodes concurrently
 
-The Runtime manages resources through a three-layer model:
+- Groups nodes by dependency level
+- Uses asyncio.gather() for concurrent execution
+- Respects data dependencies
 
-1. **Access layer** — `PoolRegistry` (`parking_lot::RwLock`, global singleton via `OnceLock`) — fast key-based pool lookup
-2. **Ownership layer** — DataFlow/nodes own pools with explicit `close()`
-3. **Lifecycle layer** — `ResourceRegistry` (`tokio::sync::RwLock`) — LIFO shutdown via `Runtime::shutdown()`
+**Concurrency Control**: Semaphore-based limits
 
-### Registering Resources
+- Default: 10 concurrent nodes
+- Configurable via max_concurrent_nodes parameter
+- Prevents resource exhaustion
 
-```rust
-use kailash_core::resource::{Resource, ResourceRegistry};
+**Thread Pool**: Executes sync nodes without blocking
 
-// Resources are registered during node execution (e.g., DatabaseConnectionNode)
-// Access the registry from Runtime:
-let resources = runtime.resources();
+- Runs sync nodes via loop.run_in_executor()
+- Configurable pool size (default: 4 threads)
+- Proper cleanup in destructor
 
-// Register a resource (returns displaced resource if key already exists)
-let displaced = resources.register("my_pool", pool_resource).await?;
-if let Some(old) = displaced {
-    old.close().await; // Caller responsible for closing displaced resources
-}
+### Usage Example
+
+```python
+from kailash.runtime import AsyncLocalRuntime
+from kailash.resources import ResourceRegistry
+
+# Create runtime with async-specific options
+runtime = AsyncLocalRuntime(
+    debug=True,
+    enable_cycles=True,                    # Inherited from BaseRuntime
+    conditional_execution=True,            # Inherited from mixins
+    connection_validation="strict",        # Inherited from mixins
+    max_concurrent_nodes=20,               # AsyncLocalRuntime-specific
+    thread_pool_size=8,                    # AsyncLocalRuntime-specific
+    enable_analysis=True,                  # Enable WorkflowAnalyzer
+    enable_profiling=True                  # Enable performance metrics
+)
+
+# Execute with async context
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+
+# All inherited methods available
+runtime.validate_workflow(workflow)         # ValidationMixin
+metrics = runtime.get_validation_metrics()  # LocalRuntime
 ```
 
-### Shutdown
+### When to Use AsyncLocalRuntime
 
-```rust
-// Orderly shutdown: closes all resources in LIFO order with 30s per-resource timeout
-runtime.shutdown().await;
-// After shutdown, the ResourceRegistry is empty
+Use AsyncLocalRuntime when:
+
+- Deploying to Docker/Kubernetes
+- Building FastAPI applications
+- Requiring high concurrency
+- Using async nodes (AsyncPythonCodeNode, etc.)
+- Production API deployments (10-100x faster than LocalRuntime)
+
+Use LocalRuntime when:
+
+- Building CLI tools or scripts
+- Synchronous execution contexts
+- Testing and development
+- Simple automation tasks
+
+## Advanced: Custom Runtime Development
+
+For advanced users building custom runtimes:
+
+```python
+from kailash.runtime.base import BaseRuntime
+from kailash.runtime.mixins.cycle_execution import CycleExecutionMixin
+from kailash.runtime.mixins.validation import ValidationMixin
+from kailash.runtime.mixins.conditional_execution import ConditionalExecutionMixin
+
+class CustomRuntime(BaseRuntime, CycleExecutionMixin, ValidationMixin, ConditionalExecutionMixin):
+    """Custom runtime inheriting shared foundation (3 mixins)."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)  # Initialize BaseRuntime
+        # Add custom initialization
+
+    def execute(self, workflow, **kwargs):
+        """Implement custom execution logic."""
+        # Use self._generate_run_id(), self._cache_workflow(), etc.
+        pass
 ```
 
-**Critical**: Always call `shutdown()` before dropping a Runtime that has registered resources. The `Drop` impl will warn (via `tracing::warn!`) if resources remain when the Runtime is dropped without shutdown.
+Note: ParameterHandlingMixin is not included as LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling.
 
-### Extensions (Type-Safe Injection)
+See `STATE_OWNERSHIP_CONVENTION.md` for mixin development guidelines.
 
-```rust
-// Runtime-level: inject typed data accessible by all nodes
-let mut runtime = Runtime::new(config, registry);
-runtime.set_extension(my_pool_registry);  // T: Any + Send + Sync
+## Related Patterns
 
-// Node-level: retrieve typed extension from ExecutionContext
-let registry = ctx.extension::<PoolRegistry>();          // Option<&PoolRegistry>
-let registry = ctx.extension_arc::<PoolRegistry>();      // Option<Arc<PoolRegistry>>
+- **For fundamentals**: See [`workflow-quickstart`](#)
+- **For parameter passing**: See [`gold-parameter-passing`](#)
+- **For runtime selection**: See [`decide-runtime`](#)
 
-// Direct insertion on ExecutionContext (for tests or downstream crates)
-let mut ctx = ExecutionContext::new("run", "node");
-ctx.insert_extension(my_value);  // pub method, replaces existing of same type
+## Documentation References
+
+### Primary Sources
+
+- [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
+
+### Advanced References
+
+
+## Performance Configuration
+
+Phase 0 optimizations reduce per-node execution overhead. Key configuration:
+
+```python
+# Default: optimized for speed (resource checks disabled)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
+
+# Opt-in: enable psutil resource limit checks (adds ~71us/node overhead)
+with LocalRuntime(enable_resource_limits=True) as runtime:
+    results, run_id = runtime.execute(workflow.build())
+
+# Maximum performance: disable both resource limits and monitoring
+with LocalRuntime(enable_resource_limits=False, enable_monitoring=False) as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
-### Capacity Limits
+**What's optimized (automatic, no config needed)**:
 
-Both registries have configurable capacity limits:
+- Topological sort cached per workflow (742x-6504x speedup on cache hit)
+- Cycle edge classification cached with dirty-flag invalidation (60x-265x speedup)
+- Module-level imports (no per-node import overhead)
+- Shared MetricsCollector per workflow (skips thread spawn when psutil disabled)
+- Node ID frozenset pre-computed once per execution
+- Security allowed_types cached at module level (eliminates 13+ per-call lazy imports)
+- Topo cache returns immutable tuple (prevents cache corruption)
+- Deferred monitoring storage (zero I/O during execution, batch write after)
+- Batch CARE persistence (single file per run, avoids 1M+ entry directory bloat)
+- SQLite CARE storage (ACID-compliant, queryable audit trail with EATP event persistence)
 
-- `ResourceRegistry`: default 256 entries, configurable via `ResourceRegistry::with_capacity(n)`
-- `PoolRegistry`: default 64 pools, configurable via `PoolRegistry::with_capacity(n)`
+**Framework overhead**: ~41-52us/node with monitoring disabled (30-34% of total execution time
+for PythonCodeNode with minimal code). See `docs/guides/00-performance-optimizations.md` for
+detailed benchmark results.
 
-Exceeding capacity with a **new** key returns an error. **Replacing** an existing key never counts against the limit.
+**Monitoring overhead**: ~35us/node in-loop + ~1.5-2.8ms SQLite flush after execution.
+Monitoring ON adds ~34% overhead in-loop (down from 3200x before P0D-007). Post-execution
+SQLite flush adds ~1.5ms for 5-node workflows, scaling sub-linearly at ~56us/task for 50 tasks.
 
-### Close-Before-Remove Ordering
+**CARE audit persistence (P0E)**: Tracking data + EATP audit events written atomically to
+`~/.kailash/tracking/tracking.db` using WAL mode + `executemany()` batch inserts.
+`DeferredStorageBackend.flush_to_sqlite()` is called by `_flush_deferred_storage_sqlite()`
+in LocalRuntime, which collects `RuntimeAuditGenerator` events before flushing.
 
-When cleaning up pools, always close the pool **before** removing it from the registry:
+- networkx removed from hot-path execution (local.py, async_local.py)
+- BFS ancestor traversal replaces nx.ancestors for switch evaluation
 
-```rust
-// CORRECT: close cooperatively drains connections, then remove the entry
-if let Some(pool) = pool_registry.get(key) {
-    pool.close().await;       // Cooperative drain
-    pool_registry.remove(key); // Then remove entry
-}
+**Regression tests**: `tests/unit/runtime/test_phase0{a,b,c,d,e}_optimizations.py` (113+ tests)
 
-// WRONG: remove first leaves connections dangling
-pool_registry.remove(key);  // Entry gone but connections still active
-```
+See `docs/guides/00-performance-optimizations.md` for full details.
 
-### Credential Sanitization
+## Quick Tips
 
-Database connection errors MUST NOT include raw sqlx errors in the user-facing `NodeError::ExecutionFailed.message` — use generic messages and log raw errors at `tracing::debug` only. See `crates/kailash-nodes/src/sql/database_connection.rs` for the pattern.
+- Always use `runtime.execute(workflow.build())` - never `workflow.execute()`
+- Choose LocalRuntime for CLI/scripts, AsyncLocalRuntime for Docker/FastAPI
+- Both runtimes share the same configuration parameters and validation logic
+- Parameter resolution supports ${param} templates with type preservation
+- Use context manager (`with LocalRuntime() as runtime:`) for proper resource cleanup
 
-## Production-Readiness Modules
+## Keywords for Auto-Trigger
 
-### Durability (Checkpoint and Resume)
-
-```rust
-use kailash_core::durability::{
-    CheckpointPolicy, CheckpointStore, InMemoryCheckpointStore, WorkflowCheckpoint,
-};
-
-// Configure checkpoint policy in RuntimeConfig
-let config = RuntimeConfig {
-    checkpoint_policy: CheckpointPolicy::PerLevel,  // or PerNode, or Never (default)
-    ..RuntimeConfig::default()
-};
-
-// Attach a checkpoint store to the runtime
-let mut runtime = Runtime::new(config, registry);
-runtime.set_checkpoint_store(Arc::new(InMemoryCheckpointStore::new()));
-
-// SQLite-backed store (feature: durability-sqlite, WAL mode for crash safety)
-#[cfg(feature = "durability-sqlite")]
-let store = SqliteCheckpointStore::open("checkpoints.db")?;
-
-// CheckpointStore trait methods: save, load, load_latest, list_incomplete, delete, gc
-```
-
-**Checkpoint stores**: `InMemoryCheckpointStore` (DashMap-backed, for testing) and `SqliteCheckpointStore` (WAL mode, crash-safe, feature-gated behind `durability-sqlite`).
-
-### Shadow Checkpoint Store
-
-Test a candidate durability backend against production without risk:
-
-```rust
-use kailash_core::shadow_checkpoint::ShadowCheckpointStore;
-
-let production = InMemoryCheckpointStore::new();
-let candidate = SqliteCheckpointStore::open("candidate.db")?;
-let shadow = ShadowCheckpointStore::new(production, candidate);
-
-// All writes go to BOTH stores. All reads come from production only.
-// Check divergence rate to evaluate the candidate:
-let rate = shadow.divergence_rate();  // 0.0 = perfect agreement
-// When ready: shadow.promote() returns the candidate for use as new production
-```
-
-### Dead Letter Queue (DLQ)
-
-Failed workflow executions are captured for inspection and replay:
-
-```rust
-use kailash_core::dlq::{DeadLetterQueue, InMemoryDlq, DeadLetterEntry};
-
-// Bounded, VecDeque-backed DLQ
-let dlq = Arc::new(InMemoryDlq::new(1000));
-
-// Attach to runtime
-let mut runtime = Runtime::new(config, registry);
-runtime.set_dlq(dlq.clone());
-
-// Inspect failed executions
-let entries = dlq.peek(10).await?;
-let popped = dlq.pop().await?;     // FIFO order
-dlq.remove("entry-id").await?;     // Remove specific entry
-
-// DeadLetterEntry contains: run_id, workflow_hash, error, inputs, partial_results, retry_count
-```
-
-### Runtime Metrics (Prometheus)
-
-Lock-free, atomic counters with Prometheus text exposition:
-
-```rust
-use kailash_core::metrics::RuntimeMetrics;
-
-let runtime = Runtime::new(config, registry);
-let metrics: &Arc<RuntimeMetrics> = runtime.metrics();
-
-// Counters are updated automatically during execution
-// Read counters:
-metrics.workflows_started();
-metrics.workflows_completed();
-metrics.workflows_failed();
-metrics.nodes_executed();
-metrics.nodes_failed();
-metrics.total_execution_us();
-
-// Export for /metrics endpoint:
-let prometheus_text = metrics.to_prometheus();
-// Returns standard Prometheus text format (# HELP, # TYPE, counter lines)
-```
-
-### Execution Store (History and Search)
-
-Persist and query execution records for dashboard support:
-
-```rust
-use kailash_core::execution_store::{
-    ExecutionStore, InMemoryExecutionStore, ExecutionRecord, ExecutionStatus, ExecutionQuery,
-};
-
-let store = Arc::new(InMemoryExecutionStore::new());
-let mut runtime = Runtime::new(config, registry);
-runtime.set_execution_store(store.clone());
-
-// Records are written automatically on execute start and complete/fail
-// Query:
-let recent = store.list_recent(20).await?;
-let failures = store.search(&ExecutionQuery {
-    status: Some(ExecutionStatus::Failed),
-    since: Some("2026-03-17T00:00:00Z".into()),
-    limit: 50,
-    ..Default::default()
-}).await?;
-```
-
-### RunHandle (Pause / Resume / Signal / Cancel)
-
-Interact with in-flight workflow executions:
-
-```rust
-// execute_with_handle returns (JoinHandle<Result>, RunHandle)
-let (join_handle, run_handle) = runtime.execute_with_handle(&workflow, inputs).await?;
-
-// External control:
-run_handle.pause();                  // Pauses between levels
-run_handle.resume();                 // Resumes after pause
-run_handle.signal(Value::Null);      // Send signal to nodes (via ExecutionContext::try_recv_signal)
-run_handle.cancel();                 // Cancel the run (all child tokens cancelled)
-
-// Query state:
-run_handle.is_paused();
-run_handle.is_cancelled();
-run_handle.run_id();
-
-// Runtime-level control (by run ID):
-runtime.pause("run-id");
-runtime.resume_run("run-id");
-runtime.signal("run-id", value);
-runtime.cancel("run-id");
-```
-
-### Drain (Graceful Shutdown)
-
-Stop accepting new work and wait for in-flight executions:
-
-```rust
-use kailash_core::runtime::DrainResult;
-
-// Drain with a timeout — completes in-flight runs, rejects new ones
-let result: DrainResult = runtime.drain(Duration::from_secs(30)).await;
-// result.drained: runs that completed before timeout
-// result.cancelled: runs forcibly cancelled after timeout
-```
-
-### Scheduler (Cron-Based Workflow Execution)
-
-```rust
-use kailash_core::scheduler::{Scheduler, WorkflowSchedule};
-
-let scheduler = Scheduler::new();
-scheduler.add(WorkflowSchedule {
-    schedule_id: "daily-report".into(),
-    cron_expr: "0 0 9 * * *".into(),      // 6-field cron: sec min hour dom month dow
-    workflow_hash: "abc123".into(),
-    inputs: ValueMap::new(),
-    enabled: true,
-});
-// scheduler.start(runtime) launches a background tokio task
-```
-
-### Task Queue (Multi-Worker Distribution)
-
-```rust
-use kailash_core::task_queue::{TaskQueue, InProcessTaskQueue, WorkflowTask};
-
-let queue = InProcessTaskQueue::new(100);  // bounded capacity
-
-queue.submit(WorkflowTask {
-    task_id: "task-001".into(),
-    workflow_hash: "abc123".into(),
-    inputs: ValueMap::new(),
-    priority: 0,                           // lower = higher priority
-    metadata: HashMap::new(),
-}).await?;
-
-let claimed = queue.claim("worker-1").await?;  // Worker claims task
-queue.complete("task-001").await?;              // Mark done
-queue.fail("task-001", "error msg").await?;     // Mark failed
-```
-
-### Versioning (Workflow Version Registry)
-
-```rust
-use kailash_core::versioning::VersionedWorkflowRegistry;
-
-let mut registry = VersionedWorkflowRegistry::new();
-registry.register("my-workflow", "1.0.0", workflow_def);
-registry.register("my-workflow", "2.0.0", updated_def);
-
-let def = registry.get("my-workflow", "2.0.0");
-let versions = registry.list_versions("my-workflow");  // ["1.0.0", "2.0.0"]
-let latest = registry.latest("my-workflow");
-
-// VersionMigration trait for upgrading checkpoints between workflow versions
-```
-
-### RuntimeConfig Quotas
-
-```rust
-let config = RuntimeConfig {
-    // Per-workflow resource quotas
-    max_workflow_duration: Some(Duration::from_secs(300)),   // Total execution timeout
-    max_nodes_per_workflow: Some(100),                        // Node count limit
-    max_concurrent_workflows: Some(10),                       // Workflow-level semaphore
-
-    // DLQ privacy
-    redact_dlq_inputs: true,  // Redact inputs when pushing to DLQ (default: true)
-    ..RuntimeConfig::default()
-};
-```
-
-### Time Utilities
-
-```rust
-use kailash_core::time_util::{now_iso8601, epoch_days_to_ymd};
-
-let timestamp = now_iso8601();                // "2026-03-17T10:30:00Z"
-let (y, m, d) = epoch_days_to_ymd(20530);    // Howard Hinnant's algorithm
-```
-
-### Key Files
-
-| Module               | File                                              | Description                                            |
-| -------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| `durability`         | `crates/kailash-core/src/durability.rs`           | CheckpointStore trait, InMemory + SQLite stores        |
-| `shadow_checkpoint`  | `crates/kailash-core/src/shadow_checkpoint.rs`    | Shadow-mode checkpoint testing                         |
-| `trust_durability`   | `crates/kailash-core/src/trust_durability.rs`     | EATP-signed checkpoints, governed resume (feat-gated)  |
-| `dlq`                | `crates/kailash-core/src/dlq.rs`                  | Dead letter queue trait + InMemoryDlq                  |
-| `metrics`            | `crates/kailash-core/src/metrics.rs`              | RuntimeMetrics (atomic counters, Prometheus export)    |
-| `execution_store`    | `crates/kailash-core/src/execution_store.rs`      | ExecutionStore trait + InMemoryExecutionStore           |
-| `scheduler`          | `crates/kailash-core/src/scheduler.rs`            | Cron-based workflow scheduler                          |
-| `task_queue`         | `crates/kailash-core/src/task_queue.rs`           | Multi-worker task queue                                |
-| `versioning`         | `crates/kailash-core/src/versioning.rs`           | Workflow version registry + migration                  |
-| `time_util`          | `crates/kailash-core/src/time_util.rs`            | Shared ISO 8601 formatting                             |
-| `runtime`            | `crates/kailash-core/src/runtime.rs`              | Runtime, RunHandle, DrainResult, signals, pause/resume |
-
-## Testing with Runtime
-
-```rust
-#[tokio::test]
-async fn test_workflow_produces_correct_output() {
-    dotenvy::dotenv().ok();
-
-    let mut registry = NodeRegistry::new();
-    register_system_nodes(&mut registry);
-    register_transform_nodes(&mut registry);
-    let registry = Arc::new(registry);
-
-    let mut builder = WorkflowBuilder::new();
-    builder
-        .add_node("TextTransformNode", "upper", {
-            let mut c = ValueMap::new();
-            c.insert(Arc::from("operation"), Value::String(Arc::from("uppercase")));
-            c
-        });
-
-    let workflow = builder.build(&registry).expect("should build");
-    let runtime = Runtime::new(RuntimeConfig::default(), registry);
-
-    let mut inputs = ValueMap::new();
-    inputs.insert(Arc::from("text"), Value::String(Arc::from("hello")));
-
-    let result = runtime.execute(&workflow, inputs).await.expect("should execute");
-
-    let output = &result.results["upper"];
-    assert_eq!(
-        output.get("result").and_then(|v| v.as_str()),
-        Some("HELLO")
-    );
-}
-```
-
-## Verify
-
-```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- runtime --nocapture 2>&1
-```
+<!-- Trigger Keywords: execute workflow, runtime.execute, LocalRuntime, AsyncLocalRuntime, run workflow -->
