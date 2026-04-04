@@ -163,6 +163,6 @@ Compaction is triggered when `needs_compaction()` returns `true`:
 
 ## Cross-References
 
-- EATP reasoning traces: [07-eatp-reference/](../07-eatp-reference/)
+- EATP reasoning traces: [26-eatp-reference/](../26-eatp-reference/)
 - Audit trail integration: [governance.md](governance.md) (AuditTrail `record_with_reasoning()`)
 - StructuredLlmClient (used by `compact_with_llm`): [structured-llm.md](structured-llm.md)
