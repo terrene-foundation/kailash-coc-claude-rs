@@ -22,7 +22,7 @@ Specs define → Primitives implement building blocks → Engines compose into o
 | Framework    | Raw (never ❌)      | Primitives                                   | Engine (default ✅)                                                     | Entrypoints              |
 | ------------ | ------------------- | -------------------------------------------- | ----------------------------------------------------------------------- | ------------------------ |
 | **DataFlow** | Raw SQL, SQLAlchemy | `DataFlow`, `@db.model`, `db.express`, nodes | `DataFlowEngine.builder()` (validation, classification, query tracking) | aegis, aether, kz-engage |
-| **Nexus**    | Raw FastAPI/Actix   | `Nexus()`, handlers, channels                | `NexusEngine` (middleware stack, auth, K8s)                             | aegis, aether            |
+| **Nexus**    | Raw HTTP frameworks | `Nexus()`, handlers, channels                | `NexusEngine` (middleware stack, auth, K8s)                             | aegis, aether            |
 | **Kaizen**   | Raw LLM API calls   | `BaseAgent`, `Signature`                     | `DelegateEngine`, `SupervisorAgent`                                     | kaizen-cli-rs            |
 | **PACT**     | Manual policy       | Envelopes, D/T/R addressing                  | `GovernanceEngine` (thread-safe, fail-closed)                           | aegis                    |
 
@@ -68,3 +68,5 @@ class MyAgent(BaseAgent): ...  # 60+ lines boilerplate
 ## Raw Is Always Wrong
 
 When a Kailash framework exists for your use case, MUST NOT write raw code that duplicates framework functionality.
+
+**Why:** Raw code bypasses framework guarantees (validation, audit logging, connection pooling, dialect portability), creating maintenance debt that grows with every framework upgrade.

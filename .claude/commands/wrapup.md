@@ -36,7 +36,7 @@ List the exact files the next session MUST read to understand the current state.
 2. `path/to/file` — what it is and why to read it
 ```
 
-**Why**: CO Principle 2 (Brilliant New Hire) — every session starts from zero. Without this list, the next session wastes time discovering what you already know. Be explicit about file paths. "Read the docs" is useless; "`docs/00-authority/CLAUDE.md` — preloaded architecture context" is useful.
+**Why:** CO Principle 2 (Brilliant New Hire) — every session starts from zero. Without this list, the next session wastes time discovering what you already know. Be explicit about file paths. "Read the docs" is useless; "`docs/00-authority/CLAUDE.md` — preloaded architecture context" is useful.
 
 ### Section 2: Accomplished
 
@@ -70,7 +70,7 @@ Verification steps the next session should perform BEFORE and AFTER its main wor
 - [ ] Sync marker updated: `.coc-sync-marker` has current timestamp
 ```
 
-**Why**: Without an oversight layer, the next session trusts the current state blindly. Verification catches regressions from hooks, other sessions, or manual edits between sessions.
+**Why:** Without an oversight layer, the next session trusts the current state blindly. Verification catches regressions from hooks, other sessions, or manual edits between sessions.
 
 ### Section 5: Blockers (if any)
 

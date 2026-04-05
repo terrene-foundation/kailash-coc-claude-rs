@@ -23,7 +23,7 @@ Testing strategy, architecture, and E2E generation for the Kailash SDK's 3-tier 
 
 **Forbidden**: Mock objects, stubbed responses, fake implementations, bypassed service calls.
 
-**Why**: Mocks hide integration failures. Real tests = real confidence.
+**Why:** Mocks hide integration failures. Real tests = real confidence.
 
 **Allowed in all tiers**: `freeze_time()`, `random.seed()`, `patch.dict(os.environ)`.
 

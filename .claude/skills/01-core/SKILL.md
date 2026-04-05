@@ -15,7 +15,7 @@ Quick reference for all crates in the workspace. For full API docs, read the cra
 | **kailash-nexus**      | Multi-channel platform | `NexusEngine`, axum handlers, tower middleware, K8s probes                                       | `skills/03-nexus/`           |
 | **kailash-kaizen**     | AI agent SDK           | `BaseAgent`, TAOD loop, `LlmClient`, `CostTracker`                                               | `skills/04-kaizen/`          |
 | **kaizen-agents**      | LLM orchestration      | `GovernedSupervisor`, `PlanMonitor`, hydration, CallerEvent streaming, TaodRunner Python binding | `skills/32-kaizen-agents/`   |
-| **eatp**               | Trust protocol         | Ed25519 keys, CareChain, delegation, reasoning traces                                            | `skills/07-eatp-reference/`  |
+| **eatp**               | Trust protocol         | Ed25519 keys, CareChain, delegation, reasoning traces                                            | `skills/26-eatp-reference/`  |
 | **trust-plane**        | Trust environment      | `TrustProject`, `StrictEnforcer`, shadow mode                                                    | `skills/29-trust-plane/`     |
 | **kailash-governance** | Governance primitives  | `GovernanceEngine`, D/T/R, envelopes, LCA, DelegationBuilder, RBAC matrix                        | `skills/29-pact/`            |
 | **kailash-pact**       | PACT governance        | Re-exports governance, adds agent, MCP, YAML, SQLite                                             | `skills/29-pact/`            |

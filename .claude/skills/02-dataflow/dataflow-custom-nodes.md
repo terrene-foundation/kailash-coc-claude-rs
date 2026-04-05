@@ -9,7 +9,7 @@ description: "Extend DataFlow with custom nodes beyond the auto-generated 11. Us
 > Category: `dataflow`
 > Priority: `MEDIUM`
 > SDK Version: `0.9.25+`
-> Related Skills: [`dataflow-specialist`](dataflow-specialist.md)
+> Related Skills: `dataflow-specialist`
 
 ## Add Custom Workflow Nodes
 
@@ -88,6 +88,5 @@ workflow.add_connection("get_users", "users", "calculate_metrics", "input")
 4. **Keep models simple** - DataFlow handles data, custom nodes handle logic
 
 ## Documentation
-
 
 <!-- Trigger Keywords: custom dataflow nodes, extend dataflow, custom operations, dataflow business logic -->

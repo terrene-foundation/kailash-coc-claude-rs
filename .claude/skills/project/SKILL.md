@@ -12,5 +12,5 @@ Cross-cutting project patterns that span multiple crates or binding languages.
 ## Redirects (moved to numbered directories)
 
 - Aggregation patterns → `skills/02-dataflow/aggregation-patterns.md`
-- Budget tracking patterns → `skills/07-eatp-reference/budget-tracking-patterns.md`
+- Budget tracking patterns → `skills/26-eatp-reference/budget-tracking-patterns.md`
 - Trust architecture map → `skills/29-trust-plane/trust-architecture-map.md`

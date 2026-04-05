@@ -66,10 +66,10 @@ finally:
 
 ### 3. Metrics Endpoint
 ```python
-from fastapi import FastAPI
+from nexus import Nexus
 from prometheus_client import make_asgi_app
 
-app = FastAPI()
+app = Nexus()
 
 # Mount Prometheus metrics endpoint
 metrics_app = make_asgi_app()

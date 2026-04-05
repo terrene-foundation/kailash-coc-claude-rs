@@ -61,7 +61,7 @@ Route common questions directly — saves reading SKILL.md:
 2. **Primary key must be named `id`** — DataFlow requires exactly `id`
 3. **CreateNode uses flat fields, UpdateNode uses nested `filter`+`fields`**
 4. **Template syntax is `${}` not `{{}}`**
-5. **`auto_migrate=True`** works correctly in Docker/FastAPI — no event loop issues
+5. **`auto_migrate=True`** works correctly in Docker/Nexus — no event loop issues
 6. **Deprecated params removed**: `enable_model_persistence`, `skip_registry`, `skip_migration`, `existing_schema_mode`
 7. **Higher-level engines must delegate to primitives** — engines like DataFabricEngine must call `express.list()` etc., not reimplement query building (skips input validation)
 

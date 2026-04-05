@@ -51,7 +51,7 @@ CMD ["python", "app.py"]
 ```python
 from kailash.runtime import get_runtime, AsyncLocalRuntime, LocalRuntime
 
-# Docker/FastAPI (async context) - RECOMMENDED
+# Docker/async (async context) - RECOMMENDED
 runtime = AsyncLocalRuntime()
 # Or use auto-detection
 runtime = get_runtime("async")
@@ -92,7 +92,7 @@ workflow.add_node("HTTPRequestNode", "api_call", {
 
 ### 5. Multi-Worker Connection Pool Management
 
-In Gunicorn + FastAPI deployments, each worker process creates its own database connection pools. This can exhaust database connections (8 workers × 30 connections = 240).
+In Gunicorn + Nexus deployments, each worker process creates its own database connection pools. This can exhaust database connections (8 workers × 30 connections = 240).
 
 **Solution**: Use `external_pool` to inject a shared pool per worker:
 
@@ -100,11 +100,11 @@ In Gunicorn + FastAPI deployments, each worker process creates its own database 
 import asyncpg
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from nexus import Nexus
 from kailash.nodes.data.async_sql import AsyncSQLDatabaseNode
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     # Create ONE pool per worker at startup
     app.state.db_pool = await asyncpg.create_pool(
         os.environ["DATABASE_URL"],
@@ -114,7 +114,7 @@ async def lifespan(app: FastAPI):
     yield
     await app.state.db_pool.close()
 
-app = FastAPI(lifespan=lifespan)
+app = Nexus(lifespan=lifespan)
 
 @app.post("/process")
 async def process_data(data: dict):
@@ -179,10 +179,10 @@ async def execute_production_workflow(workflow_def, inputs):
 ### 7. Health Check Endpoint
 
 ```python
-from fastapi import FastAPI
+from nexus import Nexus
 from kailash.api.workflow_api import WorkflowAPI
 
-app = FastAPI()
+app = Nexus()
 
 @app.get("/health")
 async def health_check():
@@ -298,7 +298,7 @@ async def execute_with_metrics(workflow_def, inputs):
 
 ## Critical Production Rules
 
-1. **ALWAYS use AsyncLocalRuntime for Docker/FastAPI**
+1. **ALWAYS use AsyncLocalRuntime for Docker/async**
 2. **NEVER commit secrets - use environment variables**
 3. **ALWAYS implement health checks**
 4. **ALWAYS use structured logging**

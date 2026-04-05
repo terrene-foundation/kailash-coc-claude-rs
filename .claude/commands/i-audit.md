@@ -72,7 +72,7 @@ Rate each dimension 1-5 (1=critical issues, 5=excellent):
 ## Priority Issues (3-5, ordered by impact)
 For each:
 - **What**: The specific problem
-- **Why**: Impact on user experience
+- **Why:** Impact on user experience
 - **Fix**: Concrete fix with code direction
 - **Command**: Which command addresses this (e.g., `/i-harden`, `/design`)
 

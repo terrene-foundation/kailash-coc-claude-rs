@@ -163,7 +163,7 @@ result = {'text': text, 'task': 'analyze'}
 
 # LLM processing
 workflow.add_node("LLMAgentNode", "llm", {
-    "model": "gpt-3.5-turbo",
+    "model": os.environ["LLM_MODEL"],
     "system_prompt": "You are a business analyst. Analyze the given text.",
     "temperature": 0.1,
     "max_tokens": 200
@@ -350,7 +350,7 @@ Use `pattern-expert` subagent when:
 
 ## Version Notes
 
-- **v0.9.25+**: AsyncLocalRuntime default for Docker/FastAPI
+- **v0.9.25+**: AsyncLocalRuntime default for Docker/async production
 - **v0.9.20+**: String-based nodes recommended (all examples use this pattern)
 
 ## Keywords for Auto-Trigger

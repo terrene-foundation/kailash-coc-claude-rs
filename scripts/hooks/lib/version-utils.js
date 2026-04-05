@@ -15,7 +15,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
+const { execFileSync } = require("child_process");
 
 /**
  * Read the local .claude/VERSION file.
@@ -41,9 +41,10 @@ function readLocalVersion(cwd) {
 function fetchUpstreamVersion(url) {
   if (!url) return null;
   try {
-    const result = execSync(`curl -sf --max-time 3 "${url}" 2>/dev/null`, {
+    const result = execFileSync("curl", ["-sf", "--max-time", "3", url], {
       encoding: "utf8",
       timeout: 5000,
+      stdio: ["pipe", "pipe", "pipe"],
     });
     return JSON.parse(result);
   } catch {

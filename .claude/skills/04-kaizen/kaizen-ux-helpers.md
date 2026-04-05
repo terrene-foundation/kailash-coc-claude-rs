@@ -247,7 +247,7 @@ class AnalysisSignature(Signature):
 @dataclass
 class AnalysisConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.3
 
 class AnalysisAgent(BaseAgent):

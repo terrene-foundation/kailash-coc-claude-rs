@@ -129,20 +129,20 @@ async def process(data: dict) -> dict:
     return {"result": response.json()}
 ```
 
-**Why**: PythonCodeNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
+**Why:** PythonCodeNode runs in a sandboxed environment that blocks most imports. Handlers run with full Python access.
 
 ---
 
-### Anti-Pattern 2: Raw FastAPI Alongside Nexus
+### Anti-Pattern 2: Raw HTTP Routes Alongside Nexus
 
 **WRONG**:
 
 ```python
 # DON'T: Access private _gateway.app
 app = Nexus()
-fastapi_app = app._gateway.app  # Private attribute!
+internal_app = app._gateway.app  # Private attribute!
 
-@fastapi_app.get("/users")  # Bypasses Nexus features
+@internal_app.get("/users")  # Bypasses Nexus features
 async def get_users():
     return {"users": []}
 ```
@@ -168,7 +168,7 @@ async def health():
     return {"status": "ok"}
 ```
 
-**Why**: Using `_gateway.app` bypasses Nexus middleware, auth, and breaks in future versions.
+**Why:** Using `_gateway.app` bypasses Nexus middleware, auth, and breaks in future versions.
 
 ---
 
@@ -223,7 +223,7 @@ auth = NexusAuthPlugin(
 app.add_plugin(auth)
 ```
 
-**Why**: Auth is complex (refresh tokens, RBAC, tenant isolation). NexusAuthPlugin handles edge cases.
+**Why:** Auth is complex (refresh tokens, RBAC, tenant isolation). NexusAuthPlugin handles edge cases.
 
 ---
 
@@ -261,7 +261,7 @@ async def get_user(user_id: str) -> dict:
     # ...
 ```
 
-**Why**: DataFlow manages connection pools. Creating per request exhausts connections.
+**Why:** DataFlow manages connection pools. Creating per request exhausts connections.
 
 ---
 
@@ -299,7 +299,7 @@ async def create_user(name: str, email: str) -> dict:
     return results["create"]
 ```
 
-**Why**: WorkflowBuilder shines for multi-step orchestration. For simple CRUD, handlers are cleaner.
+**Why:** WorkflowBuilder shines for multi-step orchestration. For simple CRUD, handlers are cleaner.
 
 ---
 
@@ -349,7 +349,7 @@ def test_create_user(real_db):
     assert results["create"]["id"] == "test-123"
 ```
 
-**Why**: Mocks hide real integration issues. Use `:memory:` SQLite for fast, real tests.
+**Why:** Mocks hide real integration issues. Use `:memory:` SQLite for fast, real tests.
 
 ---
 
@@ -371,7 +371,7 @@ app = Nexus()
 app.add_middleware(SomeMiddleware, config={"key": "value"})
 ```
 
-**Why**: `_gateway` is implementation detail. Public APIs are stable across versions.
+**Why:** `_gateway` is implementation detail. Public APIs are stable across versions.
 
 ---
 
@@ -405,7 +405,7 @@ from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_
 from dataflow import DataFlow
 from kailash.workflow.builder import WorkflowBuilder
 from kailash.runtime import AsyncLocalRuntime
-from fastapi import Depends
+from nexus.http import Depends
 
 # ============================================================================
 # Configuration (from environment)
@@ -428,7 +428,7 @@ app = Nexus(
 
 db = DataFlow(
     database_url=DATABASE_URL,
-    auto_migrate=True,  # default: Works in Docker/FastAPI
+    auto_migrate=True,  # default: Works in Docker/async
 )
 
 runtime = AsyncLocalRuntime()  # Initialize once at module level
@@ -597,7 +597,7 @@ from kailash.runtime import AsyncLocalRuntime
 @dataclass
 class AgentConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 2000
     max_turns: int = 10
@@ -713,7 +713,7 @@ from nexus.auth.dependencies import RequirePermission
 from dataflow import DataFlow
 from kailash.workflow.builder import WorkflowBuilder
 from kailash.runtime import AsyncLocalRuntime
-from fastapi import Depends
+from nexus.http import Depends
 
 # ============================================================================
 # Configuration
@@ -924,7 +924,7 @@ app = Nexus(
 )
 
 db = DataFlow(
-    auto_migrate=True,  # default: Works in Docker/FastAPI
+    auto_migrate=True,  # default: Works in Docker/async
 )
 
 runtime = AsyncLocalRuntime()  # CRITICAL for async contexts

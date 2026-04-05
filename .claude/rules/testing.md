@@ -6,7 +6,7 @@ paths:
   - "conftest.py"
 ---
 
-# Testing Rules
+# Testing Rules (Rust SDK + Python Bindings)
 
 ## Test-Once Protocol
 
@@ -24,6 +24,8 @@ Tests run ONCE per code change, not once per phase.
 
 Every bug fix MUST include a regression test BEFORE the fix is merged.
 
+**Why:** Without a regression test, the same bug silently re-appears in a future refactor with no signal until a user reports it again.
+
 1. Write test that REPRODUCES the bug (must fail before fix, pass after)
 2. Place in `tests/regression/test_issue_*.py` with `@pytest.mark.regression`
 3. Regression tests are NEVER deleted
@@ -32,7 +34,6 @@ Every bug fix MUST include a regression test BEFORE the fix is merged.
 @pytest.mark.regression
 def test_issue_42_user_creation_preserves_explicit_id():
     """Regression: #42 — CreateUser silently drops explicit id."""
-    # Reproduce the exact bug
     assert result["id"] == "custom-id-value"
 ```
 
@@ -45,10 +46,14 @@ def test_issue_42_user_creation_preserves_explicit_id():
 - Real database, real API calls (test server)
 - NO mocking (`@patch`, `MagicMock`, `unittest.mock` — BLOCKED)
 
+**Why:** Mocks hide real FFI boundary failures between Python and the Rust runtime — connection handling, serde mismatches, and lifetime errors only surface with real infrastructure.
+
 ### Tier 3 (E2E): Real everything
 
 - Real browser, real database
 - State persistence verification — every write MUST be verified with a read-back
+
+**Why:** The Rust SDK's write path crosses FFI, serde, and the database driver; any layer can silently succeed without persisting, so only a read-back proves the data actually landed.
 
 ```
 tests/
@@ -65,43 +70,26 @@ tests/
 | General                              | 80%     |
 | Financial / Auth / Security-critical | 100%    |
 
-## State Persistence Verification (Tiers 2-3)
-
-Every write MUST be verified with a read-back:
-
-```python
-# ❌ Only checks API response
-result = api.create_company(name="Acme")
-assert result.status == 200  # DataFlow may silently ignore params!
-
-# ✅ Verifies state persisted
-result = api.create_company(name="Acme")
-company = api.get_company(result.id)
-assert company.name == "Acme"
-```
-
-**Why**: DataFlow `UpdateNode` silently ignores unknown parameter names. The API returns success but zero bytes are written.
-
 ## Kailash-Specific
 
 ```python
-# DataFlow: Use real database
-@pytest.fixture
-def db():
-    db = DataFlow("sqlite:///:memory:")
-    yield db
-    db.close()
+# Workflow: Use real runtime (Rust SDK API)
+import kailash
 
-# Workflow: Use real runtime
 def test_workflow_execution():
-    runtime = LocalRuntime()
-    results, run_id = runtime.execute(workflow.build())
-    assert results is not None
+    reg = kailash.NodeRegistry()
+    builder = build_workflow()
+    wf = builder.build(reg)
+    rt = kailash.Runtime(reg)
+    result = rt.execute(wf)
+    assert result["results"] is not None
 ```
 
 ## Rules
 
 - Test-first development for new features
 - Tests MUST be deterministic (no random data without seeds, no time-dependent assertions)
+  **Why:** Non-deterministic tests produce intermittent failures that erode trust in the suite, causing real Rust runtime regressions to be dismissed as flaky.
 - Tests MUST NOT affect other tests (clean setup/teardown, isolated DBs)
+  **Why:** Shared state between tests creates order-dependent results — Rust's default parallel test runner amplifies this into data races that pass locally but fail in CI.
 - Naming: `test_[feature]_[scenario]_[expected_result].py`

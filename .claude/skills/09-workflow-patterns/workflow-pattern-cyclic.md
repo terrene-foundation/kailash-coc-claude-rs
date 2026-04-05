@@ -195,14 +195,14 @@ workflow.add_node("SetVariableNode", "init_prompt", {
 # 2. Generate content (LLM)
 workflow.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "{{init_prompt.prompt}}"
 })
 
 # 3. Evaluate quality
 workflow.add_node("LLMNode", "evaluate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "Rate this description 1-10: {{generate.response}}"
 })
 
@@ -216,7 +216,7 @@ workflow.add_node("SwitchNode", "check_quality", {
 # 5. Refine prompt with feedback
 workflow.add_node("LLMNode", "refine", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "Improve this: {{generate.response}}. Feedback: {{evaluate.feedback}}"
 })
 
@@ -264,7 +264,7 @@ workflow.add_connection("increment", "result", "generate", "iteration")  # Loop!
 
 - **ETL Patterns**: [`workflow-pattern-etl`](workflow-pattern-etl.md)
 - **Error Handling**: [`gold-error-handling`](../../17-gold-standards/gold-error-handling.md)
-- **Conditional Logic**: [`nodes-logic-reference`](../nodes/nodes-logic-reference.md)
+- **Conditional Logic**: [`nodes-logic-reference`](../08-nodes-reference/nodes-logic-reference.md)
 
 ## Documentation
 

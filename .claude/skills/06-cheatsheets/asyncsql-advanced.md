@@ -46,7 +46,7 @@ results, run_id = runtime.execute(workflow.build())
 
 ### Why
 
-In multi-worker deployments (Gunicorn + FastAPI, 8 workers), each worker creates its own connection pool. With the default `max_pool_size=30`, that's **240 connections** exhausting the database. External pool injection lets you control pool sizing at the application level and share a single pool across all nodes in a worker.
+In multi-worker deployments (Gunicorn + Nexus, 8 workers), each worker creates its own connection pool. With the default `max_pool_size=30`, that's **240 connections** exhausting the database. External pool injection lets you control pool sizing at the application level and share a single pool across all nodes in a worker.
 
 ### Pattern
 
@@ -124,7 +124,7 @@ Use specialized subagents when:
 - 💡 **Set Pool-Level Timeout**: Configure command_timeout at node creation (default: 60s) - applies to ALL queries including health checks
 - 💡 **Batch Insert Optimization**: For 10K+ rows, use execute_many_async (general), COPY (PostgreSQL fastest), or UNNEST (PostgreSQL arrays)
 - 💡 **pytest-asyncio Compatibility**: AsyncSQLDatabaseNode automatically detects pytest environments and adjusts pool key generation for compatibility with function-scoped fixtures
-- 💡 **External Pool for Multi-Worker**: Use `external_pool=pool` to inject a shared pool in Gunicorn/FastAPI deployments — prevents connection exhaustion
+- 💡 **External Pool for Multi-Worker**: Use `external_pool=pool` to inject a shared pool in Gunicorn/Nexus deployments — prevents connection exhaustion
 
 ## Keywords for Auto-Trigger
 

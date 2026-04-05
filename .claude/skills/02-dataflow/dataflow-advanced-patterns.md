@@ -53,7 +53,7 @@ Each workflow execution gets its own transaction context. Concurrent workflows a
 
 ## DataFlow + Nexus Integration 
 
-`auto_migrate=True` (default) works correctly everywhere including Docker and FastAPI . No startup tradeoffs.
+`auto_migrate=True` (default) works correctly everywhere including Docker and Nexus. No startup tradeoffs.
 
 ```python
 import os

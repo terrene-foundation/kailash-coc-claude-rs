@@ -68,7 +68,7 @@ Each sub-file includes: overview, architecture, nodes used, configuration, examp
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow creation
 - **[06-cheatsheets](../cheatsheets/SKILL.md)** - Pattern quick reference
-- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference
+- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Node reference
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - Database workflows
 - **[03-nexus](../../03-nexus/SKILL.md)** - Workflow deployment
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices

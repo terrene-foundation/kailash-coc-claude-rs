@@ -166,7 +166,7 @@ provider_config = create_structured_output_config(
 
 config = BaseAgentConfig(
     llm_provider="openai",
-    model="gpt-4",  # Works with older models
+    model=os.environ["LLM_MODEL"],  # Works with older models
     provider_config=provider_config
 )
 ```
@@ -441,7 +441,7 @@ result = agent.run(input_text="...")  # Returns structured dict
 ```python
 config = BaseAgentConfig(
     llm_provider="azure",
-    model="gpt-4o",
+    model=os.environ["LLM_MODEL"],
     provider_config=create_structured_output_config(
         signature=MySignature(),
         strict=True,

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 class MyConfig:
     """Domain-specific configuration (NOT BaseAgentConfig)."""
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
     # Add custom domain fields as needed
@@ -92,7 +92,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load API keys from .env
 
 # Create agent
-config = MyConfig(llm_provider="openai", model="gpt-4")
+config = MyConfig(llm_provider="openai", model=os.environ["LLM_MODEL"])
 agent = MyAgent(config)
 
 # Execute
@@ -108,7 +108,7 @@ print(f"Reasoning: {result['reasoning']}")
 @dataclass
 class MyConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     max_turns: int = 10  # Enable BufferMemory
 
 agent = MyAgent(config)
@@ -143,7 +143,7 @@ analysis = analyst.analyze(insights)
 
 ## Async Execution with run_async()
 
-**For production FastAPI applications and high-throughput scenarios.**
+**For production Nexus applications and high-throughput scenarios.**
 
 ### Configuration
 
@@ -154,17 +154,17 @@ from dataclasses import dataclass
 @dataclass
 class AsyncConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     use_async_llm: bool = True  # ← Enable async mode
 
 agent = MyAgent(AsyncConfig())
 ```
 
-### Usage in FastAPI
+### Usage in Nexus
 
 ```python
-from fastapi import FastAPI
-app = FastAPI()
+from nexus import Nexus
+app = Nexus()
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
@@ -195,7 +195,7 @@ results = await asyncio.gather(*tasks)  # All run in parallel
 
 **Use run_async():**
 
-- FastAPI/async web apps
+- Nexus/async web apps
 - High-throughput (10+ concurrent requests)
 - Docker deployments with AsyncLocalRuntime
 

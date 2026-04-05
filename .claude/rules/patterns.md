@@ -5,94 +5,148 @@ paths:
   - "**/*.js"
 ---
 
-# Kailash Pattern Rules
+# Kailash Pattern Rules (Rust SDK + Python Bindings)
 
-## Runtime Execution
+### 1. Runtime Execution Pattern
 
-MUST use `runtime.execute(workflow.build())`.
+MUST use `rt.execute(wf)` where `wf = builder.build(reg)`.
 
-```python
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
-
-# ❌ workflow.execute(runtime)  — wrong direction
-# ❌ runtime.execute(workflow)  — missing .build()
-```
-
-## Node API
-
-- Node IDs MUST be string literals (not variables, not f-strings)
-- 4-parameter order: `add_node("NodeType", "node_id", {config}, connections)`
-- Absolute imports only (`from kailash.workflow.builder import WorkflowBuilder`)
-- Load .env before any operation (see `env-models.md`)
-
-## DataFlow Express (Default for CRUD)
-
-Use `db.express` for all single-record CRUD. WorkflowBuilder only for multi-step operations.
+**Why:** The Rust runtime owns the execution context and borrows the built workflow immutably; reversing the call order or skipping `.build()` passes an unvalidated graph that panics at the FFI boundary.
 
 ```python
-result = await db.express.create("User", {"name": "Alice", "email": "alice@example.com"})
-user = await db.express.read("User", str(result["id"]))
-users = await db.express.list("User", {"active": True})
-await db.express.update("User", str(result["id"]), {"name": "Bob"})
-await db.express.delete("User", str(result["id"]))
+import kailash
 
-# ❌ Don't use WorkflowBuilder for simple CRUD — 23x slower
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("NodeType", "node_id", {"param": "value"})
+wf = builder.build(reg)
+rt = kailash.Runtime(reg)
+result = rt.execute(wf)
+# result is dict: {"results": {...}, "run_id": "...", "metadata": {...}}
 ```
 
-## DataFlow Models & Workflows
+**Incorrect**:
 
 ```python
-@db.model
-class User:
-    id: int = field(primary_key=True)  # PK MUST be named 'id'
-    # Never manually set timestamps — auto-managed
-
-# CreateNode: FLAT params (not nested)
-workflow.add_node("CreateUser", "create", {"name": "test"})
-# ❌ {"data": {"name": "test"}}
-
-# UpdateNode: filter + fields
-workflow.add_node("UpdateUser", "update", {"filter": {"id": 1}, "fields": {"name": "new"}})
+❌ workflow.execute(runtime)  # WRONG order
+❌ runtime.execute(workflow)  # Missing .build()
+❌ runtime.run(workflow)  # Wrong method
 ```
 
-## Nexus
+### 2. String-Based Node IDs
+
+Node IDs MUST be string literals.
+
+**Why:** The Rust registry interns node IDs at compile time; dynamic strings bypass the intern table and produce dangling references when the Python string is garbage-collected.
 
 ```python
-app = Nexus()
-app.register(my_workflow)  # Register first
-app.start()                # Then start
-session = app.create_session()  # Unified session for state across channels
+builder.add_node("NodeType", "my_node_id", {"param": "value"})
+
+❌ builder.add_node("NodeType", node_id_var, {...})
+❌ builder.add_node("NodeType", f"node_{i}", {...})
 ```
 
-## Kaizen
+### 3. Imports
+
+MUST use `import kailash` for all Kailash types.
+
+**Why:** Sub-module imports bypass the PyO3 binding root and may resolve to stale or missing Rust-backed symbols, causing `ImportError` at runtime.
 
 ```python
-# Delegate (recommended for autonomous agents)
-from kaizen_agents import Delegate
-delegate = Delegate(model=os.environ["OPENAI_PROD_MODEL"])
+import kailash
 
-# BaseAgent (for custom logic only)
-from kaizen.core import BaseAgent, Signature, InputField, OutputField
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+rt = kailash.Runtime(reg)
+df = kailash.DataFlow("sqlite:///db.sqlite")
+app = kailash.NexusApp(kailash.NexusConfig(port=3000))
+agent = kailash.Agent(config, client)
 ```
 
-## Async vs Sync Runtime
+### 4. Environment Variable Loading
 
-- **Docker/FastAPI**: `AsyncLocalRuntime` + `await runtime.execute_workflow_async(workflow.build())`
-- **CLI/Scripts**: `LocalRuntime` + `runtime.execute(workflow.build())`
+MUST load .env before any operation. See `env-models.md`.
 
-## SQLite Connection Management
+**Why:** The Rust runtime reads environment variables once during initialization and caches them; loading `.env` after init leaves config values as empty strings with no warning.
 
-- Acquire through `AsyncSQLitePool` (`acquire_read` / `acquire_write`)
-- URI shared-cache for `:memory:` (`file:memdb_NAME?mode=memory&cache=shared`)
-- `async with` for all transactions
-- Default PRAGMAs on every connection (WAL, busy_timeout, synchronous, cache_size, foreign_keys)
-- Always set `max_read_connections` (bounded concurrency)
-- ❌ Never bare `aiosqlite.connect()` — go through the pool
+### 5. 3-Parameter Node Pattern
 
-## Async Resource Cleanup
+```python
+builder.add_node(
+    "NodeType",      # 1. Type (string)
+    "node_id",       # 2. ID (string)
+    {"param": "v"}   # 3. Config (dict, optional)
+)
+```
 
-- All async resource classes implement `__del__` with `ResourceWarning`
-- Use `def __del__(self, _warnings=warnings)` signature (survives interpreter shutdown)
-- Set class-level defaults for `__del__` safety
-- ❌ No `asyncio` in `__del__` — async cleanup in finalizers is unreliable
+## Framework-Specific Rules
+
+### DataFlow
+
+```python
+import kailash
+
+df = kailash.DataFlow("sqlite:///mydb.sqlite")
+
+model = kailash.ModelDefinition("User", "users")
+model.field("name", kailash.FieldType.text())
+model.field("email", kailash.FieldType.text(), unique=True, index=True)
+
+# DataFlowExpress for simple CRUD
+from kailash.dataflow import DataFlowExpress
+express = DataFlowExpress("sqlite::memory:", auto_migrate=True)
+
+# Schema inspection — static methods only, NO constructor
+from kailash.dataflow import DataFlowInspector
+tables = DataFlowInspector.tables(df)
+
+# Migrations — no-arg constructor
+from kailash import MigrationManager
+mgr = MigrationManager()
+migration = mgr.generate_migration(df)
+mgr.apply(migration, df)  # NOTE: apply(migration, dataflow)
+```
+
+### Nexus
+
+```python
+import kailash
+from kailash.nexus import NexusApp, PluginManager, WorkflowRegistry, EventBus
+
+app = NexusApp(kailash.NexusConfig(port=3000))
+
+@app.handler("chat")
+def chat_handler(params):
+    return {"message": "Hello"}
+
+app.start()
+```
+
+### Kaizen
+
+```python
+import os, kailash
+
+config = kailash.AgentConfig(model=os.environ["OPENAI_PROD_MODEL"])
+client = kailash.LlmClient("openai", os.environ["OPENAI_API_KEY"])
+agent = kailash.Agent(config, client)
+
+# Mock LLM for testing
+mock_client = kailash.LlmClient.mock()
+```
+
+### MCP
+
+```python
+from kailash.mcp import McpApplication
+
+app = McpApplication("my-server", "1.0")
+
+@app.tool(name="search", description="Search the web")
+def search(query: str) -> str:
+    return f"Results for {query}"
+
+@app.resource(uri="config://settings", name="Settings")
+def get_settings() -> str:
+    return '{"theme": "dark"}'
+```

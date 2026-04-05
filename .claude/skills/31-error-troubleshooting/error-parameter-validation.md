@@ -1,213 +1,229 @@
 ---
 name: error-parameter-validation
-description: "Fix 'missing required inputs' and parameter validation errors in Kailash workflows. Use when encountering 'Node missing required inputs', 'parameter validation failed', 'required parameter not provided', or parameter-related errors."
+description: "Fix 'missing required inputs' and parameter validation errors in Kailash Rust workflows. Use when encountering 'MissingInput', 'InvalidInput', 'NodeError::MissingInput', 'required parameter not provided', or parameter-related errors."
 ---
 
 # Error: Missing Required Parameters
 
-Fix parameter validation errors including missing required inputs, wrong parameter names, and the 3 parameter passing methods.
+Fix parameter validation errors including missing required inputs, wrong parameter types, and the parameter passing methods in the Kailash Rust SDK.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (error-resolution)
 > Priority: `CRITICAL` (Common error #3)
-> SDK Version: `0.7.0+`
-> Related Skills: [`param-passing-quick`](../../01-core-sdk/param-passing-quick.md), [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
-> Related Subagents: `pattern-expert` (complex parameter debugging)
+> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md)
 
 ## Common Error Messages
 
+These are **runtime** errors returned from `Result` -- the Rust type system cannot check ValueMap contents at compile time:
+
 ```
-Node 'create' missing required inputs: ['email']
-ValueError: Missing required parameter 'X'
-ValueError: Invalid validation mode 'invalid'
-Required parameter 'file_path' not provided
-Parameter validation failed for node 'X'
+RuntimeError::NodeFailed {
+    node_id: "create",
+    source: NodeError::MissingInput { name: "email" }
+}
+// Display: "node 'create' failed"
+// Source:  "missing required input: email"
+
+NodeError::InvalidInput { name: "count", expected: "integer", got: "string" }
+// Display: "invalid input 'count': expected integer, got string"
 ```
 
 ## Root Cause
 
-Kailash SDK raises `ValueError` for validation errors including:
-- Missing required parameters
-- Invalid validation modes
-- Parameter type mismatches
+Nodes declare required inputs via `input_params()` returning `&[ParamDef]`. When a node executes, it checks that all required inputs are present in the `ValueMap`. Missing or wrong-typed inputs produce `NodeError::MissingInput` or `NodeError::InvalidInput`.
 
 Parameters must be provided through one of **3 methods**.
 
 ## Quick Fix: The 3 Methods
 
 ### Method 1: Node Configuration (Most Reliable)
-```python
-# ✅ Provide parameters directly in node config
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice",
-    "email": "alice@example.com"  # Required parameter provided
-})
+
+```rust
+// Provide parameters directly in the config ValueMap
+let mut builder = WorkflowBuilder::new();
+builder.add_node("HTTPRequestNode", "api_call", ValueMap::from([
+    ("url".into(), Value::String("https://api.example.com".into())),
+    ("method".into(), Value::String("GET".into())),  // Required parameter provided
+]));
 ```
 
 ### Method 2: Workflow Connections (Dynamic)
-```python
-# ✅ Connect parameter from another node's output
-workflow.add_connection("form_data", "email", "create", "email")
+
+```rust
+// Connect parameter from another node's output
+builder.connect("form_data", "email", "create_user", "email");
+// The "email" output of "form_data" feeds into "create_user"'s "email" input
 ```
 
-### Method 3: Runtime Parameters (Override)
-```python
-# ✅ Provide at runtime execution
-runtime.execute(workflow.build(), parameters={
-    "create": {"email": "alice@example.com"}
-})
+### Method 3: Runtime Inputs (Override)
+
+```rust
+// Provide values at execution time via the inputs ValueMap
+// Note: runtime inputs are global; node-level routing depends on workflow structure
+let inputs = ValueMap::from([
+    ("email".into(), Value::String("alice@example.com".into())),
+]);
+let result = runtime.execute(&workflow, inputs).await?;
 ```
 
 ## Complete Example
 
-### ❌ Wrong: Missing Required Parameter
-```python
-workflow = WorkflowBuilder()
+### :x: Wrong: Missing Required Parameter
 
-# Missing required 'email' parameter
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice"
-    # ERROR: email is required!
-})
+```rust
+use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+use kailash_value::{Value, ValueMap};
+use std::sync::Arc;
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
-# Error: Node 'create' missing required inputs: ['email']
+let mut builder = WorkflowBuilder::new();
+
+// Missing required 'url' parameter -- will fail at RUNTIME
+builder.add_node("HTTPRequestNode", "api_call", ValueMap::from([
+    ("method".into(), Value::String("GET".into())),
+    // url is required but not provided!
+]));
+
+let registry = Arc::new(NodeRegistry::default());
+let workflow = builder.build(&registry)?;
+
+let runtime = Runtime::new(RuntimeConfig::default(), registry);
+let result = runtime.execute(&workflow, ValueMap::new()).await;
+// Err(RuntimeError::NodeFailed {
+//     node_id: "api_call",
+//     source: NodeError::MissingInput { name: "url" }
+// })
 ```
 
-### ✅ Fix Option 1: Add to Node Config
-```python
-workflow = WorkflowBuilder()
+### :white_check_mark: Fix Option 1: Add to Node Config
 
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice",
-    "email": "alice@example.com"  # Required parameter provided
-})
-
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())  # ✓ Works!
+```rust
+builder.add_node("HTTPRequestNode", "api_call", ValueMap::from([
+    ("url".into(), Value::String("https://api.example.com".into())),  // Required
+    ("method".into(), Value::String("GET".into())),                   // Required
+]));
 ```
 
-### ✅ Fix Option 2: Use Connection
-```python
-workflow = WorkflowBuilder()
+### :white_check_mark: Fix Option 2: Use Connection from Another Node
 
-# Get email from form data
-workflow.add_node("PythonCodeNode", "form", {
-    "code": "result = {'email': 'alice@example.com', 'name': 'Alice'}"
-})
+```rust
+let mut builder = WorkflowBuilder::new();
 
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice"
-    # email will come from connection
-})
+// Source node produces the URL
+builder.add_node("JSONTransformNode", "config", ValueMap::from([
+    ("expression".into(), Value::String("@.api_url".into())),
+]));
 
-# Connect email from form to create node
-workflow.add_connection("form", "result.email", "create", "email")
+// Target node receives URL via connection
+builder.add_node("HTTPRequestNode", "api_call", ValueMap::from([
+    ("method".into(), Value::String("GET".into())),
+    // url comes from the connection
+]));
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())  # ✓ Works!
+// Connect url from config node to api_call node
+builder.connect("config", "result", "api_call", "url");
 ```
 
-### ✅ Fix Option 3: Runtime Parameters
-```python
-workflow = WorkflowBuilder()
+### :white_check_mark: Fix Option 3: Runtime Inputs
 
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice"
-    # email will come from runtime
-})
+```rust
+let inputs = ValueMap::from([
+    ("url".into(), Value::String("https://api.example.com".into())),
+]);
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build(), parameters={
-    "create": {"email": "alice@example.com"}  # Provided at runtime
-})  # ✓ Works!
+let result = runtime.execute(&workflow, inputs).await?;
 ```
 
 ## Parameter Method Selection Guide
 
-| Scenario | Best Method | Why |
-|----------|-------------|-----|
-| **Static values** | Method 1 (Config) | Clear, explicit, easy to test |
-| **Dynamic data flow** | Method 2 (Connections) | Data from previous nodes |
-| **User input** | Method 3 (Runtime) | Dynamic values at execution |
-| **Environment config** | Method 3 (Runtime) | Different per environment |
-| **Testing** | Method 1 (Config) | Most reliable, deterministic |
+| Scenario               | Best Method               | Why                             |
+| ---------------------- | ------------------------- | ------------------------------- |
+| **Static values**      | Method 1 (Config)         | Clear, explicit, easy to test   |
+| **Dynamic data flow**  | Method 2 (Connections)    | Data from previous nodes        |
+| **User input**         | Method 3 (Runtime inputs) | Dynamic values at execution     |
+| **Environment config** | Method 1 (Config) via env | `std::env::var()` at build time |
+| **Testing**            | Method 1 (Config)         | Most reliable, deterministic    |
+
+## NodeError Variants for Parameters
+
+| Error                                             | Meaning                                      | Fix                                               |
+| ------------------------------------------------- | -------------------------------------------- | ------------------------------------------------- |
+| `NodeError::MissingInput { name }`                | Required input not in ValueMap               | Provide via config, connection, or runtime inputs |
+| `NodeError::InvalidInput { name, expected, got }` | Input has wrong Value variant                | Check Value type matches what node expects        |
+| `NodeError::ExecutionFailed { message, source }`  | Node logic failed (may include param issues) | Check the `message` for details                   |
 
 ## Common Variations
 
 ### Missing Multiple Parameters
-```python
-# ❌ Multiple missing parameters
-workflow.add_node("HTTPRequestNode", "api", {
-    # Missing: url, method
-})
 
-# ✅ Provide all required parameters
-workflow.add_node("HTTPRequestNode", "api", {
-    "url": "https://api.example.com",
-    "method": "GET"
-})
+```rust
+// :x: Multiple missing parameters
+builder.add_node("HTTPRequestNode", "api", ValueMap::new());
+// Both "url" and "method" are required!
+
+// :white_check_mark: Provide all required parameters
+builder.add_node("HTTPRequestNode", "api", ValueMap::from([
+    ("url".into(), Value::String("https://api.example.com".into())),
+    ("method".into(), Value::String("GET".into())),
+]));
+```
+
+### Wrong Value Type
+
+```rust
+// :x: Wrong type -- url expects a String, not Integer
+builder.add_node("HTTPRequestNode", "api", ValueMap::from([
+    ("url".into(), Value::Integer(42)),  // InvalidInput error!
+    ("method".into(), Value::String("GET".into())),
+]));
+
+// :white_check_mark: Use correct Value variant
+builder.add_node("HTTPRequestNode", "api", ValueMap::from([
+    ("url".into(), Value::String("https://api.example.com".into())),
+    ("method".into(), Value::String("GET".into())),
+]));
 ```
 
 ### Optional vs Required Parameters
-```python
-# Some parameters are optional (have defaults)
-workflow.add_node("CSVReaderNode", "reader", {
-    "file_path": "data.csv"  # Required
-    # has_header: optional (defaults to True)
-    # delimiter: optional (defaults to ",")
-})
+
+```rust
+// Some parameters have defaults and are optional
+builder.add_node("CSVReaderNode", "reader", ValueMap::from([
+    ("file_path".into(), Value::String("data.csv".into())),  // Required
+    // has_header: optional (defaults to true)
+    // delimiter: optional (defaults to ",")
+]));
 ```
 
-## Edge Case Warning
+## Discovering Node Parameters
 
-**Method 3 Edge Case** - Fails when ALL conditions met:
-```python
-# ❌ DANGEROUS combination
-workflow.add_node("CustomNode", "node", {})  # 1. Empty config
-# + All parameters optional (required=False)  # 2. No required params
-# + No connections provide parameters         # 3. No connections
-# = Runtime parameters won't be injected!
+To find out what parameters a node requires, check its `input_params()`:
 
-# ✅ FIX: Provide minimal config
-workflow.add_node("CustomNode", "node", {
-    "_init": True  # Minimal config prevents edge case
-})
+```rust
+// At runtime, inspect a node's declared parameters
+let registry = NodeRegistry::default();
+if let Some(metadata) = registry.get_metadata("HTTPRequestNode") {
+    // metadata.input_params and metadata.output_params
+    // show the node's declared interface
+    println!("Category: {}", metadata.category);
+    println!("Description: {}", metadata.description);
+}
 ```
+
+Or check the node implementation in `crates/kailash-nodes/src/` for `input_params()`.
 
 ## Related Patterns
 
-- **3 Methods Guide**: [`param-passing-quick`](../../01-core-sdk/param-passing-quick.md)
-- **Connection patterns**: [`connection-patterns`](../../01-core-sdk/connection-patterns.md)
-- **Gold standard**: [`gold-parameter-passing`](../../17-gold-standards/gold-parameter-passing.md)
-
-## When to Escalate to Subagent
-
-Use `pattern-expert` subagent when:
-- Complex parameter flow across many nodes
-- Custom node parameter definition issues
-- Advanced parameter validation requirements
-- Enterprise parameter governance patterns
-
-## Documentation References
-
-### Primary Sources
-
-### Related Documentation
-- **Critical Rules**: [`CLAUDE.md` (lines 139-145)](../../../../CLAUDE.md#L139-L145)
+- **Error types**: See `crates/kailash-core/src/error.rs` for `NodeError::MissingInput`, `NodeError::InvalidInput`
+- **Node trait**: See `crates/kailash-core/src/node.rs` for `input_params()` and `ParamDef`
+- **Connection errors**: [`error-connection-params`](error-connection-params.md)
+- **Build errors**: [`error-missing-build`](error-missing-build.md)
 
 ## Quick Tips
 
-- 💡 **Default to Method 1**: Most reliable for static values
-- 💡 **Check node docs**: See which parameters are required
-- 💡 **Combine methods**: You can use all 3 methods together
-- 💡 **Test first**: Use Method 1 in tests for reliability
-- 💡 **Avoid edge case**: Never use empty config `{}` with all optional params
+- :bulb: **Default to Method 1**: Most reliable for static, known values
+- :bulb: **Check node source**: Look at `input_params()` in the node implementation to find required params
+- :bulb: **Combine methods**: Config for defaults, connections for data flow, runtime inputs for dynamic values
+- :bulb: **Match Value types**: `Value::String` for strings, `Value::Integer` for ints, etc.
+- :bulb: **Test first**: Use Method 1 in tests for deterministic, reliable results
 
-## Version Notes
-
-- **v0.7.0+**: Parameter validation improved with better error messages
-- **v0.6.0+**: Explicit parameter requirement enforced (security feature)
-
-<!-- Trigger Keywords: missing required inputs, parameter validation, required parameter not provided, parameter error, node missing inputs, validation error, missing parameter, required param, parameter validation failed -->
+<!-- Trigger Keywords: missing required inputs, MissingInput, InvalidInput, parameter validation, required parameter not provided, parameter error, node missing inputs, validation error, missing parameter, required param, parameter validation failed, NodeError -->

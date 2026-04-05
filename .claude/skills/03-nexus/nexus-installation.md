@@ -25,7 +25,6 @@ python -c "from nexus import Nexus; print('Nexus installed successfully')"
 
 - Python 3.9+
 - kailash SDK 0.9.25+
-- FastAPI (for API mode)
 - Click (for CLI mode)
 
 ## Quick Setup
@@ -38,7 +37,7 @@ from kailash.workflow.builder import WorkflowBuilder
 workflow = WorkflowBuilder()
 workflow.add_node("LLMNode", "chat", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "{{input.message}}"
 })
 
