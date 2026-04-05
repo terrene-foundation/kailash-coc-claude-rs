@@ -1,16 +1,27 @@
 {
-  "version": "1.6.0",
+  "version": "1.7.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-05",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "1.6.0",
+    "version": "2.0.0",
     "build_version": "3.8.0",
-    "synced_at": "2026-04-05T10:00:00Z"
+    "synced_at": "2026-04-05T16:00:00Z"
   },
   "changelog": [
+    {
+      "version": "1.7.0",
+      "date": "2026-04-05",
+      "summary": "Skill tightening sync (78% reduction) + agent description updates from loom v2.0.0",
+      "changes": [
+        "UPDATED: 28 skill files tightened (78% size reduction, 7 with restored patterns)",
+        "UPDATED: 7 framework agent descriptions (align, dataflow, kaizen, mcp, ml, nexus, pact)",
+        "VARIANT: 2 skill files from rs overlay (deployment-patterns, flutter-patterns)",
+        "VARIANT: 1 agent from rs overlay (kaizen-specialist)"
+      ]
+    },
     {
       "version": "1.6.0",
       "date": "2026-04-05",
