@@ -26,7 +26,7 @@ class MySignature(Signature):
 @dataclass
 class MyConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
 

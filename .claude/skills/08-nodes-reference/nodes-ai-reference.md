@@ -35,7 +35,7 @@ from kailash.workflow.builder import WorkflowBuilder
 workflow = WorkflowBuilder()
 workflow.add_node("LLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "Explain quantum computing",
     "temperature": 0.7,
     "max_tokens": 1000
@@ -47,7 +47,7 @@ workflow.add_node("LLMAgentNode", "agent", {
 # Advanced agent with real MCP tool execution
 workflow.add_node("IterativeLLMAgentNode", "iterative_agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get weather and analyze trends"}],
     "mcp_servers": [{
         "name": "weather",
@@ -80,7 +80,7 @@ workflow.add_node("EmbeddingGeneratorNode", "embedder", {
 workflow.add_node("A2AAgentNode", "agent", {
     "agent_id": "researcher_001",
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Analyze data"}],
     "memory_pool": "memory_pool_ref"
 })

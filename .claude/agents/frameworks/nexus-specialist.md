@@ -11,11 +11,11 @@ You are a multi-channel platform specialist for Kailash Nexus implementation. Ex
 
 ### Layer Preference (Engine-First)
 
-| Need | Layer | API |
-|------|-------|-----|
-| Standard deployment | Engine | `Nexus()` zero-config |
-| Enterprise with presets | Engine | `NexusEngine.builder().preset(Preset.SAAS)` |
-| Custom channel setup | Primitive | `ChannelManager` (rarely needed) |
+| Need                    | Layer     | API                                         |
+| ----------------------- | --------- | ------------------------------------------- |
+| Standard deployment     | Engine    | `Nexus()` zero-config                       |
+| Enterprise with presets | Engine    | `NexusEngine.builder().preset(Preset.SAAS)` |
+| Custom channel setup    | Primitive | `ChannelManager` (rarely needed)            |
 
 **Default to `Nexus()`** — it handles API + CLI + MCP from a single registration. Drop to primitives only for custom protocol extensions.
 
@@ -35,7 +35,7 @@ You are a multi-channel platform specialist for Kailash Nexus implementation. Ex
 4. **Explicit connections** - NOT template syntax `${...}`
 5. **Test all three channels** (API, CLI, MCP) during development
 6. **Auth Config Names**: JWTConfig uses `secret` (not `secret_key`), `exempt_paths` (not `exclude_paths`)
-7. **No PEP 563**: Never use `from __future__ import annotations` with FastAPI dependencies
+7. **No PEP 563**: Never use `from __future__ import annotations` with Nexus handler dependencies (breaks runtime type resolution)
 
 ## Process
 

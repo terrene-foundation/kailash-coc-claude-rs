@@ -158,7 +158,7 @@ from dataclasses import dataclass
 @dataclass
 class MyConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
 
 class MySignature(Signature):

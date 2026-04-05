@@ -321,7 +321,7 @@ class DataProcessingSignature(Signature):
 @dataclass
 class DataConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
 
 class DataProcessingAgent(BaseAgent):
     def __init__(self, config: DataConfig):

@@ -78,7 +78,7 @@ agent = PlanningAgent(
 # RIGHT - Azure AI Foundry (100% schema compliance, v0.8.2)
 agent = PlanningAgent(
     llm_provider="azure",
-    model="gpt-4o"
+    model=os.environ["LLM_MODEL"]
 )
 ```
 

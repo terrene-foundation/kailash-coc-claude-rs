@@ -32,7 +32,7 @@ workflow = WorkflowBuilder()
 # MCP server with structured tools
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get weather for NYC and London"}],
     "mcp_servers": [{
         "name": "weather",
@@ -76,7 +76,7 @@ results, run_id = runtime.execute(workflow.build())
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "search",
@@ -402,7 +402,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Search with invalid params"}],
     "mcp_servers": [{
         "name": "search",

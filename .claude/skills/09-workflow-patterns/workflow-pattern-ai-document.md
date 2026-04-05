@@ -11,7 +11,7 @@ AI-powered document analysis, extraction, and classification workflows.
 > Category: `workflow-patterns`
 > Priority: `MEDIUM`
 > SDK Version: `0.9.25+`
-> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../nodes/nodes-ai-reference.md)
+> Related Skills: [`workflow-pattern-rag`](workflow-pattern-rag.md), [`nodes-ai-reference`](../08-nodes-reference/nodes-ai-reference.md)
 
 ## Pattern: Invoice Processing with AI
 

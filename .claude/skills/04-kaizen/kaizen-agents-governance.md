@@ -1,309 +1,232 @@
-# Kaizen-Agents: Governed Multi-Agent Orchestration
+# Governance, Audit, Bridges, and Supervisor
 
-`pip install kaizen-agents` (v0.1.0) — PACT-governed L3 autonomous agent orchestration built on kailash-kaizen SDK.
+All modules live in `crates/kaizen-agents/src/`. They are orchestration-level -- they WIRE SDK primitives (kailash-pact, eatp, kailash-kaizen L3), not reimplementing them.
 
-## Architecture: The "Does It Require an LLM?" Boundary
+## Architecture: Why Governance Lives Here
 
-| Layer            | Package          | Purpose                                                           | LLM? |
-| ---------------- | ---------------- | ----------------------------------------------------------------- | ---- |
-| L3 SDK           | `kailash-kaizen` | Deterministic primitives (EnvelopeTracker, Factory, PlanExecutor) | No   |
-| L3 Orchestration | `kaizen-agents`  | Governed agent orchestration with LLM intelligence                | Yes  |
-| CLI              | `kaizen-cli-py`  | Thin CLI entry point                                              | No   |
+- **kailash-pact**: Deterministic governance engine. Compiles org structure, evaluates access, produces verdicts. No LLM.
+- **kailash-enterprise**: Cross-cutting enterprise features (RBAC, ABAC, audit). Not agent-specific.
+- **kaizen-agents governance/**: Operationalizes governance. Translates PACT verdicts into agent state transitions, LLM prompt modifications, and human escalations.
 
-If the operation requires an LLM call, it belongs in `kaizen-agents`. If deterministic, it belongs in `kailash-kaizen`.
+**Boundary rule**: SDK validates/enforces (deterministic). Orchestration proposes/decides (LLM-aware).
 
-## GovernedSupervisor — Progressive Disclosure (3 Layers)
+## GovernedSupervisor (Progressive Disclosure)
 
-### Layer 1: Simple (2 params)
+Entry point at `supervisor.rs`. Three layers:
 
-```python
-from kaizen_agents.supervisor import GovernedSupervisor
+```rust
+// Layer 1: Simple (zero governance knowledge needed)
+let sup = GovernedSupervisor::new("gpt-4o", 10.0);
 
-supervisor = GovernedSupervisor(model="claude-sonnet-4-6", budget_usd=10.0)
-result = await supervisor.run("Analyze this codebase")
-# result: SupervisorResult (frozen=True)
+// Layer 2: Configured
+let sup = GovernedSupervisor::new("gpt-4o", 10.0)
+    .with_clearance(ClearanceLevel::Secret)
+    .with_max_agents(100)
+    .with_max_recovery_cycles(5);
+
+// Layer 3: Advanced (inject custom components)
+let sup = GovernedSupervisor::new("gpt-4o", 10.0)
+    .with_accountability(custom_tracker)
+    .with_audit(custom_trail)
+    .with_bypass(custom_manager);
 ```
 
-Defaults: empty tools, $1 budget, PUBLIC clearance, default-deny for all tools.
+Accessors: `sup.audit()`, `sup.budget()`, `sup.lifecycle()`, `sup.accountability()`, `sup.clearance()`, `sup.bypass()`, `sup.cascade()`, `sup.vacancy()`, `sup.dereliction()`, `sup.transport()`.
 
-### Layer 2: Configured (8 params)
+### GovernedSupervisor::run()
 
-```python
-supervisor = GovernedSupervisor(
-    model="claude-sonnet-4-6",
-    budget_usd=10.0,
-    tools=["read_file", "grep", "write_report"],
-    data_clearance="restricted",       # PUBLIC | INTERNAL | RESTRICTED | CONFIDENTIAL | SECRET
-    warning_threshold=0.70,            # Budget warning at 70%
-    max_children=10,                   # Max child agents
-    max_depth=5,                       # Max delegation depth
-    policy_source="human@example.com", # D/T/R authority source
-)
+Full governed orchestration cycle. Creates a `PlanMonitor` with `GovernanceHooks`, executes the objective, returns `SupervisorResult`:
+
+```rust
+let result = sup.run(
+    llm,              // Arc<S: StructuredLlmClient>
+    "Build a user registration API",
+    &["db_url".to_string()],
+    |description, spec| async move {
+        Ok(serde_json::json!({"status": "completed"}))
+    },
+).await?;
+
+// SupervisorResult fields:
+// output, audit_record_count, cascade_event_count, budget_remaining_pct,
+// agents_spawned, dereliction_warning_count, bypass_approvals
 ```
 
-### Layer 3: Advanced (9 governance subsystems, read-only)
+### build_governance_hooks()
 
-```python
-# Query governance state — all through read-only views
-trail = supervisor.audit.to_list()              # AuditTrail (read-only)
-snap = supervisor.budget.get_snapshot("root")    # BudgetTracker (read-only)
-chain = supervisor.accountability.trace("agent-1") # AccountabilityTracker
-events = supervisor.cascade.get_events()         # CascadeManager
-warnings = supervisor.dereliction.get_stats()    # DerelictionDetector
-bypasses = supervisor.bypass_manager.get_active() # BypassManager
-orphans = supervisor.vacancy.get_orphans()       # VacancyManager
-classes = supervisor.clearance.get_classifications() # ClearanceEnforcer
-classified = supervisor.classifier.classify("data") # ClassificationAssigner
+Builds `GovernanceHooks` from the supervisor's `Arc` components. Hooks share the same `Arc` references, so governance state is visible from both the supervisor accessors and the `PlanMonitor` during execution.
 
-# Mutation is BLOCKED — AttributeError on any mutation method
-# supervisor.budget.allocate(...)  # AttributeError!
+```rust
+let hooks = sup.build_governance_hooks();
+let monitor = PlanMonitor::new(llm, config).with_governance(hooks);
 ```
 
-### Anti-Self-Modification (\_ReadOnlyView)
+### governance_snapshot()
 
-Governance subsystems are exposed through `_ReadOnlyView` proxies with explicit allowed-method whitelists:
+Takes a point-in-time `GovernanceSnapshot` for anti-amnesia injection:
 
-```python
-_BUDGET_QUERY_METHODS = frozenset({"get_snapshot", "is_held", "get_events"})
-# Only these methods are callable through supervisor.budget
+```rust
+let snap = sup.governance_snapshot();
+// Fields: budget_remaining_pct, budget_consumed_microdollars,
+// plan_progress_pct, nodes_completed, nodes_total,
+// held_actions_count, active_agents_count, cascade_events_count
 ```
 
-The `envelope` property returns `copy.deepcopy()` to prevent mutation through dict reference.
+## GovernanceHooks (PlanMonitor Integration)
 
-**Source**: `packages/kaizen-agents/src/kaizen_agents/supervisor.py`
+Defined in `monitor.rs`. Optional governance components wired into `PlanMonitor` via `PlanMonitor::with_governance()`.
 
-## Seven Governance Modules
+When attached, the monitor:
 
-All modules share cross-cutting patterns:
+- Records audit events at each phase (decompose, design, spawn, complete)
+- Checks clearance before granting context to subtasks
+- Registers agents in the accountability tracker on spawn
+- Detects dereliction on failure and triggers cascades on Critical severity
+- Registers held actions in the bypass manager
+- Scans for vacancies after agent termination
+- Tracks budget consumption and emits warnings
+- Injects governance state into LLM context (anti-amnesia)
 
-- **Thread safety**: `threading.Lock` on all public methods
-- **Bounded collections**: `deque(maxlen=10000)`, registries capped at 100,000
-- **NaN/Inf defense**: `math.isfinite()` on every numeric input
-- **Frozen value types**: All record/event/snapshot dataclasses are `frozen=True`
-
-### 1. AccountabilityTracker (D/T/R Addressing)
-
-Maps agent instances to PACT D/T/R addresses. Root = `D1-R1`. Children = `{parent}-T{n}-R1`.
-
-```python
-from kaizen_agents.governance.accountability import AccountabilityTracker
-
-tracker = AccountabilityTracker()
-tracker.register("supervisor-1", parent_id=None, policy_source="human@org.com")
-tracker.register("worker-1", parent_id="supervisor-1")
-
-chain = tracker.trace_accountability("worker-1")
-# ["worker-1", "supervisor-1"]
-
-address = tracker.get_address("worker-1")
-# "D1-R1-T1-R1"
+```rust
+// GovernanceHooks struct fields (all Arc-wrapped):
+pub struct GovernanceHooks {
+    pub lifecycle: Arc<AgentLifecycleManager>,
+    pub accountability: Arc<AccountabilityTracker>,
+    pub clearance: Arc<ClearanceEnforcer>,
+    pub cascade: Arc<CascadeManager>,
+    pub bypass: Arc<BypassManager>,
+    pub vacancy: Arc<VacancyManager>,
+    pub dereliction: Arc<DerelictionDetector>,
+    pub budget: Arc<GovernanceBudgetTracker>,
+    pub audit: Arc<AuditTrail>,
+    pub transport: Arc<MessageTransport>,
+    pub default_clearance: ClearanceLevel,
+    pub default_address_prefix: String,
+    pub hold_timeout: Duration,
+}
 ```
 
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/accountability.py`
+Constructor: `GovernanceHooks::new(lifecycle, accountability, ...)` with default clearance `Restricted`, default address prefix `"D1-R1"`, hold timeout 300s.
 
-### 2. BudgetTracker (Reclamation + Predictive Warnings)
+`GovernanceHooks::snapshot(nodes_completed, nodes_total)` produces a `GovernanceSnapshot` for anti-amnesia injection into LLM context.
 
-Budget exhaustion triggers HELD (not BLOCKED) — siblings may have budget for reallocation.
+## Governance Modules
 
-```python
-from kaizen_agents.governance.budget import BudgetTracker
+### accountability.rs -- D/T/R Tracking
 
-budget = BudgetTracker(warning_threshold=0.80, hold_threshold=0.95)
-budget.allocate("agent-1", amount=5.0)
-budget.record_consumption("agent-1", amount=1.5)
+- `AccountabilityTracker`: maps D/T/R address strings to agent UUIDs
+- D/T/R format validated by regex: `D\d+(/T\d+)*/R\d+`
+- `assign()`, `unassign()`, `lookup()`, `record_action()`
+- Thread-safe: `DashMap` for assignments, `RwLock` for records
 
-snap = budget.get_snapshot("agent-1")
-# BudgetSnapshot(allocated=5.0, consumed=1.5, remaining=3.5, ...)
+### clearance.rs -- 5-Level Classification
 
-# Reclamation: unused budget flows back to parent on completion
-budget.reclaim("agent-1")
+- `ClearanceLevel`: Public(0), Restricted(1), Confidential(2), Secret(3), TopSecret(4)
+- `ClearanceEnforcer`: agent clearance management with **monotonic raise invariant** (can only go up)
+- `ClassificationAssigner`: rule-based classification with simple glob patterns
+- `check_access()`: returns `OrchestrationError::ClearanceViolation` if agent level < data level
+- `filter_keys()`: returns only keys agent has clearance to see
 
-# Reallocation: resolve HELD by transferring from sibling
-budget.reallocate(from_agent="agent-2", to_agent="agent-1", amount=2.0)
+### cascade.rs -- Revocation Cascade
+
+- `CascadeManager`: coordinates multi-level agent termination
+- `trigger_cascade(source, trigger, reason)` -> terminates source + all descendants
+- Uses `AgentLifecycleManager::terminate()` for BFS cascade
+- `CascadeTrigger`: TrustRevocation, EnvelopeViolation, ParentTermination, DerelictionCritical, ManualOverride
+- Events are append-only
+
+### bypass.rs -- Emergency Bypass
+
+- `BypassManager`: hold/approve/reject flow for actions exceeding governance thresholds
+- **Invariant**: `approve()` REQUIRES non-empty `approved_by` (human approval)
+- **Invariant**: expired holds cannot be approved
+- **Invariant**: rejected holds cannot be later approved
+- Dual-lock pattern: both `pending` and `approved` locks held during `approve()` (TOCTOU fix)
+
+### vacancy.rs -- Orphaned Resource Detection
+
+- `VacancyManager`: detects agents whose parent is in terminal state
+- `detect_orphans()`: idempotent -- same orphan not re-reported
+- `VacancyAction`: CascadeTerminated, Reassigned, Frozen
+- Uses `DashMap` for known-orphan tracking
+
+### dereliction.rs -- Duty Monitoring
+
+- `DerelictionDetector`: monitors agent behavior against configurable thresholds
+- `DerelictionConfig`: heartbeat_timeout(60s), progress_interval(300s), max_idle_time(600s), budget_overspend_threshold(1.1)
+- Severity escalation: 1st offense=Warning, 2nd=Serious, 3rd+=Critical
+- `check_budget()`: fail-closed on NaN/Inf (treats as overspend)
+- `DutyType`: RespondToMessages, ReportProgress, RespectBudget, CompleteAssignedTasks
+
+### budget.rs -- Unified Budget View
+
+- `GovernanceBudgetTracker`: AtomicU64 microdollar counters
+- `record_consumption()`: CAS loop -- rejects over-budget consumption (returns false)
+- `record_reclamation()`: capped at consumed amount (prevents inflation)
+- `snapshot()`: point-in-time view with zone classification (normal/warning/flagged/held/blocked)
+- NaN/Inf/negative clamped to 0 at API boundary via `is_finite()` check
+
+## Audit Module
+
+### trail.rs -- Append-Only Audit Chain
+
+- `AuditTrail`: append-only `Vec<AuditRecord>` behind `RwLock`
+- `AuditRecord`: id, timestamp, event_type, agent_id, action, reasoning_trace_id, context
+- `record_with_reasoning()`: links to eatp `ReasoningTrace` for KZ-040
+- 12 `AuditEventType` variants covering full governance lifecycle
+- No delete/modify/clear operations
+
+## Bridge Modules
+
+### scope_bridge.rs -- Context Projection + Anti-Amnesia
+
+- `project_for_child()`: filters parent context to child-visible keys
+- `filter_by_clearance()`: filters by classification level
+- `inject_governance_state()`: injects `GovernanceSnapshot` for KZ-041 anti-amnesia
+- `GovernanceSnapshot`: budget, progress, holds, agents, cascades
+
+### message_transport.rs -- Protocol Bridge
+
+- `MessageTransport`: converts ClarificationMessage/EscalationMessage/DelegationMessage to `TransportEnvelope`
+- `TransportPayload`: Clarification, Escalation, Delegation, Completion, Status
+- Backed by `parking_lot::RwLock<Vec<TransportEnvelope>>`
+
+### agent_lifecycle.rs -- PlanMonitor-to-L3 Coordinator
+
+- `AgentLifecycleManager`: spawn/terminate agents, track plan node mapping
+- `spawn_for_node()`: returns `Result<Uuid>`, rejects duplicate node_ids
+- `terminate()`: BFS cascade termination of descendants
+- Dual-lock pattern: `agents` then `node_to_agent` (documented ordering)
+- `LifecycleState`: Pending, Running, Waiting, Completed, Failed, Terminated
+
+## Thread Safety Patterns
+
+All types are `Send + Sync` (asserted in tests). Patterns used:
+
+- `DashMap`: concurrent read/write maps (accountability, clearance, dereliction, vacancy)
+- `parking_lot::RwLock`: append-only logs (audit, cascade events, budget events)
+- `AtomicU64`: lock-free counters (budget microdollars)
+- CAS loops: `compare_exchange_weak` for budget consumption/reclamation
+
+## Error Variants (added to OrchestrationError)
+
+```rust
+ClearanceViolation { agent_clearance: u8, required: u8 }
+CascadeFailed(String)
+BypassRequired { held_action_id: Uuid }
+DerelictionDetected { agent_id: Uuid, duty: String }
+VacancyDetected { agent_id: Uuid }
+GovernanceViolation(String)
 ```
 
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/budget.py`
+## Key Invariants
 
-### 3. CascadeManager (Envelope Tightening + Termination)
-
-Monotonic tightening: child envelopes can only be equal to or more restrictive than parent.
-
-```python
-from kaizen_agents.governance.cascade import CascadeManager
-
-cascade = CascadeManager()
-cascade.register("supervisor", parent_id=None, envelope=parent_env)
-cascade.register("worker-1", parent_id="supervisor", envelope=worker_env)
-
-# Tighten: intersects new constraints with current (never widens)
-cascade.tighten_envelope("supervisor", new_constraints)
-# BFS propagates to all descendants
-
-# Terminate: cascades to children
-cascade.terminate("supervisor", reason="budget_exhausted")
-# worker-1 also terminated
-```
-
-`_intersect_dicts()` handles: nested dicts (recurse), numerics (take min), "allowed" lists (intersection), "blocked" lists (union). Recursion bounded to depth 10.
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/cascade.py`
-
-### 4. ClearanceEnforcer + ClassificationAssigner
-
-`DataClassification` is an `IntEnum` (C0=0 through C4=4) — direct comparison works.
-
-```python
-from kaizen_agents.governance.clearance import ClearanceEnforcer, ClassificationAssigner
-
-enforcer = ClearanceEnforcer()
-enforcer.set_agent_clearance("worker-1", "RESTRICTED")  # C2
-
-# Deterministic regex pre-filter catches known patterns
-assigner = ClassificationAssigner()
-classification = assigner.classify("sk-abc123xyz...")
-# DataClassification.SECRET (C4) — API key pattern detected
-
-# Monotonic floor: classifications can only be raised, never lowered
-enforcer.register_value("api_key", DataClassification.SECRET)
-enforcer.register_value("api_key", DataClassification.PUBLIC)  # Rejected!
-```
-
-Recursive leaf scanning via `_extract_string_leaves()` (bounded to depth 10) catches secrets in nested structures.
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/clearance.py`
-
-### 5. DerelictionDetector
-
-Detects when a parent delegates with near-identical envelope (failing to narrow governance).
-
-```python
-from kaizen_agents.governance.dereliction import DerelictionDetector
-
-detector = DerelictionDetector(threshold=0.15)  # 15% tightening minimum
-detector.check_delegation("parent", parent_envelope, "child", child_envelope)
-# Returns DerelictionWarning if tightening < threshold
-
-stats = detector.get_stats()
-# DerelictionStats(total_warnings=N, dereliction_count=N, ...)
-```
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/dereliction.py`
-
-### 6. BypassManager (Emergency Override)
-
-Time-limited, logged at CRITICAL severity, anti-stacking enforced.
-
-```python
-from kaizen_agents.governance.bypass import BypassManager
-
-mgr = BypassManager()
-mgr.grant_bypass("agent-1", duration_seconds=300, reason="emergency", authorizer="admin")
-# Anti-stacking: rejects if active bypass already exists
-
-is_active = mgr.is_bypassed("agent-1")
-mgr.revoke_bypass("agent-1")
-```
-
-Uses `time.monotonic()` for timing. Original envelope preserved for restoration after expiry.
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/bypass.py`
-
-### 7. VacancyManager (Orphan Detection)
-
-When parent terminates: children become orphans, grandparent auto-designated as acting parent.
-
-```python
-from kaizen_agents.governance.vacancy import VacancyManager
-
-vacancy = VacancyManager(deadline_seconds=60)
-vacancy.register("parent", parent_id=None)
-vacancy.register("child", parent_id="parent")
-
-vacancy.report_termination("parent")
-orphans = vacancy.get_orphans()
-# [OrphanRecord(agent_id="child", ...)]
-```
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/governance/vacancy.py`
-
-## AuditTrail (EATP Hash Chain)
-
-Append-only with hash chain integrity: `sha256(prev_hash + type + agent_id + action + timestamp)`.
-
-```python
-from kaizen_agents.audit.trail import AuditTrail
-
-trail = AuditTrail()
-trail.record("delegation", agent_id="supervisor", action="spawned worker-1")
-
-# Verify chain integrity (constant-time hash comparison)
-is_valid = trail.verify_chain()
-
-records = trail.to_list()
-# [AuditRecord(record_type="genesis", ...), AuditRecord(record_type="delegation", ...)]
-```
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/audit/trail.py`
-
-## Integration with L3 SDK Primitives
-
-### Envelope Allocation via SDK EnvelopeSplitter
-
-```python
-from kaizen_agents.policy.envelope_allocator import EnvelopeAllocator, BudgetPolicy, Subtask
-
-policy = BudgetPolicy(reserve_pct=0.10, reallocation_enabled=True)
-allocator = EnvelopeAllocator(policy=policy)
-subtasks = [
-    Subtask(child_id="research", description="Research", complexity=0.3),
-    Subtask(child_id="write", description="Write", complexity=0.7),
-]
-# Converts local ConstraintEnvelope to SDK flat dict, delegates to EnvelopeSplitter
-child_envelopes = allocator.allocate_with_sdk(parent_envelope, subtasks)
-```
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/policy/envelope_allocator.py`
-
-### Context Bridging via SDK ScopedContext
-
-```python
-from kaizen_agents.context._scope_bridge import ScopeBridge
-
-bridge = ScopeBridge.create_root(owner_id="supervisor-1", clearance="confidential")
-child_scope = bridge.create_child_scope(
-    child_owner_id="worker-1",
-    visible_keys=["project.*"],
-    writable_prefix="results",
-    clearance="public",
-)
-context = bridge.inject_context(keys=["project.name"])
-merged = bridge.merge_child_results(child_scope)
-```
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/context/_scope_bridge.py`
-
-## Type Adapter Strategy
-
-31 types mapped across kaizen-agents and kailash-kaizen:
-
-- 12 direct swaps (identical semantics)
-- 17 need adapters (enum casing, timedelta vs float, dataclass vs dict)
-- 2 orchestration-specific (no SDK equivalent): `ConstraintEnvelope`, `MemoryConfig`
-
-Pattern: internal code uses local types. `_sdk_compat.py` adapters convert at SDK boundaries only.
-
-**Source**: `packages/kaizen-agents/src/kaizen_agents/_sdk_compat.py`
-
-## Install
-
-```bash
-pip install kaizen-agents  # v0.1.0
-# Requires: kailash-kaizen>=2.1.0, kailash-pact>=0.1.0
-```
-
-## Related Skills
-
-- **[kaizen-l3-overview](kaizen-l3-overview.md)** — L3 SDK primitives (deterministic layer)
-- **[kaizen-l3-envelope](kaizen-l3-envelope.md)** — EnvelopeTracker, Splitter, Enforcer
-- **[kaizen-l3-plan-dag](kaizen-l3-plan-dag.md)** — PlanExecutor, gradient rules
-- **[kaizen-agents-security](kaizen-agents-security.md)** — Security patterns for governance
+1. **Bypass requires human approval** -- no auto-bypass path
+2. **Clearance is monotonically raised** -- no downgrade
+3. **Cascade is atomic** -- all-or-nothing via single lock
+4. **Audit trail is append-only** -- no delete/modify
+5. **Budget consumption CAS-protected** -- rejects over-budget
+6. **Reclamation capped at consumed** -- prevents inflation
+7. **Orphan detection is idempotent** -- same orphan not re-reported
+8. **Dereliction NaN/Inf fail-closed** -- treated as overspend
+9. **Duplicate node_id rejected** -- spawn_for_node returns error

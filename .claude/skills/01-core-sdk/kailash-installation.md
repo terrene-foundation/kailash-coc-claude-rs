@@ -214,7 +214,7 @@ Use `release-specialist` subagent when:
 
 ## Version Notes
 
-- **v0.9.25+**: AsyncLocalRuntime now default for Docker/FastAPI
+- **v0.9.25+**: AsyncLocalRuntime now default for Docker/async contexts
 - **v0.9.20+**: String-based nodes became recommended pattern
 - **v0.8.0+**: Python 3.8+ required
 

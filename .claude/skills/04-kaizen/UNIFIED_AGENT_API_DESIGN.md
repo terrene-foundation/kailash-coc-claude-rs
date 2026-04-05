@@ -44,13 +44,13 @@ from kaizen_agents.agents import (
 from kaizen import Agent
 
 # Dead simple (everything just works)
-agent = Agent(model="gpt-4")
+agent = Agent(model=os.environ["LLM_MODEL"])
 result = agent.run("What is AI?")
 
 # Specialized behavior through configuration
-agent = Agent(model="gpt-4", agent_type="react")
-agent = Agent(model="gpt-4", agent_type="rag")
-agent = Agent(model="gpt-4", workflow="supervisor_worker")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="react")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="rag")
+agent = Agent(model=os.environ["LLM_MODEL"], workflow="supervisor_worker")
 ```
 
 ### Key Principles
@@ -69,7 +69,7 @@ agent = Agent(model="gpt-4", workflow="supervisor_worker")
 
 | Feature | Current Implementation | Unified Approach | Priority |
 |---------|----------------------|------------------|----------|
-| **Base Execution** | BaseAgent | `Agent(model="gpt-4")` | CRITICAL |
+| **Base Execution** | BaseAgent | `Agent(model=os.environ["LLM_MODEL"])` | CRITICAL |
 | **Simple Q&A** | SimpleQAAgent | `agent_type="simple"` | CRITICAL |
 | **Chain of Thought** | ChainOfThoughtAgent | `agent_type="cot"` | HIGH |
 | **ReAct (Reason+Act)** | ReActAgent | `agent_type="react"` | HIGH |
@@ -153,7 +153,7 @@ agent = Agent(model="gpt-4", workflow="supervisor_worker")
 from kaizen import Agent
 
 # DEAD SIMPLE - Everything just works
-agent = Agent(model="gpt-4")
+agent = Agent(model=os.environ["LLM_MODEL"])
 result = agent.run("Explain quantum computing")
 
 print(result['answer'])
@@ -195,7 +195,7 @@ from kaizen import Agent
 
 # CONFIGURE BEHAVIOR
 agent = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_type="react",           # ReAct pattern (reasoning + acting)
 
     # Memory settings
@@ -269,7 +269,7 @@ from my_custom import (
 
 # EXPERT CUSTOMIZATION
 agent = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_type="react",
 
     # Custom memory implementation
@@ -393,27 +393,27 @@ AGENT_TYPE_PRESETS = {
 
 ```python
 # Simple Q&A (single inference)
-agent = Agent(model="gpt-4", agent_type="simple")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="simple")
 result = agent.run("What is the capital of France?")
 
 # Chain of Thought (step-by-step reasoning)
-agent = Agent(model="gpt-4", agent_type="cot")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="cot")
 result = agent.run("Solve: If a train leaves at 2pm going 60mph...")
 
 # ReAct (reasoning + action with tools)
-agent = Agent(model="gpt-4", agent_type="react")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="react")
 result = agent.run("Research latest AI papers and summarize findings")
 
 # RAG (retrieval-augmented generation)
-agent = Agent(model="gpt-4", agent_type="rag")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="rag")
 result = agent.run("What does our documentation say about error handling?")
 
 # Autonomous (long-running with checkpoints)
-agent = Agent(model="gpt-4", agent_type="autonomous", max_cycles=50)
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="autonomous", max_cycles=50)
 result = agent.run("Build a complete data pipeline from API to dashboard")
 
 # Self-Reflection (iterative improvement)
-agent = Agent(model="gpt-4", agent_type="reflection")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="reflection")
 result = agent.run("Write a blog post and improve it 3 times")
 ```
 
@@ -449,13 +449,13 @@ pattern = SupervisorWorkerPattern(
 from kaizen import Agent
 
 # Create workers
-researcher = Agent(model="gpt-4", agent_type="react", agent_id="researcher")
-analyst = Agent(model="gpt-4", agent_type="cot", agent_id="analyst")
-writer = Agent(model="gpt-4", agent_type="simple", agent_id="writer")
+researcher = Agent(model=os.environ["LLM_MODEL"], agent_type="react", agent_id="researcher")
+analyst = Agent(model=os.environ["LLM_MODEL"], agent_type="cot", agent_id="analyst")
+writer = Agent(model=os.environ["LLM_MODEL"], agent_type="simple", agent_id="writer")
 
 # Create supervisor with workflow
 supervisor = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_type="react",
     workflow="supervisor_worker",
     workers=[researcher, analyst, writer],
@@ -564,7 +564,7 @@ WORKFLOW_PRESETS = {
    ```python
    # Minimal agent (disable everything optional)
    agent = Agent(
-       model="gpt-4",
+       model=os.environ["LLM_MODEL"],
        memory=False,
        tools=False,
        observability=False,
@@ -602,14 +602,14 @@ class Agent:
 
     Examples:
         # Dead simple
-        >>> agent = Agent(model="gpt-4")
+        >>> agent = Agent(model=os.environ["LLM_MODEL"])
         >>> result = agent.run("What is AI?")
 
         # Configured behavior
-        >>> agent = Agent(model="gpt-4", agent_type="react", memory_turns=20)
+        >>> agent = Agent(model=os.environ["LLM_MODEL"], agent_type="react", memory_turns=20)
 
         # Expert customization
-        >>> agent = Agent(model="gpt-4", memory=CustomMemory())
+        >>> agent = Agent(model=os.environ["LLM_MODEL"], memory=CustomMemory())
     """
 
     def __init__(
@@ -1002,13 +1002,13 @@ WORKFLOW_PRESETS = {
 # EXISTING CODE (still works)
 from kaizen_agents.agents import SimpleQAAgent, ReActAgent
 
-agent = SimpleQAAgent(llm_provider="openai", model="gpt-4")
+agent = SimpleQAAgent(llm_provider="openai", model=os.environ["LLM_MODEL"])
 result = agent.ask("What is AI?")  # ✅ Still works
 
 # NEW CODE (recommended)
 from kaizen import Agent
 
-agent = Agent(model="gpt-4", agent_type="simple")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="simple")
 result = agent.run("What is AI?")  # ✅ New way
 ```
 
@@ -1068,7 +1068,7 @@ from dataclasses import dataclass
 @dataclass
 class QAConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
 
 config = QAConfig()
@@ -1088,12 +1088,12 @@ print(answer)
 from kaizen import Agent
 
 # Dead simple
-agent = Agent(model="gpt-4")
+agent = Agent(model=os.environ["LLM_MODEL"])
 result = agent.run("What is AI?")
 print(result['answer'])
 
 # Or with configuration
-agent = Agent(model="gpt-4", temperature=0.7)
+agent = Agent(model=os.environ["LLM_MODEL"], temperature=0.7)
 ```
 
 **Lines of code**: 18 → 4 (78% reduction)
@@ -1112,7 +1112,7 @@ from dataclasses import dataclass
 @dataclass
 class ReActConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     max_cycles: int = 10
     temperature: float = 0.7
 
@@ -1141,7 +1141,7 @@ print(answer)
 from kaizen import Agent
 
 # Everything enabled by default
-agent = Agent(model="gpt-4", agent_type="react")
+agent = Agent(model=os.environ["LLM_MODEL"], agent_type="react")
 result = agent.run("Research AI trends and create report")
 print(result['answer'])
 ```
@@ -1164,21 +1164,21 @@ pool = SharedMemoryPool()
 # Create workers
 researcher = SimpleQAAgent(
     llm_provider="openai",
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     shared_memory=pool,
     agent_id="researcher"
 )
 
 analyst = SimpleQAAgent(
     llm_provider="openai",
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     shared_memory=pool,
     agent_id="analyst"
 )
 
 writer = SimpleQAAgent(
     llm_provider="openai",
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     shared_memory=pool,
     agent_id="writer"
 )
@@ -1186,7 +1186,7 @@ writer = SimpleQAAgent(
 # Create supervisor
 supervisor = SimpleQAAgent(
     llm_provider="openai",
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_id="supervisor"
 )
 
@@ -1207,13 +1207,13 @@ result = pattern.execute("Research, analyze, and write report on AI")
 from kaizen import Agent
 
 # Create workers
-researcher = Agent(model="gpt-4", agent_type="react", agent_id="researcher")
-analyst = Agent(model="gpt-4", agent_type="cot", agent_id="analyst")
-writer = Agent(model="gpt-4", agent_type="simple", agent_id="writer")
+researcher = Agent(model=os.environ["LLM_MODEL"], agent_type="react", agent_id="researcher")
+analyst = Agent(model=os.environ["LLM_MODEL"], agent_type="cot", agent_id="analyst")
+writer = Agent(model=os.environ["LLM_MODEL"], agent_type="simple", agent_id="writer")
 
 # Create supervisor with workflow
 supervisor = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     workflow="supervisor_worker",
     workers=[researcher, analyst, writer]
 )
@@ -1253,7 +1253,7 @@ multi_modal = MultiModalAgent(
     vision_agent=vision_agent,
     transcription_agent=audio_agent,
     llm_provider="openai",
-    model="gpt-4"
+    model=os.environ["LLM_MODEL"]
 )
 
 # Process
@@ -1270,7 +1270,7 @@ from kaizen import Agent
 
 # Single agent with multimodal capabilities
 agent = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     multimodal=["vision", "audio"]
 )
 
@@ -1295,7 +1295,7 @@ from kaizen import Agent
 # LAYER 1: Zero-Config (Dead Simple)
 # ====================================
 
-agent = Agent(model="gpt-4")
+agent = Agent(model=os.environ["LLM_MODEL"])
 result = agent.run("What is machine learning?")
 
 # What you get automatically:
@@ -1311,7 +1311,7 @@ result = agent.run("What is machine learning?")
 # ====================================
 
 agent = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_type="react",           # ReAct pattern
     memory_turns=20,              # 20 conversation turns
     memory_type="persistent",     # SQLite persistence
@@ -1336,7 +1336,7 @@ from my_custom import (
 )
 
 agent = Agent(
-    model="gpt-4",
+    model=os.environ["LLM_MODEL"],
     agent_type="autonomous",
 
     # Expert overrides

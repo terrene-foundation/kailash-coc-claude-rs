@@ -28,7 +28,7 @@ class QAConfig:
     """
     # BaseAgent extracts these automatically:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
 
@@ -84,7 +84,7 @@ provider_config: dict # Provider-specific configuration
 class BasicConfig:
     """Minimal configuration for simple agents."""
     llm_provider: str = "openai"
-    model: str = "gpt-3.5-turbo"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
 
 agent = SimpleQAAgent(BasicConfig())
@@ -98,7 +98,7 @@ class ProductionConfig:
     """Production-ready configuration with all features."""
     # Core LLM settings
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.3  # Lower for consistency
     max_tokens: int = 2000
 
@@ -122,7 +122,7 @@ class ProductionConfig:
 class DevConfig:
     """Development configuration with debugging."""
     llm_provider: str = "mock"  # No API calls
-    model: str = "gpt-3.5-turbo"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 500
 
@@ -159,7 +159,7 @@ class EnvConfig:
 class MultiProviderConfig:
     """Support multiple LLM providers."""
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
 
@@ -189,7 +189,7 @@ from kaizen.llm.routing.fallback import FallbackRouter, FallbackRejectedError
 
 # Basic usage with fallback chain
 router = FallbackRouter(
-    primary_model="gpt-4",
+    primary_model=os.environ["LLM_MODEL"],
     fallback_chain=["claude-3-opus", "gemini-pro"],
 )
 
@@ -200,7 +200,7 @@ def check_fallback(event):
         raise FallbackRejectedError("Cannot downgrade for critical task")
 
 router = FallbackRouter(
-    primary_model="gpt-4",
+    primary_model=os.environ["LLM_MODEL"],
     fallback_chain=["claude-3-opus"],
     on_fallback=check_fallback,  # Fires before each fallback
 )
@@ -220,7 +220,7 @@ router = FallbackRouter(
 @dataclass
 class MemoryEnabledConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     max_turns: int = 10  # Enable BufferMemory, keep last 10 turns
 
 agent = MemoryAgent(MemoryEnabledConfig())
@@ -237,7 +237,7 @@ result2 = agent.ask("What's my name?", session_id="user123")
 @dataclass
 class NoMemoryConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     max_turns: int = 0  # Disable memory (default)
 
 agent = StatelessAgent(NoMemoryConfig())
@@ -251,7 +251,7 @@ agent = StatelessAgent(NoMemoryConfig())
 @dataclass
 class OpenAIConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
 
@@ -446,7 +446,7 @@ from typing import Optional
 @dataclass
 class ValidatedConfig:
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
     timeout: int = 30
@@ -479,7 +479,7 @@ class ValidatedConfig:
 class BaseConfig:
     """Base configuration shared across agents."""
     llm_provider: str = "openai"
-    model: str = "gpt-4"
+    model: str = os.environ.get("LLM_MODEL", "")
     temperature: float = 0.7
     max_tokens: int = 1000
 

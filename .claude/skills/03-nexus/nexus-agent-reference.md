@@ -2,8 +2,13 @@
 
 Extracted reference material for cc-artifacts compliance.
 
+## Authentication & Authorization (NexusAuthPlugin)
 
-- `cors_allow_credentials=False` in both `NexusApp()` and `NexusConfig` (safe with wildcard origins)
+Complete auth package with JWT, RBAC, tenant isolation, rate limiting, and audit logging.
+
+**Security Defaults (v1.4.1)**:
+
+- `cors_allow_credentials=False` in both `Nexus()` and `NexusConfig` (safe with wildcard origins)
 - JWTConfig enforces **32-character minimum** for HS\* algorithm secrets
 - RBAC errors return generic "Forbidden" (no role/permission leakage)
 - SSO errors are sanitized (status-only to client, details logged server-side)
@@ -13,75 +18,96 @@ Extracted reference material for cc-artifacts compliance.
 
 ```python
 import os
-from kailash.nexus import NexusAuthPlugin
-from kailash.nexus import JWTConfig, TenantConfig, RateLimitConfig, AuditConfig
+from nexus import Nexus
+from nexus.auth.plugin import NexusAuthPlugin
+from nexus.auth import JWTConfig, TenantConfig, RateLimitConfig, AuditConfig
 
 # Basic auth (JWT + audit)
 auth = NexusAuthPlugin.basic_auth(
-    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"])  # Must be >= 32 chars for HS256
+    jwt=JWTConfig(secret=os.environ["JWT_SECRET"])  # Must be >= 32 chars for HS256
 )
 
 # SaaS app (JWT + RBAC + tenant + audit)
 auth = NexusAuthPlugin.saas_app(
-    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),
+    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "user": ["read:*"]},
     tenant_isolation=TenantConfig()
 )
 
 # Enterprise (all features)
 auth = NexusAuthPlugin.enterprise(
-    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),
+    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),
     rbac={"admin": ["*"], "editor": ["read:*", "write:*"], "viewer": ["read:*"]},
     rate_limit=RateLimitConfig(requests_per_minute=100),
     tenant_isolation=TenantConfig(),
     audit=AuditConfig(backend="logging")
 )
 
-from kailash.nexus import NexusApp
-app = NexusApp()
+app = Nexus()
 app.add_plugin(auth)
 ```
 
 ### JWT Configuration
 
 ```python
-import os
-import kailash
+from nexus.auth import JWTConfig
 
-# JwtConfig constructor: JwtConfig(secret_key, expiry_secs=3600, algorithm="HS256", issuer=None)
-jwt_config = kailash.JwtConfig(
-    secret_key=os.environ["JWT_SECRET"],  # MUST be `secret_key`, >= 32 chars
-    expiry_secs=3600,                      # Token expiry in seconds
-    algorithm="HS256",                     # Default algorithm
-    issuer="https://my-domain.com",        # Optional issuer claim
+# Symmetric (HS256) - secret MUST be >= 32 chars
+jwt_config = JWTConfig(
+    secret=os.environ["JWT_SECRET"],     # CRITICAL: `secret` not `secret_key`; >= 32 chars
+    algorithm="HS256",
+    exempt_paths=["/health", "/docs"],   # CRITICAL: `exempt_paths` not `exclude_paths`
+    verify_exp=True,
+    leeway=0,
 )
 
-# Use with NexusAuthPlugin
-auth = kailash.NexusAuthPlugin(jwt=jwt_config)
+# Asymmetric (RS256) with SSO
+jwt_config = JWTConfig(
+    algorithm="RS256",
+    public_key="-----BEGIN PUBLIC KEY-----...",
+    private_key="-----BEGIN PRIVATE KEY-----...",  # For token creation
+    issuer="https://your-issuer.com",
+    audience="your-api",
+)
+
+# JWKS for SSO providers (Auth0, Okta, etc.)
+jwt_config = JWTConfig(
+    algorithm="RS256",
+    jwks_url="https://your-tenant.auth0.com/.well-known/jwks.json",
+    jwks_cache_ttl=3600,
+)
 ```
 
 ### RBAC Setup
 
 ```python
-import os
-import kailash
+from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_user
+from nexus.http import Depends
 
-# Define roles with RbacConfig
-rbac = kailash.RbacConfig(
-    roles={
+# Define roles in plugin
+auth = NexusAuthPlugin(
+    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
+    rbac={
         "admin": ["*"],                           # Full access
         "editor": ["read:*", "write:articles"],   # Wildcard + specific
         "viewer": ["read:*"],                     # Read-only
     },
-    deny_by_default=True,
+    rbac_default_role="viewer",  # Users without roles get this
 )
+# NOTE: RequireRole/RequirePermission return generic "Forbidden" (no role leakage)
 
-# Combine JWT + RBAC in auth plugin
-auth = kailash.NexusAuthPlugin(
-    jwt=kailash.JwtConfig(secret_key=os.environ["JWT_SECRET"]),
-    rbac=rbac,
-)
+# Use dependencies in endpoints
+@app.get("/admin")
+async def admin_only(user=Depends(RequireRole("admin"))):
+    return {"admin": True}
 
+@app.delete("/articles/{id}")
+async def delete_article(user=Depends(RequirePermission("delete:articles"))):
+    return {"deleted": True}
+
+@app.get("/profile")
+async def profile(user=Depends(get_current_user)):
+    return {"user_id": user.user_id, "roles": user.roles}
 ```
 
 **Permission Matching:**
@@ -93,7 +119,7 @@ auth = kailash.NexusAuthPlugin(
 ### Tenant Isolation
 
 ```python
-from kailash.nexus import TenantConfig
+from nexus.auth.tenant.config import TenantConfig
 
 tenant_config = TenantConfig(
     tenant_id_header="X-Tenant-ID",
@@ -104,7 +130,7 @@ tenant_config = TenantConfig(
 )
 
 auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret_key=os.environ["JWT_SECRET"]),  # >= 32 chars
+    jwt=JWTConfig(secret=os.environ["JWT_SECRET"]),  # >= 32 chars
     tenant_isolation=tenant_config,
 )
 ```
@@ -112,7 +138,7 @@ auth = NexusAuthPlugin(
 ### Rate Limiting
 
 ```python
-from kailash.nexus import RateLimitConfig
+from nexus.auth.rate_limit.config import RateLimitConfig
 
 rate_config = RateLimitConfig(
     requests_per_minute=100,
@@ -133,7 +159,7 @@ rate_config = RateLimitConfig(
 ### Audit Logging
 
 ```python
-from kailash.nexus import AuditConfig
+from nexus.auth.audit.config import AuditConfig
 
 audit_config = AuditConfig(
     backend="logging",                   # or "dataflow"
@@ -169,11 +195,23 @@ NexusAuthPlugin handles this automatically. Do NOT add middleware manually.
 | Permission check fails                  | Only checking JWT direct             | Use `RequirePermission` (checks both) |
 | RBAC without JWT                        | RBAC requires JWT                    | Add `jwt=JWTConfig(...)`              |
 
-### PEP 563 Warning
+### Dependency Injection Warning
 
-**NEVER use `from __future__ import annotations` in files with NexusApp route handlers.**
+**NEVER use `from __future__ import annotations` in files with Nexus HTTP transport dependencies.**
 
-PEP 563 turns type annotations into strings, which can break dependency injection and parameter resolution.
+```python
+# auth_routes.py
+# DO NOT add: from __future__ import annotations  # BREAKS INJECTION
+
+from nexus.http import Depends, Request
+from nexus.auth.dependencies import RequireRole
+
+@app.get("/admin")
+async def admin(user=Depends(RequireRole("admin"))):  # Works
+    return user
+```
+
+PEP 563 turns type annotations into strings, preventing the HTTP transport from recognizing `Request` and other special types.
 
 ## MCP Transport
 
@@ -181,60 +219,60 @@ PEP 563 turns type annotations into strings, which can break dependency injectio
 
 ## Performance & Monitoring
 
-- **SQLite CARE Audit Storage** : Nexus creates `Runtime()` with `enable_monitoring=True` (default), so all workflow executions automatically get CARE audit persistence to SQLite WAL-mode database. Zero in-loop I/O (~35us/node overhead) with post-execution ACID flush.
+- **SQLite CARE Audit Storage** (v0.12.2): Nexus creates `AsyncLocalRuntime()` with `enable_monitoring=True` (default), so all workflow executions automatically get CARE audit persistence to SQLite WAL-mode database. Zero in-loop I/O (~35us/node overhead) with post-execution ACID flush.
 
 ## Common Issues & Solutions
 
-| Issue                                | Solution                                                           |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| Nexus blocks on startup              | Use `auto_discovery=False` with DataFlow                           |
-| Workflow not found                   | Ensure `.build(reg)` called before registration                    |
-| Parameter not accessible             | Use try/except in EmbeddedPythonNode OR use @app.handler() instead |
-| Port conflicts                       | Use custom ports: `NexusApp(NexusConfig(port=8001))`               |
-| Import blocked in EmbeddedPythonNode | Use @app.handler() to bypass sandbox restrictions                  |
-| Sandbox warnings at registration     | Switch to handlers OR set sandbox_mode="permissive" (dev only)     |
-| Auth dependency injection fails      | Remove `from __future__ import annotations`                        |
-| RBAC not resolving permissions       | Ensure JWT middleware runs before RBAC (use NexusAuthPlugin)       |
+| Issue                            | Solution                                                       |
+| -------------------------------- | -------------------------------------------------------------- |
+| Nexus blocks on startup          | Use `auto_discovery=False` with DataFlow                       |
+| Workflow not found               | Ensure `.build()` called before registration                   |
+| Parameter not accessible         | Use try/except in PythonCodeNode OR use @app.handler() instead |
+| Port conflicts                   | Use custom ports: `Nexus(api_port=8001)`                       |
+| Import blocked in PythonCodeNode | Use @app.handler() to bypass sandbox restrictions              |
+| Sandbox warnings at registration | Switch to handlers OR set sandbox_mode="permissive" (dev only) |
+| Auth dependency injection fails  | Remove `from __future__ import annotations`                    |
+| RBAC not resolving permissions   | Ensure JWT middleware runs before RBAC (use NexusAuthPlugin)   |
 
 ## Skill References
 
 ### Quick Start
 
-- **[nexus-quickstart](../../.claude/skills/03-nexus/nexus-quickstart.md)** - Basic setup
-- **[nexus-workflow-registration](../../.claude/skills/03-nexus/nexus-workflow-registration.md)** - Registration patterns
-- **[nexus-multi-channel](../../.claude/skills/03-nexus/nexus-multi-channel.md)** - Multi-channel architecture
+- **[nexus-quickstart](nexus-quickstart.md)** - Basic setup
+- **[nexus-workflow-registration](nexus-workflow-registration.md)** - Registration patterns
+- **[nexus-multi-channel](nexus-multi-channel.md)** - Multi-channel architecture
 
 ### Channel Patterns
 
-- **[nexus-api-patterns](../../.claude/skills/03-nexus/nexus-api-patterns.md)** - API deployment
-- **[nexus-cli-patterns](../../.claude/skills/03-nexus/nexus-cli-patterns.md)** - CLI integration
-- **[nexus-mcp-channel](../../.claude/skills/03-nexus/nexus-mcp-channel.md)** - MCP server
+- **[nexus-api-patterns](nexus-api-patterns.md)** - API deployment
+- **[nexus-cli-patterns](nexus-cli-patterns.md)** - CLI integration
+- **[nexus-mcp-channel](nexus-mcp-channel.md)** - MCP server
 
 ### Integration
 
-- **[nexus-dataflow-integration](../../.claude/skills/03-nexus/nexus-dataflow-integration.md)** - DataFlow integration
-- **[nexus-sessions](../../.claude/skills/03-nexus/nexus-sessions.md)** - Session management
+- **[nexus-dataflow-integration](nexus-dataflow-integration.md)** - DataFlow integration
+- **[nexus-sessions](nexus-sessions.md)** - Session management
 
 ### Authentication & Authorization
 
-- **[nexus-auth-plugin](../../.claude/skills/03-nexus/nexus-auth-plugin.md)** - NexusAuthPlugin unified auth
-- **[nexus-enterprise-features](../../.claude/skills/03-nexus/nexus-enterprise-features.md)** - Enterprise auth patterns
+- **[nexus-auth-plugin](nexus-auth-plugin.md)** - NexusAuthPlugin unified auth
+- **[nexus-enterprise-features](nexus-enterprise-features.md)** - Enterprise auth patterns
 
 ## Related Agents
 
 - **dataflow-specialist**: Database integration with Nexus platform
 - **mcp-specialist**: MCP channel implementation
 - **pattern-expert**: Core SDK workflows for Nexus registration
-- **framework-advisor**: Choose between Core SDK and Nexus
-- **deployment-specialist**: Production deployment and scaling
+- **`decide-framework` skill**: Choose between Core SDK and Nexus
+- **release-specialist**: Production deployment and scaling
 
 ## Full Documentation
 
 When this guidance is insufficient, consult:
 
-- `.claude/skills/03-nexus/nexus-quickstart.md` - Basic Nexus setup
+- `.claude/skills/03-nexus/` - Complete Nexus skills directory
 - `.claude/skills/03-nexus/nexus-dataflow-integration.md` - Integration patterns
-- `.claude/skills/03-nexus/nexus-api-patterns.md` - API endpoint patterns
+- `.claude/skills/03-nexus/nexus-troubleshooting.md` - Troubleshooting and input mapping
 
 ---
 

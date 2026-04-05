@@ -24,7 +24,7 @@ from kaizen.core.config import BaseAgentConfig
 # Tenant-specific config — api_key flows through CredentialStore
 config = BaseAgentConfig(
     llm_provider="openai",
-    model="gpt-4o",
+    model=os.environ["LLM_MODEL"],
     api_key="sk-tenant-123",        # Per-request override
     base_url="https://proxy.example.com/v1",  # Optional proxy
 )
@@ -42,7 +42,7 @@ All provider config functions accept `api_key` and `base_url`:
 from kaizen.config.providers import get_openai_config, get_provider_config
 
 # Explicit provider
-config = get_openai_config(api_key="sk-tenant-key", model="gpt-4o")
+config = get_openai_config(api_key="sk-tenant-key", model=os.environ["LLM_MODEL"])
 
 # Auto-detect with BYOK key
 config = get_provider_config(api_key="sk-tenant-key")
@@ -107,4 +107,4 @@ All provider exceptions pass through `sanitize_provider_error()` which strips AP
 
 ## Cross-References
 
-- ADR-001: `workspaces/byok-hardening/02-plans/01-adr-credential-flow.md`
+- ADR-001: BYOK credential flow architecture decision (byok-hardening analysis)

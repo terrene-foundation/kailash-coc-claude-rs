@@ -15,7 +15,7 @@ registry = kailash.NodeRegistry()
 workflow = builder.build(registry)
 ```
 
-**Why**: v2 API requires the registry to validate node types at build time. The v0.12 compat layer allows `build()` without registry but emits a DeprecationWarning.
+**Why:** v2 API requires the registry to validate node types at build time. The v0.12 compat layer allows `build()` without registry but emits a DeprecationWarning.
 
 ### 2. Expecting Tuple Return from execute()
 
@@ -30,7 +30,7 @@ result = runtime.execute(workflow, inputs)
 # Metadata: result["metadata"]
 ```
 
-**Why**: v2 API returns a dict with keys `"results"` (node outputs), `"run_id"` (unique ID), and `"metadata"` (timing info). The v0.12 compat layer still supports tuple unpacking but emits a DeprecationWarning.
+**Why:** v2 API returns a dict with keys `"results"` (node outputs), `"run_id"` (unique ID), and `"metadata"` (timing info). The v0.12 compat layer still supports tuple unpacking but emits a DeprecationWarning.
 
 ### 3. Missing Registry in Runtime()
 
@@ -85,7 +85,7 @@ def my_node(inputs):
     return {"data": result}
 ```
 
-**Why**: PyO3 callbacks run on the Rust tokio runtime. Async Python functions would need a Python event loop, which conflicts with the Rust runtime.
+**Why:** PyO3 callbacks run on the Rust tokio runtime. Async Python functions would need a Python event loop, which conflicts with the Rust runtime.
 
 ### 7. Passing Non-Serializable Objects in Config
 

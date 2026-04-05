@@ -21,7 +21,7 @@ fn infra_runtime() -> &'static tokio::runtime::Runtime {
 
 **When to use**: Background service types (SagaStore, TaskQueue) that may be called from within an existing tokio context (e.g., Nexus handler callback).
 
-**Why**: Prevents "Cannot start a runtime from within a runtime" panic. The dedicated runtime is separate from any application runtime.
+**Why:** Prevents "Cannot start a runtime from within a runtime" panic. The dedicated runtime is separate from any application runtime.
 
 ### 2. Per-Instance Runtime (existing PyRuntime pattern)
 

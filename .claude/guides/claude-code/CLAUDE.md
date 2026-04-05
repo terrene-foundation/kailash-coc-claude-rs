@@ -428,32 +428,32 @@ You don't need to specify which agent to use. Just describe the task:
 ### Anti-Pattern 1: Bypassing Hooks
 
 **Don't**: Try to disable or work around hooks
-**Why**: Hooks enforce quality that prevents bugs
+**Why:** Hooks enforce quality that prevents bugs
 
 ### Anti-Pattern 2: Ignoring Agent Recommendations
 
 **Don't**: Dismiss reviewer findings without addressing
-**Why**: Code review catches issues you'll regret later
+**Why:** Code review catches issues you'll regret later
 
 ### Anti-Pattern 3: Rushing Past Planning
 
 **Don't**: "Just write the code, skip the planning"
-**Why**: Planning prevents rework and catches design issues
+**Why:** Planning prevents rework and catches design issues
 
 ### Anti-Pattern 4: Using Mocks in Integration Tests
 
 **Don't**: "Mock the database for this integration test"
-**Why**: Mocks hide real issues; the rule system will flag this
+**Why:** Mocks hide real issues; the rule system will flag this
 
 ### Anti-Pattern 5: Relative Imports
 
 **Don't**: `from ..workflow import builder`
-**Why**: Absolute imports are required; hooks will catch this
+**Why:** Absolute imports are required; hooks will catch this
 
 ### Anti-Pattern 6: Skipping Security Review
 
 **Don't**: "Commit without security review"
-**Why**: Strongly recommended; prevents security vulnerabilities
+**Why:** Strongly recommended; prevents security vulnerabilities
 
 ---
 

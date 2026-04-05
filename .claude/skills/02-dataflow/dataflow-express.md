@@ -20,13 +20,13 @@ High-performance wrapper providing ~23x faster execution by bypassing workflow o
 - **Best For**: Simple CRUD operations, high-throughput scenarios, API endpoints
 - **NOT For**: Multi-node workflows, conditional execution, transactions
 
-## Docker/FastAPI Quick Start (RECOMMENDED)
+## Docker/Nexus Quick Start (RECOMMENDED)
 
-For Docker/FastAPI deployment, use `auto_migrate=False` + `create_tables_async()` to avoid async/sync conflicts:
+For Docker/Nexus deployment, use `auto_migrate=False` + `create_tables_async()` to avoid async/sync conflicts:
 
 ```python
 from dataflow import DataFlow
-from fastapi import FastAPI
+from nexus import Nexus
 from contextlib import asynccontextmanager
 
 # Step 1: Initialize with auto_migrate=False for Docker
@@ -45,12 +45,12 @@ class User:
 
 # Step 3: Create tables in lifespan (event loop is ready)
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     await db.create_tables_async()  # Safe - event loop ready
     yield
     await db.close_async()          # Cleanup connections
 
-app = FastAPI(lifespan=lifespan)
+app = Nexus(lifespan=lifespan)
 
 # Step 4: Use Express for endpoints - 23x faster than workflows!
 @app.post("/users")

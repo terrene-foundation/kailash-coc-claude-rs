@@ -51,7 +51,7 @@ specialists = {
         description="Expert code reviewer",
         system_prompt="You are a senior code reviewer...",
         available_tools=["Read", "Glob", "Grep"],
-        model="gpt-4o",
+        model=os.environ["LLM_MODEL"],
         temperature=0.2,
     ),
 }

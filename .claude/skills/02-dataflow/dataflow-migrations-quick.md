@@ -13,14 +13,14 @@ Automatic schema migrations with safety controls for development and production.
 > Related Skills: [`dataflow-models`](#), [`dataflow-existing-database`](#)
 > Related Subagents: `dataflow-specialist` (complex migrations, production safety)
 
-> **DataFlow Update**: `auto_migrate=True` now works correctly in Docker/FastAPI environments (psycopg2/sqlite3 for synchronous DDL). The previous workaround of using `auto_migrate=False` + `create_tables_async()` is **OBSOLETE**.
+> **DataFlow Update**: `auto_migrate=True` now works correctly in Docker/async environments (psycopg2/sqlite3 for synchronous DDL). The previous workaround of using `auto_migrate=False` + `create_tables_async()` is **OBSOLETE**.
 >
 > The deprecated parameters (`existing_schema_mode`, `enable_model_persistence`, `skip_registry`, `skip_migration`) have been removed. Use `auto_migrate=True` (default) for automatic schema management, or `auto_migrate=False` to skip schema modifications.
 
 ## Quick Reference
 
 - **Development**: `auto_migrate=True` (default) - safe, preserves data
-- **Docker/FastAPI**: `auto_migrate=True` - works correctly as of the current version
+- **Docker/async**: `auto_migrate=True` - works correctly as of the current version
 - **Production**: `auto_migrate=True` - same pattern for all environments
 - **Enterprise**: Full migration system with risk assessment for complex operations
 - **Safety**: auto_migrate ALWAYS preserves existing data, adds new columns safely
@@ -163,18 +163,18 @@ class User:
 
 ```python
 # OBSOLETE - This workaround was needed in older versions
-# Now auto_migrate=True works in Docker/FastAPI!
+# Now auto_migrate=True works in Docker/async!
 db_prod = DataFlow(
     database_url="postgresql://prod/db",
     auto_migrate=False,  # No longer needed!
 )
-# ... then manually calling create_tables_async() in FastAPI lifespan
+# ... then manually calling create_tables_async() in Nexus lifespan
 ```
 
 **Fix: Use Simple Configuration (current)**
 
 ```python
-# CORRECT - auto_migrate=True now works in Docker/FastAPI
+# CORRECT - auto_migrate=True now works in Docker/async
 db_prod = DataFlow(
     database_url="postgresql://prod/db",
     auto_migrate=True  # Default - safe: preserves data, adds new columns only
@@ -198,7 +198,7 @@ db_prod = DataFlow(
 ## Quick Tips
 
 - `auto_migrate=True` is safe for ALL environments (current version)
-- Works correctly in Docker/FastAPI 
+- Works correctly in Docker/async 
 - Always provide defaults for NOT NULL columns
 - Enterprise migration system for complex operations (type changes, renames)
 - Test migrations on staging before production

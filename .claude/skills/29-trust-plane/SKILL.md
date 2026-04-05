@@ -104,8 +104,8 @@ Five dimensions from EATP (see `docs/00-authority/05-trust-framework.md`):
 ## Related Skills
 
 - [10-governance](../10-governance/SKILL.md) — EATP/CARE governance via kailash-kaizen trust module
-- [07-eatp-reference](../07-eatp-reference/SKILL.md) — EATP protocol specification
-- [08-care-reference](../08-care-reference/SKILL.md) — CARE governance philosophy
+- [26-eatp-reference](../26-eatp-reference/SKILL.md) — EATP protocol specification
+- [co-reference](../co-reference/SKILL.md) — CARE governance philosophy
 
 ## Support
 

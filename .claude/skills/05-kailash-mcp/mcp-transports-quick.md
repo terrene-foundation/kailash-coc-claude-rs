@@ -34,7 +34,7 @@ workflow = WorkflowBuilder()
 # STDIO: Launch MCP server as subprocess
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get weather for NYC"}],
     "mcp_servers": [{
         "name": "weather",
@@ -61,7 +61,7 @@ results, run_id = runtime.execute(workflow.build())
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "doc_search",
@@ -89,7 +89,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Monitor system metrics"}],
     "mcp_servers": [{
         "name": "metrics",
@@ -118,7 +118,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Analyze weather and documents"}],
     "mcp_servers": [
         {
@@ -149,7 +149,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 # HTTP with retry logic
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Search"}],
     "mcp_servers": [{
         "name": "search",
@@ -188,7 +188,7 @@ env = os.getenv("ENV", "development")
 
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Process data"}],
     "mcp_servers": [{
         "name": "processor",
@@ -237,7 +237,7 @@ config = prod_config if os.getenv("ENV") == "production" else dev_config
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get data"}],
     "mcp_servers": [
         {

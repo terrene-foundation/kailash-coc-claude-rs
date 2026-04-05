@@ -11,7 +11,7 @@ Retrieval Augmented Generation patterns for AI-powered document search and Q&A.
 > Category: `workflow-patterns`
 > Priority: `HIGH`
 > SDK Version: `0.9.25+`
-> Related Skills: [`nodes-ai-reference`](../nodes/nodes-ai-reference.md), [`workflow-pattern-ai-document`](workflow-pattern-ai-document.md)
+> Related Skills: [`nodes-ai-reference`](../08-nodes-reference/nodes-ai-reference.md), [`workflow-pattern-ai-document`](workflow-pattern-ai-document.md)
 > Related Subagents: `pattern-expert` (RAG workflows), `kaizen-specialist` (AI agents)
 
 ## Quick Reference
@@ -120,7 +120,7 @@ Answer:'''
 # 5. Generate answer with LLM
 workflow.add_node("LLMNode", "generate_answer", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": "{{build_prompt.result}}",
     "temperature": 0.3
 })
@@ -181,7 +181,7 @@ workflow.add_node("RerankNode", "rerank_all", {
 # 4. Generate comprehensive answer
 workflow.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": """Answer using context from docs, code, and API:
 
 Context: {{rerank_all.documents}}
@@ -242,7 +242,7 @@ workflow.add_node("VectorSearchNode", "search", {
 # 5. Generate answer with history
 workflow.add_node("LLMNode", "generate", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "prompt": """Conversation History:
 {{build_context.context}}
 

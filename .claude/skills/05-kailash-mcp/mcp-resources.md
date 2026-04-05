@@ -31,7 +31,7 @@ workflow = WorkflowBuilder()
 
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get document content"}],
     "mcp_servers": [{
         "name": "docs",

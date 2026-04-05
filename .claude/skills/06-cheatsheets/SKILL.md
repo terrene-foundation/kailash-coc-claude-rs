@@ -111,7 +111,7 @@ workflow.add_node("PythonCode", "transform", {"code": "..."})
 workflow.add_node("HTTPRequest", "api", {"url": "...", "method": "GET"})
 
 # AI/LLM
-workflow.add_node("LLMNode", "chat", {"model": os.environ["LLM_MODEL"], "prompt": "..."})
+workflow.add_node("LLMNode", "chat", {"model": "gpt-4", "prompt": "..."})
 ```
 
 ### Cyclic Pattern
@@ -149,7 +149,7 @@ Use this skill when you need:
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core SDK fundamentals
 - **[07-development-guides](../development-guides/SKILL.md)** - Detailed development guides
-- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference documentation
+- **[08-nodes-reference](../../08-nodes-reference/SKILL.md)** - Node reference documentation
 - **[09-workflow-patterns](../workflows/SKILL.md)** - Industry workflow patterns
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Mandatory best practices
 

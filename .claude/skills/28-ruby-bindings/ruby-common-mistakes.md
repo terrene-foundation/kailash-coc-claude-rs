@@ -15,7 +15,7 @@ registry = Kailash::Registry.new
 workflow = builder.build(registry)
 ```
 
-**Why**: The registry validates node types at build time.
+**Why:** The registry validates node types at build time.
 
 ### 2. Missing Registry in Runtime.new
 
@@ -65,7 +65,7 @@ builder.add_node("NoOpNode", "n", { key: "value" })
 builder.add_node("NoOpNode", "n", { "key" => "value" })
 ```
 
-**Why**: Rust expects String keys in the ValueMap. Symbol keys may not convert correctly.
+**Why:** Rust expects String keys in the ValueMap. Symbol keys may not convert correctly.
 
 ### 5. Registering Callback After Runtime Creation
 
@@ -125,7 +125,7 @@ config.node_timeout = 3
 runtime = Kailash::Runtime.new(registry, config)
 ```
 
-**Why**: `runtime.execute` releases the GVL. Ruby's UBF (Unblocking Function) cannot interrupt Rust code running without the GVL.
+**Why:** `runtime.execute` releases the GVL. Ruby's UBF (Unblocking Function) cannot interrupt Rust code running without the GVL.
 
 ### 9. Node Type Name Misspelling
 

@@ -65,7 +65,7 @@ def test_real_mcp_tool_execution():
 
     workflow.add_node("IterativeLLMAgentNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": [{"role": "user", "content": "Get weather for NYC"}],
         "mcp_servers": [{
             "name": "weather",
@@ -96,7 +96,7 @@ def test_mcp_production_flow():
 
     workflow.add_node("IterativeLLMAgentNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": [{"role": "user", "content": "Search docs and get weather"}],
         "mcp_servers": [
             {
@@ -182,7 +182,7 @@ def test_mcp_tool_discovery():
 
     workflow.add_node("IterativeLLMAgentNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": [{"role": "user", "content": "List available tools"}],
         "mcp_servers": [{
             "name": "test",
@@ -211,7 +211,7 @@ def test_mcp_server_failure_handling():
 
     workflow.add_node("IterativeLLMAgentNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": [{"role": "user", "content": "Get data"}],
         "mcp_servers": [{
             "name": "failing",

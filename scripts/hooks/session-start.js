@@ -16,6 +16,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execFileSync } = require("child_process");
 const {
   parseEnvFile,
   discoverModelsAndKeys,
@@ -346,6 +347,9 @@ function checkPythonPackageFreshness(cwd) {
     );
   }
 
+  // Check SDK dependency pin freshness (for repos that depend on kailash packages)
+  checkSdkPinFreshness(cwd);
+
   // Check COC sync freshness (for USE repos that have a sync marker)
   const markerPath = path.join(cwd, ".claude", ".coc-sync-marker");
   if (fs.existsSync(markerPath)) {
@@ -355,7 +359,11 @@ function checkPythonPackageFreshness(cwd) {
         const daysSince =
           (Date.now() - new Date(marker.synced_at).getTime()) /
           (1000 * 60 * 60 * 24);
-        if (daysSince > 7) {
+        if (!isFinite(daysSince)) {
+          console.error(
+            `[COC-SYNC] WARNING: Invalid sync timestamp in marker file`,
+          );
+        } else if (daysSince > 7) {
           console.error(
             `[COC-SYNC] WARNING: COC sync is ${Math.floor(daysSince)} days old. ` +
               `Run COC sync to get latest agents, skills, and rules.`,
@@ -366,6 +374,101 @@ function checkPythonPackageFreshness(cwd) {
       }
     } catch {}
   }
+}
+
+/**
+ * Check if kailash SDK dependency pins in pyproject.toml are installed in .venv.
+ * Warns if pins exist but .venv packages are missing or at a different version.
+ * Also enforces uv sync (not pip install) for dependency management.
+ */
+function checkSdkPinFreshness(cwd) {
+  const pyprojectPath = path.join(cwd, "pyproject.toml");
+  if (!fs.existsSync(pyprojectPath)) return;
+
+  try {
+    const content = fs.readFileSync(pyprojectPath, "utf8");
+
+    // Extract kailash-* dependency pins from pyproject.toml
+    // Matches: kailash>=1.2.3, kailash-dataflow>=1.0.0, etc.
+    const pinRegex = /(?:^|\n)\s*"?(kailash(?:-[\w]+)?)"?\s*>=\s*([\d.]+)/g;
+    const pins = [];
+    let match;
+    while ((match = pinRegex.exec(content)) !== null) {
+      pins.push({ name: match[1], version: match[2] });
+    }
+
+    if (pins.length === 0) return; // Not a kailash downstream repo
+
+    // Check if .venv exists
+    const venvPython = path.join(cwd, ".venv", "bin", "python");
+    if (!fs.existsSync(venvPython)) {
+      console.error(
+        `[SDK-PINS] ${pins.length} kailash packages pinned but no .venv found. Run: uv venv && uv sync`,
+      );
+      return;
+    }
+
+    // Check installed versions via pip list (fast, no import needed)
+    let stale = 0;
+    try {
+      const installed = execFileSync(
+        venvPython,
+        ["-m", "pip", "list", "--format=json"],
+        { encoding: "utf8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] },
+      );
+      const packages = JSON.parse(installed);
+      const pkgMap = {};
+      for (const p of packages) {
+        pkgMap[p.name.toLowerCase().replace(/-/g, "_")] = p.version;
+      }
+
+      for (const pin of pins) {
+        const normalized = pin.name.toLowerCase().replace(/-/g, "_");
+        const installed_ver = pkgMap[normalized];
+        if (!installed_ver) {
+          console.error(
+            `[SDK-PINS] ${pin.name}>=${pin.version} pinned but NOT installed. Run: uv sync`,
+          );
+          stale++;
+        } else if (
+          installed_ver !== pin.version &&
+          isOlderThan(installed_ver, pin.version)
+        ) {
+          console.error(
+            `[SDK-PINS] ${pin.name}: installed ${installed_ver} < pinned ${pin.version}. Run: uv sync`,
+          );
+          stale++;
+        }
+      }
+    } catch {
+      // pip list failed — .venv might be broken
+      console.error(
+        `[SDK-PINS] Could not read installed packages. Recreate: uv venv && uv sync`,
+      );
+      return;
+    }
+
+    if (stale === 0 && pins.length > 0) {
+      console.error(`[SDK-PINS] ${pins.length} kailash packages up to date`);
+    } else if (stale > 0) {
+      console.error(
+        `[SDK-PINS] ${stale} stale pin(s). MUST run: uv sync (not pip install)`,
+      );
+    }
+  } catch {}
+}
+
+/**
+ * Simple version comparison: is a older than b?
+ */
+function isOlderThan(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) < (pb[i] || 0)) return true;
+    if ((pa[i] || 0) > (pb[i] || 0)) return false;
+  }
+  return false;
 }
 
 function detectFramework(cwd) {

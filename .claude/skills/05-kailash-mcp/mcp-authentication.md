@@ -35,7 +35,7 @@ workflow = WorkflowBuilder()
 # Header-based API key
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Search documents"}],
     "mcp_servers": [{
         "name": "docs",
@@ -63,7 +63,7 @@ results, run_id = runtime.execute(workflow.build())
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get weather data"}],
     "mcp_servers": [{
         "name": "weather",
@@ -101,7 +101,7 @@ jwt_token = create_jwt_token(
 
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Process data"}],
     "mcp_servers": [{
         "name": "processor",
@@ -152,7 +152,7 @@ oauth_token = get_oauth_token(
 # Use OAuth token
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Access protected resource"}],
     "mcp_servers": [{
         "name": "protected",
@@ -170,7 +170,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 ```python
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Multi-factor auth"}],
     "mcp_servers": [{
         "name": "secure",
@@ -204,7 +204,7 @@ def create_mcp_workflow(tenant_id):
 
     workflow.add_node("IterativeLLMAgentNode", "agent", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": [{"role": "user", "content": "Get tenant data"}],
         "mcp_servers": [{
             "name": "data",
@@ -353,7 +353,7 @@ workflow = WorkflowBuilder()
 
 workflow.add_node("IterativeLLMAgentNode", "agent", {
     "provider": "openai",
-    "model": "gpt-4",
+    "model": os.environ["LLM_MODEL"],
     "messages": [{"role": "user", "content": "Get data"}],
     "mcp_servers": [{
         "name": "api",

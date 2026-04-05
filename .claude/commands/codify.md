@@ -147,10 +147,4 @@ Deploy these agents as a team for codification:
 
 ### Journal
 
-Create journal entries for knowledge captured:
-
-- **DECISION** entries for what was codified and why
-- **CONNECTION** entries for patterns that connect across the project
-- **TRADE-OFF** entries for trade-offs in knowledge representation choices
-
-Use sequential naming: check the highest existing `NNNN-` prefix and increment.
+Create **DECISION** entries for codification choices. Use sequential `NNNN-` naming.

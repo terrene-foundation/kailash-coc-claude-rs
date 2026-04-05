@@ -1,6 +1,6 @@
 ---
 name: async-workflow-patterns
-description: "Asynchronous workflow execution with AsyncLocalRuntime for Docker and FastAPI deployments. Use when asking 'async workflow', 'AsyncLocalRuntime', 'async execution', 'Docker deployment', 'FastAPI workflow', 'async patterns', 'concurrent execution', 'async runtime', or 'asynchronous processing'."
+description: "Asynchronous workflow execution with AsyncLocalRuntime for Docker and Nexus deployments. Use when asking 'async workflow', 'AsyncLocalRuntime', 'async execution', 'Docker deployment', 'Nexus workflow', 'async patterns', 'concurrent execution', 'async runtime', or 'asynchronous processing'."
 ---
 
 # Async Workflow Patterns
@@ -17,7 +17,7 @@ Async Workflow Patterns guide with patterns, examples, and best practices.
 - **Primary Use**: Async Workflow Patterns
 - **Category**: core-sdk
 - **Priority**: HIGH
-- **Trigger Keywords**: async workflow, AsyncLocalRuntime, async execution, Docker deployment, FastAPI workflow
+- **Trigger Keywords**: async workflow, AsyncLocalRuntime, async execution, Docker deployment, Nexus workflow
 
 ## Core Pattern
 
@@ -70,4 +70,4 @@ Use specialized subagents when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: async workflow, AsyncLocalRuntime, async execution, Docker deployment, FastAPI workflow -->
+<!-- Trigger Keywords: async workflow, AsyncLocalRuntime, async execution, Docker deployment, Nexus workflow -->

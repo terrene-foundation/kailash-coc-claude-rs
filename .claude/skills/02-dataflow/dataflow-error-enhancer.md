@@ -268,7 +268,7 @@ workflow.add_node("UserCreateNode", "create", {
 
 You called create_tables() from an async context (running event loop detected).
 
-In async contexts (FastAPI, pytest-asyncio, etc.), you MUST use the async methods:
+In async contexts (Nexus, pytest-asyncio, etc.), you MUST use the async methods:
   - create_tables() → create_tables_async()
   - close() → close_async()
   - _ensure_migration_tables() → _ensure_migration_tables_async()
@@ -279,7 +279,7 @@ In async contexts (FastAPI, pytest-asyncio, etc.), you MUST use the async method
 
 **Solution:**
 ```python
-# ❌ WRONG - Sync method in async context (FastAPI/pytest)
+# ❌ WRONG - Sync method in async context (Nexus/pytest)
 @app.on_event("startup")
 async def startup():
     db.create_tables()  # ← RuntimeError: DF-501
@@ -289,18 +289,18 @@ async def startup():
 async def startup():
     await db.create_tables_async()  # ← Works!
 
-# ✅ CORRECT - FastAPI lifespan pattern (recommended)
+# ✅ CORRECT - Nexus lifespan pattern (recommended)
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     # Startup
     await db.create_tables_async()
     yield
     # Shutdown
     await db.close_async()
 
-app = FastAPI(lifespan=lifespan)
+app = Nexus(lifespan=lifespan)
 
 # ✅ CORRECT - pytest async fixtures
 @pytest.fixture
