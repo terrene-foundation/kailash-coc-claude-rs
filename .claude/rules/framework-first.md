@@ -1,6 +1,5 @@
 ---
 paths:
-  - "**/*.py"
   - "**/*.rs"
 ---
 
@@ -8,62 +7,66 @@ paths:
 
 Default to Engines. Drop to Primitives only when Engines can't express the behavior. Never use Raw.
 
+**Why:** Engines encode hard-won composition patterns (validation, lifecycle, concurrency) that Primitives leave to the developer. Skipping Engines means reimplementing those patterns incorrectly.
+
 ## Four-Layer Hierarchy
 
 ```
-Entrypoints  →  Applications (aegis, aether), CLI (cli-rs), others (kz-engage)
-Engines      →  DataFlowEngine, NexusEngine, DelegateEngine/SupervisorAgent, GovernanceEngine
-Primitives   →  DataFlow, @db.model, Nexus(), BaseAgent, Signature, envelopes
-Specs        →  CARE, EATP, CO, COC, PACT (standards/protocols/methodology)
+Entrypoints  ->  Applications (aegis, aether), CLI (cli-rs), others (kz-engage)
+Engines      ->  DataFlowEngine, NexusEngine, DelegateEngine/SupervisorAgent, GovernanceEngine
+Primitives   ->  DataFlow, Nexus, BaseAgent, Signature, envelopes, Fit/Predict traits
+Specs        ->  CARE, EATP, CO, COC, PACT (standards/protocols/methodology)
 ```
 
-Specs define → Primitives implement building blocks → Engines compose into opinionated frameworks → Entrypoints are products users interact with.
+Specs define -> Primitives implement building blocks -> Engines compose into opinionated frameworks -> Entrypoints are products users interact with.
 
-| Framework    | Raw (never ❌)      | Primitives                                          | Engine (default ✅)                                                     | Entrypoints              |
-| ------------ | ------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------ |
-| **DataFlow** | Raw SQL, SQLAlchemy | `DataFlow`, `@db.model`, `db.express`, nodes        | `DataFlowEngine.builder()` (validation, classification, query tracking) | aegis, aether, kz-engage |
-| **Nexus**    | Raw HTTP frameworks | `Nexus()`, handlers, channels                       | `NexusEngine` (middleware stack, auth, K8s)                             | aegis, aether            |
-| **Kaizen**   | Raw LLM API calls   | `BaseAgent`, `Signature`                            | `DelegateEngine`, `SupervisorAgent`                                     | kaizen-cli-rs            |
-| **PACT**     | Manual policy       | Envelopes, D/T/R addressing                         | `GovernanceEngine` (thread-safe, fail-closed)                           | aegis                    |
-| **ML**       | Raw sklearn/torch   | `FeatureStore`, `ModelRegistry`, `TrainingPipeline` | `AutoMLEngine`, `InferenceServer` (ONNX, drift, caching)                | aegis, aether            |
-| **Align**    | Raw TRL/PEFT        | `AlignmentConfig`, `AlignmentPipeline`              | `align.train()`, `align.deploy()` (GGUF, Ollama, vLLM)                  | —                        |
-
-**Note**: `db.express` is a primitive convenience for lightweight CRUD (~23x faster by bypassing workflow). `DataFlowEngine` wraps `DataFlow` with enterprise features (validation, classification, query engine, retention).
+| Framework    | Raw (never)         | Primitives                                                                   | Engine (default)                                                                                              | Entrypoints              |
+| ------------ | ------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **DataFlow** | Raw SQL, SQLx       | `DataFlow`, models, nodes                                                    | `DataFlowEngine::builder()` (validation, classification, query tracking)                                      | aegis, aether, kz-engage |
+| **Nexus**    | Raw Actix/Axum      | `Nexus`, handlers, channels                                                  | `NexusEngine` (middleware stack, auth, K8s)                                                                   | aegis, aether            |
+| **Kaizen**   | Raw LLM API calls   | `BaseAgent`, `Signature`                                                     | `DelegateEngine`, `SupervisorAgent`                                                                           | kaizen-cli-rs            |
+| **PACT**     | Manual policy       | Envelopes, D/T/R addressing                                                  | `GovernanceEngine` (thread-safe, fail-closed)                                                                 | aegis                    |
+| **ML**       | ndarray, faer, rand | `Fit`, `Predict`, `DynEstimator`, `DynTransformer`, kailash-ml-preprocessing | `Pipeline` (kailash-ml-pipeline), `GridSearchCV` (kailash-ml-selection), `DataExplorer` (kailash-ml-explorer) | aegis                    |
+| **Align**    | llama-cpp, burn     | `ServingBackend` trait, `AdapterManager`                                     | `InferenceEngine` (kailash-align-serving)                                                                     | aegis                    |
 
 ## DO / DO NOT
 
-```python
-# ✅ Engine layer (DataFlowEngine for production)
-engine = DataFlowEngine.builder("postgresql://...")
-    .slow_query_threshold(Duration.from_secs(1))
-    .build()
+```rust
+// DO: Engine layer (DataFlowEngine for production)
+let engine = DataFlowEngine::builder("postgresql://...")
+    .slow_query_threshold(Duration::from_secs(1))
+    .build()?;
 
-# ✅ Primitive convenience (db.express for simple CRUD)
-result = await db.express.create("User", {"name": "Alice"})
-
-# ❌ Raw primitives for what Engine handles
-workflow = WorkflowBuilder()
-workflow.add_node("UserCreateNode", "create", {"name": "Alice"})
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
+// DO NOT: Raw primitives for what Engine handles
+let mut builder = WorkflowBuilder::new();
+builder.add_node("UserCreateNode", "create", params);
+let runtime = Runtime::new(registry);
+let result = runtime.execute(builder.build(&registry)?)?;
 ```
 
-```python
-# ✅ Engine layer (DelegateEngine/SupervisorAgent for agents)
-delegate = Delegate(model=os.environ["LLM_MODEL"])
-async for event in delegate.run("Analyze this data"): ...
+```rust
+// DO: Engine layer (Pipeline for ML composition)
+let pipe = Pipeline::new(
+    vec![("scaler", Box::new(StandardScaler::default()) as Box<dyn DynTransformer>)],
+    Some(Box::new(LogisticRegression::default()) as Box<dyn DynEstimator>),
+);
 
-# ❌ Primitives for simple autonomous task
-class MyAgent(BaseAgent): ...  # 60+ lines boilerplate
+// DO NOT: Manual fit-predict chain when Pipeline handles it
+let scaler = StandardScaler::default();
+let fitted_scaler = scaler.fit_unsupervised(x.view())?;
+let scaled = fitted_scaler.transform(dataset)?;
+let lr = LogisticRegression::default();
+let fitted_lr = lr.fit(scaled.x().view(), y.view(), &FitOpts::default())?;
 ```
 
 ## When Primitives Are Correct
 
 - Complex multi-step workflows (node wiring, branching, sagas)
 - Custom transaction control (savepoints, isolation levels)
-- Custom agent execution model (DelegateEngine's TAOD loop doesn't fit)
+- Custom agent execution model (DelegateEngine's loop doesn't fit)
 - Performance-critical paths where workflow overhead matters
-- Simple CRUD via `db.express` (designed as primitive convenience)
+
+**Why:** Engines trade flexibility for safety. When the Engine's opinions conflict with the requirement, Primitives are the correct escape hatch -- but consult the framework specialist first.
 
 **Always consult the framework specialist before dropping to Primitives.**
 
@@ -71,4 +74,4 @@ class MyAgent(BaseAgent): ...  # 60+ lines boilerplate
 
 When a Kailash framework exists for your use case, MUST NOT write raw code that duplicates framework functionality.
 
-**Why:** Raw code bypasses framework guarantees (validation, audit logging, connection pooling, dialect portability), creating maintenance debt that grows with every framework upgrade.
+**Why:** Raw code bypasses the framework's validation, lifecycle management, and security controls, creating ungoverned paths that accumulate technical debt faster than any single session can repay.

@@ -9,28 +9,27 @@ PyO3-based binding distributed as `pip install kailash-enterprise`. Import as `i
 
 ## Key Facts
 
-| Item              | Value                                     |
-| ----------------- | ----------------------------------------- |
-| **Package name**  | `kailash-enterprise` (PyPI)               |
-| **Import name**   | `import kailash`                          |
-| **Build tool**    | maturin (`maturin develop --release`)     |
-| **Rust crate**    | `bindings/kailash-python/`                |
-| **Python source** | `bindings/kailash-python/python/kailash/` |
-| **Stubs**         | `bindings/kailash-python/kailash.pyi`     |
-| **Native module** | `kailash._kailash` (compiled .so/.dylib)  |
+| Item              | Value                                    |
+| ----------------- | ---------------------------------------- |
+| **Package name**  | `kailash-enterprise` (PyPI)              |
+| **Import name**   | `import kailash`                         |
+| **Build tool**    | maturin (`maturin develop --release`)    |
+| **Native module** | `kailash._kailash` (compiled .so/.dylib) |
 
 ## Registered PyO3 Modules
 
-| Module                | Purpose        | Key Types                                                  |
-| --------------------- | -------------- | ---------------------------------------------------------- |
-| `kailash` (root)      | Core SDK       | `NodeRegistry`, `WorkflowBuilder`, `Runtime`, `Value`      |
-| `kailash.dataflow`    | Database       | `DataFlow`, `ModelDefinition`, `FilterCondition`           |
-| `kailash.enterprise`  | Access control | `RbacEngine`, `AbacEvaluator`, `AuditLog`, `TenantContext` |
-| `kailash.kaizen`      | AI agents      | `BaseAgent`, `LlmClient`, `AgentConfig`, `CostTracker`     |
-| `kailash.nexus`       | Deployment     | `NexusApp`, `NexusConfig`, `SessionStore`                  |
-| `kailash.trust_plane` | Trust          | `TrustProject`, `ConstraintEnvelope`                       |
-| `kailash.pact`        | Governance     | `Address`, `GovernanceEngine` (feature-gated)              |
-| `kailash.l3`          | L3 autonomy    | `L3Verdict`, `L3EnforcementPipeline` (feature-gated)       |
+| Module                  | Purpose             | Key Types                                                      |
+| ----------------------- | ------------------- | -------------------------------------------------------------- |
+| `kailash` (root)        | Core SDK            | `NodeRegistry`, `WorkflowBuilder`, `Runtime`, `Value`          |
+| `kailash.dataflow`      | Database            | `DataFlow`, `ModelDefinition`, `FilterCondition`               |
+| `kailash.enterprise`    | Access control      | `RbacEngine`, `AbacEvaluator`, `AuditLog`, `TenantContext`     |
+| `kailash.kaizen`        | AI agents           | `BaseAgent`, `LlmClient`, `AgentConfig`, `CostTracker`         |
+| `kailash.nexus`         | Deployment          | `NexusApp`, `NexusConfig`, `SessionStore`                      |
+| `kailash.trust_plane`   | Trust               | `TrustProject`, `ConstraintEnvelope`                           |
+| `kailash.pact`          | Governance          | 28 types (feature-gated) -- see `python-framework-bindings.md` |
+| `kailash.orchestration` | Agent orchestration | 64 types (feature-gated) -- see `python-framework-bindings.md` |
+| `kailash.align_serving` | LLM serving         | `InferenceEngine`, `SamplingParams`, `InferenceResponse`       |
+| `kailash.l3`            | L3 autonomy         | `L3Verdict`, `L3EnforcementPipeline` (feature-gated)           |
 
 ## Value Mapping (Rust <-> Python)
 
@@ -49,7 +48,6 @@ PyO3-based binding distributed as `pip install kailash-enterprise`. Import as `i
 ### Build and install locally
 
 ```bash
-cd bindings/kailash-python
 cargo clean -p kailash-python   # Prevent stale binary
 maturin develop --release
 ```
@@ -75,20 +73,20 @@ result = rt.execute(wf, {})
 
 ## Skill Files
 
-| File                           | Content                                     |
-| ------------------------------ | ------------------------------------------- |
-| `python-v2-quickstart.md`      | v2 API migration guide                      |
-| `python-cheatsheet.md`         | Common patterns                             |
-| `python-common-mistakes.md`    | Pitfalls and fixes                          |
-| `python-custom-nodes.md`       | Callback node patterns                      |
-| `python-framework-bindings.md` | DataFlow/Nexus/Kaizen/Enterprise Python API |
-| `python-gold-standards.md`     | Binding quality rules                       |
-| `python-migration-guide.md`    | v1 to v2 migration                          |
-| `python-available-nodes.md`    | Node list for Python                        |
-| `async-bridging.md`            | Async Rust <-> Python bridging              |
+| File                           | Content                                                        |
+| ------------------------------ | -------------------------------------------------------------- |
+| `python-v2-quickstart.md`      | v2 API migration guide                                         |
+| `python-cheatsheet.md`         | Common patterns                                                |
+| `python-common-mistakes.md`    | Pitfalls and fixes                                             |
+| `python-custom-nodes.md`       | Callback node patterns                                         |
+| `python-framework-bindings.md` | DataFlow/Nexus/Kaizen/Enterprise/Pact/Orchestration Python API |
+| `python-gold-standards.md`     | Binding quality rules                                          |
+| `python-migration-guide.md`    | v1 to v2 migration                                             |
+| `python-available-nodes.md`    | Node list for Python                                           |
+| `async-bridging.md`            | Async Rust <-> Python bridging                                 |
 
 ## Related
 
-- **python-binding** agent -- PyO3 implementation specialist
-- **python-pattern-expert** agent -- Debugging PyO3 errors
+- **align-specialist** agent -- Inference serving (align_serving bindings)
+- **pact-specialist** agent -- Governance bindings
 - `rules/release.md` -- Wheel build and PyPI publishing rules
