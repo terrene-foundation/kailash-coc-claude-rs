@@ -1,16 +1,28 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-05",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "build_version": "3.8.0",
-    "synced_at": "2026-04-05T16:00:00Z"
+    "synced_at": "2026-04-05T20:30:00Z"
   },
   "changelog": [
+    {
+      "version": "1.8.0",
+      "date": "2026-04-05",
+      "summary": "Skill tightening long tail from loom v2.1.0 — 9 files updated, stale 01-core/ removed",
+      "changes": [
+        "UPDATED: 6 global skill files tightened (async-pythoncode-patterns, dataflow-debug-agent, nexus-workflow-registration, kaizen-agent-registry, kaizen-observability-hooks, production-testing)",
+        "VARIANT: 3 rs skill files tightened (runtime-execution, python-framework-bindings, flutter-patterns)",
+        "DELETED: skills/01-core/ directory (13 stale files, duplicate of 01-core-sdk/)",
+        "FIXED: 5 BUILD-internal paths stripped (src/dataflow/, src/kaizen/, crates/, bindings/, examples/)",
+        "UPDATED: scripts/hooks/lib/version-utils.js — NaN guard, detectRepoType, security fixes"
+      ]
+    },
     {
       "version": "1.7.0",
       "date": "2026-04-05",
