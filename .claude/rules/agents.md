@@ -8,9 +8,12 @@ When working with Kailash frameworks, MUST consult the relevant specialist:
 - **nexus-specialist**: API or deployment work
 - **kaizen-specialist**: AI agent work
 - **mcp-specialist**: MCP integration work
+- **mcp-platform-specialist**: FastMCP platform server, contributor plugins, security tiers
 - **pact-specialist**: Organizational governance work
+- **ml-specialist**: ML lifecycle, feature stores, training, drift monitoring, AutoML
+- **align-specialist**: LLM fine-tuning, LoRA adapters, alignment methods, model serving
 
-**Applies when**: Creating workflows, modifying DB models, setting up endpoints, building agents, implementing governance.
+**Applies when**: Creating workflows, modifying DB models, setting up endpoints, building agents, implementing governance, training ML models, fine-tuning LLMs, configuring MCP platform server.
 
 **Why:** Framework specialists encode hard-won patterns and constraints that generalist agents miss, leading to subtle misuse of DataFlow, Nexus, or Kaizen APIs.
 
