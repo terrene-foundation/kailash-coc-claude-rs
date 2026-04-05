@@ -21,60 +21,41 @@ Kailash's MCP module provides:
 
 ## Quick Start
 
-### McpApplication (Phase 17 -- Decorator Pattern)
-
 ```python
-from kailash.mcp import McpApplication, prompt_argument
+from kailash.mcp_server import MCPServer
 
-app = McpApplication("my-server", "1.0")
-
-@app.tool("search", "Search the web")
-def search(params):
-    return f"Results for {params['query']}"
-
-@app.resource(uri="config://settings", name="Settings")
-def get_settings(uri: str) -> str:
-    return '{"theme": "dark"}'
-
-@app.prompt("summarize", description="Summarize text")
-def summarize_prompt(arguments):
-    return [{"role": "user", "content": f"Please summarize: {arguments['text']}"}]
-```
-
-### McpServer (Core SDK Pattern)
-
-```python
-from kailash import McpServer
-
-# Create MCP server -- name and version are required
-server = McpServer("my-server", version="1.0.0")
+# Create MCP server
+server = MCPServer(name="my-server")
 
 # Register workflow as MCP tool
-def summarize_handler(args: dict) -> dict:
+@server.tool("summarize")
+def summarize_tool(text: str) -> str:
     """Summarize the given text."""
-    text = args.get("text", "")
-    return {"summary": text[:100]}
+    # Execute workflow
+    workflow = create_summary_workflow()
+    results = runtime.execute(workflow.build())
+    return results["summary"]["result"]
 
-server.register_tool(
-    "summarize",
-    "Summarize the given text",
-    summarize_handler,
-    schema={"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
-)
-
-# Note: McpServer does not have a run() method.
-# To serve MCP tools over a network, use Nexus:
-# from kailash.nexus import NexusApp
-# app = NexusApp(config=NexusConfig(enable_mcp=True))
-print(f"Tools registered: {server.tool_count()}")
+# Run server (stdio transport by default)
+server.run()
 ```
 
 ## Reference Documentation
 
-### Getting Started
+### Platform Server (kailash-mcp)
+
+- **[mcp-platform-overview](mcp-platform-overview.md)** - Architecture: FastMCP, contributor pattern, transport modes
+- **[mcp-tool-catalog](mcp-tool-catalog.md)** - Complete list of all 26 tools by framework and security tier
+- **[mcp-contributor-pattern](mcp-contributor-pattern.md)** - How to write a new framework contributor module
+- **[mcp-security-tiers](mcp-security-tiers.md)** - T1-T4 security model, env var controls, tier escalation
+- **[mcp-claude-code-config](mcp-claude-code-config.md)** - Claude Code mcpServers setup (stdio + SSE), troubleshooting
+- **[mcp-platform-map](mcp-platform-map.md)** - platform_map() output schema, connection detection, debugging
+- **[mcp-migration-guide](mcp-migration-guide.md)** - Migrating from MCPServer/MCPServerBase to platform server
+
+### MCP Protocol Patterns
 
 - **[mcp-transports-quick](mcp-transports-quick.md)** - Transport configuration (stdio, SSE, HTTP)
-- **[mcp-structured-tools](mcp-structured-tools.md)** - Defining MCP tools
+- **[mcp-structured-tools](mcp-structured-tools.md)** - Defining MCP tools with JSON Schema
 - **[mcp-resources](mcp-resources.md)** - Exposing resources to agents
 
 ### Security & Operations
@@ -136,65 +117,56 @@ Use MCP when you need to:
 ### With Core SDK (Workflow Tools)
 
 ```python
-import kailash
+from kailash.mcp_server import MCPServer
+from kailash.workflow.builder import WorkflowBuilder
 
-reg = kailash.NodeRegistry()
+server = MCPServer(name="workflow-server")
 
-server = McpServer("workflow-server", version="1.0.0")
-
-def process_handler(args: dict) -> dict:
-    builder = kailash.WorkflowBuilder()
+@server.tool("process_data")
+def process_tool(input: str) -> dict:
+    workflow = WorkflowBuilder()
     # Build workflow
-    results = rt.execute(builder.build(reg))
-    return results["results"]["output"]["result"]
-
-server.register_tool("process_data", "Process data", process_handler)
+    results = runtime.execute(workflow.build())
+    return results["output"]["result"]
 ```
 
 ### With Nexus (Multi-Channel with MCP)
 
 ```python
-from kailash.nexus import NexusApp, NexusConfig
+from nexus import Nexus
 
 # Nexus automatically creates MCP channel
-app = NexusApp(config=NexusConfig(port=3000, enable_mcp=True))
-
-@app.handler(name="summarize", description="Summarize text")
-async def summarize(text: str) -> dict:
-    return {"summary": text[:100]}
-
-app.start()  # Includes MCP server
+nexus = Nexus(workflows)
+nexus.run()  # Includes MCP server
 ```
 
 ### With DataFlow (Database Access)
 
 ```python
-import kailash
+from kailash.mcp_server import MCPServer
+from dataflow import DataFlow
 
-server = McpServer("db-server", version="1.0.0")
-df = kailash.DataFlow(...)
+server = MCPServer(name="db-server")
+db = DataFlow(...)
 
-server.register_resource(
-    uri="data://users",
-    name="Users",
-    content="User data from database",
-    description="Expose database users via MCP resource",
-)
+@server.resource("users")
+def get_users():
+    # Expose database via MCP resource
+    return db.query_users()
 ```
 
 ### With Kaizen (Agent Tools)
 
 ```python
-import kailash
+from kailash.mcp_server import MCPServer
+from kaizen.base import BaseAgent
 
-server = McpServer("agent-server", version="1.0.0")
+server = MCPServer(name="agent-server")
 
-def analyze_handler(args: dict) -> dict:
-    from kailash.kaizen import BaseAgent
-    # Use a custom BaseAgent subclass here
-    return {"output": f"Analyzed: {args.get('text', '')}"}
-
-server.register_tool("analyze", "Analyze text", analyze_handler)
+@server.tool("analyze")
+def analyze_tool(text: str) -> str:
+    agent = AnalysisAgent()
+    return agent(text=text).result
 ```
 
 ## Critical Rules
@@ -218,13 +190,14 @@ server.register_tool("analyze", "Analyze text", analyze_handler)
 
 ## Version Compatibility
 
+- **Core SDK Version**: 0.9.25+
 - **MCP Specification**: Latest
-- **Python**: 3.10+
+- **Python**: 3.8+
 - **Transports**: stdio, SSE, HTTP
 
 ## Related Skills
 
-- **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
+- **[01-core-sdk](../01-core-sdk/SKILL.md)** - Core workflow patterns
 - **[03-nexus](../03-nexus/SKILL.md)** - Nexus includes MCP channel
 - **[04-kaizen](../04-kaizen/SKILL.md)** - AI agents as MCP tools
 - **[02-dataflow](../02-dataflow/SKILL.md)** - Database resources
