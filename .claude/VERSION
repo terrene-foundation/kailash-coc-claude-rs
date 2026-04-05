@@ -1,16 +1,28 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-05",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.1.0",
-    "build_version": "3.8.0",
-    "synced_at": "2026-04-05T20:30:00Z"
+    "version": "2.2.0",
+    "build_version": "3.9.0",
+    "synced_at": "2026-04-05T22:00:00Z"
   },
   "changelog": [
+    {
+      "version": "1.9.0",
+      "date": "2026-04-05",
+      "summary": "Gate 2 sync: 5 rs-variant artifacts from kailash-rs v3.9.0 codify — ML/Align Rust specialists, binding skill updates, framework-first Rust variant",
+      "changes": [
+        "VARIANT: agents/frameworks/ml-specialist.md — Rust ML specialist (kailash-ml crate family, two-layer trait system, 200L replaces 279L global)",
+        "VARIANT: agents/frameworks/align-specialist.md — Rust inference serving specialist (kailash-align-serving, 215L replaces 259L global)",
+        "VARIANT: skills/06-python-bindings/SKILL.md — Updated module table (orchestration, align_serving), stripped BUILD paths (92L)",
+        "VARIANT: skills/28-ruby-bindings/SKILL.md — Added v3.9.0 binding modules (audit_log, event_bus, telemetry), stripped BUILD paths (104L)",
+        "VARIANT: rules/framework-first.md — Rust-only path scope, ML/Align engine rows, Rust code examples (77L replaces 74L)"
+      ]
+    },
     {
       "version": "1.8.0",
       "date": "2026-04-05",

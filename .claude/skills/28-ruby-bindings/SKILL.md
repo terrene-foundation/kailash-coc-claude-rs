@@ -13,7 +13,6 @@ Magnus-based binding distributed as `kailash` gem. Uses block-based resource lif
 | ----------------- | --------------------------------------- |
 | **Gem name**      | `kailash`                               |
 | **Require**       | `require 'kailash'`                     |
-| **Rust crate**    | `bindings/kailash-ruby/`                |
 | **FFI framework** | Magnus 0.8 / rb-sys 0.9                 |
 | **Library type**  | cdylib (.bundle on macOS, .so on Linux) |
 
@@ -44,12 +43,47 @@ end
 
 ## Registered Modules
 
-| Module                     | Key Classes                        |
-| -------------------------- | ---------------------------------- |
-| `Kailash::Registry`        | Node registry with `open` block    |
-| `Kailash::WorkflowBuilder` | DAG builder                        |
-| `Kailash::Runtime`         | Execution engine with `open` block |
-| `Kailash::Value`           | Value mapping (Rust <-> Ruby)      |
+| Module                      | Key Classes                                               |
+| --------------------------- | --------------------------------------------------------- |
+| `Kailash::Registry`         | Node registry with `open` block                           |
+| `Kailash::WorkflowBuilder`  | DAG builder                                               |
+| `Kailash::Runtime`          | Execution engine with `open` block                        |
+| `Kailash::Value`            | Value mapping (Rust <-> Ruby)                             |
+| `Kailash::AuditLog`         | Hash-chained audit log, `AuditEntry`, `AuditEventType`    |
+| `Kailash::InMemoryEventBus` | Pub/sub domain event bus, `DomainEvent`                   |
+| `Kailash::TracingConfig`    | OpenTelemetry tracing, `ExporterType`, `TelemetryMetrics` |
+
+## v3.9.0 Binding Modules
+
+### audit_log
+
+Wraps `kailash-core::audit_log`. Immutable, hash-chained audit log with chain verification.
+
+| Ruby class                         | Purpose                                                     |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `Kailash::AuditEventType`          | Event classification (standard types + `custom()`)          |
+| `Kailash::AuditEntry`              | Single chain entry (id, event_type, actor, timestamp, hash) |
+| `Kailash::AuditLog`                | Append-only log: `append()`, `entries()`, `verify_chain()`  |
+| `Kailash::ChainVerificationResult` | Verification outcome with `valid?` and `errors`             |
+
+### event_bus
+
+Wraps `kailash-core::event_bus`. In-memory pub/sub for domain events.
+
+| Ruby class                  | Purpose                                                  |
+| --------------------------- | -------------------------------------------------------- |
+| `Kailash::DomainEvent`      | Structured event (id, event_type, topic, actor, payload) |
+| `Kailash::InMemoryEventBus` | Publish/subscribe: `publish()`, `subscribe()`, `drain()` |
+
+### telemetry
+
+Wraps `kailash-core::telemetry`. OpenTelemetry configuration and atomic metrics counters.
+
+| Ruby class                  | Purpose                                                     |
+| --------------------------- | ----------------------------------------------------------- |
+| `Kailash::ExporterType`     | Protocol selection: `otlp`, `jaeger`, `stdout`              |
+| `Kailash::TracingConfig`    | OTLP config: endpoint, service name, sample ratio, exporter |
+| `Kailash::TelemetryMetrics` | Atomic counters: `increment()`, `get()`, `reset()`, `all()` |
 
 ## Skill Files
 
@@ -65,6 +99,6 @@ end
 
 ## Related
 
-- **ruby-binding** agent -- Magnus implementation specialist
-- **ruby-pattern-expert** agent -- Debugging Magnus errors
-- **ruby-gold-standards** agent -- Ruby binding compliance validation
+- **align-specialist** agent -- Inference serving patterns
+- **testing-specialist** agent -- Ruby binding test strategies
+- **gold-standards-validator** agent -- Naming and licensing compliance
