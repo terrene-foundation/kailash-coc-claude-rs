@@ -14,10 +14,10 @@
     {
       "version": "2.3.3",
       "date": "2026-04-08",
-      "summary": "Fix rs rule scoping: patterns.md missing **/*.rs path, env-models.md now uses Rust-specific paths and dotenvy examples",
+      "summary": "Revert rs-specific rule scoping — USE template users write Python/Ruby, not Rust. Global Python versions restored.",
       "changes": [
-        "FIX: rules/patterns.md — added **/*.rs to paths (Rust SDK patterns now load when reading .rs files)",
-        "FIX: rules/env-models.md — replaced Python paths/examples with Rust (**/*.rs, **/*.toml, .env*) and dotenvy/std::env"
+        "REVERTED: rules/env-models.md — restored global Python paths (**/*.py, **/*.ts, **/*.js, .env*) and dotenv examples",
+        "REVERTED: rules/patterns.md — removed **/*.rs from paths (USE template users don't read .rs files)"
       ]
     },
     {
