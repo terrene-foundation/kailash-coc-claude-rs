@@ -1,5 +1,5 @@
 {
-  "version": "2.3.3",
+  "version": "2.3.4",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-08",
@@ -12,13 +12,20 @@
   },
   "changelog": [
     {
-      "version": "2.3.3",
+      "version": "2.3.4",
       "date": "2026-04-08",
-      "summary": "Revert rs-specific rule scoping — USE template users write Python/Ruby, not Rust. Global Python versions restored.",
+      "summary": "Fix USE template rule scoping — restore Python paths, add **/*.py to framework-first.md",
       "changes": [
         "REVERTED: rules/env-models.md — restored global Python paths (**/*.py, **/*.ts, **/*.js, .env*) and dotenv examples",
-        "REVERTED: rules/patterns.md — removed **/*.rs from paths (USE template users don't read .rs files)"
+        "REVERTED: rules/patterns.md — removed **/*.rs (USE template users write Python, not Rust)",
+        "FIX: rules/framework-first.md — added **/*.py (pre-existing bug: was **/*.rs only, Python binding devs never saw framework guidance)"
       ]
+    },
+    {
+      "version": "2.3.3",
+      "date": "2026-04-08",
+      "summary": "[CORRECTED in 2.3.4] Incorrectly applied Rust-specific paths to USE template rules",
+      "changes": []
     },
     {
       "version": "2.3.2",
