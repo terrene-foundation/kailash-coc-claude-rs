@@ -12,6 +12,8 @@ paths:
 
 Tests run ONCE per code change, not once per phase.
 
+**Why:** Running the full test suite in every phase wastes 2-5 minutes per cycle (longer for Rust SDK compilation), compounding to significant delays across a multi-phase session.
+
 1. `/implement` runs full suite ONCE per todo, writes `.test-results` to workspace
 2. `/redteam` READS `.test-results` — does NOT re-run existing tests
 3. `/redteam` runs only NEW tests it creates (E2E, Playwright, Marionette)

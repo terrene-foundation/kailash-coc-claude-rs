@@ -421,7 +421,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -496,21 +496,21 @@ wheels = [
 
 [[package]]
 name = "kailash-enterprise"
-version = "3.10.0"
+version = "3.12.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/a2/642f089c3192d62c38fe34fab3f9e35bc928bf47fba4b2c90db33e0bf3c2/kailash_enterprise-3.10.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8fbe89733596f9a09f1ea00806cd9fe3a66f84dcf45ed1676e4eeb7089319fec", size = 11836985, upload-time = "2026-04-07T02:17:22.67Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/33/5c36924b367760335c1ebd14132040b586189d7d32ca24de7299f8e28501/kailash_enterprise-3.10.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:98f85ba0d063c288fe9e2b3aaf347b6600fea810e290e000b07be6dacf9c39f8", size = 12745503, upload-time = "2026-04-07T02:17:26.354Z" },
-    { url = "https://files.pythonhosted.org/packages/53/04/dcbe027807b77321dc3f4b8a709376509fb317243ac7164d31358637973f/kailash_enterprise-3.10.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:3d5c4d17c77aa75f74ce60135f57baccb73009e80f7ed4ec113304dadd33ae44", size = 13629503, upload-time = "2026-04-07T02:17:31.894Z" },
-    { url = "https://files.pythonhosted.org/packages/5e/e0/50a004147897c321188538b83a4a136de59d234df814235d6fbe70ec980a/kailash_enterprise-3.10.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:ea676b006c18e005e1b3029a8b396058160118493b19973fc6d98c54d9fc19d4", size = 11837758, upload-time = "2026-04-07T02:17:34.74Z" },
-    { url = "https://files.pythonhosted.org/packages/85/70/ce93732e67bfb376cf28b55ed29447b0d33cb480337e594127b87a8c1c67/kailash_enterprise-3.10.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:39a03929118d7cf85cbb8be54d85f940398aa988e5557fccbeb1b73b36b8d4f0", size = 12746162, upload-time = "2026-04-07T02:17:37.618Z" },
-    { url = "https://files.pythonhosted.org/packages/30/b8/3ea670c9a711b12207e80d5ec5b5578c3668732d50b7363d7c452643e2e3/kailash_enterprise-3.10.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:f21badfd2002a3b067a8777b8f822e3103d8ee4c34e6567c2bd60ceb3f3a76e0", size = 13629849, upload-time = "2026-04-07T02:17:40.767Z" },
-    { url = "https://files.pythonhosted.org/packages/44/99/9014ba4bd695a1beeb6b1212bb6b68fcec59be960b38930da2deef51a84a/kailash_enterprise-3.10.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2426c2d963b88e028a242b9b0c0baaf870b156ef237e5bdebaced1c666b97b8c", size = 11797436, upload-time = "2026-04-07T02:17:43.139Z" },
-    { url = "https://files.pythonhosted.org/packages/cb/18/72890dccf833663f4924421362b17b9b36b8b5d990312a5f2c299cd7e123/kailash_enterprise-3.10.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:b37162a10376f99134cbd966287232120338f51d89735aa85ceec3f5aacac011", size = 12743910, upload-time = "2026-04-07T02:17:45.961Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/39/60fc3ce64e7805e452c9504d74d7866316f9f8c36ac30510b513193dd2f6/kailash_enterprise-3.10.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:a15c0dd2b7d0ba05787288bab4c0d0a6919aeb38f9436440a23d29580454e6e1", size = 13628492, upload-time = "2026-04-07T02:17:48.78Z" },
-    { url = "https://files.pythonhosted.org/packages/32/53/04e1cd38b6ba79c2104e520bbcac9c18cbd4b2176854f85529c6d3f1205f/kailash_enterprise-3.10.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:efcdc43c622ebb99623ed542fcfef8bfccf136376c5e0f2557d865b86f87ee18", size = 11799328, upload-time = "2026-04-07T02:17:51.61Z" },
-    { url = "https://files.pythonhosted.org/packages/cb/80/7e19d46557d4581759a3baf6d38b30b2a592235a18f23552e364e462089c/kailash_enterprise-3.10.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:a83eb3c3a78234256ede3718abd7fc4d0727aa8ae8042337f80c1dfb7ffb186a", size = 12745788, upload-time = "2026-04-07T02:17:54.168Z" },
-    { url = "https://files.pythonhosted.org/packages/e8/19/dddc1dd81f8da525a6366ebf05be17ff9c3110558ac1a626a7f1396c0c0d/kailash_enterprise-3.10.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:306db0d9697f069d29b87e224305341c58ac37667875b488fe3c3366483a62fc", size = 13632368, upload-time = "2026-04-07T02:17:56.761Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/33/35b245bf34969b6d9e413a3062eca1cf1021478893ad2856e2248602a298/kailash_enterprise-3.12.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:1d46fc998380a7d03348dc9e036eee6848dc5a292502ae5661a77e84f0f22d7d", size = 13727701, upload-time = "2026-04-07T14:53:33.282Z" },
+    { url = "https://files.pythonhosted.org/packages/19/46/2ef87ea17eebe8908d37da5bc20aab6b90efbb544805df8019bb156c2cca/kailash_enterprise-3.12.0-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:3eb85c0a626cdc373e8becf981015d13e7e81b13b6ebf169fdc5d701d0fe695f", size = 14780127, upload-time = "2026-04-07T14:53:36.793Z" },
+    { url = "https://files.pythonhosted.org/packages/de/2f/da168a9fed7bfb16eb9410f5b68d36fa0f5ba7c6f0fb5c374cee07d2085e/kailash_enterprise-3.12.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:13e19f04024f45c56f1e761ed9e5ead76649c8393945b549e39cab198140d6db", size = 15945804, upload-time = "2026-04-07T14:53:40.379Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/00/ce7a1f74707a356496a9d27cdba7943468278d7bd5df6874d8bd835421f1/kailash_enterprise-3.12.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:1bf582ccb0a8cd102ec8cb9099b1a963205a7f9440c477de004319e6be93f372", size = 13728782, upload-time = "2026-04-07T14:53:44.142Z" },
+    { url = "https://files.pythonhosted.org/packages/13/1e/cc1d0f9be372060f90526037f432e1191479c2f1d5651cbd7bb76f173f53/kailash_enterprise-3.12.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:af6f5e72bb57793c3c69d468ede7b7d56de00bf455e90a4b54cd28c4a9f17259", size = 14779982, upload-time = "2026-04-07T14:53:48.057Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/1a/6a11314585871c16821339ce8acd357aea629c925d71e950398cfcc93464/kailash_enterprise-3.12.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:3af3c187d27cb349a659dde1f8d5e5708df7b76e5def191c03b27fc4509edb8f", size = 15946103, upload-time = "2026-04-07T14:53:51.834Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/29/b9a9add7cae03d75aafb93bb6c817051a4ff12f38da5b580d8dab2194dcc/kailash_enterprise-3.12.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:6d99116bbd1ee469937eb28dabc2072b73f4908662214ae189885f1e9ba5db7f", size = 13662249, upload-time = "2026-04-07T14:53:55.283Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/74/277c2e115279c2f3bfea1835ac6b6bafdeda8b186fb7ba51f3f3f613420a/kailash_enterprise-3.12.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:1d4a8192b257a938a1700f0e804de7b200c766c5fdba198cd00c99dc9b5b8af8", size = 14786786, upload-time = "2026-04-07T14:53:58.757Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/d2/99262714f9e59f20d9614383fcf352eec561227e7ef4fb2e26c3721ba290/kailash_enterprise-3.12.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:f9d3addf911e339dcef76c1615dcd2aefdef70905fbea7cea4f121c04023d2e4", size = 15940573, upload-time = "2026-04-07T14:54:02.243Z" },
+    { url = "https://files.pythonhosted.org/packages/88/e0/1cb8a1497ac2ad4d0f95d41f7a9e7d43df7d266f80b44bafb2fc44945a93/kailash_enterprise-3.12.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:1f3ddc0ae2ef8091869aca6a0b73b12834ffdd640cbb7dc87b5e70ef6cdcb301", size = 13666236, upload-time = "2026-04-07T14:54:05.735Z" },
+    { url = "https://files.pythonhosted.org/packages/74/ab/e423239e7a72a01d1af4904d25c4db391d9fa306b90bc96ac57c6dda96a8/kailash_enterprise-3.12.0-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:64e13c4f145ee67c1f23e00af237d1b25a4cfe469da717fea1c3beeab2be8694", size = 14786465, upload-time = "2026-04-07T14:54:09.397Z" },
+    { url = "https://files.pythonhosted.org/packages/49/78/901f523ebdbea8e17c56d3cb0206adb4797ae7e1bb5f17626a895217b0f4/kailash_enterprise-3.12.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:9d7a9bc18d4eadb49697ec68ded1f1ccf2531c2808b8bd6acdef67d0b8c13ab9", size = 15942905, upload-time = "2026-04-07T14:54:13.098Z" },
 ]
 
 [[package]]
@@ -747,7 +747,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0" },
     { name = "detect-secrets", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.12.0" },
-    { name = "kailash-enterprise", specifier = ">=3.10.0" },
+    { name = "kailash-enterprise", specifier = ">=3.12.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.2.0" },

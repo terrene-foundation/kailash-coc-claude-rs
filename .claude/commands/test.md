@@ -2,19 +2,25 @@
 
 ## Purpose
 
-Load the testing strategies skill for 3-tier testing with NO MOCKING policy enforcement in Tier 2-3.
+Testing patterns for the Kailash Rust workspace. See `rules/build-speed.md` for speed rules.
 
-## Step 0: Detect Project Testing Stack
+## Speed-First Test Commands
 
-Before loading test patterns, check what the project uses:
+```bash
+# Fast: test only what you changed (seconds)
+cargo nextest run -p kailash-governance
 
-- Look at `requirements.txt`, `pyproject.toml`, `setup.py` for `pytest`, `unittest`
-- Look at `Gemfile` for `rspec`, `minitest`
-- Look at `package.json` for `jest`, `vitest`, `mocha`, `playwright`
-- Look at `pubspec.yaml` for `flutter_test`, `integration_test`
-- Look for existing test directories (`tests/`, `test/`, `__tests__/`, `spec/`)
+# Fast: all lib+integration tests, no doc-tests (2-5 min)
+cargo t
 
-Adapt examples to the project's testing framework. The 3-tier strategy and NO MOCKING policy apply universally regardless of framework.
+# Full: nextest workspace (5-10 min)
+cargo ntw
+
+# Slow: doc-tests only — CI or explicit (15-20 min)
+cargo td
+```
+
+**Default to `cargo nextest run -p <crate>`. Never `cargo test --workspace` locally.**
 
 ## Quick Reference
 
@@ -40,62 +46,71 @@ Adapt examples to the project's testing framework. The 3-tier strategy and NO MO
 | Tier 2 | Integration | **PROHIBITED** | Component interactions |
 | Tier 3 | E2E         | **PROHIBITED** | Full user journeys     |
 
-## Quick Pattern
+## Quick Pattern — Rust Tests
 
-```python
-# Tier 2: Real database (example with pytest)
-@pytest.fixture
-def db():
-    """Use real infrastructure, not mocks."""
-    conn = sqlite3.connect(":memory:")
-    yield conn
-    conn.close()
+```rust
+// Tier 1: Unit test (mocking allowed)
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-def test_user_creation(db):
-    # NO MOCKING - real database operations
-    db.execute("INSERT INTO users (name) VALUES (?)", ("test",))
-    result = db.execute("SELECT * FROM users WHERE name = ?", ("test",)).fetchone()
-    assert result is not None
+    #[test]
+    fn test_value_conversion() {
+        let v = Value::from("hello");
+        assert_eq!(v.as_str(), Some("hello"));
+    }
+}
 ```
 
-### If Project Uses Kailash DataFlow
+```rust
+// Tier 2: Integration test — real database (NO MOCKING)
+#[tokio::test]
+async fn test_user_creation() {
+    let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
+    sqlx::migrate!().run(&pool).await.unwrap();
+
+    sqlx::query("INSERT INTO users (name) VALUES (?)")
+        .bind("test")
+        .execute(&pool).await.unwrap();
+
+    let row = sqlx::query("SELECT name FROM users WHERE name = ?")
+        .bind("test")
+        .fetch_one(&pool).await.unwrap();
+    assert_eq!(row.get::<String, _>("name"), "test");
+}
+```
+
+### If Project Uses Kailash Python Bindings
 
 ```python
-@pytest.fixture
-def db():
-    df = kailash.DataFlow("sqlite:///:memory:")
-    yield db
-    db.close()
+# Python binding test — real Rust runtime (NO MOCKING)
+import kailash
 
-def test_user_creation(db):
-    result = db.execute(CreateUser(name="test"))
-    assert result.id is not None
+def test_workflow_execution():
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EchoNode", "echo", {"message": "hello"})
+    wf = builder.build(reg)
+    rt = kailash.Runtime(reg)
+    result = rt.execute(wf)
+    assert result["results"]["echo"] is not None
 ```
 
 ## Critical Rule - NO MOCKING in Tier 2-3
 
+```rust
+// PROHIBITED in integration/e2e tests
+// No mockall, no mock structs for real services
+// No fake database connections
+// No simulated API responses
+```
+
 ```python
-# PROHIBITED in integration/e2e tests (Python)
-@patch('module.function')
-MagicMock()
-unittest.mock
-from mock import Mock
-mocker.patch()
-```
-
-```ruby
-# PROHIBITED in integration/e2e tests (Ruby)
-allow(obj).to receive(:method)
-expect(obj).to receive(:method)
-double("name")
-instance_double(Class)
-```
-
-```javascript
-// PROHIBITED in integration/e2e tests (JS/TS)
-jest.mock();
-jest.spyOn();
-vi.mock();
+# PROHIBITED in integration/e2e tests (Python bindings)
+@patch('module.function')    # BLOCKED
+MagicMock()                  # BLOCKED
+unittest.mock                # BLOCKED
+mocker.patch()               # BLOCKED
 ```
 
 ## Agent Teams

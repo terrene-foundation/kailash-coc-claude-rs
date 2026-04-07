@@ -8,12 +8,11 @@ When working with Kailash frameworks, MUST consult the relevant specialist:
 - **nexus-specialist**: API or deployment work
 - **kaizen-specialist**: AI agent work
 - **mcp-specialist**: MCP integration work
-- **mcp-platform-specialist**: FastMCP platform server, contributor plugins, security tiers
 - **pact-specialist**: Organizational governance work
-- **ml-specialist**: ML lifecycle, feature stores, training, drift monitoring, AutoML
-- **align-specialist**: LLM fine-tuning, LoRA adapters, alignment methods, model serving
+- **ml-specialist**: ML algorithms, pipelines, model selection
+- **align-specialist**: LLM fine-tuning, LoRA, model serving
 
-**Applies when**: Creating workflows, modifying DB models, setting up endpoints, building agents, implementing governance, training ML models, fine-tuning LLMs, configuring MCP platform server.
+**Applies when**: Creating workflows, modifying DB models, setting up endpoints, building agents, implementing governance, ML pipelines.
 
 **Why:** Framework specialists encode hard-won patterns and constraints that generalist agents miss, leading to subtle misuse of DataFlow, Nexus, or Kaizen APIs.
 
@@ -50,7 +49,7 @@ Reviews happen at COC phase boundaries, not per-edit. Skip only when explicitly 
 
 Pre-existing failures MUST be fixed (see `rules/zero-tolerance.md` Rule 1). No workarounds for SDK bugs — deep dive and fix directly (Rule 4).
 
-**Why:** Workarounds create parallel implementations that diverge from the SDK, doubling maintenance cost and masking the root bug from being fixed (see `rules/zero-tolerance.md` Rule 4).
+**Why:** Workarounds create parallel implementations that diverge from the SDK, doubling maintenance cost and masking the root bug from being fixed.
 
 ## MUST NOT
 
