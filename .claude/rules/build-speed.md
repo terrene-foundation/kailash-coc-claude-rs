@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.rs"
+  - "**/*.toml"
+  - "**/Cargo.lock"
+---
+
 # Build Speed Rules
 
 ## MUST: Targeted Builds, Never Workspace-Wide

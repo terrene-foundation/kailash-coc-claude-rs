@@ -1,3 +1,11 @@
+---
+paths:
+  - "tests/**"
+  - "**/*test*"
+  - "**/*spec*"
+  - "conftest.py"
+---
+
 # Testing Rules (Rust SDK + Python Bindings)
 
 ## Test-Once Protocol

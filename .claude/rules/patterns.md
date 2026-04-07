@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.py"
+  - "**/*.ts"
+  - "**/*.js"
+---
+
 # Kailash Pattern Rules (Rust SDK + Python Bindings)
 
 ### 1. Runtime Execution Pattern

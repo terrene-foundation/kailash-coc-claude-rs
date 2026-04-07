@@ -1,20 +1,37 @@
 {
-  "version": "2.3.1",
+  "version": "2.3.2",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-08",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.5.1",
+    "version": "2.5.2",
     "build_version": "3.12.0",
     "synced_at": "2026-04-08T00:00:00Z"
   },
   "changelog": [
     {
+      "version": "2.3.2",
+      "date": "2026-04-08",
+      "summary": "REVERT 2.3.1: restore `paths:` frontmatter on 9 rule files (5 global + 4 rs variant). Previous diagnosis was wrong — Claude Code path-scoped rules load ONCE on first matching read and stay sticky, NOT per tool call. Stripping `paths:` moved rules into the always-on baseline (~5500 tokens per stripped large rule), increasing session cost. Verified empirically via subprocess tests + Claude Code official docs (`code.claude.com/docs/en/memory`: 'Path-scoped rules trigger when Claude reads files matching the pattern, not on every tool use').",
+      "changes": [
+        "RESTORED (global): rules/agent-reasoning.md — paths: **/kaizen/**, **/*agent*, **/agents/**",
+        "RESTORED (global): rules/artifact-flow.md — paths: .claude/**, sync-manifest.yaml, **/VERSION, *.md",
+        "RESTORED (global): rules/env-models.md — paths: **/*.py, **/*.ts, **/*.js, .env*",
+        "RESTORED (global): rules/python-environment.md — paths: **/*.py, pyproject.toml, conftest.py, tests/**",
+        "RESTORED (global): rules/terrene-naming.md — paths: **/*.md, **/README*, **/LICENSE*, **/CLAUDE.md",
+        "RESTORED (rs variant): rules/build-speed.md — paths: **/*.rs, **/*.toml, **/Cargo.lock",
+        "RESTORED (rs variant): rules/framework-first.md — paths: **/*.rs",
+        "RESTORED (rs variant): rules/patterns.md — paths: **/*.py, **/*.ts, **/*.js",
+        "RESTORED (rs variant): rules/testing.md — paths: tests/**, **/*test*, **/*spec*, conftest.py",
+        "NOTE: Wide patterns are restored as-is (per user direction). Narrowing is a separate refinement task."
+      ]
+    },
+    {
       "version": "2.3.1",
       "date": "2026-04-08",
-      "summary": "fix(rules): strip broad path matchers causing per-read context bloat — rules now load once in system prompt instead of re-injecting on every matching tool call",
+      "summary": "[REVERTED in 2.3.2] fix(rules): strip broad path matchers — based on incorrect diagnosis. See 2.3.2 for evidence and revert.",
       "changes": [
         "UPDATED: rules/patterns.md, env-models.md, framework-first.md, python-environment.md, terrene-naming.md, artifact-flow.md, agent-reasoning.md, testing.md, build-speed.md — removed broad `paths:` frontmatter",
         "NEW: rules/build-speed.md — was missing from template (rs variant addition), now synced",
