@@ -1,163 +1,161 @@
 ---
-skill: nexus-security-best-practices
-description: Security best practices for Nexus including authentication, rate limiting, input validation, and production deployment
-priority: HIGH
-tags:
-  [nexus, security, authentication, rate-limiting, input-validation, production]
+name: nexus-security-best-practices
+description: "Security in kailash-rs Nexus: NexusAuthPlugin, JWT, RBAC, API keys, CORS, rate limiting."
 ---
 
-# Nexus Security Best Practices
+# Nexus Security Best Practices (kailash-rs)
 
-Nexus v1.1.1+ includes production-safe defaults: environment-aware auth, rate limiting, disabled auto-discovery, unified input validation.
+Security configuration using NexusAuthPlugin, convenience methods, and best practices.
 
-## Authentication
-
-### Environment-Aware (Recommended)
-
-```bash
-NEXUS_ENV=production  # Auto-enables auth
-```
+## Quick Setup with NexusApp Convenience Methods
 
 ```python
-from nexus import Nexus
-app = Nexus()  # Auth auto-enabled when NEXUS_ENV=production
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(config=NexusConfig(port=3000))
+
+# CORS
+app.add_cors(origins=["https://example.com"])
+
+# Rate limiting
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+@app.handler("protected", description="Protected handler")
+async def protected(data: str) -> dict:
+    return {"data": data}
+
+app.start()
 ```
 
-- `NEXUS_ENV=production` -- auth auto-enabled
-- `NEXUS_ENV=development` -- auth disabled (default)
-- Explicit `enable_auth=False` in production -- CRITICAL WARNING logged
+## NexusAuthPlugin (Full Auth System)
 
-### Multi-Environment Config
+For JWT, RBAC, API keys, and advanced security, use `NexusAuthPlugin`:
 
 ```python
 import os
-from nexus import Nexus
+from kailash.nexus import NexusApp, NexusConfig, NexusAuthPlugin, JwtConfig
 
-env = os.getenv("NEXUS_ENV", "development")
-app = Nexus(
-    enable_auth=(env == "production"),
-    rate_limit=1000 if env == "production" else None,
-    auto_discovery=(env != "production"),
+auth = NexusAuthPlugin.basic_auth(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),  # CRITICAL: `secret`, NOT `secret_key`
 )
+
+app = NexusApp(config=NexusConfig(port=3000))
+# NexusAuthPlugin is added via the low-level Nexus
+# Access the underlying Nexus if needed for plugin registration
+```
+
+### JWT Configuration
+
+```python
+from kailash.nexus import JwtConfig
+
+# Symmetric (HS256)
+jwt = JwtConfig(
+    secret=os.environ["JWT_SECRET"],   # MUST be >= 32 chars for HS*
+    algorithm="HS256",
+    exempt_paths=["/health", "/docs"], # CRITICAL: `exempt_paths`, NOT `exclude_paths`
+    verify_exp=True,
+    leeway=0,
+)
+
+# Asymmetric (RS256) -- for SSO providers
+jwt = JwtConfig(
+    algorithm="RS256",
+    jwks_url="https://your-tenant.auth0.com/.well-known/jwks.json",
+    jwks_cache_ttl=3600,
+    issuer="https://your-issuer.com",
+    audience="your-api",
+)
+```
+
+### RBAC
+
+```python
+from kailash.nexus import NexusAuthPlugin, JwtConfig, RbacConfig
+
+auth = NexusAuthPlugin.saas_app(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
+    rbac={
+        "admin": ["*"],                         # Full access
+        "editor": ["read:*", "write:articles"], # Wildcard + specific
+        "viewer": ["read:*"],                   # Read-only
+    },
+)
+```
+
+Permission wildcards:
+
+- `"*"` -- matches everything
+- `"read:*"` -- matches `read:users`, `read:articles`, etc.
+- `"*:users"` -- matches `read:users`, `write:users`, etc.
+
+### API Key Authentication
+
+```python
+from kailash.nexus import ApiKeyConfig
+
+api_key_config = ApiKeyConfig(...)
+```
+
+### Rate Limiting via Auth Plugin
+
+```python
+from kailash.nexus import AuthRateLimitConfig
+
+rate_limit = AuthRateLimitConfig(
+    requests_per_minute=100,
+    burst_size=20,
+    backend="memory",  # or "redis"
+)
+```
+
+## CORS Configuration
+
+```python
+app = NexusApp(config=NexusConfig(port=3000))
+app.add_cors(origins=[
+    "https://app.example.com",
+    "https://admin.example.com",
+])
 ```
 
 ## Rate Limiting
 
-Default: 100 req/min (v1.1.1+).
-
 ```python
-app = Nexus(rate_limit=1000)  # High-traffic API
-
-# Per-endpoint limits
-@app.endpoint("/api/search", rate_limit=50)      # Expensive operation
-async def search(q: str): ...
-
-@app.endpoint("/api/login", rate_limit=10)        # Brute force prevention
-async def login(username: str, password: str): ...
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
 
-MUST NOT disable in production unless behind an API gateway with its own rate limiting.
+## Common Auth Gotchas
 
-## Input Validation (Automatic)
+| Issue                                   | Cause                                | Fix                            |
+| --------------------------------------- | ------------------------------------ | ------------------------------ |
+| `TypeError: 'secret_key' unexpected`    | Wrong param name                     | Use `secret`, not `secret_key` |
+| `TypeError: 'exclude_paths' unexpected` | JwtConfig uses different name        | Use `exempt_paths`             |
+| Nexus dependency injection fails        | `from __future__ import annotations` | Remove PEP 563 import          |
+| RBAC without JWT                        | RBAC requires JWT                    | Add `jwt=JwtConfig(...)`       |
 
-All channels validated (API, MCP, CLI):
+## Security Checklist
 
-- Dangerous keys blocked: `__import__`, `eval`, `exec`, `compile`, `globals`, `locals`, `__builtins__`
-- Path traversal blocked: `../`, `..\\`
-- Size limit: 10MB default
+1. Use HTTPS in production (via reverse proxy)
+2. Configure CORS with specific origins (never `["*"]` in production)
+3. Enable rate limiting on all public endpoints
+4. Use environment variables for all secrets
+5. Set `exempt_paths` only for truly public endpoints (health, docs)
+6. Use RS256 (asymmetric) for production JWT
+7. Never log tokens, passwords, or PII
 
-```python
-# Adjust size limit
-app._max_input_size = 50 * 1024 * 1024  # 50MB for file uploads
-app._max_input_size = 1 * 1024 * 1024   # 1MB for strict APIs
-```
+## Key Differences from kailash-py
 
-## Production Configuration
+| Aspect           | kailash-py                                      | kailash-rs                                             |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| Auth imports     | `from nexus.auth.plugin import NexusAuthPlugin` | `from kailash.nexus import NexusAuthPlugin`            |
+| JWT config class | `JWTConfig`                                     | `JwtConfig`                                            |
+| CORS setup       | `Nexus(cors_origins=[...])`                     | `app.add_cors(origins=[...])`                          |
+| Rate limit setup | `Nexus(rate_limit=1000)`                        | `app.add_rate_limit(max_requests=100, window_secs=60)` |
+| Auth plugin      | `app.add_plugin(auth)` on Nexus                 | Same pattern via low-level Nexus                       |
 
-```python
-import os
-from nexus import Nexus
+## Related Skills
 
-app = Nexus(
-    api_port=int(os.getenv("PORT", "8000")),
-    enable_auth=True,
-    rate_limit=1000,
-    auto_discovery=False,
-    force_https=True,
-    ssl_cert=os.getenv("SSL_CERT_PATH"),
-    ssl_key=os.getenv("SSL_KEY_PATH"),
-    session_backend="redis",
-    redis_url=os.getenv("REDIS_URL"),
-    session_timeout=3600,
-    enable_monitoring=True,
-    log_level="INFO",
-    log_format="json",
-    max_concurrent_workflows=200,
-    request_timeout=60,
-)
-```
-
-### Production Checklist
-
-- [ ] `NEXUS_ENV=production`
-- [ ] Authentication enabled
-- [ ] Rate limiting configured (>=100 req/min)
-- [ ] Auto-discovery disabled
-- [ ] Redis for sessions
-- [ ] HTTPS/TLS enabled
-- [ ] Secrets from env vars (never hardcoded)
-- [ ] Monitoring and alerting configured
-
-### Docker
-
-```dockerfile
-FROM python:3.11-slim
-RUN useradd -m -u 1000 nexus
-WORKDIR /app
-COPY --chown=nexus:nexus requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY --chown=nexus:nexus . .
-ENV NEXUS_ENV=production
-USER nexus
-EXPOSE 8000 3001
-HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:8000/health || exit 1
-CMD ["python", "app.py"]
-```
-
-### Kubernetes Security Context
-
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop: [ALL]
-  readOnlyRootFilesystem: true
-```
-
-## Common Mistakes
-
-| Mistake                                       | Fix                                          |
-| --------------------------------------------- | -------------------------------------------- |
-| Auth disabled in production                   | Set `NEXUS_ENV=production` (auto-enables)    |
-| No rate limiting (`rate_limit=None`)          | Use default 100 or set explicit limit        |
-| Auto-discovery in production (5-10s blocking) | `auto_discovery=False` + manual registration |
-| Secrets in code                               | Use `os.getenv()` for all secrets            |
-| No HTTPS                                      | `force_https=True` or reverse proxy          |
-
-## Monitoring
-
-Key security metrics to track:
-
-- Authentication failures (failed logins, invalid tokens)
-- Rate limit violations (429 responses per endpoint/IP)
-- Input validation blocks (dangerous keys, path traversal, size violations)
-- System health (auth service, Redis, database)
-
-```python
-from prometheus_client import Counter
-auth_failures = Counter('nexus_auth_failures_total', 'Authentication failures')
-rate_limit_hits = Counter('nexus_rate_limit_hits_total', 'Rate limit violations')
-input_validation_blocks = Counter('nexus_input_blocked_total', 'Blocked inputs')
-```
+- [nexus-essential-patterns](nexus-essential-patterns.md) - Middleware and plugin patterns
+- [nexus-production-deployment](nexus-production-deployment.md) - Production hardening
+- [nexus-config-options](nexus-config-options.md) - Configuration reference

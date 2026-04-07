@@ -5,221 +5,157 @@ priority: HIGH
 tags: [nexus, patterns, codegen, handler, dataflow, auth, workflow, kaizen, mcp]
 ---
 
-# Top 10 Kailash Patterns - Codegen Catalog
+# Top 10 Kailash Patterns -- Codegen Catalog
 
-**Version**: 0.12.0
+## Pattern 1: Handler Registration
 
-## Pattern 1: Nexus Handler
+Register async functions as multi-channel endpoints. A single registration makes the function available on API, CLI, and MCP simultaneously.
 
-Register async functions as multi-channel endpoints (API + CLI + MCP).
+**What it does**: Takes a function with typed parameters and a description, and exposes it across all active transports. Type annotations drive parameter validation and schema generation (OpenAPI, MCP tool schema, CLI argument parsing).
 
-```python
-from nexus import Nexus
-app = Nexus(auto_discovery=False)
+**Common mistakes**:
 
-@app.handler("create_user", description="Create a new user")
-async def create_user(email: str, name: str) -> dict:
-    from kailash.workflow.builder import WorkflowBuilder
-    from kailash.runtime import AsyncLocalRuntime
-    import uuid
-    workflow = WorkflowBuilder()
-    workflow.add_node("UserCreateNode", "create", {"id": f"user-{uuid.uuid4()}", "email": email, "name": name})
-    runtime = AsyncLocalRuntime()
-    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
-    return results["create"]
-```
-
-**Mistakes**: PythonCodeNode for business logic (sandbox blocks imports), missing type annotations, returning non-dict, `List[dict]` annotation (maps to `str`).
+- Using sandboxed code nodes for business logic (blocks imports and I/O)
+- Missing type annotations (transports cannot generate schemas)
+- Returning non-dictionary types (serialization issues)
+- Complex collection types that serialize ambiguously
 
 ## Pattern 2: DataFlow Model
 
-`@db.model` auto-generates 11 CRUD nodes (Create, Read, Update, Delete, List, Upsert, Count, Bulk\*).
+Declare a data model and automatically get CRUD operations: Create, Read, Update, Delete, List, Upsert, Count, and Bulk variants.
 
-```python
-from dataflow import DataFlow
-db = DataFlow(os.environ["DATABASE_URL"])
+**What it does**: A model declaration with typed fields auto-generates workflow nodes for all standard database operations. The primary key must be named `id`.
 
-@db.model
-class User:
-    id: str                       # MUST be named 'id'
-    email: str
-    name: str
-    role: str = "member"
-    org_id: Optional[str] = None
-```
+**Common mistakes**:
 
-**Mistakes**: Primary key not named `id`, manually setting `created_at`/`updated_at`, using ORM `user.save()` pattern.
+- Primary key not named `id`
+- Manually setting auto-managed timestamps (`created_at`, `updated_at`)
+- Using ORM save patterns instead of generated nodes
 
 ## Pattern 3: Nexus + DataFlow Integration
 
-```python
-app = Nexus(auto_discovery=False)  # CRITICAL: prevents blocking
-db = DataFlow(database_url=os.environ["DATABASE_URL"], auto_migrate=True)
-```
+Combine handler registration with DataFlow models for API-backed database operations.
 
-**Mistakes**: Missing `auto_discovery=False` (infinite blocking), stale params (`enable_model_persistence`, `skip_migration` removed).
+**What it does**: Handlers invoke DataFlow-generated nodes through workflows, providing multi-channel CRUD endpoints with a single model declaration.
+
+**Critical**: Disable auto-discovery when integrating DataFlow with Nexus. Without this, the application blocks on startup.
+
+**Common mistakes**:
+
+- Missing auto-discovery disable (infinite blocking)
+- Using removed/renamed configuration parameters
 
 ## Pattern 4: Auth Middleware Stack
 
-```python
-from nexus.auth.plugin import NexusAuthPlugin
-from nexus.auth import JWTConfig, TenantConfig, AuditConfig
-from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_user
-from nexus.http import Depends
+Add authentication, authorization, and security middleware through the unified auth plugin.
 
-auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"], algorithm="HS256", exempt_paths=["/health"]),
-    rbac={"admin": ["*"], "member": ["contacts:read", "contacts:create"]},
-    tenant_isolation=TenantConfig(jwt_claim="tenant_id", admin_role="super_admin"),
-    audit=AuditConfig(backend="logging"),
-)
-app.add_plugin(auth)
+**What it does**: Assembles JWT verification, RBAC, tenant isolation, rate limiting, and audit logging into a correctly-ordered middleware chain. Factory methods provide pre-configured bundles (basic, SaaS, enterprise).
 
-@app.handler("admin_dashboard")
-async def admin_dashboard(user=Depends(RequireRole("admin"))) -> dict:
-    return {"user_id": user.user_id}
-```
+**Middleware order** (automatic): Audit -> Rate Limit -> JWT -> Tenant -> RBAC -> Handler.
 
-**Factory methods**: `NexusAuthPlugin.basic_auth()`, `.saas_app()`, `.enterprise()`.
+**Common mistakes**:
 
-**Middleware order** (automatic): Request -> Audit -> RateLimit -> JWT -> Tenant -> RBAC -> Handler.
-
-| Wrong                     | Correct                              | Why                  |
-| ------------------------- | ------------------------------------ | -------------------- |
-| `secret_key`              | `secret`                             | JWTConfig param name |
-| `exclude_paths`           | `exempt_paths`                       | JWTConfig param name |
-| `admin_roles=[...]`       | `admin_role="str"`                   | Singular string      |
-| `RBACConfig(roles={})`    | `rbac={"admin": ["*"]}`              | Plain dict           |
-| `tenant_isolation=True`   | `tenant_isolation=TenantConfig(...)` | Config object        |
-| `from nexus.plugins.auth` | `from nexus.auth.plugin`             | Correct import       |
+| Wrong                        | Correct                 | Context                        |
+| ---------------------------- | ----------------------- | ------------------------------ |
+| `secret_key`                 | `secret`                | JWT config parameter           |
+| `exclude_paths`              | `exempt_paths`          | JWT config parameter           |
+| `admin_roles` (plural)       | `admin_role` (singular) | Tenant config parameter        |
+| RBAC config object           | Plain dictionary        | Role definitions               |
+| Boolean for tenant isolation | Config object           | Tenant isolation configuration |
+| Wrong import path            | Varies by SDK           | Auth plugin import             |
 
 ## Pattern 5: Multi-DataFlow Instance
 
-Separate instances per database/domain for isolation.
+Separate DataFlow instances per database or domain concern for isolation.
 
-```python
-users_db = DataFlow(database_url=os.environ["PRIMARY_DATABASE_URL"])
-analytics_db = DataFlow(database_url=os.environ["ANALYTICS_DATABASE_URL"], pool_size=30)
-logs_db = DataFlow(database_url=os.environ["LOGS_DATABASE_URL"], echo=False)
+**What it does**: Creates independent DataFlow instances with separate connection pools, each managing its own set of models. Models are scoped to their DataFlow instance.
 
-@users_db.model
-class User: ...
-@analytics_db.model
-class PageView: ...
-```
+**Use cases**: Primary data + analytics database, read replicas, audit database separation.
 
 ## Pattern 6: Custom Node
 
-```python
-from kailash.nodes.base import Node, NodeParameter, register_node
+Create reusable workflow nodes with typed parameters for domain-specific operations.
 
-@register_node("SendgridEmailNode")
-class SendgridEmailNode(Node):
-    def get_parameters(self) -> dict[str, NodeParameter]:
-        return {
-            "to_email": NodeParameter(name="to_email", type=str, required=True),
-            "subject": NodeParameter(name="subject", type=str, required=True),
-            "template_id": NodeParameter(name="template_id", type=str, required=True),
-            "template_data": NodeParameter(name="template_data", type=dict, required=False, default={}),
-        }
-    async def execute(self, **kwargs) -> dict:
-        import httpx, os
-        async with httpx.AsyncClient() as client:
-            response = await client.post("https://api.sendgrid.com/v3/mail/send",
-                headers={"Authorization": f"Bearer {os.environ['SENDGRID_API_KEY']}"},
-                json={...})
-        return {"success": response.status_code == 202}
-```
+**What it does**: Defines a node with explicit parameter declarations (name, type, required, default) and an async execute method. Nodes are registered by name and can be used in any workflow.
 
-**Mistakes**: Missing `@register_node()`, blocking I/O (`requests` instead of `httpx`).
+**Common mistakes**:
+
+- Missing node registration decorator
+- Using blocking I/O libraries instead of async variants
 
 ## Pattern 7: Kaizen Agent
 
-```python
-from kaizen.core.base_agent import BaseAgent
-from kaizen.signatures import Signature, InputField, OutputField
+Build AI agents with structured input/output signatures.
 
-class AnalysisSignature(Signature):
-    document: str = InputField(description="Document text")
-    question: str = InputField(description="Analysis question")
-    answer: str = OutputField(description="Answer")
-    confidence: float = OutputField(description="Confidence 0-1")
+**What it does**: Defines a signature with typed input and output fields, then creates an agent that uses LLM reasoning to produce structured outputs. The agent is invoked through a run method with keyword arguments matching the signature.
 
-class DocumentAnalyzer(BaseAgent):
-    def __init__(self, config):
-        super().__init__(config=config, signature=AnalysisSignature())
-    async def analyze(self, document: str, question: str) -> dict:
-        return await self.run_async(document=document, question=question)
-```
+**Common mistakes**:
 
-**Mistakes**: Manual BaseAgentConfig, calling strategy.execute() directly, missing `.env` load.
+- Manually constructing agent configuration instead of using defaults
+- Calling strategy methods directly instead of the agent's run method
+- Missing environment variable loading for LLM provider keys
 
 ## Pattern 8: Workflow Builder
 
-Multi-step orchestration with branching and data flow.
+Multi-step orchestration with branching, connections, and data flow between nodes.
 
-```python
-from kailash.workflow.builder import WorkflowBuilder
-from kailash.runtime import AsyncLocalRuntime
+**What it does**: Declaratively builds a workflow by adding nodes, connecting outputs to inputs, and optionally adding conditional branching. The workflow must be built (finalized) before execution.
 
-workflow = WorkflowBuilder()
-workflow.add_node("PythonCodeNode", "validate", {"code": "result = {...}"})
-workflow.add_node("OrderCreateNode", "create_order", {"status": "confirmed"})
-workflow.add_connection("validate", "order.product_id", "create_order", "product_id")
+**Critical**: Always call build before registration or execution. Use explicit connections between nodes, not template syntax.
 
-runtime = AsyncLocalRuntime()
-results, run_id = await runtime.execute_workflow_async(workflow.build(), inputs={"order": order})
-```
+**Common mistakes**:
 
-**Mistakes**: Forgetting `.build()`, using `${...}` template syntax, missing runtime.
+- Forgetting to build before registration
+- Using template variable syntax (`${...}`) instead of explicit connections
+- Missing runtime for execution
 
-## Pattern 9: AsyncLocalRuntime
+## Pattern 9: Async Runtime
 
-```python
-from kailash.runtime import AsyncLocalRuntime
-runtime = AsyncLocalRuntime()  # Initialize ONCE at module level
-results, run_id = await runtime.execute_workflow_async(workflow.build(), inputs={})
+Execute workflows asynchronously within handler contexts.
 
-# Sync context (CLI/scripts): use LocalRuntime
-# Auto-detect: get_runtime() returns correct type
-```
+**What it does**: Provides an async-compatible runtime for executing built workflows. Returns results and a run ID. The runtime should be initialized once at module level, not per request.
 
-**Mistakes**: Runtime per request, LocalRuntime in async context.
+**Common mistakes**:
+
+- Creating a new runtime per request (resource waste)
+- Using the sync runtime in async contexts (blocks the event loop)
 
 ## Pattern 10: MCP Integration
 
-Every `@app.handler()` automatically becomes an MCP tool. Set `mcp_port` on Nexus.
+Every registered handler automatically becomes an MCP tool accessible to AI agents.
 
-```python
-app = Nexus(api_port=8000, mcp_port=3001, auto_discovery=False)
+**What it does**: When an MCP port is configured, all handlers are exposed as MCP tools with their descriptions and parameter schemas. AI agents discover and invoke these tools via the MCP protocol.
 
-@app.handler("search_contacts", description="Search contacts by company or email")
-async def search_contacts(company: str = None, limit: int = 10) -> dict:
-    return {"contacts": results, "count": len(results)}
-```
+**Critical**: Handler descriptions are essential for AI agent discovery. Without descriptions, agents cannot determine what tools do.
 
-**Mistakes**: No descriptions (AI agents need them), complex return types, missing param defaults.
+**Common mistakes**:
+
+- Missing descriptions (AI agents need them for tool selection)
+- Complex return types that are hard for agents to parse
+- Missing parameter defaults (forces agents to guess required values)
 
 ## Quick Reference
 
-| Pattern              | Primary Use     | Key Import                                             |
-| -------------------- | --------------- | ------------------------------------------------------ |
-| 1. Handler           | API endpoints   | `from nexus import Nexus`                              |
-| 2. DataFlow Model    | DB entities     | `from dataflow import DataFlow`                        |
-| 3. Nexus+DataFlow    | API+DB          | Both above                                             |
-| 4. Auth Stack        | Authentication  | `from nexus.auth.plugin import NexusAuthPlugin`        |
-| 5. Multi-DataFlow    | Multiple DBs    | `from dataflow import DataFlow`                        |
-| 6. Custom Node       | Reusable logic  | `from kailash.nodes.base import Node`                  |
-| 7. Kaizen Agent      | AI features     | `from kaizen.core.base_agent import BaseAgent`         |
-| 8. Workflow Builder  | Orchestration   | `from kailash.workflow.builder import WorkflowBuilder` |
-| 9. AsyncLocalRuntime | Async execution | `from kailash.runtime import AsyncLocalRuntime`        |
-| 10. MCP Integration  | AI tools        | `from nexus import Nexus`                              |
+| Pattern             | Primary Use        | When to Choose                                         |
+| ------------------- | ------------------ | ------------------------------------------------------ |
+| 1. Handler          | API endpoints      | Any function that should be accessible via API/CLI/MCP |
+| 2. DataFlow Model   | Database entities  | Persistent data with CRUD operations                   |
+| 3. Nexus + DataFlow | API + database     | Most CRUD API applications                             |
+| 4. Auth Stack       | Security           | Any production deployment with users                   |
+| 5. Multi-DataFlow   | Multiple databases | Separate concerns across databases                     |
+| 6. Custom Node      | Reusable logic     | Domain operations used in multiple workflows           |
+| 7. Kaizen Agent     | AI features        | LLM-powered analysis, generation, or conversation      |
+| 8. Workflow Builder | Orchestration      | Multi-step processes with branching                    |
+| 9. Async Runtime    | Workflow execution | Running workflows in async handler contexts            |
+| 10. MCP Integration | AI tools           | Exposing functionality to AI agents                    |
 
-## Critical Config
+## Critical Configuration
 
-```python
-app = Nexus(auto_discovery=False)
-db = DataFlow(database_url="...", auto_migrate=True)
-runtime = AsyncLocalRuntime()
-results, run_id = await runtime.execute_workflow_async(workflow.build(), inputs={})
-```
+| Setting               | Requirement                                                          |
+| --------------------- | -------------------------------------------------------------------- |
+| Auto-discovery        | Disable when using DataFlow                                          |
+| DataFlow auto-migrate | Enable for automatic schema management                               |
+| Runtime               | Initialize once at module level, use async variant in async contexts |
+| Workflow build        | Always call before registration or execution                         |
+
+See language-specific variant for implementation details and code examples.

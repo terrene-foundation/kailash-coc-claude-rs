@@ -1,13 +1,13 @@
 ---
 skill: codegen-decision-tree
-description: Structured decision logic for codegen agents to select the right Kailash pattern
+description: Structured decision logic for selecting the right Kailash pattern
 priority: HIGH
-tags: [nexus, codegen, decision-tree, anti-patterns, templates, scaffolding]
+tags: [nexus, codegen, decision-tree, anti-patterns, templates]
 ---
 
 # Codegen Decision Tree
 
-Every scaffolding task MUST start by traversing this tree. **Version**: 0.12.0
+Every scaffolding task MUST start by traversing this tree.
 
 ## Master Decision Tree
 
@@ -15,167 +15,119 @@ Every scaffolding task MUST start by traversing this tree. **Version**: 0.12.0
 START: What are you building?
 |
 +-- API endpoint that reads/writes data?
-|   +-- Simple CRUD? --> Handler + DataFlow Model (SaaS API template)
-|   +-- Multi-model with relationships? --> Nexus+DataFlow + Multi-DataFlow (Multi-Tenant template)
-|   +-- Complex validation/transformation? --> WorkflowBuilder + Custom Node
-|   +-- Requires auth? --> NexusAuthPlugin + above patterns
+|   +-- Simple CRUD?
+|   |   --> Handler + DataFlow model
+|   +-- Multi-model with relationships?
+|   |   --> Nexus + DataFlow (multiple instances if needed)
+|   +-- Complex validation/transformation?
+|   |   --> Workflow + custom node
+|   +-- Requires authentication?
+|       --> Auth plugin + any of the above
 |
 +-- AI-powered feature?
-|   +-- Single LLM call? --> Handler with agent.run() inside
-|   +-- Multi-step agent? --> Kaizen Agent + Handler (AI Agent template)
-|   +-- RAG/semantic search? --> Kaizen Agent + MCP + DataFlow pgvector
-|   +-- AI agent integration? --> MCP Integration
+|   +-- Single LLM call?
+|   |   --> Handler wrapping an agent invocation
+|   +-- Multi-step agent?
+|   |   --> Kaizen agent + handler
+|   +-- RAG/semantic search?
+|   |   --> Kaizen agent + MCP + vector storage
+|   +-- AI agent integration?
+|       --> MCP channel
 |
 +-- Background/batch processing?
-|   +-- Event-driven? --> WorkflowBuilder + AsyncLocalRuntime
-|   +-- Scheduled jobs? --> WorkflowBuilder + external scheduler
-|   +-- Bulk data import? --> DataFlow BulkCreateNode/BulkUpsertNode
+|   +-- Event-driven?
+|   |   --> Workflow + async runtime
+|   +-- Scheduled jobs?
+|   |   --> Scheduled task handler
+|   +-- Bulk data import?
+|       --> DataFlow bulk operations
 |
 +-- Infrastructure only?
-    +-- Authentication? --> NexusAuthPlugin
-    +-- Custom middleware? --> app.add_middleware()
+    +-- Authentication?
+    |   --> Auth plugin (basic, SaaS, or enterprise tier)
+    +-- Custom middleware?
+        --> Middleware registration
 ```
 
 ## Anti-Patterns
 
-### 1. PythonCodeNode for Business Logic
+### 1. Sandbox-restricted code for business logic
 
-PythonCodeNode sandbox blocks imports (`asyncio`, `httpx`, DB drivers). Use `@app.handler()` instead.
+When handler code needs to import libraries, call external APIs, or access databases, use direct handler registration instead of sandboxed code nodes. Sandbox restrictions block most imports and I/O operations.
 
-### 2. Raw HTTP Routes Alongside Nexus
+### 2. Bypassing the Nexus API surface
 
-MUST NOT access `app._gateway.app`. Use `@app.handler()`, `app.include_router()`, or `@app.endpoint()`.
+Access platform internals through public APIs only. Internal gateway or app references are unstable across versions. Use handler registration, middleware registration, or router inclusion.
 
-### 3. Building Auth from Scratch
+### 3. Building authentication from scratch
 
-Use `NexusAuthPlugin` -- handles JWT, refresh tokens, RBAC, tenant isolation.
+Use the built-in auth plugin. It handles JWT verification, refresh tokens, RBAC, and tenant isolation with correct middleware ordering.
 
-### 4. DataFlow Instance Per Request
+### 4. Database instance per request
 
-Create DataFlow at module level. Per-request instances exhaust connection pools.
+Create DataFlow instances at module level. Per-request instances exhaust connection pools and cause resource leaks.
 
-### 5. WorkflowBuilder for Simple CRUD
+### 5. Workflows for simple CRUD
 
-Use `@app.handler()` for simple operations. WorkflowBuilder is for multi-step orchestration.
+Use handler registration for simple operations. Workflows are for multi-step orchestration with branching and data flow between nodes.
 
-### 6. Mocking in Integration Tests
+### 6. Mocking DataFlow in integration tests
 
-Use real `DataFlow("sqlite:///:memory:")` instead of mocking DataFlow.
+Use a real DataFlow instance with an in-memory database (e.g., SQLite memory mode) instead of mocking.
 
-### 7. Accessing `app._gateway.app`
+### 7. Accessing platform internals directly
 
-Use `app.add_middleware()` -- public API is stable across versions.
+Use public middleware and routing APIs. Internal references break across versions without notice.
 
 ## Scaffolding Templates
 
 ### Template 1: SaaS API Backend
 
-```python
-import os, uuid
-from nexus import Nexus
-from nexus.auth.plugin import NexusAuthPlugin
-from nexus.auth import JWTConfig, TenantConfig
-from nexus.auth.dependencies import RequirePermission
-from dataflow import DataFlow
-from kailash.workflow.builder import WorkflowBuilder
-from kailash.runtime import AsyncLocalRuntime
-from nexus.http import Depends
+Components:
 
-app = Nexus(api_port=8000, mcp_port=3001, auto_discovery=False)
-db = DataFlow(database_url=os.environ.get("DATABASE_URL", "sqlite:///app.db"), auto_migrate=True)
-runtime = AsyncLocalRuntime()
-
-auth = NexusAuthPlugin(
-    jwt=JWTConfig(secret=os.environ["JWT_SECRET"], algorithm="HS256", exempt_paths=["/health", "/docs"]),
-    rbac={"admin": ["*"], "member": ["contacts:read", "contacts:create"], "viewer": ["contacts:read"]},
-    tenant_isolation=TenantConfig(jwt_claim="tenant_id", admin_role="admin"),
-)
-app.add_plugin(auth)
-
-@db.model
-class Contact:
-    id: str; email: str; name: str; company: str = None; org_id: str = None
-
-@app.handler("create_contact", description="Create a new contact")
-async def create_contact(email: str, name: str, company: str = None, user=Depends(RequirePermission("contacts:create"))) -> dict:
-    workflow = WorkflowBuilder()
-    workflow.add_node("ContactCreateNode", "create", {"id": f"contact-{uuid.uuid4()}", "email": email, "name": name, "company": company, "created_by": user.user_id})
-    results, _ = await runtime.execute_workflow_async(workflow.build(), inputs={})
-    return results["create"]
-
-@app.endpoint("/health", methods=["GET"])
-async def health_check():
-    return {"status": "healthy"}
-```
+- Nexus instance with DataFlow integration (`auto_discovery=False`)
+- DataFlow instance with auto-migration
+- Auth plugin with JWT, RBAC, and tenant isolation
+- DataFlow models with `id` primary key
+- Handlers for CRUD operations with permission-based authorization
+- Async runtime for workflow execution within handlers
+- Health endpoint
 
 ### Template 2: AI Agent Backend
 
-```python
-import os
-from nexus import Nexus
-from kaizen.core.base_agent import BaseAgent
-from kaizen.signatures import Signature, InputField, OutputField
+Components:
 
-class ChatSignature(Signature):
-    message: str = InputField(description="User message")
-    context: str = InputField(description="Context", default="")
-    response: str = OutputField(description="Assistant response")
-    confidence: float = OutputField(description="Confidence 0-1")
-
-class ChatAgent(BaseAgent):
-    def __init__(self, config):
-        super().__init__(config=config, signature=ChatSignature())
-    async def chat(self, message: str, session_id: str, context: str = "") -> dict:
-        return await self.run_async(message=message, context=context, session_id=session_id)
-
-app = Nexus(api_port=8000, mcp_port=3001, auto_discovery=False)
-chat_agent = ChatAgent({"llm_provider": "openai", "model": os.environ.get("LLM_MODEL", "")})
-
-@app.handler("chat", description="Send a chat message")
-async def chat(message: str, session_id: str = "default", context: str = "") -> dict:
-    return await chat_agent.chat(message, session_id, context)
-```
+- Nexus instance with MCP enabled
+- Kaizen agent with signature (input/output field definitions)
+- Handler wrapping agent invocation
+- Session support for conversational context
 
 ### Template 3: Multi-Tenant Enterprise
 
-Separate DataFlow instances per concern (primary, analytics, audit) with full tenant isolation. Follows Template 1 auth pattern but adds:
+Components:
 
-```python
-primary_db = DataFlow(database_url=os.environ["PRIMARY_DATABASE_URL"])
-analytics_db = DataFlow(database_url=os.environ["ANALYTICS_DATABASE_URL"], pool_size=30)
-audit_db = DataFlow(database_url=os.environ["AUDIT_DATABASE_URL"], echo=False)
+- Multiple DataFlow instances per concern (primary, analytics, audit)
+- Models scoped to their respective DataFlow instance
+- Full enterprise auth (JWT + RBAC + tenant isolation + audit)
+- Async database initialization
 
-# Models scoped to their database instance
-@primary_db.model
-class User: ...
-@analytics_db.model
-class PageView: ...
-@audit_db.model
-class AuditLog: ...
+## Critical Configuration
 
-async def initialize_databases():
-    await primary_db.create_tables_async()
-    await analytics_db.create_tables_async()
-    await audit_db.create_tables_async()
-```
+| Setting               | Value                      | Why                                               |
+| --------------------- | -------------------------- | ------------------------------------------------- |
+| Auto-discovery        | Disabled                   | Prevents DataFlow startup blocking                |
+| DataFlow auto-migrate | Enabled                    | Handles schema creation automatically             |
+| Runtime               | Async variant              | Required for async handler contexts               |
+| Workflow build        | Called before registration | Workflow objects must be built before registering |
 
-## Critical Settings
+## Auth Configuration Pitfalls
 
-```python
-app = Nexus(auto_discovery=False)       # CRITICAL for DataFlow integration
-db = DataFlow(auto_migrate=True)        # Default, works in Docker/async
-runtime = AsyncLocalRuntime()           # CRITICAL for async contexts
-```
+| Wrong                        | Correct                        | Context                                          |
+| ---------------------------- | ------------------------------ | ------------------------------------------------ |
+| `secret_key`                 | `secret`                       | JWT config parameter name                        |
+| `exclude_paths`              | `exempt_paths`                 | JWT config parameter name                        |
+| `admin_roles` (plural list)  | `admin_role` (singular string) | Tenant config parameter name                     |
+| RBAC config object           | Plain dict                     | Role definitions are plain dictionaries          |
+| Boolean for tenant isolation | Config object                  | Tenant isolation requires a configuration object |
 
-## Auth Import Cheat Sheet
-
-```python
-from nexus.auth.plugin import NexusAuthPlugin
-from nexus.auth import JWTConfig, TenantConfig, RateLimitConfig, AuditConfig
-from nexus.auth.dependencies import RequireRole, RequirePermission, get_current_user
-
-JWTConfig(secret=..., exempt_paths=[...])       # NOT secret_key, NOT exclude_paths
-TenantConfig(admin_role="admin")                 # NOT admin_roles (singular string)
-rbac={"admin": ["*"]}                            # Plain dict, NOT RBACConfig
-tenant_isolation=TenantConfig(jwt_claim="...")    # TenantConfig object, NOT True
-```
+See language-specific variant for implementation details and code examples.

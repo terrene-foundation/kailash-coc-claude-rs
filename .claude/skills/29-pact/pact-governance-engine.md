@@ -10,7 +10,7 @@ description: "Complete GovernanceEngine API reference -- decision, query, mutati
 ## Constructor
 
 ```python
-from pact.governance.engine import GovernanceEngine
+from kailash.trust.pact.engine import GovernanceEngine
 
 engine = GovernanceEngine(
     org,                        # OrgDefinition | CompiledOrg
@@ -21,10 +21,37 @@ engine = GovernanceEngine(
     audit_chain=None,           # AuditChain (optional, for audit trail)
     store_backend="memory",     # "memory" or "sqlite"
     store_url=None,             # Path for sqlite backend
+    eatp_emitter=None,          # PactEatpEmitter (Section 5.7 EATP record emission)
+    vacancy_deadline_hours=24,  # Section 5.5 configurable vacancy deadline
+    require_bilateral_consent=False,  # Section 4.4 bridge bilateral consent
 )
 ```
 
 When `store_backend="sqlite"` and `store_url` is set, all stores are automatically created as SQLite-backed stores. All explicit `*_store` args must be `None`.
+
+### EATP Record Emission (Section 5.7)
+
+When `eatp_emitter` is provided, the engine emits EATP record types alongside PACT audit anchors:
+
+```python
+from kailash.trust.pact.eatp_emitter import InMemoryPactEmitter
+
+emitter = InMemoryPactEmitter()
+engine = GovernanceEngine(org, eatp_emitter=emitter)
+
+# After operations:
+emitter.genesis_records      # GenesisRecord on org init
+emitter.delegation_records   # DelegationRecord on envelope/bridge ops
+emitter.capability_records   # CapabilityAttestation on clearance grant
+```
+
+### Vacancy Deadline (Section 5.5)
+
+Within the deadline window, vacant roles without designation operate under an **interim envelope** (intersection of own + parent's envelope) instead of blocking. After the deadline, actions are fully blocked.
+
+### Bridge Bilateral Consent (Section 4.4)
+
+When `require_bilateral_consent=True`, both endpoint roles must call `consent_bridge()` before `create_bridge()` can succeed.
 
 ## Decision API
 
@@ -79,8 +106,8 @@ effective = engine.compute_envelope(
 5-step access enforcement for knowledge items.
 
 ```python
-from pact.governance.knowledge import KnowledgeItem
-from pact.governance.config import ConfidentialityLevel, TrustPostureLevel
+from kailash.trust.pact.knowledge import KnowledgeItem
+from kailash.trust.pact.config import ConfidentialityLevel, TrustPostureLevel
 
 item = KnowledgeItem(
     item_id="doc-secret",
@@ -134,7 +161,7 @@ All mutations are thread-safe and emit EATP audit anchors.
 ### Envelopes
 
 ```python
-from pact.governance.envelopes import RoleEnvelope, TaskEnvelope
+from kailash.trust.pact.envelopes import RoleEnvelope, TaskEnvelope
 
 engine.set_role_envelope(RoleEnvelope(
     id="env-1",
@@ -154,9 +181,12 @@ engine.set_task_envelope(TaskEnvelope(
 
 ### Clearance
 
-```python
-from pact.governance.clearance import RoleClearance, VettingStatus
+VettingStatus FSM: `PENDING -> {ACTIVE, REVOKED}`, `ACTIVE -> {SUSPENDED, EXPIRED, REVOKED}`, `SUSPENDED -> {ACTIVE, REVOKED}`, `EXPIRED -> {ACTIVE, REVOKED}`, `REVOKED -> {}` (terminal).
 
+```python
+from kailash.trust.pact.clearance import RoleClearance, VettingStatus
+
+# Grant clearance (FSM-validated for living states, unconditional for terminal/missing)
 engine.grant_clearance(
     role_address="D1-R1-T1-R1",
     clearance=RoleClearance(
@@ -167,13 +197,18 @@ engine.grant_clearance(
     ),
 )
 
+# Transition status (FSM-validated, e.g., suspend during investigation)
+engine.transition_clearance("D1-R1-T1-R1", VettingStatus.SUSPENDED)
+engine.transition_clearance("D1-R1-T1-R1", VettingStatus.ACTIVE)  # reinstate
+
+# Revoke (sets REVOKED status, preserves record for audit trail)
 engine.revoke_clearance(role_address="D1-R1-T1-R1")
 ```
 
 ### Access Policies
 
 ```python
-from pact.governance.access import KnowledgeSharePolicy, PactBridge
+from kailash.trust.pact.access import KnowledgeSharePolicy, PactBridge
 
 engine.create_ksp(KnowledgeSharePolicy(
     id="ksp-1",
@@ -205,10 +240,20 @@ engine.audit_chain  # AuditChain | None
 is_valid, error_msg = engine.verify_audit_integrity()
 ```
 
+## Compilation Limits
+
+Org compilation enforces hard limits (see `rules/pact-governance.md` Rule 7):
+
+- `MAX_COMPILATION_DEPTH = 50`
+- `MAX_CHILDREN_PER_NODE = 500`
+- `MAX_TOTAL_NODES = 100_000`
+
+## Thread Safety
+
+All public methods acquire `self._lock` before accessing shared state. Safe for multi-threaded agent environments.
+
 ## Cross-References
 
 - `pact-envelopes.md` -- envelope model and intersection algorithm
 - `pact-access-enforcement.md` -- 5-step access algorithm
 - `pact-dtr-addressing.md` -- D/T/R grammar
-- Source: `pact/governance/engine.py`
-- Source: `pact/governance/verdict.py`

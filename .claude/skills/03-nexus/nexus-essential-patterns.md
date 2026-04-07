@@ -1,161 +1,198 @@
 ---
-skill: nexus-essential-patterns
-description: Essential code patterns for Nexus setup, handler registration, DataFlow integration, connections, and middleware
-priority: HIGH
-tags: [nexus, patterns, setup, handler, dataflow, middleware, configuration]
+name: nexus-essential-patterns
+description: "Essential patterns: middleware, routers, plugins, event bus on low-level Nexus. NexusApp convenience methods."
 ---
 
-# Nexus Essential Patterns
+# Nexus Essential Patterns (kailash-rs)
 
-Quick-reference code patterns for the most common Nexus operations.
+Quick-reference code patterns for common Nexus operations across both layers.
 
-## Basic Setup
+## Basic Setup (NexusApp)
 
 ```python
-from nexus import Nexus
-app = Nexus()
-app.register("workflow_name", workflow.build())  # ALWAYS .build()
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(config=NexusConfig(port=3000))
+
+@app.handler("greet", description="Greet a user")
+async def greet(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
+
 app.start()
 ```
 
-## Handler Registration (Recommended)
+## Handler Registration
 
-Bypasses PythonCodeNode sandbox restrictions. Simpler syntax, automatic parameter derivation, multi-channel deployment from a single function.
+### Decorator (NexusApp)
 
 ```python
-from nexus import Nexus
-
-app = Nexus()
-
-# Decorator pattern
-@app.handler("greet", description="Greeting handler")
-async def greet(name: str, greeting: str = "Hello") -> dict:
-    """Direct async function as multi-channel workflow."""
-    return {"message": f"{greeting}, {name}!"}
-
-# Non-decorator pattern
-async def process(data: dict) -> dict:
-    return {"result": data}
-
-app.register_handler("process", process)
-app.start()
+@app.handler("process", description="Process data")
+async def process(data: str, mode: str = "default") -> dict:
+    return {"result": data, "mode": mode}
 ```
 
-**Why Use Handlers?**
-
-- Bypasses PythonCodeNode sandbox restrictions
-- No import blocking (use any library)
-- Automatic parameter derivation from function signature
-- Multi-channel deployment (API/CLI/MCP) from single function
-
-## DataFlow Integration (CRITICAL)
+### Imperative (NexusApp)
 
 ```python
-# CORRECT: Fast, non-blocking
-app = Nexus(auto_discovery=False)  # CRITICAL
+async def analyze(text: str) -> dict:
+    return {"length": len(text)}
 
-db = DataFlow(
-    database_url="postgresql://...",
-    auto_migrate=True,  # default: Works in Docker/Nexus
+app.register("analyze", analyze)
+app.register_handler("analyze_v2", analyze)
+```
+
+### Low-Level (Nexus)
+
+```python
+from kailash.nexus import Nexus
+
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.handler("greet", greet_func)
+nexus.register("process", process_func)
+```
+
+## Custom Endpoints (NexusApp)
+
+```python
+@app.endpoint("/api/v1/users/{user_id}", methods=["GET"])
+async def get_user(user_id: str):
+    return {"user_id": user_id}
+
+@app.endpoint("/api/v1/search", methods=["GET", "POST"])
+async def search(q: str = "", limit: int = 10):
+    return {"query": q, "limit": limit}
+```
+
+## CORS and Rate Limiting (NexusApp)
+
+```python
+app.add_cors(origins=["https://example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+```
+
+## Middleware (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus, NexusConfig, MiddlewareConfig
+
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.set_middleware(MiddlewareConfig(...))
+```
+
+## Router Inclusion (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus, NexusRouter
+
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.include_router(legacy_router)
+```
+
+## Plugin System (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus, NexusAuthPlugin, JwtConfig
+import os
+
+nexus = Nexus(config=NexusConfig(port=3000))
+
+auth = NexusAuthPlugin.basic_auth(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
 )
+nexus.add_plugin(auth)
 ```
 
-**WARNING**: Without `auto_discovery=False`, Nexus blocks on startup when DataFlow is present.
-
-## API Input Access in PythonCodeNode
+## Event Bus (Low-Level Nexus)
 
 ```python
-# CORRECT: Use try/except in PythonCodeNode
-workflow.add_node("PythonCodeNode", "prepare", {
-    "code": """
-try:
-    sector = sector  # From API inputs
-except NameError:
-    sector = None
-result = {'filters': {'sector': sector} if sector else {}}
-"""
+from kailash.nexus import Nexus
+
+nexus = Nexus(config=NexusConfig(port=3000))
+
+# Get event bus
+bus = nexus.event_bus()
+
+# Subscribe to events
+nexus.subscribe("workflow.complete", on_complete_callback)
+nexus.on("error", on_error_callback)
+```
+
+## Preset System
+
+```python
+from kailash.nexus import NexusApp, Nexus, NexusConfig, Preset
+
+# Via NexusApp
+app = NexusApp(config=NexusConfig(port=3000), preset="enterprise")
+
+# Via low-level Nexus
+nexus = Nexus(preset=Preset.saas())
+```
+
+## Workflow Registration (Low-Level Nexus)
+
+```python
+import kailash
+from kailash.nexus import Nexus, NexusConfig
+
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("EmbeddedPythonNode", "process", {
+    "code": "result = {'status': 'ok'}",
+    "output_vars": ["result"],
 })
 
-# WRONG: inputs.get() doesn't exist
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.register_workflow("process", builder.build(reg))
 ```
 
-## Connection Pattern
+## Introspection
 
 ```python
-# CORRECT: Explicit connections with dot notation
-workflow.add_connection("prepare", "result.filters", "search", "filter")
+# NexusApp
+print(app.get_endpoints())
+print(app.get_registered_handlers())
+print(app.health_check())
 
-# WRONG: Template syntax not supported
-# "filter": "${prepare.result}"
+# Nexus (low-level)
+print(nexus.workflow_count())
+print(nexus.list_workflows())
+print(nexus.handler_count())
+print(nexus.get_registered_handlers())
+print(nexus.plugin_count())
+print(nexus.plugin_names())
 ```
 
-## Middleware & Plugin API (v1.4.1)
+## Layer Quick Reference
 
-```python
-# Native middleware (Starlette-compatible)
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
+| Feature                 | NexusApp | Nexus (Low-Level) |
+| ----------------------- | -------- | ----------------- |
+| `@handler()` decorator  | Yes      | No                |
+| `@endpoint()` decorator | Yes      | No                |
+| `add_cors()`            | Yes      | No                |
+| `add_rate_limit()`      | Yes      | No                |
+| `set_middleware()`      | No       | Yes               |
+| `include_router()`      | No       | Yes               |
+| `add_plugin()`          | No       | Yes               |
+| `event_bus()`           | No       | Yes               |
+| `subscribe()` / `on()`  | No       | Yes               |
+| `register_workflow()`   | No       | Yes               |
+| Introspection counts    | Limited  | Full              |
 
-# Include existing routers
-app.include_router(legacy_router, prefix="/legacy")
+## Key Differences from kailash-py
 
-# Plugin protocol (NexusPluginProtocol)
-app.add_plugin(auth_plugin)
+| Aspect       | kailash-py                                | kailash-rs                                         |
+| ------------ | ----------------------------------------- | -------------------------------------------------- |
+| Entry point  | `from nexus import Nexus`                 | `from kailash.nexus import NexusApp` (recommended) |
+| Two layers   | Single `Nexus` class                      | `NexusApp` (high-level) + `Nexus` (low-level)      |
+| Middleware   | `app.add_middleware(CORSMiddleware, ...)` | `nexus.set_middleware(MiddlewareConfig(...))`      |
+| Plugin       | `app.add_plugin(auth)`                    | `nexus.add_plugin(auth)`                           |
+| CORS         | `Nexus(cors_origins=[...])` constructor   | `app.add_cors(origins=[...])` method               |
+| Default port | 8000                                      | 3000                                               |
 
-# Preset system (one-line config)
-app = Nexus(preset="saas", cors_origins=["https://app.example.com"])
-```
+## Related Skills
 
-## Configuration Quick Reference
-
-| Use Case          | Config                                                        |
-| ----------------- | ------------------------------------------------------------- |
-| **With DataFlow** | `Nexus(auto_discovery=False)`                                 |
-| **Standalone**    | `Nexus()`                                                     |
-| **With Preset**   | `Nexus(preset="saas")`                                        |
-| **With CORS**     | `Nexus(cors_origins=["..."], cors_allow_credentials=False)`   |
-| **Full Features** | `Nexus(auto_discovery=False)` + `app.add_plugin(auth_plugin)` |
-
-## Handler Support Details
-
-### Core Components
-
-**HandlerNode** (`kailash.nodes.handler`):
-
-- Core SDK node that wraps async/sync functions
-- Automatic parameter derivation from function signatures
-- Type annotation mapping to NodeParameter entries
-- Seamless WorkflowBuilder integration
-
-**make_handler_workflow()** utility:
-
-- Builds single-node workflow from handler function
-- Configures workflow-level input mappings
-- Returns ready-to-execute Workflow instance
-
-**Registration-Time Validation** (`_validate_workflow_sandbox`):
-
-- Detects PythonCodeNode/AsyncPythonCodeNode with blocked imports
-- Emits warnings at registration time (not runtime)
-- Helps developers migrate to handlers for restricted code
-
-**Configurable Sandbox Mode**:
-
-- `sandbox_mode="strict"`: Blocks restricted imports (default)
-- `sandbox_mode="permissive"`: Allows all imports (test/dev only)
-- Set via PythonCodeNode/AsyncPythonCodeNode parameter
-
-### Key Files
-
-- `tests/unit/nodes/test_handler_node.py` - 22 SDK unit tests
-
-### Migration Note
-
-**Type Mapping Limitation**: `_derive_params_from_signature()` maps complex generics (e.g., `List[dict]`) to `str`. Use plain `list` instead.
-
-## MCP Transport
-
-- **`receive_message()`**: MCP transport supports `receive_message()` for bidirectional communication in custom MCP transports
-
-## Performance & Monitoring
-
-- **SQLite CARE Audit Storage** (current): Nexus creates `AsyncLocalRuntime()` with `enable_monitoring=True` (default), so all workflow executions automatically get CARE audit persistence to SQLite WAL-mode database. Zero in-loop I/O (~35us/node overhead) with post-execution ACID flush.
+- [nexus-comparison](nexus-comparison.md) - When to use NexusApp vs Nexus
+- [nexus-handler-support](nexus-handler-support.md) - Handler patterns
+- [nexus-config-options](nexus-config-options.md) - Configuration reference
+- [nexus-security-best-practices](nexus-security-best-practices.md) - Auth patterns

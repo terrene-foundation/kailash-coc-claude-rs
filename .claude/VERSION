@@ -1,16 +1,35 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-07",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.5.0",
+    "version": "2.6.0",
     "build_version": "3.10.0",
-    "synced_at": "2026-04-07T14:30:00Z"
+    "synced_at": "2026-04-07T16:30:00Z"
   },
   "changelog": [
+    {
+      "version": "2.1.0",
+      "date": "2026-04-07",
+      "summary": "L5 learning system redesign + Nexus skills restructured (rs variants for 11 Tier 2 files)",
+      "changes": [
+        "DELETED: scripts/learning/instinct-processor.js, instinct-evolver.js, checkpoint-manager.js",
+        "DELETED: scripts/hooks/lib/instinct-renderer.js",
+        "DELETED: .claude/rules/learned-instincts.md (no more auto-injected rules)",
+        "DELETED: .claude/commands/evolve.md, checkpoint.md",
+        "NEW: scripts/learning/digest-builder.js (pure aggregation → learning-digest.json)",
+        "UPDATED: 11 hook/learning scripts for digest-based pipeline",
+        "UPDATED: .claude/commands/codify.md — step 1 reads learning-digest.json + journals",
+        "UPDATED: .claude/commands/learn.md — digest viewer",
+        "NEW: 11 rs variant Nexus skills (quickstart, comparison, workflow-registration, handler-support, config-options, multi-channel, api-patterns, mcp-channel, security, production, essential-patterns)",
+        "UPDATED: 12 Tier 3 Nexus skills now language-neutral (auth, plugins, events, sessions, k8s-probes, transport, etc.)",
+        "UPDATED: skills/34-kailash-ml/SKILL.md — ModelExplainer, preprocessing, calibration",
+        "UPDATED: 13 guides — removed all instinct/evolve/checkpoint references"
+      ]
+    },
     {
       "version": "2.5.0",
       "date": "2026-04-07",

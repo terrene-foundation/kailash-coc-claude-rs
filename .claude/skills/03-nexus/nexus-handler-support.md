@@ -1,237 +1,128 @@
 ---
-skill: nexus-handler-support
-description: Register Python functions as multi-channel workflows using @app.handler() decorator or register_handler() method
-priority: HIGH
-tags: [nexus, handler, workflow, decorator, function]
+name: nexus-handler-support
+description: "Handler patterns: decorator vs imperative, HandlerParam, auto_params extraction from function signatures."
 ---
 
-# Nexus Handler Support
+# Nexus Handler Support (kailash-rs)
 
-Register Python functions directly as multi-channel workflows, bypassing PythonCodeNode sandbox restrictions.
+Handler registration patterns for NexusApp and low-level Nexus.
 
-## When to Use
-
-- Service orchestration (database, external APIs)
-- Async operations (requires `asyncio`)
-- Application module imports
-- Full Python access without sandbox
-
-## Quick Reference
-
-### Decorator Pattern
+## Decorator Pattern (NexusApp)
 
 ```python
-from nexus import Nexus
+from kailash.nexus import NexusApp
 
-app = Nexus()
+app = NexusApp()
 
-@app.handler("greet")
+@app.handler("greet", description="Greet a user")
 async def greet(name: str, greeting: str = "Hello") -> dict:
     return {"message": f"{greeting}, {name}!"}
 
-app.start()
+@app.handler("calculate")
+def add(a: int, b: int) -> dict:
+    return {"sum": a + b}
 ```
 
-### Non-Decorator Pattern
+- Async and sync functions both supported
+- Parameters derived automatically from function signature
+- Type annotations map to input schema for MCP and CLI
+- Default values become optional parameters
+
+## Imperative Pattern (NexusApp)
 
 ```python
-from my_app.handlers import process_order
+async def process(data: dict, mode: str = "default") -> dict:
+    return {"result": data, "mode": mode}
 
-app = Nexus()
-app.register_handler("process_order", process_order)
-app.start()
+app.register("process", process)
+# or
+app.register_handler("process", process)
 ```
 
-## API
-
-### @app.handler() Decorator
+## Low-Level Pattern (Nexus)
 
 ```python
-@app.handler(
-    name: str,                      # Required: workflow name
-    description: str = "",          # Optional: documentation
-    tags: Optional[List[str]] = None  # Optional: categorization
-)
+from kailash.nexus import Nexus
+
+nexus = Nexus()
+nexus.handler("greet", greet_func)
+nexus.register("process", process_func)
+nexus.register_handler("analyze", analyze_func)
 ```
 
-### app.register_handler() Method
+## HandlerParam for Parameter Metadata
+
+Use `HandlerParam` to provide explicit parameter metadata when auto-derivation from the function signature is insufficient:
 
 ```python
-app.register_handler(
-    name: str,                      # Required: workflow name
-    handler_func: Callable,         # Required: function to register
-    description: str = "",          # Optional: documentation
-    tags: Optional[List[str]] = None,  # Optional: categorization
-    input_mapping: Optional[Dict[str, str]] = None  # Optional: param mapping
-)
+from kailash.nexus import NexusApp, HandlerParam
+
+app = NexusApp()
+
+@app.handler("search", description="Search documents", params=[
+    HandlerParam(name="query", param_type="string", required=True, description="Search query"),
+    HandlerParam(name="limit", param_type="integer", required=False, description="Max results"),
+])
+async def search(query: str, limit: int = 10) -> dict:
+    return {"query": query, "limit": limit}
 ```
 
-## Parameter Type Mapping
+`HandlerParam` fields:
 
-| Python Type            | Workflow Type | Required         |
-| ---------------------- | ------------- | ---------------- |
-| `str`                  | `str`         | Yes (no default) |
-| `int`                  | `int`         | Yes (no default) |
-| `float`                | `float`       | Yes (no default) |
-| `bool`                 | `bool`        | Yes (no default) |
-| `dict`                 | `dict`        | Yes (no default) |
-| `list`                 | `list`        | Yes (no default) |
-| `Optional[T]`          | `T`           | No               |
-| Parameter with default | Any           | No               |
-| No annotation          | `str`         | Varies           |
+- `name` -- parameter name (matches function argument)
+- `param_type` -- type string: `"string"`, `"integer"`, `"number"`, `"boolean"`, `"object"`, `"array"`
+- `required` -- whether the parameter is required (default: inferred from signature)
+- `description` -- human-readable description (used in MCP tool schema, CLI help)
 
-## Core SDK: HandlerNode
+## Auto-Parameter Extraction
 
-For direct Core SDK usage without Nexus:
+When no explicit `params` list is provided, parameters are derived from the function signature:
 
 ```python
-from kailash.nodes.handler import HandlerNode, make_handler_workflow
-from kailash.runtime import AsyncLocalRuntime
-
-async def my_function(x: int) -> dict:
-    return {"doubled": x * 2}
-
-# Option 1: Use HandlerNode directly
-node = HandlerNode(handler=my_function)
-
-# Option 2: Build a complete workflow
-workflow = make_handler_workflow(my_function, "handler")
-runtime = AsyncLocalRuntime()
-results, run_id = await runtime.execute_workflow_async(
-    workflow, inputs={"x": 5}
-)
+@app.handler("example")
+async def example(
+    name: str,           # required, type "string"
+    count: int,          # required, type "integer"
+    ratio: float = 0.5,  # optional, type "number"
+    active: bool = True, # optional, type "boolean"
+    data: dict = None,   # optional, type "object"
+) -> dict:
+    return {"name": name, "count": count}
 ```
 
-## Sandbox Mode Configuration
+**Type mapping**:
 
-For PythonCodeNode with blocked imports:
+| Python Type      | Param Type            |
+| ---------------- | --------------------- |
+| `str`            | `"string"`            |
+| `int`            | `"integer"`           |
+| `float`          | `"number"`            |
+| `bool`           | `"boolean"`           |
+| `dict`           | `"object"`            |
+| `list`           | `"array"`             |
+| Complex generics | `"string"` (fallback) |
+
+## Custom REST Endpoints (NexusApp)
+
+For HTTP-specific routes that bypass multi-channel deployment:
 
 ```python
-from kailash.nodes.code.python import PythonCodeNode
+@app.endpoint("/api/v1/users/{user_id}", methods=["GET"])
+async def get_user(user_id: str):
+    return {"user_id": user_id}
 
-# Bypass sandbox restrictions
-node = PythonCodeNode(
-    name="trusted_node",
-    code="import subprocess\nresult = subprocess.run(['ls'])",
-    sandbox_mode="trusted"  # Default: "restricted"
-)
+@app.endpoint("/api/v1/search", methods=["GET", "POST"])
+async def search(q: str = "", limit: int = 10):
+    return {"query": q, "limit": limit}
 ```
 
-| Mode           | Behavior                            |
-| -------------- | ----------------------------------- |
-| `"restricted"` | Enforces module allowlist (default) |
-| `"trusted"`    | Bypasses import checks              |
-
-## Common Patterns
-
-### Database Operations
-
-```python
-@app.handler("get_user")
-async def get_user(user_id: int) -> dict:
-    from my_app.db import get_session
-    async with get_session() as session:
-        user = await session.get(User, user_id)
-        return {"user": user.to_dict() if user else None}
-```
-
-### External API Calls
-
-```python
-@app.handler("fetch_data")
-async def fetch_data(url: str) -> dict:
-    import httpx
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        return {"data": response.json()}
-```
-
-### Sync Handlers (run in executor)
-
-```python
-@app.handler("sync_operation")
-def sync_operation(data: str) -> dict:
-    # Automatically runs in thread pool executor
-    return {"processed": data.upper()}
-```
-
-## Migration: PythonCodeNode to Handler
-
-### Before (fails at runtime)
-
-```python
-workflow.add_node("PythonCodeNode", "process", {
-    "code": "import asyncio\nfrom my_app import Service\n..."
-})
-app.register("process", workflow.build())
-```
-
-### After (works)
-
-```python
-@app.handler("process")
-async def process(data: dict) -> dict:
-    from my_app import Service
-    return await Service().process(data)
-```
-
-## Handler Registry
-
-Introspect registered handlers:
-
-```python
-# Access handler metadata
-print(app._handler_registry)
-# {
-#     "greet": {
-#         "handler": <function>,
-#         "description": "...",
-#         "tags": [...],
-#         "workflow": <Workflow>
-#     }
-# }
-```
-
-## Registration-Time Validation
-
-Nexus warns at registration time if PythonCodeNode uses blocked imports:
-
-```
-WARNING: Workflow 'my_workflow': PythonCodeNode node 'code_node' imports
-         'asyncio' which is not in the sandbox allowlist.
-         Consider using @app.handler() to bypass the sandbox.
-```
+`@app.endpoint()` creates HTTP-only routes. `@app.handler()` creates multi-channel handlers (API + CLI + MCP).
 
 ## Best Practices
 
-1. **Use handlers for service orchestration** - they provide full Python access
-2. **Add type annotations** - used for parameter derivation
-3. **Return dictionaries** - non-dict returns are wrapped as `{"result": value}`
-4. **Use async functions for I/O** - sync functions run in executor
-5. **Add descriptions** - appear in API docs and MCP tools
-
-## Related Skills
-
-- [nexus-workflow-registration](#) - All registration patterns
-- [nexus-quickstart](#) - Basic Nexus setup
-- [nexus-dataflow-integration](#) - DataFlow integration
-
-## Migration Documentation
-
-For comprehensive migration from legacy PythonCodeNode workflows to handlers:
-
-
-### Key Migration Insight
-
-HandlerNode's `_derive_params_from_signature()` maps complex generic types (e.g., `List[dict]`) to `str`. Use plain `list` annotation instead:
-
-```python
-# ❌ WRONG: List[dict] maps to str
-async def create_order(items: List[dict]) -> dict: ...
-
-# ✅ CORRECT: list maps to list
-async def create_order(items: list) -> dict: ...
-```
-
-## Full Documentation
-
+1. Use `@app.handler()` for multi-channel handlers (most cases)
+2. Use `@app.endpoint()` for HTTP-specific routes
+3. Add `description` for MCP tool discovery and CLI help
+4. Use explicit `HandlerParam` when auto-derivation is insufficient
+5. Keep handler functions focused -- one responsibility per handler
+6. Use plain types (`list`, `dict`) instead of complex generics (`List[dict]`)

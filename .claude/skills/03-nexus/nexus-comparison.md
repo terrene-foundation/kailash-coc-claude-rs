@@ -1,68 +1,113 @@
 ---
 name: nexus-comparison
-description: "Nexus architecture and capabilities. Use when asking 'why nexus', 'nexus benefits', or 'nexus capabilities'."
+description: "Nexus vs NexusApp comparison for kailash-rs. When to use each layer."
 ---
 
-# Nexus Architecture & Capabilities
+# Nexus vs NexusApp (kailash-rs)
 
-> **Skill Metadata**
-> Category: `nexus`
-> Priority: `MEDIUM`
-> SDK Version: `0.9.25+`
+kailash-rs provides two Nexus layers. Default to `NexusApp` for application code.
 
-## Nexus Capabilities
+## Architecture
 
-| Feature | Nexus |
-|---------|-------|
-| **API** | Built-in HTTP transport |
-| **CLI** | Built-in CLI generation |
-| **MCP** | Built-in MCP server |
-| **Session Management** | Unified across all channels |
-| **Workflow Integration** | Native workflow execution |
-| **Auth Stack** | NexusAuthPlugin (JWT, RBAC, tenant isolation) |
-| **Learning Curve** | Low — zero-config deployment |
-
-## When to Use Nexus
-
-```python
-# ✅ Use Nexus when you need:
-# - API + CLI + MCP in one app
-# - Session management across channels
-# - Direct workflow execution
-# - Minimal boilerplate
-
-from nexus import Nexus
-
-app = Nexus(workflow, name="MyApp")
-app.run()  # All channels ready!
+```
+NexusApp (Python wrapper — kailash.nexus.app)
+  └── Nexus (Rust/PyO3 binding — kailash._kailash)
 ```
 
-## Key Benefits
+## When to Use Each
 
-1. **Zero boilerplate** - One line deploys all channels
-2. **Unified sessions** - Same session across API/CLI/MCP
-3. **Native workflows** - Direct workflow execution
-4. **Built-in CLI** - Automatic CLI generation
-5. **MCP ready** - Claude Desktop integration
-6. **Enterprise auth** - JWT, RBAC, tenant isolation via NexusAuthPlugin
-7. **Middleware support** - Starlette-compatible middleware, router inclusion
+| Need                                    | Use        | Why                                                     |
+| --------------------------------------- | ---------- | ------------------------------------------------------- |
+| Handler registration with decorators    | `NexusApp` | `@app.handler()`, `@app.endpoint()`                     |
+| CORS, rate limiting convenience         | `NexusApp` | `add_cors()`, `add_rate_limit()`                        |
+| Custom REST endpoints                   | `NexusApp` | `@app.endpoint("/path", methods=["GET"])`               |
+| Most application code                   | `NexusApp` | Higher-level, Flask-like API                            |
+| Middleware configuration                | `Nexus`    | `set_middleware(MiddlewareConfig)`                      |
+| Router inclusion                        | `Nexus`    | `include_router(NexusRouter)`                           |
+| Plugin system                           | `Nexus`    | `add_plugin(plugin)`                                    |
+| Event bus / subscriptions               | `Nexus`    | `event_bus()`, `subscribe()`, `on()`                    |
+| Preset-only setup                       | `Nexus`    | `Nexus(preset=Preset(...))`                             |
+| Introspection (workflow/handler counts) | `Nexus`    | `workflow_count()`, `handler_count()`, `plugin_names()` |
 
-## Deployment Example
+## API Comparison
+
+### NexusApp (Recommended)
 
 ```python
-from nexus import Nexus
+from kailash.nexus import NexusApp, NexusConfig
 
-app = Nexus(auto_discovery=False)
+app = NexusApp(config=NexusConfig(port=3000))
 
-@app.handler("chat", description="Chat endpoint")
-async def chat(message: str) -> dict:
-    # Build and execute workflow
-    return {"response": "..."}
+# Decorator-based handler registration
+@app.handler("greet", description="Greet a user")
+async def greet(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
 
-app.start()  # API + CLI + MCP!
+# Custom REST endpoint
+@app.endpoint("/api/status", methods=["GET"])
+async def status():
+    return {"status": "ok"}
+
+# Convenience methods
+app.add_cors(origins=["https://example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+# Imperative registration
+app.register("process", process_func)
+app.register_handler("analyze", analyze_func)
+
+# Inspection
+print(app.get_endpoints())
+print(app.get_registered_handlers())
+print(app.health_check())
+
+app.start()
 ```
 
-## Documentation
+### Nexus (Low-Level)
 
+```python
+from kailash.nexus import Nexus, NexusConfig, MiddlewareConfig, Preset
 
-<!-- Trigger Keywords: why nexus, nexus benefits, nexus capabilities, nexus architecture -->
+nexus = Nexus(config=NexusConfig(port=3000))
+
+# Imperative handler registration
+nexus.handler("greet", greet_func)
+nexus.register("process", process_func)
+nexus.register_handler("analyze", analyze_func)
+
+# Workflow registration
+nexus.register_workflow("pipeline", workflow)
+
+# Middleware and plugins
+nexus.set_middleware(MiddlewareConfig(...))
+nexus.add_plugin(auth_plugin)
+nexus.include_router(api_router)
+
+# Event system
+bus = nexus.event_bus()
+nexus.subscribe("workflow.complete", callback)
+nexus.on("error", error_handler)
+
+# Introspection
+print(nexus.workflow_count())
+print(nexus.list_workflows())
+print(nexus.handler_count())
+print(nexus.get_registered_handlers())
+print(nexus.plugin_count())
+print(nexus.plugin_names())
+
+nexus.start()  # or nexus.run() or nexus.serve()
+```
+
+## Decision Summary
+
+```
+Need decorators or convenience methods?
+  YES -> NexusApp
+  NO  -> Need middleware/plugins/events?
+           YES -> Nexus (low-level)
+           NO  -> NexusApp (still the default)
+```
+
+Most applications should use `NexusApp`. Drop to `Nexus` only when you need direct access to middleware configuration, the plugin system, the event bus, or router inclusion.

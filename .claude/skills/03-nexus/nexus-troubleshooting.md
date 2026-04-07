@@ -82,9 +82,8 @@ python -c "from nexus import Nexus; print('OK')"
 
 **Solution**:
 
-```python
-# Configure authentication
-app = Nexus(enable_auth=True)
+```
+# Configure authentication (method varies by SDK — see language-specific variant)
 
 # For API requests, include auth header
 curl -X POST http://localhost:8000/workflows/test/execute \
@@ -348,7 +347,6 @@ app.api.max_concurrent_requests = 50
 ## Getting Help
 
 ### 1. Check Documentation
-
 
 ### 2. Enable Verbose Logging
 

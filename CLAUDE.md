@@ -77,7 +77,6 @@ Phase commands replace the manual copy-paste workflow. Each loads the correspond
 | Terrene naming & terminology          | `rules/terrene-naming.md`       | Global                                              |
 | 3-tier testing, real infra Tiers 2-3  | `rules/testing.md`              | `tests/**`, `**/*test*`, `**/*spec*`, `conftest.py` |
 | Zero-tolerance enforcement            | `rules/zero-tolerance.md`       | **Global — overrides all**                          |
-| Auto-generated workflow instincts     | `rules/learned-instincts.md`    | Global                                              |
 
 **Note**: Rules with path scoping are loaded only when editing matching files. Global rules load every session.
 
