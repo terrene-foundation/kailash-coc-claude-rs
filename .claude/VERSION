@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-07",
@@ -7,10 +7,25 @@
     "name": "kailash",
     "type": "coc-source",
     "version": "2.6.0",
-    "build_version": "3.10.0",
-    "synced_at": "2026-04-07T16:30:00Z"
+    "build_version": "3.11.0",
+    "synced_at": "2026-04-07T17:00:00Z"
   },
   "changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-04-07",
+      "summary": "Gate 1 rs v3.11.0 — Nexus parity (#233-237) implemented, rs variants for nexus-specialist + audit findings",
+      "changes": [
+        "NEW: variants/rs/agents/frameworks/nexus-specialist.md — Rust-native rewrite (route endpoints, auth guards, scheduled tasks, event convenience, monitoring config)",
+        "NEW: variants/rs/agents/release/release-specialist.md — Rust toolchain (cargo fmt/test/publish) instead of Python (ruff/pytest/twine)",
+        "NEW: variants/rs/skills/07-development-guides/production-testing.md — Rust test patterns (#[test], cargo nextest, criterion)",
+        "MANIFEST: nexus-specialist py+rs variant declarations added",
+        "MANIFEST: release-specialist rs variant declaration added",
+        "MANIFEST: production-testing rs variant declaration added",
+        "ADDRESSED: 8 of 10 audit findings already had rs variants from earlier Nexus restructuring",
+        "SDK PARITY: All 5 issues (#233-237) closed in kailash-rs — NexusConfig, route endpoints, event convenience, auth guards, monitoring/sessions"
+      ]
+    },
     {
       "version": "2.1.0",
       "date": "2026-04-07",
