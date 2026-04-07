@@ -101,6 +101,31 @@ Nexus struct
 └── k8s_probes: K8sProbeState        → liveness, readiness, startup
 ```
 
+### Additional Types (v3.11.0+)
+
+| Type               | Module      | Purpose                                               |
+| ------------------ | ----------- | ----------------------------------------------------- |
+| `SessionConfig`    | `session`   | Cookie name, TTL, secure flag, same-site policy       |
+| `WsBroadcaster`    | `websocket` | Broadcast messages to all connected WebSocket clients |
+| `WsMessage`        | `websocket` | Text or binary WebSocket message payload              |
+| `McpAuthenticator` | `mcp::auth` | API key + bearer token auth for MCP SSE transport     |
+
+```rust
+// Session with custom config
+use kailash_nexus::session::{InMemorySessionStore, SessionConfig};
+let config = SessionConfig::new().with_cookie_name("my_session").with_ttl(3600);
+nexus.with_session_store(Arc::new(InMemorySessionStore::new()), config);
+
+// WebSocket broadcasting
+use kailash_nexus::websocket::{WsBroadcaster, WsHandlerFn};
+let broadcaster = WsBroadcaster::new();
+nexus.websocket("/ws", ws_handler, broadcaster.clone());
+
+// MCP authentication
+use kailash_nexus::mcp::auth::{McpAuthConfig, McpAuthenticator};
+let auth = McpAuthenticator::new(McpAuthConfig { api_keys: vec!["key".into()], ..Default::default() });
+```
+
 ## Framework Selection
 
 **Choose Nexus when:**

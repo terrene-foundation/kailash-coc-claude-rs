@@ -1,274 +1,184 @@
----
-name: kailash-ml
-description: "Kailash ML — classical + deep learning lifecycle with polars-native engines, AutoML, ONNX serving. Use for feature stores, model training, drift monitoring, inference."
----
+# kailash-ml — Classical ML Framework (Rust)
 
-# Kailash ML - Classical & Deep Learning Lifecycle
-
-Production ML lifecycle framework built on Kailash Core SDK — polars-native engines, schema-driven pipelines, agent-augmented AutoML, and cross-language ONNX serving.
-
-## Install
-
-```
-pip install kailash-ml            # Core (polars, numpy, scipy, sklearn, lightgbm, onnx)
-pip install kailash-ml[dl]        # + PyTorch, Lightning, transformers
-pip install kailash-ml[dl-gpu]    # + onnxruntime-gpu
-pip install kailash-ml[rl]        # + Stable-Baselines3, Gymnasium
-pip install kailash-ml[agents]    # + kailash-kaizen (agent integration)
-pip install kailash-ml[xgb]       # + XGBoost
-pip install kailash-ml[catboost]  # + CatBoost
-pip install kailash-ml[explain]    # + SHAP (model explainability)
-pip install kailash-ml[imbalance]  # + imbalanced-learn (SMOTE, ADASYN)
-pip install kailash-ml[full]      # Everything
-```
-
-## 6 Core Engines
-
-| Engine               | Purpose                                   | Key Pattern                                     |
-| -------------------- | ----------------------------------------- | ----------------------------------------------- |
-| **FeatureStore**     | Feature ingestion + point-in-time queries | ConnectionManager-backed, polars-native         |
-| **ModelRegistry**    | Model versioning + lifecycle              | staging → shadow → production → archived        |
-| **TrainingPipeline** | Schema-driven training + eval + calibrate | FeatureStore + ModelRegistry integration        |
-| **InferenceServer**  | Model serving + batch inference           | Nexus HTTP exposure, ONNX runtime, caching      |
-| **DriftMonitor**     | Statistical drift detection               | KS, chi-squared, PSI, Jensen-Shannon divergence |
-| **ModelExplainer**   | SHAP-based model explainability           | Global/local/dependence explanations, plotly    |
+20-crate workspace providing scikit-learn-equivalent algorithms with Rust performance. 90+ estimator types, 51 EstimatorRegistry entries, rayon parallelism. All crates proprietary (`publish = false`).
 
 ## Quick Start
 
-### Feature Ingestion
+```rust
+use kailash_ml::core::estimator::Fit;
+use kailash_ml::core::fit_opts::FitOpts;
+use kailash_ml::linear::ols::LinearRegression;
+
+let lr = LinearRegression::default();
+let fitted = lr.fit(x.view(), y.view(), &FitOpts::default())?;
+let predictions = fitted.predict(x_test.view())?;
+let r2 = fitted.score(x_test.view(), y_test.view())?;
+```
+
+## Crate Layout
+
+```
+crates/
+  kailash-ml/                # Umbrella — re-exports all sub-crates + engine layer (MlEngine, ModelRegistry, ExperimentTracker, AutoMl)
+  kailash-ml-core/           # Traits, DataSet, FitOpts, MlError, RandomState, sampling, DynEstimator, EstimatorRegistry
+  kailash-ml-linalg/         # SVD/QR/eigendecomposition, distance/kernel functions, solvers (L-BFGS, SAGA, SGD, coord descent)
+  kailash-ml-preprocessing/  # StandardScaler, MinMaxScaler, OneHotEncoder, SimpleImputer, KNNImputer, IterativeImputer, Normalizer
+  kailash-ml-linear/         # OLS, Ridge, Lasso, ElasticNet, LogisticRegression, SGD, GLMs, Bayesian, Robust (17 registry entries)
+  kailash-ml-tree/           # CART splitter+criteria, DecisionTree (Regressor+Classifier)
+  kailash-ml-ensemble/       # RandomForest, ExtraTrees, Bagging, AdaBoost, Voting, Stacking, IsolationForest (13 entries)
+  kailash-ml-boost/          # GradientBoosting (Reg+Clf), HistGradientBoosting (Reg+Clf), DART, GOSS/EFB, monotone constraints
+  kailash-ml-svm/            # SMO solver (WSS-3), SVC/SVR, LinearSVC/LinearSVR, NuSVC/NuSVR, OneClassSVM, kernel cache
+  kailash-ml-neighbors/      # KD-tree, BallTree, KNeighbors (Clf+Reg), RadiusNeighbors (Clf+Reg), NearestCentroid
+  kailash-ml-cluster/        # KMeans, MiniBatchKMeans, DBSCAN, HDBSCAN, OPTICS, Birch, AgglomerativeClustering, AffinityPropagation, SpectralClustering, MeanShift
+  kailash-ml-decomposition/  # PCA, IncrementalPCA, TruncatedSVD, NMF, FactorAnalysis, FastICA, KernelPCA, t-SNE, LDA (topic), SparsePCA, DictionaryLearning, SelectKBest, RFE
+  kailash-ml-metrics/        # 60+ metrics: classification, regression, ranking (ROC/AUC), clustering, Scorer
+  kailash-ml-selection/      # KFold, StratifiedKFold, GroupKFold, TimeSeriesSplit, cross_val_score, GridSearchCV
+  kailash-ml-pipeline/       # Pipeline, ColumnTransformer, FeatureUnion
+  kailash-ml-misc/           # GaussianNB, MultinomialNB, BernoulliNB, LDA/QDA, GaussianProcess, MLP (Clf+Reg), CalibratedClassifierCV, IsotonicRegression, OneVsRest/OneVsOne, GaussianMixture, LabelPropagation/Spreading, BernoulliRBM, PLSRegression, CCA
+  kailash-ml-text/           # CountVectorizer, TfidfVectorizer, HashingVectorizer
+  kailash-ml-explorer/       # DataExplorer: profiling, alerts, HTML reports with scatter plots, KDE, Cramer's V
+  kailash-ml-nodes/          # 5 workflow nodes: EstimatorFitNode, PredictNode, MLTransformNode, CrossValidateNode, PipelineNode
+  kailash-ml-python/         # PyO3 bindings (13 estimators shipped via kailash-enterprise `ml` feature)
+```
+
+## Trait System (kailash-ml-core)
+
+```
+Layer 1 (Type-State):     Config --fit()--> FittedConfig (compile-time safety)
+Layer 2 (Object-Safe):    Box<dyn DynEstimator> / Box<dyn DynTransformer> (Pipeline, GridSearch)
+```
+
+| Trait             | Purpose                                             | Used By                                     |
+| ----------------- | --------------------------------------------------- | ------------------------------------------- |
+| `Fit`             | Supervised fitting: `fit(x, y, opts) -> Fitted`     | All regressors/classifiers                  |
+| `FitUnsupervised` | Unsupervised: `fit(x) -> Fitted`                    | KMeans, PCA, DBSCAN, NMF, GMM               |
+| `Predict`         | `predict(x) -> Array1`                              | All fitted models                           |
+| `PredictProba`    | `predict_proba(x) -> Array2`                        | Classifiers                                 |
+| `Transform`       | `transform(dataset) -> DataSet`                     | Preprocessors, PCA                          |
+| `FitTransform`    | Combined fit+transform                              | Preprocessors, KNNImputer, IterativeImputer |
+| `Score`           | `score(x, y) -> f64`                                | R2 (regression), accuracy (classification)  |
+| `BaseEstimator`   | `get_params/set_params/estimator_type`              | All algorithms                              |
+| `DynEstimator`    | Object-safe estimator (blanket impl from Fit+Clone) | GridSearchCV, cross_val_score               |
+| `DynTransformer`  | Object-safe transformer (blanket from FitTransform) | Pipeline steps                              |
+
+**Key invariant**: Every algorithm implementing `Fit` + `Predict` + `Clone` gets `DynEstimator` via blanket impl. IsolationForest and OneClassSVM implement `Fit` (wrapping `FitUnsupervised`, ignoring `y`) to enable DynEstimator blanket and EstimatorRegistry participation.
+
+## Engine Layer (kailash-ml umbrella)
+
+The engine module provides high-level orchestration on top of the algorithm crates.
+
+| Component           | Purpose                                                            |
+| ------------------- | ------------------------------------------------------------------ |
+| `MlEngine`          | Builder-configured environment binding registry + tracker together |
+| `ModelRegistry`     | Version-controlled model storage (InMemory + FileSystem backends)  |
+| `ExperimentTracker` | Training run telemetry: params, time-series metrics, SVG charts    |
+| `AutoMl`            | Automated model selection (requires `selection` feature)           |
+
+```rust
+let engine = MlEngine::builder()
+    .with_model_dir("/tmp/models")
+    .build()?;
+
+// Track experiments with SVG visualization
+let run_id = engine.tracker().start_run("experiment-1")?;
+engine.tracker().log_metric(&run_id, "loss", 0.5)?; // step auto-incremented
+let svg = engine.tracker().plot_training_history(&run_id)?;
+```
+
+## EstimatorRegistry (compile-time, inventory-based)
+
+51 estimators registered via `register_estimator!` macro across algorithm crates. Enables string-based lookup for workflow nodes and dynamic dispatch.
+
+```rust
+let est = EstimatorRegistry::get("RandomForestClassifier")?;
+let est = EstimatorRegistry::get_with_params("Ridge", &params)?;
+let names = EstimatorRegistry::list();
+let classifiers = EstimatorRegistry::list_by_type(EstimatorType::Classifier);
+```
+
+## Feature Flags (kailash-ml umbrella)
+
+```toml
+[features]
+default = ["linear", "tree", "ensemble", "preprocessing", "metrics", "pipeline", "selection"]
+full = ["default", "boost", "svm", "neighbors", "cluster", "decomposition", "text", "misc", "explorer"]
+blas = ["kailash-ml-linalg/blas"]  # Optional BLAS acceleration
+```
+
+## Performance Patterns
+
+**Parallel (rayon):** RandomForest/ExtraTrees/Bagging training + prediction, KMeans n_init, cross_val_score folds, GridSearchCV params, ColumnTransformer columns, FeatureUnion, HistGB prediction, DBSCAN distances.
+
+**Vectorized:** KMeans distances (ndarray dot products, zero per-sample allocs), euclidean_distances via BLAS trick.
+
+**Algorithmic:** Randomized SVD for PCA (Halko 2011), HistGB histogram subtraction, L-BFGS two-loop recursion, WSS-3 SMO, Barnes-Hut t-SNE, Kahan compensated summation.
+
+**Memory:** HistGB BinnedDataset column-major u8 (8x less than f64), KD-tree leaf_size=30, BallTree for high-dimensional neighbors.
+
+## Pipeline Composition
+
+```rust
+use kailash_ml_preprocessing::scalers::StandardScaler;
+use kailash_ml_linear::logistic::LogisticRegression;
+use kailash_ml_pipeline::{Pipeline, Step};
+
+// Preprocessors implement FitTransform -> DynTransformer blanket impl
+// KNNImputer and IterativeImputer also implement FitTransform for Pipeline use
+let pipe = Pipeline::new(
+    vec![Step::transformer("scaler", Box::new(StandardScaler::default()))],
+    Some(Step::estimator("lr", Box::new(LogisticRegression::default()))),
+);
+```
+
+## Python Bindings (v3.12.0+)
+
+126 pyclass types + 10 pyfunctions in `bindings/kailash-python/src/ml.rs`. Feature-gated behind `ml` (default-enabled in kailash-enterprise wheel).
+
+**API**: sklearn-compatible — `fit(X, y)`, `predict(X)`, `score(X, y)`, `transform(X)`, `fit_transform(X, y)`, `get_params()`, `set_params(**kwargs)`. Data interchange via `numpy` arrays (`pyo3-numpy`).
+
+**Estimator patterns**: Two internal strategies —
+
+- `SupervisedState`: wraps `Box<dyn DynEstimator>` for all supervised models (regressors, classifiers, SVMs, ensembles). Uniform fit/predict/score.
+- Inline config+fitted: used for unsupervised models (KMeans, PCA, StandardScaler) that have their own fit paths.
+
+**Metric functions**: `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `r2_score`, `mean_squared_error`, `mean_absolute_error`.
+
+**Utility functions**: `list_estimators()`, `estimator_count()`, `data_profile(X)` (statistical profiling via kailash-ml-explorer).
 
 ```python
-from kailash.db.connection import ConnectionManager
-from kailash_ml import FeatureStore
-from kailash_ml.types import FeatureSchema, FeatureField
-import polars as pl
+from kailash.ml import LinearRegression, accuracy_score, data_profile
 
-conn = ConnectionManager("sqlite:///ml.db")
-await conn.initialize()
-
-schema = FeatureSchema(
-    name="user_churn",
-    features=[
-        FeatureField(name="age", dtype="float"),
-        FeatureField(name="tenure_months", dtype="float"),
-    ],
-    target=FeatureField(name="churned", dtype="int"),
-)
-
-fs = FeatureStore(conn, table_prefix="kml_feat_")
-await fs.initialize()
-
-df = pl.read_csv("data.csv")
-await fs.ingest("user_features", schema, df)
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+preds = lr.predict(X_test)
+r2 = lr.score(X_test, y_test)
+print(lr.get_params())  # {"fit_intercept": True}
 ```
 
-### Training
+**Coverage**: All 14 sub-crates exposed — linear (17), tree (2), ensemble (13), boost (5), svm (8), neighbors (6), cluster (10), decomposition (13), preprocessing (7), misc (20+), text (3), pipeline (3), selection (5), metrics (7 functions). Explorer via `data_profile()`.
 
-```python
-from kailash_ml import TrainingPipeline, ModelRegistry, ModelSpec, EvalSpec
-from kailash_ml.engines import LocalFileArtifactStore
+## Dependencies
 
-registry = ModelRegistry(conn, artifact_store=LocalFileArtifactStore("./artifacts"))
-await registry.initialize()
+Core: `ndarray` 0.16, `sprs` 0.11, `rayon` 1.10, `rand` 0.8/`rand_chacha` 0.3, `serde`, `bincode`, `inventory`. No external ML libraries -- all algorithms implemented from scratch.
 
-pipeline = TrainingPipeline(feature_store=fs, model_registry=registry)
-result = await pipeline.train(
-    schema=schema,
-    model_spec=ModelSpec(model_class="sklearn.ensemble.RandomForestClassifier"),
-    eval_spec=EvalSpec(metrics=["accuracy", "f1"]),
-)
-```
+## Gotchas
 
-### Drift Monitoring
+- `FitOpts` carries `sample_weight`, `class_weight`, `eval_set` -- always pass even if default. `RandomState` is a separate type in `kailash_ml_core::random`
+- `DataSet` is an enum (`Dense`/`Sparse`) carrying data matrix with optional feature names -- `Target` is a separate enum for supervised labels
+- `MlError::NotFitted` if you call fitted methods on unfitted state (runtime check for dyn dispatch)
+- Sparse matrices (`sprs::CsMat`) supported in core but not all algorithms accept them yet
+- Histogram subtraction in HistGB requires sorted bin indices -- do not shuffle binned data
+- `rand` 0.8 API (NOT 0.9+): use `thread_rng()`, not `rng()`
+- When `faer` is in scope, provide explicit type annotations to avoid inference ambiguity
 
-```python
-from kailash_ml import DriftMonitor
+## Key Files
 
-monitor = DriftMonitor(conn)
-await monitor.initialize()
-await monitor.set_reference("model_v1", reference_df)
-report = await monitor.check_drift("model_v1", current_df)
-# report.overall_drift, report.feature_results, report.recommendations
-```
-
-### Model Explainability (requires `[explain]`)
-
-```python
-from kailash_ml import ModelExplainer
-
-explainer = ModelExplainer(model=fitted_model, X=train_df, feature_names=schema.feature_names)
-global_report = explainer.explain_global(max_display=10)
-# global_report["feature_importance"]: sorted feature → mean |SHAP| dict
-local_report = explainer.explain_local(X=test_df, index=0)
-# local_report["feature_contributions"]: per-feature SHAP for one prediction
-fig = explainer.to_plotly("summary")  # "summary", "beeswarm", "dependence"
-```
-
-### Preprocessing Pipeline
-
-```python
-from kailash_ml.engines import PreprocessingPipeline
-
-pipeline = PreprocessingPipeline()
-result = pipeline.setup(
-    data=df, target="churned",
-    normalize=True, normalize_method="zscore",       # zscore, minmax, robust, maxabs
-    imputation="knn", impute_n_neighbors=5,           # knn, iterative, or default (median/mode)
-    remove_multicollinearity=True, multicollinearity_threshold=0.9,
-    fix_imbalance=True, imbalance_method="smote",     # smote, adasyn (requires [imbalance])
-)
-# result.X_train, result.X_test, result.y_train, result.y_test
-```
-
-### Model Calibration
-
-```python
-result = await pipeline.calibrate(
-    model_name="churn_v1",
-    method="isotonic",  # "platt" (sigmoid) or "isotonic"
-    cv=5,
-)
-# Returns calibrated model with CalibratedClassifierCV
-```
-
-### Nested Runs & Auto-Logging
-
-```python
-from kailash_ml import ExperimentTracker
-
-tracker = ExperimentTracker(conn)
-await tracker.initialize()
-
-# Nested runs — group trials under a parent
-async with tracker.run("hyperopt-sweep") as parent:
-    for params in param_grid:
-        async with tracker.run("trial", parent_run_id=parent.run_id) as child:
-            await child.log_params(params)
-
-# Auto-logging — TrainingPipeline and HyperparameterSearch log automatically
-pipeline = TrainingPipeline(feature_store=fs, model_registry=registry, experiment_tracker=tracker)
-result = await pipeline.train(schema=schema, model_spec=spec, eval_spec=eval_spec)
-# Metrics, params, and artifacts logged to tracker automatically
-```
-
-### Inference Validation
-
-```python
-server = InferenceServer(model_registry=registry)
-# Raises ValueError if input DataFrame is missing required features
-prediction = await server.predict("model_v1", input_df)
-```
-
-## Decision Tree: kailash-ml vs kailash-align vs kailash-kaizen
-
-| You Want To...                        | Use                                                 |
-| ------------------------------------- | --------------------------------------------------- |
-| Train sklearn/LightGBM/XGBoost models | **kailash-ml**                                      |
-| Manage feature pipelines              | **kailash-ml**                                      |
-| Monitor model drift                   | **kailash-ml**                                      |
-| Export models to ONNX                 | **kailash-ml**                                      |
-| Fine-tune an LLM (LoRA, DPO, RLHF)    | **kailash-align**                                   |
-| Serve a fine-tuned LLM via Ollama     | **kailash-align**                                   |
-| Build an AI agent with tools          | **kailash-kaizen**                                  |
-| Add agent intelligence to ML engines  | **kailash-ml[agents]** (uses Kaizen under the hood) |
-| Train RL policies (Gymnasium)         | **kailash-ml[rl]**                                  |
-
-## Architecture
-
-```
-kailash-ml/
-  engines/
-    _shared.py              <- Numeric dtypes, model class validation
-    _feature_sql.py         <- ALL raw SQL (zero SQL in engine files)
-    _guardrails.py          <- AgentGuardrailMixin (5 mandatory guardrails)
-    feature_store.py        <- FeatureStore (ConnectionManager, polars-native)
-    model_registry.py       <- ModelRegistry (lifecycle, SHA256 integrity)
-    training_pipeline.py    <- TrainingPipeline (schema-driven)
-    inference_server.py     <- InferenceServer (Nexus, ONNX, caching)
-    drift_monitor.py        <- DriftMonitor (KS/chi2/PSI/JS)
-    model_explainer.py      <- ModelExplainer (SHAP, requires [explain])
-    experiment_tracker.py   <- MLflow-compatible run tracking (nested runs, auto-logging)
-    hyperparameter_search.py <- Grid/random/bayesian/successive halving
-    automl_engine.py        <- Agent-infused AutoML
-    ensemble.py             <- Blend/stack/bag/boost
-    preprocessing.py        <- Auto-setup from FeatureSchema
-  agents/                   <- 6 Kaizen agents (requires kailash-ml[agents])
-    tools.py                <- Dumb data endpoints (LLM-first)
-  rl/                       <- RLTrainer, EnvironmentRegistry, PolicyRegistry
-  interop.py                <- SOLE conversion point (polars <-> sklearn/pandas/arrow)
-  bridge/                   <- OnnxBridge (export + verification)
-```
-
-## Polars-Native Rule (ABSOLUTE)
-
-Every engine accepts and returns `polars.DataFrame`. Conversion to numpy/pandas/LightGBM Dataset happens ONLY in `interop.py` at sklearn/framework boundaries.
-
-```python
-# DO: Work in polars throughout
-df = pl.read_csv("data.csv")
-await fs.ingest("features", schema, df)
-
-# DO NOT: Convert to pandas first
-df_pd = pd.read_csv("data.csv")  # WRONG -- polars is the native format
-```
-
-## 6 ML Agents (kailash-ml[agents])
-
-Agents require both `agent=True` AND the agents extra installed. All follow LLM-first rule.
-
-| Agent                      | Purpose                        |
-| -------------------------- | ------------------------------ |
-| DataScientistAgent         | Data profiling recommendations |
-| FeatureEngineerAgent       | Feature generation guidance    |
-| ModelSelectorAgent         | Model selection reasoning      |
-| ExperimentInterpreterAgent | Trial result analysis          |
-| DriftAnalystAgent          | Drift report interpretation    |
-| RetrainingDecisionAgent    | Retrain/rollback decisions     |
-
-See [ml-agent-guardrails](ml-agent-guardrails.md) for the 5 mandatory guardrails.
-
-## RL Module (kailash-ml[rl])
-
-```python
-from kailash_ml.rl import RLTrainer, EnvironmentRegistry, PolicyRegistry
-
-env_reg = EnvironmentRegistry()
-env_reg.register("CartPole-v1")
-
-trainer = RLTrainer(env_registry=env_reg, policy_registry=PolicyRegistry())
-result = await trainer.train(env_id="CartPole-v1", algorithm="PPO", total_timesteps=100_000)
-```
-
-## Security
-
-- **SQL safety**: `_feature_sql.py` is the sole SQL touchpoint. `_validate_identifier()` on all interpolated identifiers.
-- **Model class allowlist**: `validate_model_class()` restricts imports to: `sklearn.`, `lightgbm.`, `xgboost.`, `catboost.`, `kailash_ml.`, `torch.`, `lightning.`
-- **Financial validation**: `math.isfinite()` on all budget/cost fields (NaN bypasses comparisons, Inf defeats bounds).
-- **Bounded collections**: `deque(maxlen=N)` for audit trails, cost logs, trial history.
-
-## Skill Files
-
-- [ml-feature-pipelines](ml-feature-pipelines.md) — FeatureStore, polars-only engineering, schema-driven ingestion
-- [ml-model-registry](ml-model-registry.md) — ModelRegistry CRUD, lifecycle stages, MLflow compatibility
-- [ml-training-pipeline](ml-training-pipeline.md) — TrainingPipeline, hyperparameter search, experiment tracking
-- [ml-inference-server](ml-inference-server.md) — InferenceServer, Nexus exposure, ONNX serving, batch inference
-- [ml-agent-guardrails](ml-agent-guardrails.md) — 5 mandatory guardrails, AutoML, agent integration
-- [ml-onnx-export](ml-onnx-export.md) — PyTorch/sklearn to ONNX, verification, cross-language serving
-- [ml-drift-monitoring](ml-drift-monitoring.md) — DriftMonitor, statistical tests, alert thresholds, retraining triggers
-
-## Critical Rules
-
-- All engines are polars-native — no pandas/numpy in pipeline code
-- sklearn interop only at boundary via `interop.py`
-- FeatureStore uses ConnectionManager, not Express (needs window functions)
-- Zero raw SQL outside `_feature_sql.py`
-- Agent-augmented engines require double opt-in (`agent=True` + extras installed)
-- All agents follow LLM-first rule — tools are dumb data endpoints
-
-## Related Skills
-
-- [01-core-sdk](../01-core-sdk/SKILL.md) — Core workflow patterns
-- [02-dataflow](../02-dataflow/SKILL.md) — Database integration (ConnectionManager)
-- [03-nexus](../03-nexus/SKILL.md) — Multi-channel deployment (InferenceServer)
-- [04-kaizen](../04-kaizen/SKILL.md) — AI agent framework (ML agents)
-- [35-kailash-align](../35-kailash-align/SKILL.md) — LLM fine-tuning and alignment
+- Trait definitions + EstimatorRegistry: `crates/kailash-ml-core/src/estimator.rs`
+- DataSet type: `crates/kailash-ml-core/src/dataset.rs`
+- Engine (MlEngine builder): `crates/kailash-ml/src/engine/builder.rs`
+- ModelRegistry: `crates/kailash-ml/src/engine/registry.rs`
+- ExperimentTracker + SVG: `crates/kailash-ml/src/engine/tracker.rs`
+- AutoMl: `crates/kailash-ml/src/engine/automl.rs`
+- Workflow nodes: `crates/kailash-ml-nodes/src/nodes/` (estimator_fit, predict, transform, cross_validate, pipeline)
+- Solvers: `crates/kailash-ml-linalg/src/solvers.rs` (L-BFGS, Newton-CG, SAGA, SGD, coord descent)
+- Randomized SVD: `crates/kailash-ml-linalg/src/extmath.rs`

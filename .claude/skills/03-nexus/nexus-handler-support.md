@@ -1,128 +1,228 @@
 ---
-name: nexus-handler-support
-description: "Handler patterns: decorator vs imperative, HandlerParam, auto_params extraction from function signatures."
+skill: nexus-handler-support
+description: Register handler functions as multi-channel workflows using nexus.handler() or ClosureHandler with typed parameters
+priority: HIGH
+tags: [nexus, handler, workflow, closure, function]
 ---
 
-# Nexus Handler Support (kailash-rs)
+# Nexus Handler Support
 
-Handler registration patterns for NexusApp and low-level Nexus.
+Register functions directly as multi-channel workflows using `ClosureHandler` and the Nexus handler API.
 
-## Decorator Pattern (NexusApp)
+## When to Use
 
-```python
-from kailash.nexus import NexusApp
+- Service orchestration (database, external APIs)
+- Async operations (requires `tokio`)
+- Custom business logic handlers
+- Full Rust access with typed parameters
 
-app = NexusApp()
+## Quick Reference
 
-@app.handler("greet", description="Greet a user")
-async def greet(name: str, greeting: str = "Hello") -> dict:
-    return {"message": f"{greeting}, {name}!"}
+### Closure Handler Pattern
 
-@app.handler("calculate")
-def add(a: int, b: int) -> dict:
-    return {"sum": a + b}
+```rust
+use kailash_nexus::prelude::*;
+
+let mut nexus = Nexus::new();
+
+nexus.handler("greet", ClosureHandler::new(|inputs: ValueMap| async move {
+    let name = inputs.get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("World");
+    let greeting = inputs.get("greeting")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Hello");
+    Ok(Value::from(format!("{greeting}, {name}!")))
+}));
+
+nexus.start().await?;
 ```
 
-- Async and sync functions both supported
-- Parameters derived automatically from function signature
-- Type annotations map to input schema for MCP and CLI
-- Default values become optional parameters
+### Separate Handler Registration
 
-## Imperative Pattern (NexusApp)
+```rust
+use kailash_nexus::prelude::*;
 
-```python
-async def process(data: dict, mode: str = "default") -> dict:
-    return {"result": data, "mode": mode}
+fn process_order_handler() -> ClosureHandler<impl Fn(ValueMap) -> impl Future<Output = Result<Value, NexusError>>> {
+    ClosureHandler::new(|inputs: ValueMap| async move {
+        // process order logic
+        Ok(Value::from("order processed"))
+    })
+}
 
-app.register("process", process)
-# or
-app.register_handler("process", process)
+let mut nexus = Nexus::new();
+nexus.handler("process_order", process_order_handler());
+nexus.start().await?;
 ```
 
-## Low-Level Pattern (Nexus)
+## API
 
-```python
-from kailash.nexus import Nexus
+### nexus.handler()
 
-nexus = Nexus()
-nexus.handler("greet", greet_func)
-nexus.register("process", process_func)
-nexus.register_handler("analyze", analyze_func)
+```rust
+nexus.handler(
+    name: &str,                          // Required: workflow name
+    func: impl HandlerFn + 'static,     // Required: handler implementation
+) -> &mut Self
 ```
 
-## HandlerParam for Parameter Metadata
+### nexus.handler_with_description()
 
-Use `HandlerParam` to provide explicit parameter metadata when auto-derivation from the function signature is insufficient:
-
-```python
-from kailash.nexus import NexusApp, HandlerParam
-
-app = NexusApp()
-
-@app.handler("search", description="Search documents", params=[
-    HandlerParam(name="query", param_type="string", required=True, description="Search query"),
-    HandlerParam(name="limit", param_type="integer", required=False, description="Max results"),
-])
-async def search(query: str, limit: int = 10) -> dict:
-    return {"query": query, "limit": limit}
+```rust
+nexus.handler_with_description(
+    name: &str,                          // Required: workflow name
+    func: impl HandlerFn + 'static,     // Required: handler implementation
+    description: &str,                   // Required: documentation
+    tags: &[&str],                       // Required: categorization
+) -> &mut Self
 ```
 
-`HandlerParam` fields:
+### ClosureHandler::with_params()
 
-- `name` -- parameter name (matches function argument)
-- `param_type` -- type string: `"string"`, `"integer"`, `"number"`, `"boolean"`, `"object"`, `"array"`
-- `required` -- whether the parameter is required (default: inferred from signature)
-- `description` -- human-readable description (used in MCP tool schema, CLI help)
-
-## Auto-Parameter Extraction
-
-When no explicit `params` list is provided, parameters are derived from the function signature:
-
-```python
-@app.handler("example")
-async def example(
-    name: str,           # required, type "string"
-    count: int,          # required, type "integer"
-    ratio: float = 0.5,  # optional, type "number"
-    active: bool = True, # optional, type "boolean"
-    data: dict = None,   # optional, type "object"
-) -> dict:
-    return {"name": name, "count": count}
+```rust
+ClosureHandler::with_params(
+    func: F,                             // Required: async closure
+    params: Vec<HandlerParam>,           // Required: typed parameter definitions
+)
 ```
 
-**Type mapping**:
+## Parameter Type Mapping
 
-| Python Type      | Param Type            |
-| ---------------- | --------------------- |
-| `str`            | `"string"`            |
-| `int`            | `"integer"`           |
-| `float`          | `"number"`            |
-| `bool`           | `"boolean"`           |
-| `dict`           | `"object"`            |
-| `list`           | `"array"`             |
-| Complex generics | `"string"` (fallback) |
+| Rust Type               | HandlerParamType | Required         |
+| ----------------------- | ---------------- | ---------------- |
+| `String`/`&str`         | `Str`            | Yes (no default) |
+| `i64`                   | `Int`            | Yes (no default) |
+| `f64`                   | `Float`          | Yes (no default) |
+| `bool`                  | `Bool`           | Yes (no default) |
+| `ValueMap`              | `Map`            | Yes (no default) |
+| `Vec<Value>`            | `List`           | Yes (no default) |
+| With `.required(false)` | Any              | No               |
+| With `.with_default(v)` | Any              | No               |
 
-## Custom REST Endpoints (NexusApp)
+## Core SDK: ClosureHandler with Params
 
-For HTTP-specific routes that bypass multi-channel deployment:
+For typed parameter definitions:
 
-```python
-@app.endpoint("/api/v1/users/{user_id}", methods=["GET"])
-async def get_user(user_id: str):
-    return {"user_id": user_id}
+```rust
+use kailash_nexus::prelude::*;
 
-@app.endpoint("/api/v1/search", methods=["GET", "POST"])
-async def search(q: str = "", limit: int = 10):
-    return {"query": q, "limit": limit}
+let handler = ClosureHandler::with_params(
+    |inputs: ValueMap| async move {
+        let x = inputs.get("x")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        Ok(Value::from(x * 2))
+    },
+    vec![
+        HandlerParam::new("x", HandlerParamType::Int),
+    ],
+);
+
+let mut nexus = Nexus::new();
+nexus.handler("double", handler);
 ```
 
-`@app.endpoint()` creates HTTP-only routes. `@app.handler()` creates multi-channel handlers (API + CLI + MCP).
+## Common Patterns
+
+### Database Operations
+
+```rust
+use kailash_nexus::prelude::*;
+
+nexus.handler("get_user", ClosureHandler::new(|inputs: ValueMap| async move {
+    let user_id = inputs.get("user_id")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| NexusError::HandlerError("missing user_id".into()))?;
+    let pool = get_db_pool().await;
+    let user = sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", user_id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| NexusError::HandlerError(e.to_string()))?;
+    match user {
+        Some(u) => Ok(Value::from(u.to_value_map())),
+        None => Ok(Value::Null),
+    }
+}));
+```
+
+### External API Calls
+
+```rust
+use kailash_nexus::prelude::*;
+
+nexus.handler("fetch_data", ClosureHandler::new(|inputs: ValueMap| async move {
+    let url = inputs.get("url")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| NexusError::HandlerError("missing url".into()))?
+        .to_string();
+    let client = reqwest::Client::new();
+    let resp = client.get(&url).send().await
+        .map_err(|e| NexusError::HandlerError(e.to_string()))?;
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| NexusError::HandlerError(e.to_string()))?;
+    Ok(Value::from(body.to_string()))
+}));
+```
+
+### Endpoint Registration (HTTP Routes)
+
+```rust
+use kailash_nexus::prelude::*;
+
+nexus.endpoint(
+    "/api/users",
+    &[HttpMethod::Get],
+    ClosureHandler::new(|_: ValueMap| async { Ok(Value::from("users")) }),
+);
+```
+
+## Migration: Raw Workflow to Handler
+
+### Before (verbose)
+
+```rust
+let mut builder = WorkflowBuilder::new("process");
+builder.add_node("PythonCodeNode", "process", &config);
+let workflow = builder.build(&registry)?;
+nexus.register("process", workflow);
+```
+
+### After (concise)
+
+```rust
+nexus.handler("process", ClosureHandler::new(|inputs: ValueMap| async move {
+    let data = inputs.get("data").cloned().unwrap_or(Value::Null);
+    // Direct Rust logic — no sandbox restrictions
+    Ok(process_data(data).await?)
+}));
+```
+
+## Handler Registry
+
+Introspect registered handlers:
+
+```rust
+// Access handler metadata
+let handlers = nexus.handlers();
+for h in handlers {
+    println!("name={}, description={:?}, tags={:?}",
+        h.name(), h.description(), h.tags());
+}
+println!("Total handlers: {}", nexus.handler_count());
+```
 
 ## Best Practices
 
-1. Use `@app.handler()` for multi-channel handlers (most cases)
-2. Use `@app.endpoint()` for HTTP-specific routes
-3. Add `description` for MCP tool discovery and CLI help
-4. Use explicit `HandlerParam` when auto-derivation is insufficient
-5. Keep handler functions focused -- one responsibility per handler
-6. Use plain types (`list`, `dict`) instead of complex generics (`List[dict]`)
+1. **Use handlers for service orchestration** - they provide full Rust access with typed inputs
+2. **Define HandlerParams** - used for schema generation and validation
+3. **Return Value** - non-Value returns should be converted via `Value::from()`
+4. **Use async closures for I/O** - leverage tokio's async runtime
+5. **Add descriptions** - appear in API docs and MCP tools
+
+## Related Skills
+
+- [nexus-workflow-registration](#) - All registration patterns
+- [nexus-quickstart](#) - Basic Nexus setup
+- [nexus-dataflow-integration](#) - DataFlow integration
+
+## Full Documentation

@@ -1,15 +1,15 @@
 ---
 name: trust-plane
-description: "Trust-plane crate patterns for file-backed trust project management, constraint enforcement, shadow mode, delegation, CLI, MCP, and cross-language bindings. Use when working with crates/trust-plane/ or trust_plane binding modules."
+description: "Trust-plane patterns for file-backed trust project management, constraint enforcement, shadow mode, delegation, CLI, MCP, and cross-language bindings. Use when working with kailash.trust_plane or trust_plane binding modules."
 ---
 
 # Trust-Plane Patterns
 
 EATP-powered trust environment for human-AI collaborative work. File-backed trust project management with constraint enforcement, shadow mode, delegation, verification bundles, diagnostics, CLI (`attest`), and MCP server.
 
-**Crate**: `crates/trust-plane/` (proprietary, `publish = false`)
-**Depends on**: `eatp` (proprietary, `publish = false`)
-**Tests**: 2,187 across 5 crates (5 red team rounds, zero deferrals)
+**Python module**: `kailash.trust_plane` (backed by Rust implementation, source-available BSL 1.1)
+**Depends on**: `kailash.eatp` (EATP protocol implementation)
+**Tests**: 2,187 across the trust-plane subsystem (5 red team rounds, zero deferrals)
 
 ## Quick Start
 
@@ -89,15 +89,15 @@ Five dimensions from EATP (see `docs/00-authority/05-trust-framework.md`):
 2. **Terminal injection**: Sanitize action names before terminal output — strip ASCII control chars (0x00-0x1F, 0x7F)
 3. **Lock ordering**: Always acquire parking_lot mutex before fs4 file lock — reversed order causes deadlock
 4. **Monotonic tightening**: New constraint envelopes can ONLY be stricter — prevents privilege escalation
-5. **Source protection**: trust-plane is proprietary (`publish = false`). No Rust source leaves this private repo.
+5. **Source protection**: trust-plane Rust implementation is source-available (BSL 1.1). Users interact via Python/Ruby bindings.
 6. **Binding parity**: All binding users are equal. Every feature in Python must be in Ruby, Node.js, and C ABI.
 
 ## When to Use This Skill
 
-- Working with `crates/trust-plane/` source code
-- Implementing or modifying trust-plane binding modules
-- Adding CLI commands to the `attest` binary
-- Extending the MCP server
+- Working with `kailash.trust_plane` in Python or the `kailash` gem's trust module in Ruby
+- Integrating trust-plane features into your application
+- Using the `attest` CLI for trust project management
+- Connecting to the trust-plane MCP server
 - Debugging constraint enforcement or shadow mode
 - Understanding the 4-level verdict system
 
@@ -111,7 +111,7 @@ Five dimensions from EATP (see `docs/00-authority/05-trust-framework.md`):
 
 For complex trust-plane work, invoke:
 
-- **trust-plane-specialist** — Crate-level patterns and architecture
+- **trust-plane-specialist** — Trust-plane patterns and architecture
 - `co-reference` skill — EATP protocol questions
 - **ffi-specialist** — Binding implementation
 - **security-reviewer** — Security audit of trust operations

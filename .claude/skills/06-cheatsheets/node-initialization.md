@@ -21,51 +21,88 @@ Node Initialization guide with patterns, examples, and best practices.
 
 ## Core Pattern
 
-```python
-from kailash.nodes.base import Node, NodeParameter
-from typing import Dict, Any
+```rust
+use kailash_core::node::{Node, NodeParameter, NodeMetadata};
+use kailash_core::runtime::NodeError;
+use kailash_value::ValueMap;
+use std::future::Future;
+use std::pin::Pin;
 
-class MyNode(Node):
-    def __init__(self, name, **kwargs):
-        # CRITICAL: Set ALL attributes BEFORE super().__init__()
-        # Kailash validates during __init__(), attributes must exist first
-        self.my_param = kwargs.get("my_param", "default")
-        self.threshold = kwargs.get("threshold", 0.75)
+/// Custom node with configurable parameters.
+pub struct MyNode {
+    name: String,
+    my_param: String,
+    threshold: f64,
+}
 
-        # NOW call parent init - validation will find attributes
-        super().__init__(name=name)
+impl MyNode {
+    /// Construct from a config map. All attributes are set during construction.
+    pub fn from_config(config: &ValueMap) -> Result<Self, NodeError> {
+        let name = config
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("my_node")
+            .to_string();
+        let my_param = config
+            .get("my_param")
+            .and_then(|v| v.as_str())
+            .unwrap_or("default")
+            .to_string();
+        let threshold = config
+            .get("threshold")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.75);
 
-    def get_parameters(self) -> Dict[str, NodeParameter]:
-        """Return NodeParameter objects, NOT raw values"""
-        return {
-            "my_param": NodeParameter(
-                name="my_param",
-                type=str,
-                required=False,
-                default=self.my_param,
-                description="Custom parameter"
-            ),
-            "threshold": NodeParameter(
-                name="threshold",
-                type=float,
-                required=False,
-                default=0.75,
-                description="Processing threshold"
-            )
-        }
+        Ok(Self { name, my_param, threshold })
+    }
+}
 
-    def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Required by Kailash - main execution entry point"""
-        return {"result": f"Processed with {self.my_param}"}
+impl Node for MyNode {
+    fn type_name(&self) -> &str {
+        "MyNode"
+    }
+
+    fn input_params(&self) -> Vec<NodeParameter> {
+        vec![NodeParameter {
+            name: "input_data".into(),
+            description: "Data to process".into(),
+            required: true,
+            default: None,
+        }]
+    }
+
+    fn output_params(&self) -> Vec<NodeParameter> {
+        vec![NodeParameter {
+            name: "result".into(),
+            description: "Processing result".into(),
+            required: true,
+            default: None,
+        }]
+    }
+
+    fn execute(
+        &self,
+        inputs: ValueMap,
+    ) -> Pin<Box<dyn Future<Output = Result<ValueMap, NodeError>> + Send + '_>> {
+        Box::pin(async move {
+            let mut output = ValueMap::new();
+            output.insert(
+                "result".into(),
+                format!("Processed with {}", self.my_param).into(),
+            );
+            Ok(output)
+        })
+    }
+}
 ```
 
 ## Common Use Cases
 
-- **Custom Node Development**: Building specialized nodes with proper parameter validation and initialization order
+- **Custom Node Development**: Building specialized nodes with proper parameter validation and initialization via `from_config`
 - **LLM/Embedding Integration**: Correctly handling provider-specific formats and required parameters (provider, model, messages)
-- **Fixing AttributeError Bugs**: Resolving "object has no attribute" errors by setting attributes before super().__init__()
-- **Parameter Type Validation**: Using NodeParameter for proper type checking instead of returning raw values
-- **Provider-Specific Formats**: Handling different response formats from Ollama, OpenAI, etc. (embeddings as dicts vs lists)
+- **Fixing Missing Field Errors**: Resolving "field not found" errors by setting all fields during `from_config` construction
+- **Parameter Type Validation**: Using `NodeParameter` for proper type checking instead of returning raw values
+- **Provider-Specific Formats**: Handling different response formats from Ollama, OpenAI, etc. (embeddings as structs vs vectors)
 
 ## Related Patterns
 
@@ -76,6 +113,7 @@ class MyNode(Node):
 ## When to Escalate to Subagent
 
 Use specialized subagents when:
+
 - **pattern-expert**: Complex patterns, multi-node workflows
 - **testing-specialist**: Comprehensive testing strategies
 
@@ -85,13 +123,13 @@ Use specialized subagents when:
 
 ## Quick Tips
 
-- 💡 **Attributes Before super().__init__()**: Most common error - ALWAYS set all self.attributes BEFORE calling super().__init__() or Kailash validation will fail
-- 💡 **Return NodeParameter Objects**: get_parameters() must return Dict[str, NodeParameter], not raw values like int/str/float
-- 💡 **Implement Required Methods**: All custom nodes need get_parameters() and run() methods - missing either causes "Can't instantiate abstract class" error
-- 💡 **Provider Parameter Required**: LLMAgentNode and embedding nodes require provider="ollama" (or "openai" etc.) parameter in execute() calls
-- 💡 **Check Provider Response Format**: Ollama embeddings return dicts with "embedding" key, not lists - use embedding_dict["embedding"] to extract vector
-- 💡 **Use .run() Not .process()**: Call node.run() for execution, not .process() or .execute() directly
-- 💡 **Test with Real Providers**: Mock data hides provider-specific format issues - always test with actual Ollama/OpenAI/etc.
+- **All fields in `from_config`**: Most common error -- set ALL struct fields during construction or the node will have uninitialized/missing data
+- **Return `NodeParameter` objects**: `input_params()` and `output_params()` must return `Vec<NodeParameter>`, not raw types
+- **Implement required trait methods**: All custom nodes need `type_name()`, `input_params()`, `output_params()`, and `execute()` -- missing any causes a compilation error
+- **Provider parameter required**: LLM and embedding nodes require a `provider` field (e.g., `"ollama"`, `"openai"`) in config
+- **Check provider response format**: Ollama embeddings return structs with an `embedding` field, not bare vectors -- destructure accordingly
+- **Use `execute()` not `run()`**: The `Node` trait method is `execute()`
+- **Test with real providers**: Mock data hides provider-specific format issues -- always test with actual Ollama/OpenAI/etc.
 
 ## Keywords for Auto-Trigger
 

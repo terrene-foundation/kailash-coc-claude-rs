@@ -1,5 +1,5 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-07",
@@ -7,10 +7,30 @@
     "name": "kailash",
     "type": "coc-source",
     "version": "2.6.0",
-    "build_version": "3.11.0",
-    "synced_at": "2026-04-07T17:00:00Z"
+    "build_version": "3.12.0",
+    "synced_at": "2026-04-07T19:00:00Z"
   },
   "changelog": [
+    {
+      "version": "2.3.0",
+      "date": "2026-04-07",
+      "summary": "Gate 2 sync rs v3.12.0 — 12 rs variant updates (binding scale 667 types, ML crate refresh, Nexus Rust patterns) + SDK pin 3.10.0->3.12.0",
+      "changes": [
+        "UPDATED: variants/rs/skills/34-kailash-ml/SKILL.md — 20-crate workspace, 90+ estimators, ModelExplainer, AutoML",
+        "UPDATED: variants/rs/skills/06-python-bindings/SKILL.md — v3.12.0 binding scale (667 pyclass types, 27 pyfunctions, expanded module table)",
+        "UPDATED: variants/rs/agents/frameworks/nexus-specialist.md — Rust-native rewrite (route endpoints, auth guards, scheduled tasks, monitoring)",
+        "NEW: variants/rs/rules/agents.md — first rs variant of agents rule (worktree isolation, binding parity check)",
+        "UPDATED: variants/rs/skills/03-nexus/nexus-handler-support.md — Rust handler patterns",
+        "UPDATED: variants/rs/skills/05-kailash-mcp/mcp-transports.md — Rust MCP transport patterns",
+        "UPDATED: variants/rs/skills/06-cheatsheets/node-initialization.md — Rust node init patterns",
+        "UPDATED: variants/rs/skills/06-cheatsheets/asyncsql-advanced.md — sqlx async patterns",
+        "UPDATED: variants/rs/skills/07-development-guides/production-deployment-guide.md — Rust deployment patterns",
+        "UPDATED: variants/rs/skills/07-development-guides/workflow-creation-guide.md — Rust workflow construction",
+        "UPDATED: variants/rs/skills/07-development-guides/mcp-development.md — Rust MCP development",
+        "UPDATED: variants/rs/skills/07-development-guides/regression-testing.md — Rust regression test patterns",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.10.0->3.12.0"
+      ]
+    },
     {
       "version": "2.2.0",
       "date": "2026-04-07",
@@ -35,7 +55,7 @@
         "DELETED: scripts/hooks/lib/instinct-renderer.js",
         "DELETED: .claude/rules/learned-instincts.md (no more auto-injected rules)",
         "DELETED: .claude/commands/evolve.md, checkpoint.md",
-        "NEW: scripts/learning/digest-builder.js (pure aggregation → learning-digest.json)",
+        "NEW: scripts/learning/digest-builder.js (pure aggregation -> learning-digest.json)",
         "UPDATED: 11 hook/learning scripts for digest-based pipeline",
         "UPDATED: .claude/commands/codify.md — step 1 reads learning-digest.json + journals",
         "UPDATED: .claude/commands/learn.md — digest viewer",
@@ -206,8 +226,7 @@
         "Added guides/co-setup/07-sync-flow.md and 08-versioning.md",
         "Added kaizen-delegate.md and kaizen-agents-security.md globals",
         "Updated 4 core-sdk variant_only files (connection-patterns, custom-node-guide, runtime-execution, workflow-quickstart)",
-        "Updated kaizen-agents-governance.md variant_only",
-        "Updated guides/co-setup/README.md"
+        "Updated kaizen-agents-governance.md variant_only"
       ]
     },
     {
