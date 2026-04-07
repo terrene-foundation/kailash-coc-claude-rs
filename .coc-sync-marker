@@ -1,0 +1,14 @@
+{
+  "synced_at": "2026-04-07T14:30:00Z",
+  "source": "loom/",
+  "target": "kailash-coc-claude-rs",
+  "variant": "rs",
+  "upstream_version": "3.10.0",
+  "template_version": "2.5.0",
+  "files": [
+    "variants/rs/rules/build-speed.md",
+    "variants/rs/commands/build.md",
+    "pyproject.toml",
+    ".claude/VERSION"
+  ]
+}

@@ -1,16 +1,43 @@
 {
-  "version": "1.9.0",
+  "version": "2.0.0",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
-  "released": "2026-04-05",
+  "released": "2026-04-07",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.2.0",
-    "build_version": "3.9.0",
-    "synced_at": "2026-04-05T22:00:00Z"
+    "version": "2.5.0",
+    "build_version": "3.10.0",
+    "synced_at": "2026-04-07T14:30:00Z"
   },
   "changelog": [
+    {
+      "version": "2.5.0",
+      "date": "2026-04-07",
+      "summary": "Gate 2 sync: rs variant build.md, build-speed.md, SDK pin 3.9.2->3.10.0",
+      "changes": [
+        "NEW: variants/rs/commands/build.md — Rust cargo build patterns",
+        "NEW: variants/rs/rules/build-speed.md — Rust build speed rules (targeted builds, nextest, worktrees)",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.9.2->3.10.0",
+        "UPDATED: .claude/rules/agents.md — worktree isolation rule added"
+      ]
+    },
+    {
+      "version": "2.0.0",
+      "date": "2026-04-07",
+      "summary": "Gate 2 sync: PACT clearance FSM + 6 new RS alignment skills from loom v2.4.0",
+      "changes": [
+        "GLOBAL: agents/frameworks/pact-specialist.md — Clearance Lifecycle FSM, Install section, Python-Specific Features, consolidated Cross-SDK invariants",
+        "GLOBAL: skills/29-pact/pact-governance-engine.md — EATP emission, VettingStatus FSM, transition_clearance(), vacancy deadline, bilateral consent, compilation limits, thread safety",
+        "NEW: skills/36-kailash-rs-alignment/SKILL.md — Cross-SDK reference skill index",
+        "NEW: skills/36-kailash-rs-alignment/crate-structure.md — 46-crate workspace layout",
+        "NEW: skills/36-kailash-rs-alignment/kailash-ml-crate.md — ML crate architecture (traits, DataSet, pipeline)",
+        "NEW: skills/36-kailash-rs-alignment/pyo3-bindings.md — PyO3 binding patterns, Arrow zero-copy, async bridging",
+        "NEW: skills/36-kailash-rs-alignment/transport-parity.md — Intentional Python/Rust transport divergence",
+        "NEW: skills/36-kailash-rs-alignment/cross-sdk-features.md — Feature parity table (Rust-first, Python-first, Python-only)",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.9.0->3.9.2"
+      ]
+    },
     {
       "version": "1.9.0",
       "date": "2026-04-05",
@@ -65,7 +92,7 @@
       "date": "2026-04-04",
       "summary": "Red team fixes: cross-refs, 3 new SKILL.md indexes, phantom nodes, auth middleware",
       "changes": [
-        "FIX: 4 stale cross-refs (07-eatp→26-eatp, 08-care/27-care→co-reference)",
+        "FIX: 4 stale cross-refs (07-eatp->26-eatp, 08-care/27-care->co-reference)",
         "NEW: 05-enterprise/SKILL.md, 06-python-bindings/SKILL.md, 28-ruby-bindings/SKILL.md",
         "GLOBAL: 22 sub-skill phantom node fixes",
         "GLOBAL: 10 broken ../nodes/ cross-refs fixed",
@@ -79,9 +106,9 @@
       "summary": "Agent/skill ontology reorganization v1.4.0 + v3.8 auth middleware patterns",
       "changes": [
         "RESTRUCTURED: agents/ into 7 subdirectories (analysis, frameworks, frontend, implementation, management, quality, release, testing)",
-        "CONSOLIDATED: 33→26 agents (analyst, reviewer, release-specialist, repo-ops absorb 7 deleted agents)",
-        "MIGRATED: 7 agents→skills (care/co/coc/eatp-expert, sdk-navigator, framework-advisor → skills/co-reference/)",
-        "TIGHTENED: 8 agents avg 266→77 lines, 12 SKILL.md files under 200 lines",
+        "CONSOLIDATED: 33->26 agents (analyst, reviewer, release-specialist, repo-ops absorb 7 deleted agents)",
+        "MIGRATED: 7 agents->skills (care/co/coc/eatp-expert, sdk-navigator, framework-advisor -> skills/co-reference/)",
+        "TIGHTENED: 8 agents avg 266->77 lines, 12 SKILL.md files under 200 lines",
         "NEW: skills/co-reference/ (6 spec files)",
         "NEW: variants/rs/skills/18-security-patterns/security-auth-middleware-rs.md (v3.8 red team)",
         "UPDATED: security-reviewer — auth middleware patterns A1-A9",
@@ -97,7 +124,7 @@
       "changes": [
         "UPDATED: commands/codify.md — Step 7 scoped to BUILD repos only; downstream repos skip proposals",
         "UPDATED: rules/artifact-flow.md — New Rule 2a: downstream repos do not propose upstream",
-        "UPDATED: pyproject.toml — SDK pin: kailash-enterprise 3.5.0→3.6.4"
+        "UPDATED: pyproject.toml — SDK pin: kailash-enterprise 3.5.0->3.6.4"
       ]
     },
     {
