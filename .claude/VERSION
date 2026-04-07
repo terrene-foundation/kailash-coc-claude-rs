@@ -1,16 +1,25 @@
 {
-  "version": "2.3.2",
+  "version": "2.3.3",
   "type": "coc-use-template",
   "description": "COC USE template for Rust SDK projects",
   "released": "2026-04-08",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.5.2",
+    "version": "2.5.3",
     "build_version": "3.12.0",
     "synced_at": "2026-04-08T00:00:00Z"
   },
   "changelog": [
+    {
+      "version": "2.3.3",
+      "date": "2026-04-08",
+      "summary": "Fix rs rule scoping: patterns.md missing **/*.rs path, env-models.md now uses Rust-specific paths and dotenvy examples",
+      "changes": [
+        "FIX: rules/patterns.md — added **/*.rs to paths (Rust SDK patterns now load when reading .rs files)",
+        "FIX: rules/env-models.md — replaced Python paths/examples with Rust (**/*.rs, **/*.toml, .env*) and dotenvy/std::env"
+      ]
+    },
     {
       "version": "2.3.2",
       "date": "2026-04-08",
