@@ -1,8 +1,3 @@
----
-paths:
-  - "**/*.rs"
----
-
 # Framework-First: Use the Highest Abstraction Layer
 
 Default to Engines. Drop to Primitives only when Engines can't express the behavior. Never use Raw.
