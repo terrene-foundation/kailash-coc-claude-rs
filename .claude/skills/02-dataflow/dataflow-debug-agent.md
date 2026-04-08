@@ -19,7 +19,7 @@ class User:
     name: str
 
 # Initialize once (singleton)
-kb = KnowledgeBase("patterns.yaml", "solutions.yaml")
+kb = KnowledgeBase("src/dataflow/debug/patterns.yaml", "src/dataflow/debug/solutions.yaml")
 debug_agent = DebugAgent(kb, Inspector(db))
 
 try:

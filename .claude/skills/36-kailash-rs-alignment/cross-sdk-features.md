@@ -33,7 +33,7 @@ Features are classified by which SDK leads implementation:
 
 | Feature                     | Reason                                   |
 | --------------------------- | ---------------------------------------- |
-| PyTorch/Lightning training  | GPU CUDA kernels -- same speed regardless |
+| PyTorch/Lightning training  | GPU CUDA kernels — same speed regardless |
 | SB3 RL (PPO, SAC, etc.)     | Neural network training                  |
 | TRL fine-tuning (DPO, LoRA) | HuggingFace ecosystem                    |
 | Plotly visualization        | Browser rendering                        |
@@ -66,4 +66,4 @@ Features are classified by which SDK leads implementation:
 1. **API contract**: Python API is the contract. Rust implementations must produce identical results.
 2. **Feature flags**: Use cargo features for heavy optional deps, not separate crates.
 3. **Error semantics**: Same error categories across SDKs (NotFitted, ValidationError, etc.).
-4. **Naming**: Python names use snake_case of the Rust PascalCase type (e.g., `RandomForestClassifier` -> `random_forest_classifier`).
+4. **Naming**: Python names use snake_case of the Rust PascalCase type (e.g., `RandomForestClassifier` → `random_forest_classifier`).

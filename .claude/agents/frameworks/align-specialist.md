@@ -70,7 +70,7 @@ Callers (Nexus handlers, CLI, tests, direct API)
 
 ### Error
 
-`ServingError` -- 11 variants: ModelNotFound, ModelLoadFailed, NoModelLoaded, AdapterNotFound, AdapterLoadFailed, AdapterNotLoaded, AdapterIncompatible, InferenceFailed, InvalidSamplingParams, BackendNotReady, Io, Internal
+`ServingError` — 11 variants: ModelNotFound, ModelLoadFailed, NoModelLoaded, AdapterNotFound, AdapterLoadFailed, AdapterNotLoaded, AdapterIncompatible, InferenceFailed, InvalidSamplingParams, BackendNotReady, Io, Internal
 
 ### Nexus HTTP Endpoints (behind `nexus` feature)
 

@@ -213,3 +213,9 @@ async def test_custom_hook():
     assert result.success is True
 
 ```
+
+## Resources
+
+- **Source**: `src/kaizen/core/autonomy/hooks/`
+- **Examples**: `examples/autonomy/hooks/` (audit_trail, distributed_tracing, prometheus_metrics)
+- **Tests**: `tests/unit/core/autonomy/hooks/`, `tests/integration/autonomy/test_baseagent_hooks.py`

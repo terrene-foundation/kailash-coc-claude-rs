@@ -25,19 +25,19 @@ Python import: `from kailash.ml.linear_model import LinearRegression`
 
 ```
 Python polars DataFrame
-  -> .to_arrow()           (zero-copy: polars -> Arrow IPC)
-  -> Rust arrow::RecordBatch  (zero-copy: Arrow IPC -> Rust Arrow)
-  -> ndarray::Array2       (Arrow -> ndarray for algorithm input)
-  -> [Rust compute]
-  -> arrow::RecordBatch    (results as Arrow)
-  -> pl.from_arrow()       (zero-copy: Arrow -> Python polars)
+  → .to_arrow()           (zero-copy: polars → Arrow IPC)
+  → Rust arrow::RecordBatch  (zero-copy: Arrow IPC → Rust Arrow)
+  → ndarray::Array2       (Arrow → ndarray for algorithm input)
+  → [Rust compute]
+  → arrow::RecordBatch    (results as Arrow)
+  → pl.from_arrow()       (zero-copy: Arrow → Python polars)
 ```
 
 Key properties:
 
-- **polars<>polars**: Same Arrow memory format on both sides
-- **numpy<>ndarray**: C-contiguous float64, zero-copy
-- **scipy.sparse<>CsMat**: CSR format, requires copy (different sparse layouts)
+- **polars↔polars**: Same Arrow memory format on both sides
+- **numpy↔ndarray**: C-contiguous float64, zero-copy
+- **scipy.sparse↔CsMat**: CSR format, requires copy (different sparse layouts)
 
 ## Estimator Wrapper Macro
 

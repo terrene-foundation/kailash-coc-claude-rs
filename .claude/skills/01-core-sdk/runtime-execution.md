@@ -213,9 +213,9 @@ now_iso8601();  // "2026-03-17T10:30:00Z"
 epoch_days_to_ymd(20530);  // Howard Hinnant's algorithm
 ```
 
-## Key Modules
+## Key Files
 
-`runtime`, `durability`, `shadow_checkpoint`, `trust_durability`, `dlq`, `metrics`, `execution_store`, `scheduler`, `task_queue`, `versioning`, `time_util` -- all in `kailash-core`.
+All under `crates/kailash-core/src/`: `runtime.rs`, `durability.rs`, `shadow_checkpoint.rs`, `trust_durability.rs`, `dlq.rs`, `metrics.rs`, `execution_store.rs`, `scheduler.rs`, `task_queue.rs`, `versioning.rs`, `time_util.rs`.
 
 ## Testing
 
