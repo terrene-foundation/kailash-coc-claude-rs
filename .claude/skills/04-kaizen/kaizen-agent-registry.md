@@ -2,7 +2,7 @@
 
 Centralized lifecycle management for distributed multi-agent systems (100+ agents). O(1) capability discovery, event broadcasting, heartbeat health monitoring, automatic failover.
 
-**Location**: `kaizen.orchestration.registry`
+**Location**: `kaizen.orchestration.registry` | **Tests**: 27 unit + 12 integration + 6 E2E (100% coverage)
 
 ## Quick Start
 
@@ -177,6 +177,9 @@ selected = await runtime.route_task(task, strategy=RoutingStrategy.SEMANTIC)  # 
 all_agents = await registry.find_agents_by_capability("code generation")       # Global
 ```
 
-## Related Skills
+## Resources
 
-- [kaizen-supervisor-worker](kaizen-supervisor-worker.md), [kaizen-multi-agent-setup](kaizen-multi-agent-setup.md), [kaizen-a2a-protocol](kaizen-a2a-protocol.md), [kaizen-observability-hooks](kaizen-observability-hooks.md)
+- **Examples**: `examples/orchestration/agent-registry-patterns/` (3 patterns)
+- **Tests**: `tests/e2e/orchestration/test_agent_registry_e2e.py`
+- **Source**: `src/kaizen/orchestration/registry.py`
+- **Related**: [kaizen-supervisor-worker](kaizen-supervisor-worker.md), [kaizen-multi-agent-setup](kaizen-multi-agent-setup.md), [kaizen-a2a-protocol](kaizen-a2a-protocol.md), [kaizen-observability-hooks](kaizen-observability-hooks.md)

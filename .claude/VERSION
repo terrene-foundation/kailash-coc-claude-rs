@@ -1,16 +1,52 @@
 {
-  "version": "2.3.4",
+  "version": "2.4.0",
   "type": "coc-use-template",
-  "description": "COC USE template for Rust SDK projects",
+  "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-08",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.5.3",
+    "version": "2.7.0",
     "build_version": "3.12.0",
-    "synced_at": "2026-04-08T00:00:00Z"
+    "synced_at": "2026-04-08T18:00:00Z"
   },
   "changelog": [
+    {
+      "version": "2.4.0",
+      "date": "2026-04-08",
+      "summary": "Sync loom 2.7.0 — Framework mandate enforcement wave. New rules: observability.md, schema-migration.md (global — no rs variant). Extended: framework-first.md (rs variant, Python anti-patterns), zero-tolerance.md (rs variant, warnings scope), dependencies.md, dataflow-pool.md, infrastructure-sql.md. New hooks: integration-hygiene.js, log-triage-gate.js. 8 framework agent descriptions rewritten (5 global, 2 rs-variant: kaizen, nexus, + align/ml rs variants). 8 SKILL.md descriptions rewritten. Updated: reviewer.md, testing-specialist.md, implement.md, redteam.md.",
+      "changes": [
+        "NEW: rules/observability.md — mandatory structured log points (global, Python-flavored for rs USE template)",
+        "NEW: rules/schema-migration.md — numbered migrations requirement (global)",
+        "EXTENDED: rules/framework-first.md — rs variant updated: work-domain binding table, specialist consultation",
+        "EXTENDED: rules/dependencies.md — declared=imported section",
+        "EXTENDED: rules/dataflow-pool.md — reachability check requirement",
+        "EXTENDED: rules/infrastructure-sql.md — scope note for DataFlow consumers",
+        "NEW: scripts/hooks/integration-hygiene.js — PostToolUse detector",
+        "NEW: scripts/hooks/log-triage-gate.js — Stop hook log scanner",
+        "UPDATED: settings.json — registered new hooks",
+        "DESCRIPTION REWRITE: 8 framework agents (5 global + kaizen-specialist rs + nexus-specialist rs)",
+        "DESCRIPTION REWRITE: 8 SKILL.md files",
+        "UPDATED: reviewer.md, testing-specialist.md, implement.md, redteam.md"
+      ]
+    },
+    {
+      "version": "2.3.5",
+      "date": "2026-04-08",
+      "summary": "Sync loom 2.6.2 — /redteam spec compliance + /deploy hygiene + Rust leak fix. Key change for rs USE template: variants/rs/rules/testing.md REWRITTEN to be fully Python/Ruby binding-flavored (was 'Rust SDK + Python Bindings' framing with FFI/serde rationale; now 'Python bindings to kailash-rs' with binding-boundary rationale). USE template users write Python and Ruby — they consume kailash-rs through bindings, they do not write Rust.",
+      "changes": [
+        "REWRITE: variants/rs/rules/testing.md — title 'Python bindings to kailash-rs' (was 'Rust SDK + Python Bindings'). Removed `use kaizen_agents::wrapper_base` Rust syntax. All examples now Python pytest / Python module imports. Tier 2 rationale rephrased from 'FFI boundary' to 'binding boundary'.",
+        "NEW: skills/spec-compliance/SKILL.md — Python-only 9-check verification protocol (no Rust syntax leak).",
+        "REWRITE: commands/redteam.md — semantic verification protocol, language-agnostic test enumeration phrasing.",
+        "UPDATE: rules/testing.md — added § Audit Mode Rules (Python pytest only, no cargo).",
+        "REWRITE: commands/deploy.md — config-driven onboard/execute/check modes, 10-step checklist.",
+        "NEW: rules/deploy-hygiene.md — 6-level failure model, infrastructure-only paths.",
+        "NEW: skills/10-deployment-git/application-deployment.md — deployment-config.md schema + Vite/Docker/Next.js frontend patterns.",
+        "UPDATE: commands/wrapup.md — 4-state deploy classification.",
+        "UPDATE: agents/analysis/analyst.md and testing/testing-specialist.md — /redteam ownership.",
+        "LANGUAGE MAPPING: sync-manifest.yaml header documents that rs USE template serves Python/Ruby binding consumers, NOT Rust developers."
+      ]
+    },
     {
       "version": "2.3.4",
       "date": "2026-04-08",

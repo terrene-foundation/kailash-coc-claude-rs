@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "description": "Kailash COC Claude (Rust-backed Bindings: Python + Ruby) - Claude Code hooks configuration",
+  "description": "Kailash COC Claude (Python) - Claude Code hooks configuration",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
@@ -30,6 +30,11 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/validate-deployment.js\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/integration-hygiene.js\"",
+            "timeout": 5
           },
           {
             "type": "command",
@@ -87,6 +92,11 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/stop.js\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/log-triage-gate.js\"",
+            "timeout": 7
           }
         ]
       }

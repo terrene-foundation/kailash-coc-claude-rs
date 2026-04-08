@@ -5,7 +5,7 @@
 | #   | Decision               | Details                                                                         |
 | --- | ---------------------- | ------------------------------------------------------------------------------- |
 | D1  | Separate ML from nodes | `kailash-ml` = standalone ML; `kailash-ml-nodes` = Kailash workflow integration |
-| D2  | Type-state traits      | 3-layer: generic typed -> object-safe erasure (`DynEstimator`) -> Python binding  |
+| D2  | Type-state traits      | 3-layer: generic typed → object-safe erasure (`DynEstimator`) → Python binding  |
 | D3  | DataSet enum           | `Dense(Array2)`, `Sparse(CsMat)`, `Tabular(DataFrame)`                          |
 | D4  | FitOpts struct         | `FitOpts + PartialFit + FitMultiOutput` traits for incremental/multi-output     |
 | D5  | Native Pipeline        | Zero serialization, ownership transfer between steps                            |
@@ -64,13 +64,13 @@ let fitted = pipeline.fit(&train_x, &train_y)?;
 let predictions = fitted.predict(&test_x)?;
 ```
 
-Ownership transfers between steps -- no serialization, no cloning.
+Ownership transfers between steps — no serialization, no cloning.
 
 ## What Stays Python
 
 | Component                   | Reason                                          |
 | --------------------------- | ----------------------------------------------- |
-| Lightning/PyTorch training  | GPU CUDA kernels -- same speed in Python or Rust |
+| Lightning/PyTorch training  | GPU CUDA kernels — same speed in Python or Rust |
 | SB3 RL (PPO, SAC, DQN)      | Neural network training, PyTorch ecosystem      |
 | TRL fine-tuning (DPO, LoRA) | HuggingFace ecosystem                           |
 | Plotly visualization        | Browser rendering                               |
@@ -85,5 +85,5 @@ All 40+ classical ML algorithms (sklearn replacement), LightGBM-equivalent gradi
 | Metric                        | V1 Target        |
 | ----------------------------- | ---------------- |
 | Gradient boosting vs LightGBM | 0.5-0.7x         |
-| Inference latency (100-tree)  | < 10us           |
+| Inference latency (100-tree)  | < 10μs           |
 | Accuracy vs sklearn reference | AUC within 0.001 |

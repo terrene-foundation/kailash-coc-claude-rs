@@ -338,3 +338,9 @@ class SecureAgent(BaseAgent):
     def execute(self, input_text: str) -> dict:
         return {"response": f"Secure response to: {input_text}"}
 ```
+
+---
+
+## Source Files
+
+All under `bindings/kailash-python/`: `python/kailash/__init__.py` (root re-exports), `python/kailash/dataflow/` (model, filter, tenancy), `python/kailash/enterprise/` (combined, context, decorators), `python/kailash/kaizen/` (agent, hooks, signature, control, agents/7, pipelines/5), `python/kailash/nexus/` (app, auth, middleware). Rust infra: `src/infra.rs` (15 pyclass + 2 fns).

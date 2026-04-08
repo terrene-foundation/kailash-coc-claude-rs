@@ -1,6 +1,6 @@
 ---
 name: kaizen-specialist
-description: "Kaizen AI framework specialist. Use for BaseAgent, signatures, multi-agent coordination, or orchestration."
+description: "Kaizen specialist. Use proactively for LLM/prompt/agent/RAG/provider-abstraction work — custom LLM services BLOCKED."
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
