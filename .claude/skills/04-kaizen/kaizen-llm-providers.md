@@ -9,13 +9,36 @@ The `LlmClient` sends completion requests to multiple LLM providers with automat
 
 ## Supported Providers
 
-| Provider  | Model Prefixes              | API Key Env Var                      |
-| --------- | --------------------------- | ------------------------------------ |
-| OpenAI    | `gpt-`, `o1-`, `o3-`, `o4-` | `OPENAI_API_KEY`                     |
-| Anthropic | `claude-`                   | `ANTHROPIC_API_KEY`                  |
-| Google    | `gemini-`                   | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
-| Mistral   | `mistral-`, `mixtral-`      | `MISTRAL_API_KEY`                    |
-| Cohere    | `command-`                  | `COHERE_API_KEY`                     |
+| Provider    | Model Prefixes              | API Key Env Var                      | Adapter File        |
+| ----------- | --------------------------- | ------------------------------------ | ------------------- |
+| OpenAI      | `gpt-`, `o1-`, `o3-`, `o4-` | `OPENAI_API_KEY`                     | `openai.rs`         |
+| Anthropic   | `claude-`                   | `ANTHROPIC_API_KEY`                  | `anthropic.rs`      |
+| Google      | `gemini-`                   | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `google.rs`         |
+| Azure       | (via base_url override)     | `AZURE_OPENAI_API_KEY`               | `azure.rs`          |
+| Ollama      | `ollama-*` or local models  | (none — local)                       | `ollama.rs`         |
+| HuggingFace | `hf-*`                      | `HUGGINGFACE_API_KEY`                | `huggingface.rs`    |
+| Perplexity  | `pplx-*`                    | `PERPLEXITY_API_KEY`                 | `perplexity.rs`     |
+| Docker      | `docker-*`                  | (none — Docker Model Runner)         | `docker.rs`         |
+| Mistral     | `mistral-`, `mixtral-`      | `MISTRAL_API_KEY`                    | (via OpenAI compat) |
+| Cohere      | `command-`                  | `COHERE_API_KEY`                     | (via OpenAI compat) |
+
+## Provider Capability Traits (v3.12.1)
+
+Each provider implements a subset of 5 capability traits (`llm/traits.rs`):
+
+| Trait              | Purpose                          | Providers                         |
+| ------------------ | -------------------------------- | --------------------------------- |
+| `Chat`             | Sync/async completion            | All                               |
+| `StreamingChat`    | SSE-based streaming              | OpenAI, Anthropic, Google, Ollama |
+| `Embeddings`       | Text embedding                   | OpenAI, HuggingFace               |
+| `ToolCalling`      | Function call formatting/parsing | OpenAI, Anthropic, Google         |
+| `StructuredOutput` | JSON schema output formatting    | OpenAI, Anthropic, Google         |
+
+Check at runtime: `provider.supports(ProviderCapability::Embeddings)`.
+
+## SSRF Protection
+
+All provider base URLs are validated by `llm/url_safety.rs` (v3.12.1). Blocks private IPs (RFC 1918), loopback, link-local, cloud metadata endpoints. Google API key params are redacted from debug logs via `sanitize_url_for_logging()`.
 
 ## .env Setup (Required)
 

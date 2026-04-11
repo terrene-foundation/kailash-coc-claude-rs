@@ -50,12 +50,12 @@ workflow.add_node("User_Read", "read_user", {
 
 ```python
 # ❌ WRONG - HTTP in production
-workflow.add_node("HTTPRequestNode", "api", {
+workflow.add_node("APICallNode", "api", {
     "url": "http://api.example.com/data"  # Insecure!
 })
 
 # ✅ CORRECT - HTTPS always
-workflow.add_node("HTTPRequestNode", "api", {
+workflow.add_node("APICallNode", "api", {
     "url": "https://api.example.com/data"
 })
 ```
@@ -99,42 +99,39 @@ workflow.add_node("HTTPRequestNode", "api", {
 - [ ] OWASP Top 10 checked
 - [ ] Security review completed
 
-## SSRF Prevention (Webhook/Outbound HTTP)
-
-When making outbound HTTP requests to user-supplied URLs:
-
-1. **Validate URL scheme** — only `http://` and `https://`
-2. **Resolve DNS and check IP** — block RFC 1918, loopback, link-local, cloud metadata
-3. **Check IPv4-mapped IPv6** — `::ffff:127.0.0.1` bypasses IPv4-only blocklists. Extract the mapped IPv4 address and re-validate
-4. **Pin resolved IP** — replace hostname with resolved IP in the URL to prevent DNS rebinding. Set `Host` header to original hostname
-5. **Block `0.0.0.0/8`** — routes to localhost on some systems
-
-Reference implementation: See the Nexus webhook transport source for a working `_validate_target_url()` pattern.
-
-## Error Message Security
-
-Never return raw exception messages to clients — they leak file paths, class names, database URLs.
-
-```
-# ❌ WRONG — leaks internals
-return {"error": str(exception)}
-
-# ✅ CORRECT — log internally, return generic message
-log_exception("Operation failed")
-return {"error": "Internal server error"}
-```
-
 ## Common Vulnerabilities Prevented
 
-| Vulnerability            | Prevention Pattern                        |
-| ------------------------ | ----------------------------------------- |
-| SQL Injection            | Use DataFlow parameterized nodes          |
-| Code Injection           | Avoid `eval()`, use PythonCodeNode safely |
-| Credential Exposure      | Environment variables, secret managers    |
-| XSS                      | Output encoding, CSP headers              |
-| SSRF                     | DNS-pinned delivery, blocked IP ranges    |
-| CSRF                     | Token validation, SameSite cookies        |
-| Insecure Deserialization | Validate serialized data                  |
+| Vulnerability            | Prevention Pattern                              |
+| ------------------------ | ----------------------------------------------- |
+| SQL Injection            | Use DataFlow parameterized nodes                |
+| Code Injection           | Avoid `eval()`, use PythonCodeNode safely       |
+| Credential Exposure      | Environment variables, secret managers          |
+| XSS                      | Output encoding, CSP headers                    |
+| CSRF                     | Token validation, SameSite cookies              |
+| Insecure Deserialization | Validate serialized data, `deny_unknown_fields` |
+| SSRF                     | `url_safety::check_url()` on all provider URLs  |
+
+## Convergence Security Patterns (v3.12.1)
+
+### SSRF Validation (`kailash-kaizen/src/llm/url_safety.rs`)
+
+Canonical URL validation for all outbound HTTP. Blocks private IPs (10.x, 172.16-31.x, 192.168.x), loopback (127.x, ::1), link-local (169.254.x), cloud metadata, and non-HTTP schemes. Used by both LLM client (`validate_base_url`) and MCP transport (`validate_url`). DNS rebinding is a known limitation — documented, not syntactically fixable.
+
+### JWT Secret Zeroization (`kailash-auth/src/jwt/mod.rs`)
+
+`JwtConfig` implements `Drop` with `zeroize()` on the secret `Vec<u8>`. Prevents key material lingering in freed memory. `Debug` impl redacts the secret field.
+
+### Rate Limiter Packed Atomic (`kailash-auth/src/rate_limit/mod.rs`)
+
+Window epoch (upper 32 bits) + counter (lower 32 bits) packed into a single `AtomicU64`. Window reset + counter reset is a single CAS operation — eliminates the race condition where two threads at a window boundary could both reset independently.
+
+### Constraint `deny_unknown_fields`
+
+All 8 EATP constraint dimension sub-structs have `#[serde(deny_unknown_fields)]`. A misspelled field (e.g., `max_transactin_cents`) now produces a deserialization error instead of silently defaulting to 0 (maximum restriction).
+
+### Auth Config Debug Redaction
+
+`ApiKeyConfig` and `JwtConfig` both implement manual `Debug` that redacts sensitive fields. `TenantContext` is non-Clone with `SecretString` zeroed on drop.
 
 ## Integration with Rules
 
