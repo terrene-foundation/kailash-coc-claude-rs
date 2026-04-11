@@ -20,7 +20,7 @@ The schema is the contract between code and data. Every change to that contract 
 
 `CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`, `CREATE INDEX`, and any other DDL MUST live in a numbered migration file managed by the project's migration framework (DataFlow auto-migrate, Alembic, ActiveRecord, sqlx, etc.). DDL string literals in **application code** are BLOCKED outside of migration files.
 
-**Scope clarification:** "Application code" means services, controllers, handlers, models, and rake/management tasks. DDL is permitted in: (a) numbered migration files, (b) the dialect helper layer of the Kailash SDK source tree itself (`src/kailash/db/…` patterns like `dialect.blob_type()` and bootstrap table-creation helpers — BUILD repos only, not downstream USE projects), and (c) test fixtures that create and tear down test schemas.
+**Scope clarification:** "Application code" means services, controllers, handlers, models, and rake/management tasks. DDL is permitted in: (a) numbered migration files, (b) the SDK's own dialect helper layer (BUILD repos only — downstream USE projects do not have a dialect helper layer), and (c) test fixtures that create and tear down test schemas.
 
 ```python
 # DO — DataFlow @db.model drives auto-migration; the schema lives in code
