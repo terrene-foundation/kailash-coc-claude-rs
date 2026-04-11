@@ -163,5 +163,6 @@ except ValueError as e:
 - **Never hardcode** model names or API keys. Always read from environment.
 - **Provider auto-detection**: Based on model name prefix. Change `.env` to switch providers.
 - **Retry behavior**: Automatic retry on 429 (rate limited) and 5xx (server error) with exponential backoff.
+- **URL sanitization (v3.12+)**: Google auth embeds the API key as a `?key=` query parameter. All debug-level URL logs are sanitized via `LlmClient::sanitize_url_for_logging()` which redacts `key=` params before logging. The `Debug` impl on `LlmClient` also omits key values. Never log raw URLs from Google API paths.
 
 <!-- Trigger Keywords: LlmClient, LLM provider, OpenAI, Anthropic, Google, Gemini, Mistral, Cohere, mock, API key, model name, provider detection, switching providers -->

@@ -19,6 +19,21 @@ Source: `crates/kailash-dataflow/src/`
 | `dataflow-pool-prevention.md` | Pool auto-scaling, monitoring, leak detection, query cache, lightweight pool, shared pools | Pool exhaustion, connection management, health checks, pool sizing      |
 | `dataflow-sync-express.md`    | DataFlowExpressSync: blocking CRUD for CLI/scripts/FFI, block_on pattern, transaction sync | Sync/blocking DataFlow, non-async contexts, C ABI, Go, Java, Ruby FFI   |
 
+## SQL Safety (v3.12+)
+
+`sql_safety::quote_identifier()` validates and quotes dynamic identifiers for DDL. All 3 dialects supported:
+
+- PostgreSQL/SQLite: double-quotes (`"identifier"`)
+- MySQL: backticks (`` `identifier` ``)
+
+Validation: `^[a-zA-Z_][a-zA-Z0-9_]*$`, max 63 chars, reject-don't-escape. Construction-time panics in `ModelDefinition::new`, `FieldDef::new`, `TenantContext::new`. See `rules/dataflow-identifier-safety.md`.
+
+**Multi-tenant cache isolation (v3.12+):** `CacheKey` includes optional `tenant_id` field. Multi-tenant models MUST use `get_tenant()`/`put_tenant()` — the single-tenant methods silently share cache slots across tenants. See `rules/tenant-isolation.md`.
+
+**TenantRequired enforcement (v3.12+):** `ModelDefinition::multi_tenant()` marks a model as requiring tenant context. `model.require_tenant(tenant_id)` returns `DataFlowError::TenantRequired` when `tenant_id` is `None` for multi-tenant models. Use at express/query layer before cache access.
+
+**WHERE clause quoting (v3.12+):** `build_where_clause()` and `soft_delete_where()` now route all column names through `quote_identifier()` (defense-in-depth). `build_select_by_id()` and `build_delete()` return `Result` and quote PK/soft-delete columns. Callers must handle `?` propagation.
+
 ## Quick Navigation
 
 - **"How do I create a model?"** -> `dataflow-models.md` or `dataflow-quickstart.md`

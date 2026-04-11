@@ -34,7 +34,7 @@ item = KnowledgeItem(
 decision = engine.check_access(
     role_address="D1-R1-D2-R1-T1-R1",
     knowledge_item=item,
-    posture=TrustPostureLevel.SHARED_PLANNING,
+    posture=TrustPostureLevel.SUPERVISED,
 )
 
 decision.allowed      # bool
@@ -75,9 +75,9 @@ from pact.governance.clearance import POSTURE_CEILING, effective_clearance
 # The mapping:
 # PSEUDO_AGENT     -> PUBLIC
 # SUPERVISED       -> RESTRICTED
-# SHARED_PLANNING  -> CONFIDENTIAL
-# CONTINUOUS_INSIGHT -> SECRET
-# DELEGATED        -> TOP_SECRET
+# SUPERVISED  -> CONFIDENTIAL
+# DELEGATING  -> SECRET
+# AUTONOMOUS  -> TOP_SECRET
 
 eff = effective_clearance(clearance, TrustPostureLevel.SUPERVISED)
 # Even SECRET clearance is capped at RESTRICTED when SUPERVISED
@@ -194,7 +194,7 @@ from pact.governance.access import can_access
 decision = can_access(
     role_address="D1-R1-D3-R1-T1-R1",
     knowledge_item=item,
-    posture=TrustPostureLevel.SHARED_PLANNING,
+    posture=TrustPostureLevel.SUPERVISED,
     compiled_org=compiled_org,
     clearances={"D1-R1-D3-R1-T1-R1": clearance},
     ksps=[ksp],

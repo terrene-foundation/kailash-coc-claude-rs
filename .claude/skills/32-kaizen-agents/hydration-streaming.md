@@ -106,15 +106,17 @@ Callers previously received complete `AgentResult`/`TaodResult`. Now they can co
 pub enum CallerEvent {
     TextDelta(String),                                    // Incremental text chunk
     ToolCallStart { name, id, arguments },                // Tool execution started
+    ToolCallDelta { index, name, id, arguments_delta },   // Streaming argument fragment
     ToolCallDone { name, id, result, is_error },          // Tool execution completed
     IterationStart { iteration: u32 },                    // TAOD loop iteration
     Done(TaodResult),                                     // Terminal: success
+    BudgetExhausted { budget_usd, consumed_usd },         // Terminal: cost limit hit
     Error(AgentError),                                    // Terminal: failure
 }
 pub type CallerEventStream = Pin<Box<dyn Stream<Item = CallerEvent> + Send>>;
 ```
 
-Streams always terminate with `Done` or `Error`. Concatenating all `TextDelta` payloads reconstructs the full response.
+Streams always terminate with `Done`, `BudgetExhausted`, or `Error`. Concatenating all `TextDelta` payloads reconstructs the full response. Concatenating all `ToolCallDelta` payloads for a given `index` reconstructs the full tool-call arguments JSON.
 
 ### Three Streaming Entry Points
 
