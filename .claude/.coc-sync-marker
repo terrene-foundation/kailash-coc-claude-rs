@@ -1,7 +1,8 @@
-{
-  "synced_at": "2026-04-08T08:12:12Z",
-  "source": "loom",
-  "source_version": "2.7.0",
-  "agent": "coc-sync (Gate 2)",
-  "variant": "rs"
-}
+last_sync: 2026-04-11T16:00:00Z
+source: loom
+version: 2.8.0
+build_sdk_version: 3.12.1
+files_updated: 3
+files_new: 0
+files_preserved: true
+gate1_proposal: "fix(security): resolve all convergence red team gaps (PR #322)"

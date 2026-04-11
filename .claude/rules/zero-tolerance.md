@@ -31,6 +31,8 @@ Production code MUST NOT contain: `TODO`, `FIXME`, `HACK`, `STUB`, `XXX`, `raise
 
 **Why:** Stubs in the Rust SDK compile and link successfully but panic at runtime when called through PyO3 bindings, giving Python users an unrecoverable crash with no actionable error message.
 
+**Extended examples (DataFlow 2.0 Phase 5 audit):** these patterns passed prior audits but were caught by the Phase 5 wiring sweep. They are equally BLOCKED: fake encryption (stores key, never encrypts), fake transaction (context manager with no BEGIN/COMMIT), fake health (always returns 200), fake classification (decorator that never enforces on read), fake tenant isolation (multi_tenant=True with no tenant dimension in cache key), fake metrics (no-op counters when prometheus_client missing). See the global `zero-tolerance.md` for full code examples.
+
 ## Rule 3: No Silent Fallbacks or Error Hiding
 
 - `except: pass` (bare except with pass) — BLOCKED

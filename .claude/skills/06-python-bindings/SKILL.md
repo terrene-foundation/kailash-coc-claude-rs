@@ -159,6 +159,26 @@ rt = kailash.Runtime(reg)
 result = rt.execute(wf, {})
 ```
 
+## API Changes (v3.12.0 Convergence)
+
+Breaking changes from the convergence branch that affect binding consumers:
+
+- **`WorkerAgent::new(name, inner)` returns `Result`** — name validation added (`^[a-z][a-z0-9_-]{2,63}$`). Callers must use `?` or `.expect()`.
+- **`SupervisorAgent::new()` requires 4 args** — `(name, workers, routing, max_delegation_depth)`. The `routing` arg is `Arc<dyn RoutingStrategy>` (use `RoundRobin::new()` for tests).
+- **`with_description()` takes `String` and returns `Result<&mut Self, WorkerError>`** — must split from builder chain into separate statements.
+- **`CallerEvent` has new `ToolCallDelta` variant** — all match expressions must be exhaustive.
+- **`BudgetExhausted` variant added to `CallerEvent`** — streaming consumers must handle budget termination.
+- **Debug output standardized to snake_case** — e.g., `Zone::Active` now prints as `active`.
+- **16 new convergence types exported** — `EatpJwtClaims`, `PyTrustPostureLevel`, `PyRoutingStrategy`, `PyAuditEvent`, etc.
+
+### Cross-SDK Test Fixtures (v3.12.0+)
+
+Canonical JSON fixtures at `workspaces/platform-architecture-convergence/01-analysis/test-vectors/`:
+
+- `agent-result-wire-v1.json` — AgentResult wire format (SPEC-09 section 3.3)
+
+Parity tests: `crates/kailash-kaizen/tests/cross_sdk_agent_result.rs`, `crates/eatp/tests/cross_sdk_envelope.rs`, `crates/trust-plane/tests/cross_language.rs`, `crates/kailash-mcp/tests/cross_sdk_jsonrpc.rs`.
+
 ## Binding Gotchas (v3.12.0 Red Team Findings)
 
 These patterns were discovered during the 392-to-667 type expansion and validated by red team cycles.

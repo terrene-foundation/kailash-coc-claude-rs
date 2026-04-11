@@ -177,13 +177,13 @@ env = default_envelope_for_posture(TrustPostureLevel.SUPERVISED)
 # max_spend_usd=100.0, allowed_actions=["read", "write"], internal_only=True
 ```
 
-| Posture            | max_spend_usd | Allowed Actions            | Internal Only |
-| ------------------ | ------------- | -------------------------- | ------------- |
-| PSEUDO_AGENT       | 0             | read                       | Yes           |
-| SUPERVISED         | 100           | read, write                | Yes           |
-| SHARED_PLANNING    | 1,000         | read, write, plan, propose | No            |
-| CONTINUOUS_INSIGHT | 10,000        | +execute, deploy           | No            |
-| DELEGATED          | 100,000       | +approve, delegate         | No            |
+| Posture      | max_spend_usd | Allowed Actions            | Internal Only |
+| ------------ | ------------- | -------------------------- | ------------- |
+| PSEUDO_AGENT | 0             | read                       | Yes           |
+| SUPERVISED   | 100           | read, write                | Yes           |
+| SUPERVISED   | 1,000         | read, write, plan, propose | No            |
+| DELEGATING   | 10,000        | +execute, deploy           | No            |
+| AUTONOMOUS   | 100,000       | +approve, delegate         | No            |
 
 ## Degenerate Envelope Detection
 
