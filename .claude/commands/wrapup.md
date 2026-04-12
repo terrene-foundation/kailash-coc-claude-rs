@@ -3,7 +3,7 @@ name: wrapup
 description: "Write .session-notes so the next session resumes without re-discovering context."
 ---
 
-The only deliverable is a `.session-notes` file that lets a fresh session start producing work within 2–3 minutes of reading it, without having to re-explore the codebase.
+The only deliverable is a `.session-notes` file that lets a fresh session start producing work within 2-3 minutes of reading it, without having to re-explore the codebase.
 
 **Before running:** if significant decisions, discoveries, or risks from this session are not yet in `journal/`, run `/journal new DECISION|DISCOVERY|RISK <topic>` first. `.session-notes` is not a decision log.
 
@@ -15,6 +15,7 @@ Do NOT duplicate these — the next session reads them directly:
 - **Outstanding work** — `workspaces/<project>/todos/active/`
 - **Decisions & discoveries** — `workspaces/<project>/journal/`
 - **Phase outputs** — `01-analysis/`, `02-plans/`, `03-user-flows/`, `04-validate/`
+- **Domain specs** — `specs/` (detailed domain truth, always current)
 - **Project context** — `CLAUDE.md`
 
 ## What ONLY wrapup can provide
@@ -49,7 +50,7 @@ change. Just enough for the next session to orient — not a history.
 
 1. `path/to/file` — why it matters (one line)
 2. `path/to/file` — why it matters
-   (3–6 files, priority-ordered)
+   (3-6 files, priority-ordered)
 
 ## In-flight state
 

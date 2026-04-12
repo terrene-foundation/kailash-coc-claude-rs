@@ -1,16 +1,32 @@
 {
-  "version": "2.5.1",
+  "version": "2.6.0",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
-  "released": "2026-04-11",
+  "released": "2026-04-12",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
     "version": "2.8.0",
     "build_version": "3.12.0",
-    "synced_at": "2026-04-11T18:00:00+08:00"
+    "synced_at": "2026-04-12T12:00:00+08:00"
   },
   "changelog": [
+    {
+      "version": "2.6.0",
+      "date": "2026-04-12",
+      "summary": "Sync loom eacd989 -- Specs authority system. New rule (specs-authority.md) and guide (09-proposal-protocol.md). All 6 phase commands updated with specs/ integration (analyze creates specs, todos reads specs, implement anchors on specs, redteam audits specs, codify reads specs, wrapup lists specs). artifact-flow.md expanded with proposal lifecycle FSM.",
+      "changes": [
+        "NEW: rules/specs-authority.md -- 8 MUST rules for specs/ as single source of domain truth, path-scoped to specs/workspaces/briefs/plans/todos patterns",
+        "NEW: guides/co-setup/09-proposal-protocol.md -- upstream proposal protocol extracted from codify step 7/8, three-state lifecycle (pending_review/reviewed/distributed)",
+        "MODIFIED: commands/analyze.md -- new Step 5 Create specs/ (MUST before red team), Step 6 red team expanded with specs verification and brief traceability",
+        "MODIFIED: commands/todos.md -- Phase Check reads specs/_index.md (STOP if missing), todos MUST reference spec files, update specs on new contracts",
+        "MODIFIED: commands/implement.md -- Step 2 context anchoring rewritten: spec files read first, brief-staleness check added, Step 7 spec-verify + deviation check, Step 8 simplified",
+        "MODIFIED: commands/redteam.md -- specs/** added as PRIMARY audit source, specs-to-code FIELD-level verification, cross-spec consistency, brief-to-spec coverage",
+        "MODIFIED: commands/codify.md -- Step 2 reads specs/ for domain truth, Steps 7/8 rewritten to reference proposal protocol guide",
+        "MODIFIED: commands/wrapup.md -- specs/ added to free-context list (Domain specs)",
+        "MODIFIED: rules/artifact-flow.md -- Proposal Lifecycle section with FSM diagram, MUST append/archive rules, BLOCKED phrases for proposal overwrites"
+      ]
+    },
     {
       "version": "2.5.1",
       "date": "2026-04-11",
