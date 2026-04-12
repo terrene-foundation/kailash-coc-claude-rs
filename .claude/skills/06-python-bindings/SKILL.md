@@ -54,17 +54,28 @@ PyO3-based binding distributed as `pip install kailash-enterprise`. Import as `i
 
 ## v3.9.0 Binding Modules
 
-### align_serving (476 lines, always-on)
+### align_serving (1299 lines, feature-gated `align-serving`, enabled by default)
 
-Wraps `kailash-align-serving`. Uses `MockServingBackend` by default (llama.cpp backend requires C++ compilation).
+Wraps `kailash-align-serving`. 16 PyO3 types (PR #344). Uses `MockServingBackend` by default (llama.cpp backend requires C++ compilation).
 
-| Python class        | Rust type             | Purpose                                                                          |
-| ------------------- | --------------------- | -------------------------------------------------------------------------------- |
-| `SamplingParams`    | `PySamplingParams`    | Temperature, top_p, top_k, max_tokens, stop sequences                            |
-| `ModelInfo`         | `PyModelInfo`         | Model metadata (name, parameters, quantization)                                  |
-| `InferenceResponse` | `PyInferenceResponse` | Generated text, token count, timing                                              |
-| `AdapterMetadata`   | `PyAdapterMetadata`   | LoRA adapter info (rank, alpha, target modules)                                  |
-| `InferenceEngine`   | `PyInferenceEngine`   | Main engine: `load_model()`, `generate()`, `generate_stream()`, adapter hot-swap |
+| Python class            | Rust type                 | Purpose                                                                          |
+| ----------------------- | ------------------------- | -------------------------------------------------------------------------------- |
+| `SamplingParams`        | `PySamplingParams`        | Temperature, top_p, top_k, max_tokens, stop sequences, repetition penalty        |
+| `ModelInfo`             | `PyModelInfo`             | Model metadata (name, parameters, quantization)                                  |
+| `InferenceResponse`     | `PyInferenceResponse`     | Generated text, token count, timing, finish reason                               |
+| `AdapterMetadata`       | `PyAdapterMetadata`       | LoRA adapter info (rank, alpha, target modules, training method)                 |
+| `InferenceEngine`       | `PyInferenceEngine`       | Main engine: `load_model()`, `generate()`, `generate_stream()`, adapter hot-swap |
+| `InferenceRequest`      | `PyInferenceRequest`      | Request builder with prompt, sampling params, adapter selection                  |
+| `EngineConfig`          | `PyEngineConfig`          | Engine configuration (max concurrent, queue depth, timeouts)                     |
+| `ModelParams`           | `PyModelParams`           | Model loading parameters (path, context length, GPU layers)                      |
+| `AdapterId`             | `PyAdapterId`             | Unique adapter identifier (hashable, comparable)                                 |
+| `AdapterInfo`           | `PyAdapterInfo`           | Loaded adapter runtime info                                                      |
+| `InferenceTiming`       | `PyInferenceTiming`       | Timing breakdown (prompt eval, generation, total)                                |
+| `InferenceFinishReason` | `PyInferenceFinishReason` | Generation stop reason (length, stop sequence, end of text)                      |
+| `StreamToken`           | `PyStreamToken`           | Single streaming token with timing metadata                                      |
+| `TrainingMethod`        | `PyTrainingMethod`        | Fine-tuning method enum (LoRA, QLoRA, full)                                      |
+| `DefaultAdapterManager` | `PyDefaultAdapterManager` | Concurrent adapter registry (register, unload, list)                             |
+| `InFlightCounter`       | `PyInFlightCounter`       | In-flight request counter for backpressure                                       |
 
 Source: `bindings/kailash-python/src/align_serving.rs`
 
@@ -191,6 +202,47 @@ These patterns were discovered during the 392-to-667 type expansion and validate
 | `check_gradient_dereliction` with invalid zone string | Silent default to wrong zone                                                | Validate zone strings, return `PyValueError` on unknown                       |
 | `align-serving` not in default features               | Types compile but missing from wheel at runtime                             | Add `align-serving` to default features in `Cargo.toml`                       |
 | GIL-holding `block_on` for async Rust                 | Acceptable for fast ops (<1ms), deadlocks on I/O                            | Use `py.allow_threads(\|\| ...)` for any network/disk I/O                     |
+
+## ML Python Bindings
+
+126 estimator classes + 30 functions wrapping `kailash-ml`. Feature-gated behind `ml` (enabled by default).
+
+| Item               | Value                                                  |
+| ------------------ | ------------------------------------------------------ |
+| **Rust source**    | `bindings/kailash-python/src/ml/mod.rs` (11,010 lines) |
+| **Python package** | `python/kailash/ml/__init__.py`                        |
+| **Import pattern** | `from kailash._kailash import ...`                     |
+| **PyO3 module**    | `kailash.ml`                                           |
+
+### Module Coverage
+
+| Submodule         | Category                                              |
+| ----------------- | ----------------------------------------------------- |
+| `linear_model`    | Linear/logistic regression, ridge, lasso, elastic net |
+| `tree`            | Decision trees (classification + regression)          |
+| `ensemble`        | Random forest, bagging, extra trees                   |
+| `boost`           | Gradient boosting, AdaBoost, XGBoost-style            |
+| `svm`             | Support vector machines (classification + regression) |
+| `neighbors`       | KNN, radius neighbors                                 |
+| `cluster`         | K-means, DBSCAN, agglomerative, spectral              |
+| `decomposition`   | PCA, SVD, NMF                                         |
+| `preprocessing`   | Scalers, encoders, normalizers, imputers              |
+| `naive_bayes`     | Gaussian, multinomial, Bernoulli NB                   |
+| `neural`          | MLP classifier/regressor                              |
+| `text`            | TF-IDF, count vectorizer, text transformers           |
+| `pipeline`        | Pipeline composition, feature unions                  |
+| `model_selection` | Cross-validation, train/test split, grid search       |
+| `metrics`         | Classification, regression, clustering metrics        |
+
+### Usage
+
+```python
+from kailash.ml import LinearRegression, StandardScaler, Pipeline
+
+scaler = StandardScaler()
+model = LinearRegression()
+pipe = Pipeline([("scaler", scaler), ("model", model)])
+```
 
 ## Skill Files
 

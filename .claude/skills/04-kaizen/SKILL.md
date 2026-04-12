@@ -79,6 +79,27 @@ from kailash.kaizen import SupervisorAgent, WorkerAgent
 from kailash.kaizen import ObservabilityManager, MetricsCollector
 ```
 
+## Ontology Module (feature: `ontology`)
+
+Embedding-backed concept classification via `OntologyRegistry`. Feature-gated behind `ontology` in `kailash-kaizen`.
+
+| Type                    | Purpose                                            |
+| ----------------------- | -------------------------------------------------- |
+| `OntologyRegistry`      | Main registry: load YAML seeds, classify text      |
+| `EmbeddingProvider`     | Trait for embedding models (OpenAI, local, mock)   |
+| `MockEmbeddingProvider` | Deterministic mock for testing                     |
+| `Namespace`             | Named concept collection with SHA-256 version hash |
+| `Concept`               | Classification target with optional exemplar texts |
+| `ClassificationResult`  | Top match with confidence score                    |
+| `ConceptMatch`          | Single concept match (label, similarity)           |
+| `ConceptEvaluation`     | Batch evaluation result                            |
+| `EvaluationReport`      | Precision/recall/F1 evaluation harness output      |
+| `OntologyConfig`        | Registry configuration                             |
+
+Key operations: `classify(text)`, `classify_batch(texts)`, cosine similarity (in-crate, no external deps), YAML seed parsing.
+
+Source: `crates/kailash-kaizen/src/ontology/` (6 files: `mod.rs`, `registry.rs`, `provider.rs`, `similarity.rs`, `types.rs`, `error.rs`)
+
 ## Specialist
 
 For complex queries beyond these skills, use the **kaizen-specialist** agent.

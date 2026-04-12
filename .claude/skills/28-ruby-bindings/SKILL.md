@@ -3,18 +3,21 @@ name: ruby-bindings
 description: "Magnus Ruby binding patterns for Kailash Rust SDK. Use when asking about 'Ruby binding', 'Magnus', 'rb-sys', 'gem kailash', 'Ruby wrapper', 'GVL release', or 'block-based lifecycle'."
 ---
 
-# Ruby Bindings -- Quick Reference
+# Ruby Bindings — Quick Reference
 
 Magnus-based binding distributed as `kailash` gem. Uses block-based resource lifecycle with GVL release for concurrent execution.
 
 ## Key Facts
 
-| Item              | Value                                   |
-| ----------------- | --------------------------------------- |
-| **Gem name**      | `kailash`                               |
-| **Require**       | `require 'kailash'`                     |
-| **FFI framework** | Magnus 0.8 / rb-sys 0.9                 |
-| **Library type**  | cdylib (.bundle on macOS, .so on Linux) |
+| Item              | Value                                    |
+| ----------------- | ---------------------------------------- |
+| **Gem name**      | `kailash`                                |
+| **Require**       | `require 'kailash'`                      |
+| **Rust crate**    | `bindings/kailash-ruby/`                 |
+| **FFI framework** | Magnus 0.8 / rb-sys `>=0.9.113,<0.9.121` |
+| **Library type**  | cdylib (.bundle on macOS, .so on Linux)  |
+
+> **Known Issue (PR #349):** rb-sys must be pinned to `>=0.9.113,<0.9.121` in `bindings/kailash-ruby/Cargo.toml`. Versions 0.9.121+ introduced a breaking change. Both `[dependencies]` and `[build-dependencies]` entries carry this pin with the `stable-api` feature.
 
 ## Block-Based Lifecycle
 
@@ -55,7 +58,7 @@ end
 
 ## v3.9.0 Binding Modules
 
-### audit_log
+### audit_log (314 lines)
 
 Wraps `kailash-core::audit_log`. Immutable, hash-chained audit log with chain verification.
 
@@ -66,7 +69,9 @@ Wraps `kailash-core::audit_log`. Immutable, hash-chained audit log with chain ve
 | `Kailash::AuditLog`                | Append-only log: `append()`, `entries()`, `verify_chain()`  |
 | `Kailash::ChainVerificationResult` | Verification outcome with `valid?` and `errors`             |
 
-### event_bus
+Source: `bindings/kailash-ruby/ext/kailash/src/audit_log.rs`
+
+### event_bus (154 lines)
 
 Wraps `kailash-core::event_bus`. In-memory pub/sub for domain events.
 
@@ -75,7 +80,9 @@ Wraps `kailash-core::event_bus`. In-memory pub/sub for domain events.
 | `Kailash::DomainEvent`      | Structured event (id, event_type, topic, actor, payload) |
 | `Kailash::InMemoryEventBus` | Publish/subscribe: `publish()`, `subscribe()`, `drain()` |
 
-### telemetry
+Source: `bindings/kailash-ruby/ext/kailash/src/event_bus.rs`
+
+### telemetry (262 lines)
 
 Wraps `kailash-core::telemetry`. OpenTelemetry configuration and atomic metrics counters.
 
@@ -84,6 +91,24 @@ Wraps `kailash-core::telemetry`. OpenTelemetry configuration and atomic metrics 
 | `Kailash::ExporterType`     | Protocol selection: `otlp`, `jaeger`, `stdout`              |
 | `Kailash::TracingConfig`    | OTLP config: endpoint, service name, sample ratio, exporter |
 | `Kailash::TelemetryMetrics` | Atomic counters: `increment()`, `get()`, `reset()`, `all()` |
+
+Source: `bindings/kailash-ruby/ext/kailash/src/telemetry.rs`
+
+### convergence (platform-architecture-convergence)
+
+Cross-cutting SPEC types under `Kailash::Convergence`. 7 types wrapping EATP posture, auth, provider capabilities, and audit primitives.
+
+| Ruby class                                 | Rust source type                     | SPEC    |
+| ------------------------------------------ | ------------------------------------ | ------- |
+| `Kailash::Convergence::PostureLevel`       | `eatp::types::PostureLevel`          | SPEC-07 |
+| `Kailash::Convergence::AgentPosture`       | `kailash_kaizen::AgentPosture`       | SPEC-07 |
+| `Kailash::Convergence::EatpJwtClaims`      | `eatp::types::EatpJwtClaims`         | SPEC-06 |
+| `Kailash::Convergence::ProviderCapability` | `kailash_kaizen::ProviderCapability` | SPEC-01 |
+| `Kailash::Convergence::AuditOutcome`       | `kailash_enterprise::AuditOutcome`   | SPEC-08 |
+| `Kailash::Convergence::AuditActor`         | `kailash_enterprise::AuditActor`     | SPEC-08 |
+| `Kailash::Convergence::AuditResource`      | `kailash_enterprise::AuditResource`  | SPEC-08 |
+
+Source: `bindings/kailash-ruby/ext/kailash/src/convergence.rs`
 
 ## Skill Files
 
@@ -99,6 +124,6 @@ Wraps `kailash-core::telemetry`. OpenTelemetry configuration and atomic metrics 
 
 ## Related
 
-- **align-specialist** agent -- Inference serving patterns
-- **testing-specialist** agent -- Ruby binding test strategies
-- **gold-standards-validator** agent -- Naming and licensing compliance
+- **ruby-binding** agent — Magnus implementation specialist
+- **ruby-pattern-expert** agent — Debugging Magnus errors
+- **ruby-gold-standards** agent — Ruby binding compliance validation
