@@ -1,16 +1,29 @@
 {
-  "version": "2.6.0",
+  "version": "2.7.0",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
-  "released": "2026-04-12",
+  "released": "2026-04-13",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.0",
-    "build_version": "3.12.0",
-    "synced_at": "2026-04-12T12:00:00+08:00"
+    "version": "2.8.1",
+    "build_version": "3.15.1",
+    "synced_at": "2026-04-13T00:00:00+08:00"
   },
   "changelog": [
+    {
+      "version": "2.7.0",
+      "date": "2026-04-13",
+      "summary": "Sync loom 2.8.1 / kailash-rs 3.15.1 — R1+R3 security patterns. 3 new Rust security sub-skills (constant-time comparison, fail-closed defaults, network transport hardening). Updated 18-security-patterns SKILL.md variant with Rust-Specific Sub-Files table + H1-H6 Red Team patterns. rules/security.md upgraded from old global to new rs variant (restores Credential Decode Helpers Python section AND adds 3 Rust MUST clauses). SDK pin kailash-enterprise 3.12.0->3.15.1.",
+      "changes": [
+        "NEW: skills/18-security-patterns/constant-time-comparison-rs.md — bitwise-OR credential loops, shared kailash-auth helper, .any() anti-pattern, audit grep. Origin: journal 0021-RISK-r3-timing-leak-mcp-auth.md, fixed in commit 173d054b.",
+        "NEW: skills/18-security-patterns/fail-closed-defaults-rs.md — 5 canonical examples: thread-local clearance default, registry reject-duplicates, 0o600 file permissions, allowlist path loading, unsafe Send/Sync invariant enforcement. Origin: journal 0018, PR #334.",
+        "NEW: skills/18-security-patterns/network-security-rs.md — DNS rebinding guard on HTTP MCP, stdio argv/env allowlist, log content fingerprinting. Origin: R3 commits 173d054b, 0d4ebd12.",
+        "UPDATED: skills/18-security-patterns/SKILL.md — Rust-Specific Sub-Files table, H1-H6 Red Team Security Patterns section with Rust code.",
+        "UPDATED: rules/security.md — 3 new MUST clauses (Rust: Credential Comparison, Rust: Fail-Closed Security Defaults, Rust: Network Transport Hardening) + restored Credential Decode Helpers Python section that had drifted from loom global.",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.12.0->3.15.1."
+      ]
+    },
     {
       "version": "2.6.0",
       "date": "2026-04-12",
