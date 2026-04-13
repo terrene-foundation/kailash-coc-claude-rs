@@ -127,11 +127,11 @@ All user-generated content MUST be encoded before display in HTML templates, JSO
 
 ## Rust: Credential Comparison (MUST)
 
-Every credential / token / HMAC / API key comparison in Rust code MUST use `kailash_auth::validate_token_against_list` (list) or `kailash_auth::constant_time_eq` (single) — NEVER `==`, NEVER `.any()` over a constant-time inner comparison.
+Every credential / token / HMAC / API key comparison in Rust code MUST use `kailash_auth::api_key::ApiKeyConfig::validate_key` (list) or `kailash_auth::constant_time_eq` (single) — NEVER `==`, NEVER `.any()` over a constant-time inner comparison.
 
 ```rust
 // DO — single helper, always walks full list
-let ok = kailash_auth::validate_token_against_list(token, valid_keys);
+let ok = kailash_auth::api_key::ApiKeyConfig::validate_key(token, valid_keys);
 
 // DO NOT — .any() short-circuits, leaks match position via timing
 let ok = valid_keys.iter().any(|k| constant_time_eq(token, k));

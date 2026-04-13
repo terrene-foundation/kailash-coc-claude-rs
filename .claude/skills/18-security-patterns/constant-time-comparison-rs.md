@@ -28,26 +28,36 @@ fn validate_api_key(token: &str, valid_keys: &[String]) -> bool {
 
 ## The Helper
 
-The canonical helper lives in `kailash-auth/src/api_key.rs:116-121`. Every Rust crate that validates credentials MUST route through this helper, not re-implement it.
+The canonical helper lives in `kailash-auth/src/api_key.rs:114` as a method on `ApiKeyConfig`. Every Rust crate that validates credentials MUST route through this helper, not re-implement it.
 
 ```rust
-// kailash-auth/src/api_key.rs (canonical)
-pub fn validate_token_against_list(token: &str, valid: &[impl AsRef<str>]) -> bool {
-    let mut found = false;
-    for v in valid {
-        found |= constant_time_eq(token, v.as_ref());
+// kailash-auth/src/api_key.rs:114 (canonical, exact)
+impl ApiKeyConfig {
+    /// Returns true if the given key matches any valid key hash
+    /// using constant-time comparison.
+    pub fn validate_key(&self, key: &str) -> bool {
+        let incoming_hash = sha256_hash(key.as_bytes());
+        let mut found = 0u8;
+        for stored in &self.valid_key_hashes {
+            found |= u8::from(bool::from(incoming_hash.ct_eq(stored)));
+        }
+        found != 0
     }
-    found
 }
 ```
 
-**Why a single helper**: the R3 finding was a duplicate implementation drift. `kailash-nexus/src/mcp/auth.rs` had its own `constant_time_eq` and its own validation loop. The duplicate was "correct" in isolation but had the `.any()` bug. A single helper is the only audit point that survives refactors.
+Two invariants enforce constant-time behavior:
+
+1. **Bitwise OR accumulation** — the loop walks the FULL `valid_key_hashes` list every call, OR-ing `ct_eq` results into `found`. No early return, no `.any()`.
+2. **Hash-then-compare** — the incoming key is hashed before comparison; stored `valid_key_hashes` are SHA-256 hashes (not raw keys). This prevents length-based side-channels and protects the stored key material at rest.
+
+**Why a single helper**: the R3 finding was a duplicate implementation drift. `kailash-nexus/src/mcp/auth.rs` had its own constant-time comparison and its own validation loop. The duplicate was "correct" in isolation but had the `.any()` bug. A single helper is the only audit point that survives refactors.
 
 ## Enforcement Checklist
 
 Before adding any credential / token / HMAC comparison to a Rust crate:
 
-1. **Use `kailash_auth::validate_token_against_list`** for list comparisons.
+1. **Use `kailash_auth::api_key::ApiKeyConfig::validate_key`** for list comparisons, NOT `.any()` over an inner constant-time helper.
 2. **Use `subtle::ConstantTimeEq`** (via `kailash_auth::constant_time_eq`) for single comparisons — NOT `==` on `&str`, `&[u8]`, or `String`.
 3. **Never short-circuit** a credential loop via `.any()`, `.find()`, `.position()`, or early `return true`.
 4. **Add a regression test** in `tests/regression/` that asserts the loop walks the full list. Test pattern:
@@ -58,9 +68,9 @@ Before adding any credential / token / HMAC comparison to a Rust crate:
        // First key matches; verify full list still walked by asserting
        // behavior on a list where later entries are invalid patterns.
        let valid = vec!["match".to_string(), "".to_string(), "x".to_string()];
-       assert!(validate_token_against_list("match", &valid));
+       assert!(validate_key("match", &valid));
        // Timing-invariant: same function also returns false for non-match
-       assert!(!validate_token_against_list("nope", &valid));
+       assert!(!validate_key("nope", &valid));
    }
    ```
 
