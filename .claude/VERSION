@@ -1,16 +1,24 @@
 {
-  "version": "2.8.0",
+  "version": "2.8.1",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-13",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.5",
+    "version": "2.8.2",
     "build_version": "3.15.2",
     "synced_at": "2026-04-13T00:00:00+08:00"
   },
   "changelog": [
+    {
+      "version": "2.8.1",
+      "date": "2026-04-13",
+      "summary": "Enforce high effort + disable adaptive thinking in project settings.",
+      "changes": [
+        "SETTINGS: effortLevel: high + CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1."
+      ]
+    },
     {
       "version": "2.8.0",
       "date": "2026-04-13",
@@ -58,10 +66,10 @@
     {
       "version": "2.5.1",
       "date": "2026-04-11",
-      "summary": "Sync loom \u2014 Python hygiene rules from kailash-py arbor session. Applies to rs template because Python/Ruby devs consuming Rust bindings hit the same pyenv shim and monorepo editable-install traps. No rs-specific variant overlay.",
+      "summary": "Sync loom — Python hygiene rules from kailash-py arbor session. Applies to rs template because Python/Ruby devs consuming Rust bindings hit the same pyenv shim and monorepo editable-install traps. No rs-specific variant overlay.",
       "changes": [
-        "MODIFIED: rules/python-environment.md \u2014 MUST Rule 1: bare python/python3/pytest BLOCKED, must use .venv/bin/python or uv run (pyenv shim trap rediscovered in kailash-py arbor session). MUST Rule 2: monorepo packages/*/pyproject.toml must be editable-installed, PYTHONPATH workaround BLOCKED.",
-        "MODIFIED: rules/infrastructure-sql.md \u2014 \u00a78 rewritten as MUST: adapter classes wrapping optional drivers must import driver inside connect(), top-level import BLOCKED. Added \u00a78a: regression test for lazy-import required. Applies to any Python adapter in downstream projects built on Rust bindings."
+        "MODIFIED: rules/python-environment.md — MUST Rule 1: bare python/python3/pytest BLOCKED, must use .venv/bin/python or uv run (pyenv shim trap rediscovered in kailash-py arbor session). MUST Rule 2: monorepo packages/*/pyproject.toml must be editable-installed, PYTHONPATH workaround BLOCKED.",
+        "MODIFIED: rules/infrastructure-sql.md — §8 rewritten as MUST: adapter classes wrapping optional drivers must import driver inside connect(), top-level import BLOCKED. Added §8a: regression test for lazy-import required. Applies to any Python adapter in downstream projects built on Rust bindings."
       ]
     },
     {
@@ -95,17 +103,17 @@
     {
       "version": "2.4.0",
       "date": "2026-04-08",
-      "summary": "Sync loom 2.7.0 \u2014 Framework mandate enforcement wave. New rules: observability.md, schema-migration.md (global \u2014 no rs variant). Extended: framework-first.md (rs variant, Python anti-patterns), zero-tolerance.md (rs variant, warnings scope), dependencies.md, dataflow-pool.md, infrastructure-sql.md. New hooks: integration-hygiene.js, log-triage-gate.js. 8 framework agent descriptions rewritten (5 global, 2 rs-variant: kaizen, nexus, + align/ml rs variants). 8 SKILL.md descriptions rewritten. Updated: reviewer.md, testing-specialist.md, implement.md, redteam.md.",
+      "summary": "Sync loom 2.7.0 — Framework mandate enforcement wave. New rules: observability.md, schema-migration.md (global — no rs variant). Extended: framework-first.md (rs variant, Python anti-patterns), zero-tolerance.md (rs variant, warnings scope), dependencies.md, dataflow-pool.md, infrastructure-sql.md. New hooks: integration-hygiene.js, log-triage-gate.js. 8 framework agent descriptions rewritten (5 global, 2 rs-variant: kaizen, nexus, + align/ml rs variants). 8 SKILL.md descriptions rewritten. Updated: reviewer.md, testing-specialist.md, implement.md, redteam.md.",
       "changes": [
-        "NEW: rules/observability.md \u2014 mandatory structured log points (global, Python-flavored for rs USE template)",
-        "NEW: rules/schema-migration.md \u2014 numbered migrations requirement (global)",
-        "EXTENDED: rules/framework-first.md \u2014 rs variant updated: work-domain binding table, specialist consultation",
-        "EXTENDED: rules/dependencies.md \u2014 declared=imported section",
-        "EXTENDED: rules/dataflow-pool.md \u2014 reachability check requirement",
-        "EXTENDED: rules/infrastructure-sql.md \u2014 scope note for DataFlow consumers",
-        "NEW: scripts/hooks/integration-hygiene.js \u2014 PostToolUse detector",
-        "NEW: scripts/hooks/log-triage-gate.js \u2014 Stop hook log scanner",
-        "UPDATED: settings.json \u2014 registered new hooks",
+        "NEW: rules/observability.md — mandatory structured log points (global, Python-flavored for rs USE template)",
+        "NEW: rules/schema-migration.md — numbered migrations requirement (global)",
+        "EXTENDED: rules/framework-first.md — rs variant updated: work-domain binding table, specialist consultation",
+        "EXTENDED: rules/dependencies.md — declared=imported section",
+        "EXTENDED: rules/dataflow-pool.md — reachability check requirement",
+        "EXTENDED: rules/infrastructure-sql.md — scope note for DataFlow consumers",
+        "NEW: scripts/hooks/integration-hygiene.js — PostToolUse detector",
+        "NEW: scripts/hooks/log-triage-gate.js — Stop hook log scanner",
+        "UPDATED: settings.json — registered new hooks",
         "DESCRIPTION REWRITE: 8 framework agents (5 global + kaizen-specialist rs + nexus-specialist rs)",
         "DESCRIPTION REWRITE: 8 SKILL.md files",
         "UPDATED: reviewer.md, testing-specialist.md, implement.md, redteam.md"
@@ -114,28 +122,28 @@
     {
       "version": "2.3.5",
       "date": "2026-04-08",
-      "summary": "Sync loom 2.6.2 \u2014 /redteam spec compliance + /deploy hygiene + Rust leak fix. Key change for rs USE template: variants/rs/rules/testing.md REWRITTEN to be fully Python/Ruby binding-flavored (was 'Rust SDK + Python Bindings' framing with FFI/serde rationale; now 'Python bindings to kailash-rs' with binding-boundary rationale). USE template users write Python and Ruby \u2014 they consume kailash-rs through bindings, they do not write Rust.",
+      "summary": "Sync loom 2.6.2 — /redteam spec compliance + /deploy hygiene + Rust leak fix. Key change for rs USE template: variants/rs/rules/testing.md REWRITTEN to be fully Python/Ruby binding-flavored (was 'Rust SDK + Python Bindings' framing with FFI/serde rationale; now 'Python bindings to kailash-rs' with binding-boundary rationale). USE template users write Python and Ruby — they consume kailash-rs through bindings, they do not write Rust.",
       "changes": [
-        "REWRITE: variants/rs/rules/testing.md \u2014 title 'Python bindings to kailash-rs' (was 'Rust SDK + Python Bindings'). Removed `use kaizen_agents::wrapper_base` Rust syntax. All examples now Python pytest / Python module imports. Tier 2 rationale rephrased from 'FFI boundary' to 'binding boundary'.",
-        "NEW: skills/spec-compliance/SKILL.md \u2014 Python-only 9-check verification protocol (no Rust syntax leak).",
-        "REWRITE: commands/redteam.md \u2014 semantic verification protocol, language-agnostic test enumeration phrasing.",
-        "UPDATE: rules/testing.md \u2014 added \u00a7 Audit Mode Rules (Python pytest only, no cargo).",
-        "REWRITE: commands/deploy.md \u2014 config-driven onboard/execute/check modes, 10-step checklist.",
-        "NEW: rules/deploy-hygiene.md \u2014 6-level failure model, infrastructure-only paths.",
-        "NEW: skills/10-deployment-git/application-deployment.md \u2014 deployment-config.md schema + Vite/Docker/Next.js frontend patterns.",
-        "UPDATE: commands/wrapup.md \u2014 4-state deploy classification.",
-        "UPDATE: agents/analysis/analyst.md and testing/testing-specialist.md \u2014 /redteam ownership.",
+        "REWRITE: variants/rs/rules/testing.md — title 'Python bindings to kailash-rs' (was 'Rust SDK + Python Bindings'). Removed `use kaizen_agents::wrapper_base` Rust syntax. All examples now Python pytest / Python module imports. Tier 2 rationale rephrased from 'FFI boundary' to 'binding boundary'.",
+        "NEW: skills/spec-compliance/SKILL.md — Python-only 9-check verification protocol (no Rust syntax leak).",
+        "REWRITE: commands/redteam.md — semantic verification protocol, language-agnostic test enumeration phrasing.",
+        "UPDATE: rules/testing.md — added § Audit Mode Rules (Python pytest only, no cargo).",
+        "REWRITE: commands/deploy.md — config-driven onboard/execute/check modes, 10-step checklist.",
+        "NEW: rules/deploy-hygiene.md — 6-level failure model, infrastructure-only paths.",
+        "NEW: skills/10-deployment-git/application-deployment.md — deployment-config.md schema + Vite/Docker/Next.js frontend patterns.",
+        "UPDATE: commands/wrapup.md — 4-state deploy classification.",
+        "UPDATE: agents/analysis/analyst.md and testing/testing-specialist.md — /redteam ownership.",
         "LANGUAGE MAPPING: sync-manifest.yaml header documents that rs USE template serves Python/Ruby binding consumers, NOT Rust developers."
       ]
     },
     {
       "version": "2.3.4",
       "date": "2026-04-08",
-      "summary": "Fix USE template rule scoping \u2014 restore Python paths, add **/*.py to framework-first.md",
+      "summary": "Fix USE template rule scoping — restore Python paths, add **/*.py to framework-first.md",
       "changes": [
-        "REVERTED: rules/env-models.md \u2014 restored global Python paths (**/*.py, **/*.ts, **/*.js, .env*) and dotenv examples",
-        "REVERTED: rules/patterns.md \u2014 removed **/*.rs (USE template users write Python, not Rust)",
-        "FIX: rules/framework-first.md \u2014 added **/*.py (pre-existing bug: was **/*.rs only, Python binding devs never saw framework guidance)"
+        "REVERTED: rules/env-models.md — restored global Python paths (**/*.py, **/*.ts, **/*.js, .env*) and dotenv examples",
+        "REVERTED: rules/patterns.md — removed **/*.rs (USE template users write Python, not Rust)",
+        "FIX: rules/framework-first.md — added **/*.py (pre-existing bug: was **/*.rs only, Python binding devs never saw framework guidance)"
       ]
     },
     {
@@ -147,65 +155,65 @@
     {
       "version": "2.3.2",
       "date": "2026-04-08",
-      "summary": "REVERT 2.3.1: restore `paths:` frontmatter on 9 rule files (5 global + 4 rs variant). Previous diagnosis was wrong \u2014 Claude Code path-scoped rules load ONCE on first matching read and stay sticky, NOT per tool call. Stripping `paths:` moved rules into the always-on baseline (~5500 tokens per stripped large rule), increasing session cost. Verified empirically via subprocess tests + Claude Code official docs (`code.claude.com/docs/en/memory`: 'Path-scoped rules trigger when Claude reads files matching the pattern, not on every tool use').",
+      "summary": "REVERT 2.3.1: restore `paths:` frontmatter on 9 rule files (5 global + 4 rs variant). Previous diagnosis was wrong — Claude Code path-scoped rules load ONCE on first matching read and stay sticky, NOT per tool call. Stripping `paths:` moved rules into the always-on baseline (~5500 tokens per stripped large rule), increasing session cost. Verified empirically via subprocess tests + Claude Code official docs (`code.claude.com/docs/en/memory`: 'Path-scoped rules trigger when Claude reads files matching the pattern, not on every tool use').",
       "changes": [
-        "RESTORED (global): rules/agent-reasoning.md \u2014 paths: **/kaizen/**, **/*agent*, **/agents/**",
-        "RESTORED (global): rules/artifact-flow.md \u2014 paths: .claude/**, sync-manifest.yaml, **/VERSION, *.md",
-        "RESTORED (global): rules/env-models.md \u2014 paths: **/*.py, **/*.ts, **/*.js, .env*",
-        "RESTORED (global): rules/python-environment.md \u2014 paths: **/*.py, pyproject.toml, conftest.py, tests/**",
-        "RESTORED (global): rules/terrene-naming.md \u2014 paths: **/*.md, **/README*, **/LICENSE*, **/CLAUDE.md",
-        "RESTORED (rs variant): rules/build-speed.md \u2014 paths: **/*.rs, **/*.toml, **/Cargo.lock",
-        "RESTORED (rs variant): rules/framework-first.md \u2014 paths: **/*.rs",
-        "RESTORED (rs variant): rules/patterns.md \u2014 paths: **/*.py, **/*.ts, **/*.js",
-        "RESTORED (rs variant): rules/testing.md \u2014 paths: tests/**, **/*test*, **/*spec*, conftest.py",
+        "RESTORED (global): rules/agent-reasoning.md — paths: **/kaizen/**, **/*agent*, **/agents/**",
+        "RESTORED (global): rules/artifact-flow.md — paths: .claude/**, sync-manifest.yaml, **/VERSION, *.md",
+        "RESTORED (global): rules/env-models.md — paths: **/*.py, **/*.ts, **/*.js, .env*",
+        "RESTORED (global): rules/python-environment.md — paths: **/*.py, pyproject.toml, conftest.py, tests/**",
+        "RESTORED (global): rules/terrene-naming.md — paths: **/*.md, **/README*, **/LICENSE*, **/CLAUDE.md",
+        "RESTORED (rs variant): rules/build-speed.md — paths: **/*.rs, **/*.toml, **/Cargo.lock",
+        "RESTORED (rs variant): rules/framework-first.md — paths: **/*.rs",
+        "RESTORED (rs variant): rules/patterns.md — paths: **/*.py, **/*.ts, **/*.js",
+        "RESTORED (rs variant): rules/testing.md — paths: tests/**, **/*test*, **/*spec*, conftest.py",
         "NOTE: Wide patterns are restored as-is (per user direction). Narrowing is a separate refinement task."
       ]
     },
     {
       "version": "2.3.1",
       "date": "2026-04-08",
-      "summary": "[REVERTED in 2.3.2] fix(rules): strip broad path matchers \u2014 based on incorrect diagnosis. See 2.3.2 for evidence and revert.",
+      "summary": "[REVERTED in 2.3.2] fix(rules): strip broad path matchers — based on incorrect diagnosis. See 2.3.2 for evidence and revert.",
       "changes": [
-        "UPDATED: rules/patterns.md, env-models.md, framework-first.md, python-environment.md, terrene-naming.md, artifact-flow.md, agent-reasoning.md, testing.md, build-speed.md \u2014 removed broad `paths:` frontmatter",
-        "NEW: rules/build-speed.md \u2014 was missing from template (rs variant addition), now synced",
-        "UPDATED: scripts/hooks/session-start.js \u2014 session notes inject as pointer lines only (was dumping ~12KB per session)",
-        "UPDATED: scripts/hooks/user-prompt-rules-reminder.js \u2014 removed redundant zero-tolerance block and keyword-triggered reminders (already covered by always-on rules)",
+        "UPDATED: rules/patterns.md, env-models.md, framework-first.md, python-environment.md, terrene-naming.md, artifact-flow.md, agent-reasoning.md, testing.md, build-speed.md — removed broad `paths:` frontmatter",
+        "NEW: rules/build-speed.md — was missing from template (rs variant addition), now synced",
+        "UPDATED: scripts/hooks/session-start.js — session notes inject as pointer lines only (was dumping ~12KB per session)",
+        "UPDATED: scripts/hooks/user-prompt-rules-reminder.js — removed redundant zero-tolerance block and keyword-triggered reminders (already covered by always-on rules)",
         "IMPACT: eliminates per-tool-call rule re-injection that was pushing sessions to 200-300K tokens within dozens of file reads"
       ]
     },
     {
       "version": "2.3.0",
       "date": "2026-04-07",
-      "summary": "Gate 2 sync rs v3.12.0 \u2014 12 rs variant updates (binding scale 667 types, ML crate refresh, Nexus Rust patterns) + SDK pin 3.10.0->3.12.0",
+      "summary": "Gate 2 sync rs v3.12.0 — 12 rs variant updates (binding scale 667 types, ML crate refresh, Nexus Rust patterns) + SDK pin 3.10.0->3.12.0",
       "changes": [
-        "UPDATED: variants/rs/skills/34-kailash-ml/SKILL.md \u2014 20-crate workspace, 90+ estimators, ModelExplainer, AutoML",
-        "UPDATED: variants/rs/skills/06-python-bindings/SKILL.md \u2014 v3.12.0 binding scale (667 pyclass types, 27 pyfunctions, expanded module table)",
-        "UPDATED: variants/rs/agents/frameworks/nexus-specialist.md \u2014 Rust-native rewrite (route endpoints, auth guards, scheduled tasks, monitoring)",
-        "NEW: variants/rs/rules/agents.md \u2014 first rs variant of agents rule (worktree isolation, binding parity check)",
-        "UPDATED: variants/rs/skills/03-nexus/nexus-handler-support.md \u2014 Rust handler patterns",
-        "UPDATED: variants/rs/skills/05-kailash-mcp/mcp-transports.md \u2014 Rust MCP transport patterns",
-        "UPDATED: variants/rs/skills/06-cheatsheets/node-initialization.md \u2014 Rust node init patterns",
-        "UPDATED: variants/rs/skills/06-cheatsheets/asyncsql-advanced.md \u2014 sqlx async patterns",
-        "UPDATED: variants/rs/skills/07-development-guides/production-deployment-guide.md \u2014 Rust deployment patterns",
-        "UPDATED: variants/rs/skills/07-development-guides/workflow-creation-guide.md \u2014 Rust workflow construction",
-        "UPDATED: variants/rs/skills/07-development-guides/mcp-development.md \u2014 Rust MCP development",
-        "UPDATED: variants/rs/skills/07-development-guides/regression-testing.md \u2014 Rust regression test patterns",
-        "UPDATED: pyproject.toml \u2014 SDK pin kailash-enterprise 3.10.0->3.12.0"
+        "UPDATED: variants/rs/skills/34-kailash-ml/SKILL.md — 20-crate workspace, 90+ estimators, ModelExplainer, AutoML",
+        "UPDATED: variants/rs/skills/06-python-bindings/SKILL.md — v3.12.0 binding scale (667 pyclass types, 27 pyfunctions, expanded module table)",
+        "UPDATED: variants/rs/agents/frameworks/nexus-specialist.md — Rust-native rewrite (route endpoints, auth guards, scheduled tasks, monitoring)",
+        "NEW: variants/rs/rules/agents.md — first rs variant of agents rule (worktree isolation, binding parity check)",
+        "UPDATED: variants/rs/skills/03-nexus/nexus-handler-support.md — Rust handler patterns",
+        "UPDATED: variants/rs/skills/05-kailash-mcp/mcp-transports.md — Rust MCP transport patterns",
+        "UPDATED: variants/rs/skills/06-cheatsheets/node-initialization.md — Rust node init patterns",
+        "UPDATED: variants/rs/skills/06-cheatsheets/asyncsql-advanced.md — sqlx async patterns",
+        "UPDATED: variants/rs/skills/07-development-guides/production-deployment-guide.md — Rust deployment patterns",
+        "UPDATED: variants/rs/skills/07-development-guides/workflow-creation-guide.md — Rust workflow construction",
+        "UPDATED: variants/rs/skills/07-development-guides/mcp-development.md — Rust MCP development",
+        "UPDATED: variants/rs/skills/07-development-guides/regression-testing.md — Rust regression test patterns",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.10.0->3.12.0"
       ]
     },
     {
       "version": "2.2.0",
       "date": "2026-04-07",
-      "summary": "Gate 1 rs v3.11.0 \u2014 Nexus parity (#233-237) implemented, rs variants for nexus-specialist + audit findings",
+      "summary": "Gate 1 rs v3.11.0 — Nexus parity (#233-237) implemented, rs variants for nexus-specialist + audit findings",
       "changes": [
-        "NEW: variants/rs/agents/frameworks/nexus-specialist.md \u2014 Rust-native rewrite (route endpoints, auth guards, scheduled tasks, event convenience, monitoring config)",
-        "NEW: variants/rs/agents/release/release-specialist.md \u2014 Rust toolchain (cargo fmt/test/publish) instead of Python (ruff/pytest/twine)",
-        "NEW: variants/rs/skills/07-development-guides/production-testing.md \u2014 Rust test patterns (#[test], cargo nextest, criterion)",
+        "NEW: variants/rs/agents/frameworks/nexus-specialist.md — Rust-native rewrite (route endpoints, auth guards, scheduled tasks, event convenience, monitoring config)",
+        "NEW: variants/rs/agents/release/release-specialist.md — Rust toolchain (cargo fmt/test/publish) instead of Python (ruff/pytest/twine)",
+        "NEW: variants/rs/skills/07-development-guides/production-testing.md — Rust test patterns (#[test], cargo nextest, criterion)",
         "MANIFEST: nexus-specialist py+rs variant declarations added",
         "MANIFEST: release-specialist rs variant declaration added",
         "MANIFEST: production-testing rs variant declaration added",
         "ADDRESSED: 8 of 10 audit findings already had rs variants from earlier Nexus restructuring",
-        "SDK PARITY: All 5 issues (#233-237) closed in kailash-rs \u2014 NexusConfig, route endpoints, event convenience, auth guards, monitoring/sessions"
+        "SDK PARITY: All 5 issues (#233-237) closed in kailash-rs — NexusConfig, route endpoints, event convenience, auth guards, monitoring/sessions"
       ]
     },
     {
@@ -219,12 +227,12 @@
         "DELETED: .claude/commands/evolve.md, checkpoint.md",
         "NEW: scripts/learning/digest-builder.js (pure aggregation -> learning-digest.json)",
         "UPDATED: 11 hook/learning scripts for digest-based pipeline",
-        "UPDATED: .claude/commands/codify.md \u2014 step 1 reads learning-digest.json + journals",
-        "UPDATED: .claude/commands/learn.md \u2014 digest viewer",
+        "UPDATED: .claude/commands/codify.md — step 1 reads learning-digest.json + journals",
+        "UPDATED: .claude/commands/learn.md — digest viewer",
         "NEW: 11 rs variant Nexus skills (quickstart, comparison, workflow-registration, handler-support, config-options, multi-channel, api-patterns, mcp-channel, security, production, essential-patterns)",
         "UPDATED: 12 Tier 3 Nexus skills now language-neutral (auth, plugins, events, sessions, k8s-probes, transport, etc.)",
-        "UPDATED: skills/34-kailash-ml/SKILL.md \u2014 ModelExplainer, preprocessing, calibration",
-        "UPDATED: 13 guides \u2014 removed all instinct/evolve/checkpoint references"
+        "UPDATED: skills/34-kailash-ml/SKILL.md — ModelExplainer, preprocessing, calibration",
+        "UPDATED: 13 guides — removed all instinct/evolve/checkpoint references"
       ]
     },
     {
@@ -232,10 +240,10 @@
       "date": "2026-04-07",
       "summary": "Gate 2 sync: rs variant build.md, build-speed.md, SDK pin 3.9.2->3.10.0",
       "changes": [
-        "NEW: variants/rs/commands/build.md \u2014 Rust cargo build patterns",
-        "NEW: variants/rs/rules/build-speed.md \u2014 Rust build speed rules (targeted builds, nextest, worktrees)",
-        "UPDATED: pyproject.toml \u2014 SDK pin kailash-enterprise 3.9.2->3.10.0",
-        "UPDATED: .claude/rules/agents.md \u2014 worktree isolation rule added"
+        "NEW: variants/rs/commands/build.md — Rust cargo build patterns",
+        "NEW: variants/rs/rules/build-speed.md — Rust build speed rules (targeted builds, nextest, worktrees)",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.9.2->3.10.0",
+        "UPDATED: .claude/rules/agents.md — worktree isolation rule added"
       ]
     },
     {
@@ -243,39 +251,39 @@
       "date": "2026-04-07",
       "summary": "Gate 2 sync: PACT clearance FSM + 6 new RS alignment skills from loom v2.4.0",
       "changes": [
-        "GLOBAL: agents/frameworks/pact-specialist.md \u2014 Clearance Lifecycle FSM, Install section, Python-Specific Features, consolidated Cross-SDK invariants",
-        "GLOBAL: skills/29-pact/pact-governance-engine.md \u2014 EATP emission, VettingStatus FSM, transition_clearance(), vacancy deadline, bilateral consent, compilation limits, thread safety",
-        "NEW: skills/36-kailash-rs-alignment/SKILL.md \u2014 Cross-SDK reference skill index",
-        "NEW: skills/36-kailash-rs-alignment/crate-structure.md \u2014 46-crate workspace layout",
-        "NEW: skills/36-kailash-rs-alignment/kailash-ml-crate.md \u2014 ML crate architecture (traits, DataSet, pipeline)",
-        "NEW: skills/36-kailash-rs-alignment/pyo3-bindings.md \u2014 PyO3 binding patterns, Arrow zero-copy, async bridging",
-        "NEW: skills/36-kailash-rs-alignment/transport-parity.md \u2014 Intentional Python/Rust transport divergence",
-        "NEW: skills/36-kailash-rs-alignment/cross-sdk-features.md \u2014 Feature parity table (Rust-first, Python-first, Python-only)",
-        "UPDATED: pyproject.toml \u2014 SDK pin kailash-enterprise 3.9.0->3.9.2"
+        "GLOBAL: agents/frameworks/pact-specialist.md — Clearance Lifecycle FSM, Install section, Python-Specific Features, consolidated Cross-SDK invariants",
+        "GLOBAL: skills/29-pact/pact-governance-engine.md — EATP emission, VettingStatus FSM, transition_clearance(), vacancy deadline, bilateral consent, compilation limits, thread safety",
+        "NEW: skills/36-kailash-rs-alignment/SKILL.md — Cross-SDK reference skill index",
+        "NEW: skills/36-kailash-rs-alignment/crate-structure.md — 46-crate workspace layout",
+        "NEW: skills/36-kailash-rs-alignment/kailash-ml-crate.md — ML crate architecture (traits, DataSet, pipeline)",
+        "NEW: skills/36-kailash-rs-alignment/pyo3-bindings.md — PyO3 binding patterns, Arrow zero-copy, async bridging",
+        "NEW: skills/36-kailash-rs-alignment/transport-parity.md — Intentional Python/Rust transport divergence",
+        "NEW: skills/36-kailash-rs-alignment/cross-sdk-features.md — Feature parity table (Rust-first, Python-first, Python-only)",
+        "UPDATED: pyproject.toml — SDK pin kailash-enterprise 3.9.0->3.9.2"
       ]
     },
     {
       "version": "1.9.0",
       "date": "2026-04-05",
-      "summary": "Gate 2 sync: 5 rs-variant artifacts from kailash-rs v3.9.0 codify \u2014 ML/Align Rust specialists, binding skill updates, framework-first Rust variant",
+      "summary": "Gate 2 sync: 5 rs-variant artifacts from kailash-rs v3.9.0 codify — ML/Align Rust specialists, binding skill updates, framework-first Rust variant",
       "changes": [
-        "VARIANT: agents/frameworks/ml-specialist.md \u2014 Rust ML specialist (kailash-ml crate family, two-layer trait system, 200L replaces 279L global)",
-        "VARIANT: agents/frameworks/align-specialist.md \u2014 Rust inference serving specialist (kailash-align-serving, 215L replaces 259L global)",
-        "VARIANT: skills/06-python-bindings/SKILL.md \u2014 Updated module table (orchestration, align_serving), stripped BUILD paths (92L)",
-        "VARIANT: skills/28-ruby-bindings/SKILL.md \u2014 Added v3.9.0 binding modules (audit_log, event_bus, telemetry), stripped BUILD paths (104L)",
-        "VARIANT: rules/framework-first.md \u2014 Rust-only path scope, ML/Align engine rows, Rust code examples (77L replaces 74L)"
+        "VARIANT: agents/frameworks/ml-specialist.md — Rust ML specialist (kailash-ml crate family, two-layer trait system, 200L replaces 279L global)",
+        "VARIANT: agents/frameworks/align-specialist.md — Rust inference serving specialist (kailash-align-serving, 215L replaces 259L global)",
+        "VARIANT: skills/06-python-bindings/SKILL.md — Updated module table (orchestration, align_serving), stripped BUILD paths (92L)",
+        "VARIANT: skills/28-ruby-bindings/SKILL.md — Added v3.9.0 binding modules (audit_log, event_bus, telemetry), stripped BUILD paths (104L)",
+        "VARIANT: rules/framework-first.md — Rust-only path scope, ML/Align engine rows, Rust code examples (77L replaces 74L)"
       ]
     },
     {
       "version": "1.8.0",
       "date": "2026-04-05",
-      "summary": "Skill tightening long tail from loom v2.1.0 \u2014 9 files updated, stale 01-core/ removed",
+      "summary": "Skill tightening long tail from loom v2.1.0 — 9 files updated, stale 01-core/ removed",
       "changes": [
         "UPDATED: 6 global skill files tightened (async-pythoncode-patterns, dataflow-debug-agent, nexus-workflow-registration, kaizen-agent-registry, kaizen-observability-hooks, production-testing)",
         "VARIANT: 3 rs skill files tightened (runtime-execution, python-framework-bindings, flutter-patterns)",
         "DELETED: skills/01-core/ directory (13 stale files, duplicate of 01-core-sdk/)",
         "FIXED: 5 BUILD-internal paths stripped (src/dataflow/, src/kaizen/, crates/, bindings/, examples/)",
-        "UPDATED: scripts/hooks/lib/version-utils.js \u2014 NaN guard, detectRepoType, security fixes"
+        "UPDATED: scripts/hooks/lib/version-utils.js — NaN guard, detectRepoType, security fixes"
       ]
     },
     {
@@ -298,9 +306,9 @@
         "NEW: skills/34-kailash-ml/ (8 ML lifecycle skills)",
         "NEW: skills/35-kailash-align/ (5 LLM alignment skills)",
         "NEW: 7 MCP platform skills in skills/05-kailash-mcp/",
-        "UPDATED: rules/agents.md \u2014 delegation table expanded to 8 specialists",
-        "UPDATED: commands/wrapup.md \u2014 red team verification with inline evidence",
-        "FIXED: cc-audit fixes \u2014 delegation routing, SKILL.md descriptions, BUILD path contamination"
+        "UPDATED: rules/agents.md — delegation table expanded to 8 specialists",
+        "UPDATED: commands/wrapup.md — red team verification with inline evidence",
+        "FIXED: cc-audit fixes — delegation routing, SKILL.md descriptions, BUILD path contamination"
       ]
     },
     {
@@ -327,9 +335,9 @@
         "TIGHTENED: 8 agents avg 266->77 lines, 12 SKILL.md files under 200 lines",
         "NEW: skills/co-reference/ (6 spec files)",
         "NEW: variants/rs/skills/18-security-patterns/security-auth-middleware-rs.md (v3.8 red team)",
-        "UPDATED: security-reviewer \u2014 auth middleware patterns A1-A9",
-        "UPDATED: dataflow-specialist \u2014 delegation rule",
-        "UPDATED: kaizen-specialist \u2014 budget reservation warning",
+        "UPDATED: security-reviewer — auth middleware patterns A1-A9",
+        "UPDATED: dataflow-specialist — delegation rule",
+        "UPDATED: kaizen-specialist — budget reservation warning",
         "DELETED: rules/branch-protection.md, rules/no-stubs.md (merged into git.md, zero-tolerance.md)"
       ]
     },
@@ -338,9 +346,9 @@
       "date": "2026-04-01",
       "summary": "Downstream proposal guard + SDK pin update to 3.6.4",
       "changes": [
-        "UPDATED: commands/codify.md \u2014 Step 7 scoped to BUILD repos only; downstream repos skip proposals",
-        "UPDATED: rules/artifact-flow.md \u2014 New Rule 2a: downstream repos do not propose upstream",
-        "UPDATED: pyproject.toml \u2014 SDK pin: kailash-enterprise 3.5.0->3.6.4"
+        "UPDATED: commands/codify.md — Step 7 scoped to BUILD repos only; downstream repos skip proposals",
+        "UPDATED: rules/artifact-flow.md — New Rule 2a: downstream repos do not propose upstream",
+        "UPDATED: pyproject.toml — SDK pin: kailash-enterprise 3.5.0->3.6.4"
       ]
     },
     {
@@ -348,15 +356,15 @@
       "date": "2026-03-31",
       "summary": "Gate 2 sync: DataFlowExpressSync skill, 48 new rs variant files, 64 global refreshes",
       "changes": [
-        "NEW skills/02-dataflow/dataflow-sync-express.md \u2014 blocking CRUD for CLI/scripts/FFI",
-        "NEW skills/01-core/ directory (13 files) \u2014 Rust core SDK primitives",
-        "NEW skills/05-enterprise/ directory (10 files) \u2014 ABAC, RBAC, SSO, audit",
-        "NEW skills/10-governance/SKILL.md \u2014 Rust governance patterns",
-        "NEW skills/29-trust-plane/ directory (7 files) \u2014 trust-plane crate reference",
-        "NEW skills/31-l3-autonomy/ directory (8 files) \u2014 L3 autonomous agent crate",
-        "NEW skills/32-kaizen-agents/ directory (8 files) \u2014 orchestration crate",
-        "NEW skills/03-nexus/nexus-k8s-probes.md \u2014 K8s probe patterns (global)",
-        "NEW skills/04-kaizen/kaizen-agent-reference.md \u2014 agent reference (global)",
+        "NEW skills/02-dataflow/dataflow-sync-express.md — blocking CRUD for CLI/scripts/FFI",
+        "NEW skills/01-core/ directory (13 files) — Rust core SDK primitives",
+        "NEW skills/05-enterprise/ directory (10 files) — ABAC, RBAC, SSO, audit",
+        "NEW skills/10-governance/SKILL.md — Rust governance patterns",
+        "NEW skills/29-trust-plane/ directory (7 files) — trust-plane crate reference",
+        "NEW skills/31-l3-autonomy/ directory (8 files) — L3 autonomous agent crate",
+        "NEW skills/32-kaizen-agents/ directory (8 files) — orchestration crate",
+        "NEW skills/03-nexus/nexus-k8s-probes.md — K8s probe patterns (global)",
+        "NEW skills/04-kaizen/kaizen-agent-reference.md — agent reference (global)",
         "Updated 64 global files (agents, rules, skills, guides)",
         "Refreshed all rs variant overlays (testing, architecture, code-templates, validation, gold-standards, error-troubleshooting)"
       ]
@@ -366,17 +374,17 @@
       "date": "2026-03-30",
       "summary": "Gate 2 sync: framework-first rule, layer selection, streaming + PACT updates",
       "changes": [
-        "NEW rules/framework-first.md \u2014 Engine-over-Primitives three-layer model",
-        "NEW skills/04-kaizen/kaizen-delegate-vs-baseagent.md \u2014 Delegate vs BaseAgent decision guide",
-        "Updated agents/framework-advisor.md \u2014 Step 2b layer selection",
-        "Updated agents/frameworks/dataflow-specialist.md \u2014 Layer Preference section",
-        "Updated agents/frameworks/nexus-specialist.md \u2014 Layer Preference section",
-        "Updated skills/13-architecture-decisions/decide-framework.md \u2014 Within-Framework Layer Selection",
-        "Updated skills/29-pact/SKILL.md \u2014 DelegationBuilder, vacancy designation, bridge approval, LCA, 21 Python types",
-        "Updated skills/04-kaizen/kaizen-streaming.md \u2014 Complete rewrite with TaodRunner Python binding",
-        "Updated skills/04-kaizen/SKILL.md \u2014 Streaming description updated",
-        "Updated skills/04-kaizen/kaizen-agents-hydration-streaming.md \u2014 Python Binding TaodRunner section",
-        "Updated skills/01-core-sdk/SKILL.md \u2014 kaizen-agents and kailash-governance crate map updates"
+        "NEW rules/framework-first.md — Engine-over-Primitives three-layer model",
+        "NEW skills/04-kaizen/kaizen-delegate-vs-baseagent.md — Delegate vs BaseAgent decision guide",
+        "Updated agents/framework-advisor.md — Step 2b layer selection",
+        "Updated agents/frameworks/dataflow-specialist.md — Layer Preference section",
+        "Updated agents/frameworks/nexus-specialist.md — Layer Preference section",
+        "Updated skills/13-architecture-decisions/decide-framework.md — Within-Framework Layer Selection",
+        "Updated skills/29-pact/SKILL.md — DelegationBuilder, vacancy designation, bridge approval, LCA, 21 Python types",
+        "Updated skills/04-kaizen/kaizen-streaming.md — Complete rewrite with TaodRunner Python binding",
+        "Updated skills/04-kaizen/SKILL.md — Streaming description updated",
+        "Updated skills/04-kaizen/kaizen-agents-hydration-streaming.md — Python Binding TaodRunner section",
+        "Updated skills/01-core-sdk/SKILL.md — kaizen-agents and kailash-governance crate map updates"
       ]
     },
     {
