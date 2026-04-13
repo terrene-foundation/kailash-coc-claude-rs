@@ -15,29 +15,54 @@ For every security-adjacent type, ask: **"If the operator forgets to configure t
 
 ### 1. Thread-Local Clearance Default
 
+**Canonical implementation**: `crates/kailash-dataflow/src/classification.rs:55-121`. The DataFlow caller clearance uses `DataClassification` (variants `Public, Internal, Sensitive, PII, GDPR, HighlyConfidential`), NOT `kailash-governance::ClassificationLevel` (which is a separate enum for PACT clearance gradient).
+
 ```rust
-// DO — fail-closed: missing clearance means Public, not HighlyConfidential
+// DO — fail-closed: default is the LOWEST clearance (Public), not the highest
+// crates/kailash-dataflow/src/classification.rs:73-79
 thread_local! {
-    static CALLER_CLEARANCE: Cell<ClassificationLevel> = const {
-        Cell::new(ClassificationLevel::Public)
-    };
+    static CALLER_CLEARANCE: RefCell<DataClassification> =
+        const { RefCell::new(DataClassification::Public) };
 }
 
-// DO NOT — fail-open: any thread that forgot set_caller_clearance
+// Scoped installation — rolls back on panic via Drop
+pub fn with_caller_clearance<F, R>(level: DataClassification, f: F) -> R
+where F: FnOnce() -> R
+{
+    let prev = CALLER_CLEARANCE.with(|c| std::mem::replace(&mut *c.borrow_mut(), level));
+    let _guard = scopeguard::guard((), |_| {
+        CALLER_CLEARANCE.with(|c| *c.borrow_mut() = prev);
+    });
+    f()
+}
+
+// DO NOT — fail-open: any thread that forgot with_caller_clearance
 // reads unredacted PII, silently.
 thread_local! {
-    static CALLER_CLEARANCE: Cell<ClassificationLevel> =
-        Cell::new(ClassificationLevel::HighlyConfidential);
+    static CALLER_CLEARANCE: RefCell<DataClassification> =
+        const { RefCell::new(DataClassification::HighlyConfidential) };
 }
 ```
 
 **Why**: Operators enable classification believing PII will be redacted. With a fail-open default, PII is only redacted when the caller _explicitly_ sets a clearance level — which is effectively never in default configurations. The entire security feature becomes a no-op.
 
+**Read-path enforcement**: `apply_read_classification` in the same file masks any field whose sensitivity is strictly above `current_caller_clearance()`. A `Public` caller sees redacted values for Internal/Sensitive/PII/GDPR/HighlyConfidential. A `HighlyConfidential` caller sees every field verbatim.
+
+**Note on enum naming**: Three Classification enums exist in the workspace — do not confuse them:
+
+- `kailash-dataflow::DataClassification` — PII/redaction tagging (`Public, Internal, Sensitive, PII, GDPR, HighlyConfidential`). This is the one used for read-path masking.
+- `kailash-governance::ClassificationLevel` — clearance gradient for PACT (`Public=0, Restricted=1, Confidential=2, Secret=3, TopSecret=4`).
+- `eatp::constraints::DataClassification` — constraint-layer enum (`Public, Internal, Confidential, Restricted, TopSecret`).
+
 ### 2. Registry / Delegation: Reject Duplicates
+
+**Cross-binding gap — this fix is currently Python-only.** The R1 H2 fix for `EatpAuthorityRegistry` duplicate-rejection lives at `bindings/kailash-python/src/eatp.rs:2417-2510`. The Rust `crates/eatp/` crate has **no `AuthorityRegistry` type at all**. Ruby, Node.js, WASM, C ABI, and Rust-native callers of `crates/eatp/` directly have zero duplicate-rejection protection. This is tracked as a HIGH outstanding gap in `specs/bindings.md` and needs backporting.
+
+The pattern below is the CORRECT shape — use it when you backport to the Rust crate, or when adding duplicate-rejection to any other registry type in the workspace (delegation, key store, posture registry, etc.).
 
 ```rust
 // DO — register rejects duplicates; intentional rotation uses replace(force_replace=true)
-impl EatpAuthorityRegistry {
+impl AuthorityRegistry {
     pub fn register(&mut self, id: AuthorityId, key: VerifyingKey) -> Result<(), RegistryError> {
         if self.entries.contains_key(&id) {
             return Err(RegistryError::DuplicateAuthority(id));
@@ -58,7 +83,7 @@ impl EatpAuthorityRegistry {
 }
 
 // DO NOT — blind overwrite hijacks delegation chains
-impl EatpAuthorityRegistry {
+impl AuthorityRegistry {
     pub fn register(&mut self, id: AuthorityId, key: VerifyingKey) {
         self.entries.insert(id, key);  // silently replaces existing
     }
@@ -66,6 +91,8 @@ impl EatpAuthorityRegistry {
 ```
 
 **Why**: A single registry-write permission must not escalate to full delegation control. Blind overwrite means any authority holder can impersonate any other authority by re-registering with a new key.
+
+**Python binding reference implementation**: the Python shim at `bindings/kailash-python/src/eatp.rs:2417-2510` wraps an internal HashMap + duplicate check + `force_replace` parameter. When backporting to Rust, the shape should match so the binding can delegate through. Regression test lives at `bindings/kailash-python/tests/regression/test_h2_authority_register_hijack.py`.
 
 ### 3. File Permissions: 0o600 on Sensitive Files
 
@@ -184,6 +211,8 @@ Any match that cannot cite a fail-closed default OR an explicit `force_*` flag f
 - `rules/security.md` — top-level security rules
 - `rules/trust-plane-security.md` — trust-plane-specific fail-closed patterns
 - `skills/18-security-patterns/constant-time-comparison-rs.md` — companion rule on credential comparison
-- `crates/eatp/src/authority_registry.rs` — canonical fail-closed registry implementation
-- `crates/kailash-dataflow/src/classification.rs` — fail-closed clearance default
-- `crates/kailash-align-serving/src/backend/llama_cpp.rs` — canonical path containment
+- `crates/kailash-dataflow/src/classification.rs:55-121` — canonical fail-closed clearance default + RAII installer
+- `crates/kailash-align-serving/src/backend/llama_cpp.rs:81,91,233-293,315-328` — canonical path containment + FFI Sync invariant
+- `crates/kailash-enterprise/src/audit/sqlite.rs:160-218` — canonical 0o600 tightening + regression test at :1005-1022
+- `bindings/kailash-python/src/eatp.rs:2417-2510` — Python-only `EatpAuthorityRegistry` duplicate-rejection (R1 H2 fix). **Note:** no Rust equivalent exists yet — Rust crate `crates/eatp/` has no `AuthorityRegistry` type; backporting is a tracked security task.
+- `bindings/kailash-python/tests/regression/test_h2_authority_register_hijack.py` — regression test for the Python-side fix
