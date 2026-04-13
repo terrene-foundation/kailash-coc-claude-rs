@@ -7,13 +7,23 @@ description: "Security patterns and best practices for Kailash SDK including inp
 
 Mandatory security patterns for all Kailash SDK development. These patterns prevent common vulnerabilities and ensure secure application development.
 
+## Rust-Specific Sub-Files
+
+| File                                                                 | Topic                                                                                                                                | Origin                                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| [`constant-time-comparison-rs.md`](./constant-time-comparison-rs.md) | Bitwise-OR credential loops, shared `kailash-auth` helper, anti-`.any()` pattern                                                     | journal `0021-RISK-r3-timing-leak-mcp-auth.md`                           |
+| [`fail-closed-defaults-rs.md`](./fail-closed-defaults-rs.md)         | Restrictive `Default` impls, registry reject-duplicates, 0o600 file permissions, allowlist path loading, unsafe Send/Sync invariants | journal `0018-RISK-six-high-security-findings.md` (R1 six HIGH findings) |
+| [`network-security-rs.md`](./network-security-rs.md)                 | DNS rebinding guard on HTTP MCP, stdio argv/env allowlist, log content fingerprinting                                                | R3 commits `173d054b`, `0d4ebd12`                                        |
+| [`security-auth-middleware-rs.md`](./security-auth-middleware-rs.md) | Axum auth middleware composition, tower layers                                                                                       | prior                                                                    |
+
 ## Overview
 
 Security patterns cover:
 
 - Secret management (no hardcoded credentials)
 - Input validation (prevent injection attacks)
-- Authentication and authorization
+- Authentication and authorization (constant-time comparison, fail-closed defaults)
+- Network hardening (DNS rebinding, stdio allowlist, log sanitization)
 - OWASP Top 10 prevention
 - Secure API design
 - Environment variable handling
@@ -132,6 +142,98 @@ All 8 EATP constraint dimension sub-structs have `#[serde(deny_unknown_fields)]`
 ### Auth Config Debug Redaction
 
 `ApiKeyConfig` and `JwtConfig` both implement manual `Debug` that redacts sensitive fields. `TenantContext` is non-Clone with `SecretString` zeroed on drop.
+
+## Red Team Security Patterns (v3.12.2, PRs #324-#335)
+
+### Classification Fail-Closed Default (H1)
+
+Thread-local caller clearance MUST default to most restrictive level, not least restrictive.
+
+```rust
+// DO — fail-closed: unconfigured callers see only Public data
+thread_local! {
+    static CALLER_CLEARANCE: RefCell<ClassificationLevel> = RefCell::new(ClassificationLevel::Public);
+}
+
+// DO NOT — fail-open: unconfigured callers bypass all redaction
+static CALLER_CLEARANCE: RefCell<ClassificationLevel> = RefCell::new(ClassificationLevel::HighlyConfidential);
+```
+
+**Why:** Defaulting to the highest clearance makes the entire redaction system a no-op for any caller that forgets to set clearance. Fail-closed means unset callers get the safest behavior.
+
+### Authority Registry Duplicate Protection (H2)
+
+`Registry::register` MUST reject duplicate keys. Intentional rotation uses explicit `replace(force_replace=true)`.
+
+```rust
+// DO — reject duplicate, require explicit force for rotation
+if registry.contains_key(&org_id) {
+    return Err(AuthorityError::DuplicateOrgId { org_id });
+}
+
+// DO NOT — silently overwrite existing authority
+registry.insert(org_id, new_authority); // attacker replaces legitimate authority
+```
+
+### File Permissions for Security-Sensitive Stores (H3/H4)
+
+Audit stores, evidence sinks, and files containing PII/signatures MUST chmod 0o600 on creation.
+
+```rust
+// DO — restrictive permissions on security-sensitive files
+#[cfg(unix)]
+{
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+}
+
+// DO NOT — rely on umask (world-readable audit logs)
+std::fs::write(&path, data)?; // inherits process umask, often 0o644
+```
+
+### Model Path Validation (H5 -- kailash-align-serving)
+
+`allowed_model_roots: Vec<PathBuf>` pattern -- default-deny if empty.
+
+```rust
+// DO — canonicalize + symlink rejection + device-file rejection + root containment
+fn validate_path(path: &Path, allowed_roots: &[PathBuf]) -> Result<PathBuf> {
+    if allowed_roots.is_empty() { return Err(ModelPathError::NoRootsConfigured); }
+    let canonical = path.canonicalize()?;
+    if canonical.is_symlink() { return Err(ModelPathError::SymlinkRejected); }
+    if !allowed_roots.iter().any(|r| canonical.starts_with(r)) {
+        return Err(ModelPathError::OutsideAllowedRoots);
+    }
+    Ok(canonical)
+}
+
+// DO NOT — trust caller-supplied paths
+let model = load_model(user_supplied_path)?; // path traversal, symlink escape
+```
+
+### Unsafe Send+Sync with Inference Latch (H6)
+
+When wrapping non-thread-safe C libraries, use an internal `Mutex<()>` to serialize all FFI calls.
+
+```rust
+// DO — inference latch serializes all FFI access
+struct Backend {
+    ctx: *mut ffi::Context,        // non-thread-safe C pointer
+    inference_latch: Mutex<()>,    // serializes all FFI calls
+}
+impl Backend {
+    fn generate(&self, prompt: &str) -> Result<String> {
+        let _guard = self.inference_latch.lock().unwrap();
+        unsafe { ffi::generate(self.ctx, prompt) } // serialized
+    }
+}
+
+// DO NOT — rely on external RwLock read guard (&self still allows parallel reads)
+unsafe impl Send for Backend {}
+unsafe impl Sync for Backend {} // SAFETY comment says "RwLock protects" but &self methods run in parallel
+```
+
+**Why:** `&self` methods under an external `RwLock<Backend>` still allow multiple concurrent readers. The internal `Mutex<()>` is the only guarantee that FFI calls are truly serialized.
 
 ## Integration with Rules
 
