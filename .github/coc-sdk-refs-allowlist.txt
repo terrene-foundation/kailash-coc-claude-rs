@@ -1,0 +1,23 @@
+# Allowlist of files that legitimately reference src/kailash/ source paths
+# (the kailash-py SDK). These are global COC files that guide developers
+# through provenance, compliance, and cross-SDK navigation. They legitimately
+# reference kailash-py source paths even though this template serves
+# Python/Ruby binding consumers of kailash-rs.
+#
+# CI validates .claude/ content doesn't contain src/kailash/ contamination
+# EXCEPT in files listed here. One file path per line, relative to repo root.
+# Lines starting with # are comments, blank lines ignored.
+#
+# Add a path here if a new skill/agent legitimately needs to reference
+# kailash-py source (e.g., cross-SDK provenance, spec-compliance tracking).
+
+# Cross-SDK navigation and provenance
+.claude/guides/co-setup/07-sync-flow.md
+.claude/rules/dataflow-identifier-safety.md
+.claude/skills/30-claude-code-patterns/parallel-merge-workflow.md
+.claude/skills/29-pact/pact-conformance-features.md
+.claude/skills/29-pact/pact-governance-engine.md
+.claude/skills/02-dataflow/cache-cas-fail-closed.md
+
+# VERSION changelog references specific SDK file fixes by path
+.claude/VERSION

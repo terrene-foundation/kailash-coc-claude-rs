@@ -16,7 +16,9 @@ jobs:
 
       - name: Validate structure
         run: |
+          set -euo pipefail
           echo "Checking COC structure..."
+
           # Verify critical directories exist
           test -d .claude/agents && echo "✓ agents/"
           test -d .claude/skills && echo "✓ skills/"
@@ -24,12 +26,41 @@ jobs:
           test -d .claude/commands && echo "✓ commands/"
           test -f CLAUDE.md && echo "✓ CLAUDE.md"
 
-          # Check for contamination (builder paths should not be in template)
-          if grep -r "src/kailash_rs/" .claude/ 2>/dev/null; then
-            echo "ERROR: Found builder paths (src/kailash_rs/) in template"
+          # This template serves Python/Ruby developers who consume kailash-rs
+          # through bindings. src/kailash/ (kailash-py SDK source) paths should
+          # NOT leak in, EXCEPT for allowlisted files (provenance, compliance,
+          # cross-SDK navigation).
+          #
+          # See .github/coc-sdk-refs-allowlist.txt to add exemptions.
+          ALLOWLIST=.github/coc-sdk-refs-allowlist.txt
+          if [ ! -f "$ALLOWLIST" ]; then
+            echo "ERROR: missing $ALLOWLIST"
             exit 1
           fi
-          echo "✓ No contamination detected"
+
+          # Strip comments/blanks from allowlist, sort for comm
+          grep -vE '^\s*(#|$)' "$ALLOWLIST" | sort > /tmp/allowed.txt
+
+          # Find all .claude/ files containing src/kailash/ (py SDK contamination)
+          grep -rl "src/kailash/" .claude/ 2>/dev/null | sort > /tmp/found.txt || true
+
+          # Compute: found \ allowed (files with contamination not on allowlist)
+          contamination=$(comm -23 /tmp/found.txt /tmp/allowed.txt)
+
+          if [ -n "$contamination" ]; then
+            echo ""
+            echo "ERROR: src/kailash/ (kailash-py SDK paths) found in files not on allowlist:"
+            echo "$contamination" | sed 's/^/  /'
+            echo ""
+            echo "This template is for Python/Ruby developers consuming kailash-rs."
+            echo "Fix options:"
+            echo "  1. Remove the src/kailash/ reference (if accidental py SDK leak), OR"
+            echo "  2. Add the file path to $ALLOWLIST (if legitimately needs cross-SDK"
+            echo "     reference — e.g., provenance, compliance, sync-flow navigation)"
+            exit 1
+          fi
+
+          echo "✓ No kailash-py SDK contamination ($(wc -l < /tmp/allowed.txt) allowlisted)"
 
           # Count agents and skills
           echo "Agents: $(find .claude/agents -name '*.md' | wc -l)"
