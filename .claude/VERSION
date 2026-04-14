@@ -1,5 +1,5 @@
 {
-  "version": "2.8.4",
+  "version": "2.8.5",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-14",
@@ -14,6 +14,15 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.8.5",
+      "date": "2026-04-14",
+      "summary": "Patch: sync.md Step 0 auto-detects template-derived repos + Gate 1 nexus-specialist (py)",
+      "changes": [
+        "COMMAND: sync.md Step 0 \u2014 now verifies coc-use-template repos against dirname/git-remote before routing to loom. Template-derived repos (created via \"Use this template\") auto-correct VERSION in-place.",
+        "AGENT (py only): nexus-specialist.md updated with 3 new Nexus Python patterns \u2014 @app.use_middleware, app.mount, @app.websocket class handler (PRs #447/#448/#449). rs binding parity pending kailash-rs#386/#387."
+      ]
+    },
     {
       "version": "2.8.4",
       "date": "2026-04-14",

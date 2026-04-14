@@ -11,15 +11,12 @@ Sync CO/COC artifacts. Behavior depends on repo type (from `.claude/VERSION`).
 
 ## Step 0: Detect Repo Type
 
-Read `.claude/VERSION` → `type` field determines behavior:
+Read `.claude/VERSION` → `type` field:
 
-| Type               | Action                                                                   |
-| ------------------ | ------------------------------------------------------------------------ |
-| `coc-source`       | Gate 1 + Gate 2 (below)                                                  |
-| `coc-project`      | Downstream Sync (next section)                                           |
-| `coc-use-template` | "This repo receives artifacts from loom/. Run `/sync` at loom/ instead." |
-| `coc-build`        | Same as use-template                                                     |
-| Missing            | Ask user what type this repo is                                          |
+- `coc-source` → Gate 1 + Gate 2 (below)
+- `coc-project` → Downstream Sync (next section)
+- `coc-use-template` / `coc-build` → **MUST verify** the repo is the actual template/BUILD repo before routing to loom. Check `basename $(pwd)` + `git remote get-url origin` (normalize SSH `git@host:owner/repo.git` → `owner/repo`) against known repos: `kailash-coc-claude-{py,rs,rb,prism}`, `kailash-{py,rs,prism}`. If match → "receives artifacts from loom/, run `/sync` at loom/". If no match → treat as `coc-project` and auto-correct VERSION in-place (type → `coc-project`, upstream → `{template, template_repo, template_version, synced_at, sdk_packages}` per `scripts/hooks/lib/version-utils.js::correctTemplateDerivedVersion`), then Downstream Sync.
+- Missing → ask user what type this repo is
 
 ## Downstream Sync (coc-project repos)
 
