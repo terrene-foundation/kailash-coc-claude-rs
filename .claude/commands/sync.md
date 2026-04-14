@@ -34,11 +34,11 @@ Pull latest artifacts from the USE template repo. No target needed — reads tem
 3. **Additive merge** (same semantics as Gate 2 step 4):
    - Template files overwrite matching local files
    - Local-only files preserved (never deleted)
-   - CLAUDE.md never overwritten
-   - Exclusions: see sync-flow guide § "What downstream NEVER gets"
+   - **NEVER overwritten** (downstream-owned): `CLAUDE.md`, `.claude/VERSION`, `.claude/settings.local.json`, `.env`, `.git/`, `.claude/.proposals/`, `.claude/learning/`
+   - Other exclusions: see sync-flow guide § "What downstream NEVER gets"
 4. **Present merge plan** with per-file decisions before applying
 5. **Verify** hook paths in `settings.json` resolve on disk
-6. **Update `.claude/VERSION`**: set `upstream.template_version`, `upstream.template_repo`, `upstream.synced_at`
+6. **Update `.claude/VERSION` in-place** (never replace the file — only update specific fields): `upstream.template_version` ← template VERSION's `version`, `upstream.template_repo` ← resolved GitHub slug, `upstream.synced_at` ← now, `upstream.sdk_packages` ← from template. MUST preserve `type: coc-project`, `upstream.template` (name), and all other fields.
 7. **Update SDK pins** in `pyproject.toml`/`Cargo.toml` from template VERSION's `upstream.sdk_packages`
 8. **Install**: `uv sync` (py) or `cargo check` (rs) — **MANDATORY**
 9. **Update `.claude/.coc-sync-marker`** with timestamp
