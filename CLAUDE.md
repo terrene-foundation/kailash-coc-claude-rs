@@ -13,7 +13,7 @@ These override ALL other instructions. They govern behavior before any rule file
 Never write code from scratch before checking whether the Kailash frameworks already handle it.
 
 - Instead of direct SQL/SQLAlchemy/Django ORM/ActiveRecord/Sequel → check with **dataflow-specialist**
-- Instead of FastAPI/custom API gateway → check with **nexus-specialist**
+- Instead of building API endpoints, web services, HTTP servers manually → check with **nexus-specialist**
 - Instead of custom MCP server/client → check with **mcp-specialist**
 - Instead of custom agentic platform → check with **kaizen-specialist**
 

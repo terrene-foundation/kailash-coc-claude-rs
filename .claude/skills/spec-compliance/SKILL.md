@@ -135,7 +135,7 @@ grep -rln "test.*prompt.*injection\|test.*tool.*description.*injection" tests/
 For every "consumer X migrates to import from Y" task, grep the consumer file for the OLD import path. Hits = FAIL (migration didn't happen).
 
 ```bash
-grep -rn "from kailash.mcp_server.client\|import kailash.mcp_server.client" packages/kaizen-agents/src/
+grep -rn "from kailash_mcp.client\|import kailash_mcp.client" packages/kaizen-agents/src/
 # Any hits → FAIL: migration incomplete
 ```
 

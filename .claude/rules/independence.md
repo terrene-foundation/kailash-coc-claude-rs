@@ -1,94 +1,100 @@
-# Aegis Identity & Foundation Boundary Rules
+# Proprietary Product & Foundation Boundary Rules
 
-This repository is the **proprietary Aegis Rust SDK**. It is NOT a Terrene Foundation project. The Foundation rules that govern `kailash-py` and `pact` (Apache 2.0, CC BY 4.0, no commercial coupling) DO NOT apply here. This file is the kailash-rs variant override of the global `independence.md` and exists specifically to clarify that boundary.
+This repository is a **proprietary product** that implements open standards published by the Terrene Foundation. The Foundation rules that govern `kailash-py` (Apache 2.0, CC BY 4.0, no commercial coupling) DO NOT apply here. This file is the variant override of the global `independence.md` and exists specifically to clarify that boundary.
 
-## The Two-Track Architecture
+## The Boundary
 
-| Track                                | Owner                              | License                                                   | Repos                                                                  |
-| ------------------------------------ | ---------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Aegis (proprietary)**              | Aegis product team                 | `LicenseRef-Proprietary`, trade secret, `publish = false` | **kailash-rs** (this repo), Aegis product applications                 |
-| **Terrene Foundation (open source)** | Terrene Foundation (Singapore CLG) | Apache 2.0 (code), CC BY 4.0 (specs)                      | kailash-py, pact, kailash-coc-claude-{py,rs,rb}, terrene-foundation/\* |
+| Layer               | Owner                              | License                                                   |
+| ------------------- | ---------------------------------- | --------------------------------------------------------- |
+| **Open standards**  | Terrene Foundation (Singapore CLG) | CC BY 4.0 (CARE, PACT, EATP, CO)                          |
+| **Open-source SDK** | Terrene Foundation (Singapore CLG) | Apache 2.0 (`kailash-py`, `pact`)                         |
+| **This product**    | Product team (proprietary)         | `LicenseRef-Proprietary`, trade secret, `publish = false` |
 
 **Key facts**:
 
-1. **kailash-rs is proprietary Aegis product code.** Source is trade secret. Every crate has `publish = false` (except `kailash-plugin-macros` and `kailash-plugin-guest`, the only crates published to crates.io).
-2. **PACT (the open-source governance framework) is Aegis' open-source counterpart**, owned by Terrene Foundation. PACT is one of the four TF standards (CARE + EATP + CO + PACT).
-3. **kailash-py is the TF open-source counterpart of kailash-rs.** The Foundation maintains a full-featured open-source Python SDK (`pip install kailash`); the proprietary Rust SDK is independent of it but consumes the same TF specs.
-4. **TF specs are upstream of both tracks.** CARE, EATP, CO, PACT are CC BY 4.0 — Aegis implements them in proprietary Rust; the TF projects implement them in open-source Python. Neither track owns the specs.
+1. **This repo is a proprietary product codebase.** Source is trade secret. Every crate has `publish = false` (except `kailash-plugin-macros` and `kailash-plugin-guest`, the only crates published to crates.io).
+2. **The product ships a Python SDK** (`pip install kailash-enterprise`) built from Rust-backed bindings. The product is not the SDK — the SDK is what the product delivers.
+3. **TF specs are upstream.** CARE, EATP, CO, PACT are CC BY 4.0. Any entity may implement them in any language under any license. This product does so in proprietary Rust. The TF projects do so in open-source Python. Neither has a structural relationship with the other.
+4. **There is no special relationship.** This product is one of potentially many commercial implementations of TF standards. The Foundation has no knowledge of, dependency on, or design consideration for any specific commercial product — and this product makes no claim of endorsement, partnership, or preferred status.
 
 ## MUST Rules
 
-### 1. Aegis Identity Is Allowed Here
+### 1. Proprietary Identity Is Allowed Here
 
 Unlike `kailash-py` (where commercial references are forbidden under TF independence), this repo is itself a commercial product. You MAY:
 
-- Refer to "Aegis" as the parent product identity (already canonical per `CLAUDE.md`)
-- Describe `kailash-rs` as "the Aegis Rust SDK"
-- Document that `kailash-rs` is the proprietary implementation paired with the open-source `kailash-py`
+- Describe this product and its commercial context
+- Reference the TF standards it implements
+- Describe the SDK it ships (`kailash-enterprise`)
 
 ```markdown
-# DO — accurate Aegis identity
+# DO — accurate identity
 
-The kailash-rs crate is part of the proprietary Aegis SDK. Its open-source
-counterpart is kailash-py, owned by the Terrene Foundation.
+This product ships kailash-enterprise, a Python SDK built from
+Rust-backed bindings. It implements the Terrene Foundation's
+open standards (CARE, PACT, EATP, CO) in proprietary code.
 
-# DO NOT — falsely claim TF ownership
+# DO NOT — claim Foundation ownership or endorsement
 
-kailash-rs is a Terrene Foundation project. (It is not.)
+kailash-enterprise is a Terrene Foundation project. (It is not.)
+This product is the Foundation's official commercial implementation. (There is no such thing.)
 ```
 
-**Why:** Misrepresenting kailash-rs as a TF project violates the Foundation's anti-capture provisions and creates legal ambiguity. Accurately describing it as Aegis-proprietary is correct.
+**Why:** Misrepresenting proprietary code as a TF project violates the Foundation's anti-capture provisions and creates legal ambiguity.
 
 ### 2. TF Specs Are CC BY 4.0 — Implementations Are Separate
 
-Aegis MAY implement TF specs (CARE, EATP, CO, PACT) in proprietary code. The implementation is trade secret; the spec is CC BY 4.0 and remains owned by the Foundation. Aegis MUST NOT:
+This product MAY implement TF specs (CARE, EATP, CO, PACT) in proprietary code. The implementation is trade secret; the spec is CC BY 4.0 and remains owned by the Foundation. MUST NOT:
 
 - Claim ownership of any TF spec
 - Modify a TF spec without upstreaming through the Foundation's process
 - Re-license a TF spec
-- Claim that an Aegis-only extension is part of the TF standard
+- Claim that a product-only extension is part of the TF standard
 
 ```rust
 // DO — implementation header
-// Copyright 2026 Aegis (proprietary)
+// Copyright 2026 [Product Entity] (proprietary)
 // SPDX-License-Identifier: LicenseRef-Proprietary
 // Implements EATP v1.0 (Terrene Foundation, CC BY 4.0).
 
 // DO NOT — confused ownership
 // Copyright 2026 Terrene Foundation
 // SPDX-License-Identifier: Apache-2.0
-// (Aegis-proprietary code with TF copyright is misrepresentation.)
+// (Proprietary code with TF copyright is misrepresentation.)
 ```
 
-**Why:** Conflating spec ownership (TF) with implementation ownership (Aegis) is the structural risk both sides must guard against. The TF spec/Aegis implementation split is the only correct framing.
+**Why:** Conflating spec ownership (TF) with implementation ownership (product) is the structural risk both sides must guard against.
 
-### 3. Cross-Track References Are Allowed When Accurate
+### 3. Cross-Track References Must Be Generic
 
-Aegis docs MAY reference `kailash-py` and `pact` as the open-source TF counterparts. The reference must be factual (these projects exist, here is how they relate) and MUST NOT imply a structural relationship beyond "common spec lineage".
+Docs MAY reference `kailash-py` and `pact` as TF open-source projects. The reference must be factual and MUST NOT imply a structural relationship, partnership, or paired-product framing.
 
 ```markdown
-# DO — accurate cross-track reference
+# DO — accurate, generic reference
 
-kailash-rs implements EATP, CARE, CO, and PACT in proprietary Rust.
-The Terrene Foundation maintains open-source counterparts in kailash-py
-(workflow + dataflow + nexus + kaizen) and pact (governance framework).
-Both tracks consume the same upstream specs but are independent in
-implementation, ownership, and release cadence.
+The Terrene Foundation publishes open standards (CARE, PACT, EATP, CO)
+and maintains open-source implementations in kailash-py and pact.
+This product independently implements the same standards in Rust.
 
-# DO NOT — false coupling
+# DO NOT — paired-product framing
 
-kailash-rs ships pre-integrated with kailash-py and is officially
-endorsed by the Terrene Foundation. (Neither claim is true.)
+kailash-rs is the proprietary counterpart of kailash-py.
+(This implies a structural relationship that does not exist.)
+
+# DO NOT — endorsement framing
+
+This product is officially paired with the Terrene Foundation's SDK.
+(No such pairing exists.)
 ```
 
-**Why:** Without explicit guidance, agents either over-couple ("Foundation-endorsed") or under-couple ("don't mention kailash-py at all"). The accurate framing is "common spec lineage, independent implementations".
+**Why:** "Counterpart" and "paired" language implies a bilateral agreement. The accurate framing is: the standards are public, anyone can implement them, and multiple independent implementations exist.
 
-### 4. Aegis Code MUST NOT Be Claimed As TF Code
+### 4. Proprietary Code MUST NOT Be Claimed As TF Code
 
-Marketing copy, README content, license headers, package metadata, and docs MUST never claim that any Aegis crate is "open source" or "Foundation-owned" or under "Apache 2.0". The `LicenseRef-Proprietary` SPDX identifier is mandatory; `Apache-2.0` is BLOCKED on every Aegis crate.
+Marketing copy, README content, license headers, package metadata, and docs MUST never claim that any proprietary crate is "open source" or "Foundation-owned" or under "Apache 2.0". The `LicenseRef-Proprietary` SPDX identifier is mandatory; `Apache-2.0` is BLOCKED on every proprietary crate.
 
 ```toml
-# DO — Aegis crate
+# DO — proprietary crate
 [package]
 name = "kailash-dataflow"
 license = "LicenseRef-Proprietary"
@@ -111,7 +117,7 @@ publish = true          # BLOCKED — would leak source to crates.io
 
 ### 5. The Two Crates That ARE Open-Source
 
-`kailash-plugin-macros` and `kailash-plugin-guest` are the only crates in this workspace that publish to crates.io. They MUST be Apache 2.0 OR MIT. They contain only the plugin SDK API surface needed by third-party plugin authors — no Aegis runtime code, no proprietary algorithms.
+`kailash-plugin-macros` and `kailash-plugin-guest` are the only crates in this workspace that publish to crates.io. They MUST be Apache 2.0 OR MIT. They contain only the plugin SDK API surface needed by third-party plugin authors — no product runtime code, no proprietary algorithms.
 
 ```toml
 # DO — plugin SDK is genuinely open source
@@ -121,19 +127,23 @@ license = "Apache-2.0 OR MIT"
 publish = true
 ```
 
-**Why:** Third-party plugin authors compile against `kailash-plugin-guest` to produce binaries that load into the Aegis runtime. They cannot do this if the dependency is proprietary. The plugin SDK is a deliberate, narrow open-source carve-out — not a precedent for opening other crates.
+**Why:** Third-party plugin authors compile against `kailash-plugin-guest` to produce binaries that load into the product runtime. They cannot do this if the dependency is proprietary. The plugin SDK is a deliberate, narrow open-source carve-out — not a precedent for opening other crates.
 
 ## MUST NOT
 
 - Apply the `kailash-py` Foundation independence rules verbatim to this repo
 
-**Why:** Those rules forbid commercial product references entirely. Aegis IS a commercial product; applying them to its own repo creates contradictions agents cannot resolve. This variant rule replaces the global rule for kailash-rs.
+**Why:** Those rules forbid commercial product references entirely. This repo IS a commercial product; applying them creates contradictions agents cannot resolve. This variant rule replaces the global rule.
 
-- Cite `rules/terrene-naming.md` § "Foundation Independence" as governing the Aegis repo's identity
+- Frame this product as having a special or bilateral relationship with the Terrene Foundation
 
-**Why:** That section governs `terrene-foundation/*` repos. Aegis (this repo) is neither owned by nor structurally related to the Foundation; it consumes TF specs but is operated by an independent commercial entity.
+**Why:** The Foundation's independence means no commercial entity has preferred status. Framing a "two-track" or "counterpart" relationship undermines that independence from both sides.
 
-- Add Apache 2.0 license headers to Aegis source files
+- Use "the SDK" to mean this product or this repo — the SDK is `kailash-enterprise`, what the product ships
+
+**Why:** Conflating the product with its deliverable obscures the boundary between the proprietary codebase (trade secret, never published) and the distributed artifact (the Python package users install).
+
+- Add Apache 2.0 license headers to proprietary source files
 
 **Why:** Mixed-license source files create legal ambiguity and undermine the trade-secret status of the proprietary code.
 
@@ -142,7 +152,5 @@ publish = true
 - `rules/release.md` — enforces `publish = false` on every crate except the plugin SDK pair
 - `rules/security.md` § "Source Protection" — covers what must NEVER be published
 - `rules/terrene-naming.md` — the GLOBAL rule for naming TF entities, still applies for any reference TO TF projects from this repo
-- `rules/eatp.md`, `rules/pact-governance.md` — apply to the EATP and PACT _spec implementations_ in this repo (which are subject to Aegis trade-secret rules, NOT TF Apache 2.0 rules)
+- `rules/eatp.md`, `rules/pact-governance.md` — apply to the EATP and PACT spec implementations in this repo (which are subject to trade-secret rules, NOT TF Apache 2.0 rules)
 - `docs/00-authority/10-source-protection.md` — release auditor's reference for which crates are proprietary
-
-Origin: Aegis/TF boundary clarification, 2026-04-13 (session 064a874b). The previous independence rule was inherited verbatim from the kailash-py loom variant, which produced contradictions between "no commercial product references" and CLAUDE.md's "this is the proprietary Aegis SDK". This variant resolves the contradiction by acknowledging that Aegis IS the parent product brand and replacing the Foundation independence mandate with an accurate Aegis identity model.
