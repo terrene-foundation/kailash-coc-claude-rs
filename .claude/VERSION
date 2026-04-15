@@ -1,19 +1,77 @@
 {
-  "version": "2.9.1",
+  "version": "2.9.2",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-15",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.9",
-    "build_version": "3.16.2",
-    "synced_at": "2026-04-15T06:15:00Z",
+    "version": "2.8.10",
+    "build_version": "3.16.3",
+    "synced_at": "2026-04-15T14:35:00Z",
     "sdk_packages": {
-      "kailash-enterprise": "3.15.2"
+      "kailash-value": "3.16.3",
+      "kailash-core": "3.16.3",
+      "kailash-macros": "3.16.3",
+      "kailash-nodes": "3.16.3",
+      "kailash-nodes-enterprise": "3.16.3",
+      "kailash-plugin": "3.16.3",
+      "kailash-plugin-guest": "3.16.3",
+      "kailash-plugin-macros": "3.16.3",
+      "kailash-capi": "3.16.3",
+      "eatp": "0.1.0",
+      "kailash-dataflow": "3.16.3",
+      "kailash-nexus": "3.16.3",
+      "kailash-kaizen": "3.16.3",
+      "kailash-enterprise": "3.16.3",
+      "kailash-mcp": "3.16.3",
+      "kailash-auth": "3.16.3",
+      "kailash-python": "3.16.3",
+      "kailash-node": "0.1.0",
+      "kailash-wasm": "0.1.0",
+      "kailash-ruby": "3.16.3",
+      "kailash-cli": "3.16.3",
+      "kailash-marketplace": "3.16.3",
+      "trust-plane": "3.16.3",
+      "kailash-governance": "0.1.0",
+      "kailash-pact": "0.1.0",
+      "kaizen-agents": "3.16.3",
+      "kailash-rl": "3.16.3",
+      "kailash-align-serving": "3.16.3",
+      "kailash-ml": "3.16.3",
+      "kailash-ml-core": "3.16.3",
+      "kailash-ml-linalg": "3.16.3",
+      "kailash-ml-preprocessing": "3.16.3",
+      "kailash-ml-linear": "3.16.3",
+      "kailash-ml-tree": "3.16.3",
+      "kailash-ml-ensemble": "3.16.3",
+      "kailash-ml-boost": "3.16.3",
+      "kailash-ml-svm": "3.16.3",
+      "kailash-ml-neighbors": "3.16.3",
+      "kailash-ml-cluster": "3.16.3",
+      "kailash-ml-decomposition": "3.16.3",
+      "kailash-ml-metrics": "3.16.3",
+      "kailash-ml-selection": "3.16.3",
+      "kailash-ml-pipeline": "3.16.3",
+      "kailash-ml-text": "3.16.3",
+      "kailash-ml-misc": "3.16.3",
+      "kailash-ml-explorer": "3.16.3",
+      "kailash-ml-nodes": "3.16.3",
+      "kailash-ml-python": "3.16.3"
     }
   },
   "changelog": [
+    {
+      "version": "2.9.2",
+      "date": "2026-04-15",
+      "summary": "Sync loom 2.8.10 \u2014 DataFlow annotationlib fallback skill (Python 3.14 PEP 749 diagnostics for @db.model). Variant-only skill, retroactive authoring from kailash-rs 3.16.3 codify.",
+      "changes": [
+        "NEW SKILL: skills/06-python-bindings/annotation-resolution-fallback.md \u2014 when `typing.get_type_hints(cls)` raises NameError on a @db.model class, fall back to `annotationlib.get_annotations(cls, format=Format.FORWARDREF)` on 3.14+ for per-field diagnostics (which class, which fields, three common causes). On <3.14, raise a clearer RuntimeError than the raw NameError.",
+        "UPDATED: skills/06-python-bindings/SKILL.md \u2014 index row added for annotation-resolution-fallback.md.",
+        "upstream.build_version bumped to kailash-rs 3.16.3; sdk_packages map expanded to the full workspace member set (was kailash-enterprise only).",
+        "PIN: pyproject.toml — kailash-enterprise>=3.15.2 \u2192 >=3.16.3 (the release that ships the DataFlow annotationlib fallback fix)."
+      ]
+    },
     {
       "version": "2.9.1",
       "date": "2026-04-15",
@@ -21,7 +79,7 @@
       "changes": [
         "NEW SKILL: skills/10-deployment-git/rust-version-bump.md \u2014 canonical procedure for raising rustc MSRV + adding/dropping CPython targets in the PyO3 wheel matrix. Includes PyO3 forward-compat flag pattern and maturin-action lesson.",
         "UPDATED: skills/10-deployment-git/SKILL.md \u2014 'Version Bumps' sub-section added referencing the new skill.",
-        "build_version bumped to kailash-rs 3.16.2 (the release containing the skill)."
+        "build_version bumped to kailash-rs 3.16.3 (the release containing the skill)."
       ]
     },
     {

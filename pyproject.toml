@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
     # Kailash Enterprise (Rust-backed, all-in-one: Core SDK + DataFlow + Nexus + Kaizen + Enterprise)
-    "kailash-enterprise>=3.15.2",
+    "kailash-enterprise>=3.16.3",
     # CLI Framework
     "click>=8.0",
     "rich>=13.0.0",
