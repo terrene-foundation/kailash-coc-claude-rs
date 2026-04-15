@@ -128,6 +128,70 @@ def test_workflow_execution():
     assert result["results"] is not None
 ```
 
+## Delegating Primitives Need Direct Coverage
+
+When a binding-layer class exposes paired variants that delegate to a shared core (e.g. `get` / `get_raw`, `post` / `post_raw`, `put` / `put_raw`, `delete` / `delete_raw`), each variant MUST have at least one test that calls it directly through the Python or Ruby binding — not a test that calls only one variant and reaches the other by delegation.
+
+This is a narrow rule about delegating primitive pairs. It is NOT a universal "every binding method has a direct test" mandate.
+
+### MUST: One Direct Test Per Variant Through The Binding
+
+```python
+# DO — one test per variant, called through the binding
+import kailash
+
+def test_service_client_get_typed_returns_dict(client):
+    """Direct exercise of the typed .get() Python binding method."""
+    user = client.get("/users/42")
+    assert isinstance(user, dict)
+    assert user["name"] == "Alice"
+
+def test_service_client_get_raw_returns_response_dict(client):
+    """Direct exercise of the raw .get_raw() Python binding method."""
+    resp = client.get_raw("/users/42")
+    assert isinstance(resp, dict)
+    assert resp["status"] == 200
+    assert "Alice" in resp["body"]
+
+# DO NOT — exercise only the typed variant and trust delegation
+def test_service_client_get_works(client):
+    """Only calls client.get(); never touches client.get_raw()."""
+    user = client.get("/users/42")
+    assert user["name"] == "Alice"
+# A refactor that changes get_raw's error mapping ships a silent regression
+# because the binding test never exercises that PyO3/Magnus boundary.
+```
+
+**Why:** Binding-layer paired variants cross the FFI boundary independently — a refactor that changes the typed variant's PyO3 conversion while leaving the raw variant alone ships a silent FFI regression. Tests that only exercise one variant cannot catch this because the failure mode is *across* the binding boundary, not in the shared Rust core.
+
+**BLOCKED rationalizations:**
+
+- "The typed variant calls the raw variant internally"
+- "Both variants share the same Rust execute() core"
+- "Integration tests at the Rust layer catch this"
+- "PyO3 wrapping is mechanical, it can't drift"
+
+### MUST: Mechanical Enforcement Via Grep
+
+`/redteam` MUST grep the binding test directory for direct call sites of each known raw variant and report any pair where one side has zero matches.
+
+```bash
+# DO — check each binding-exposed variant has a direct test in YOUR project's
+# test directory. Adjust TEST_DIR for your layout (the default `tests/` works
+# for most kailash-enterprise consumer projects).
+TEST_DIR="${TEST_DIR:-tests}"
+for variant in get_raw post_raw put_raw delete_raw; do
+  count=$(grep -rln "client\.$variant(" "$TEST_DIR" | wc -l)
+  if [ "$count" -eq 0 ]; then
+    echo "MISSING: no test calls client.$variant() through the Python binding"
+  fi
+done
+```
+
+**Why:** Mechanical grep at audit time catches the regression before it reaches a downstream consumer. Manual "I think I tested both" is not auditable across PyO3/Magnus binding refactors.
+
+Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`). The Rust `put_raw` and `delete_raw` had wiremock coverage; the Python binding equivalents at `bindings/kailash-python/tests/test_service_client.py` had no direct exercise — every test went through the typed `.put()` / `.delete()` variants. Fixed by adding direct binding-layer tests for each raw variant. The pattern applies to every binding pair that wraps a Rust delegating-primitive.
+
 ## Rules
 
 - Test-first development for new features

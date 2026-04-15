@@ -103,27 +103,77 @@ Nexus struct
 
 ### Additional Types (v3.11.0+)
 
-| Type               | Module      | Purpose                                               |
-| ------------------ | ----------- | ----------------------------------------------------- |
-| `SessionConfig`    | `session`   | Cookie name, TTL, secure flag, same-site policy       |
-| `WsBroadcaster`    | `websocket` | Broadcast messages to all connected WebSocket clients |
-| `WsMessage`        | `websocket` | Text or binary WebSocket message payload              |
-| `McpAuthenticator` | `mcp::auth` | API key + bearer token auth for MCP SSE transport     |
+| Type               | Module           | Purpose                                                                     |
+| ------------------ | ---------------- | --------------------------------------------------------------------------- |
+| `SessionConfig`    | `session`        | Cookie name, TTL, secure flag, same-site policy                             |
+| `WsBroadcaster`    | `websocket`      | Broadcast messages to all connected WebSocket clients                       |
+| `WsMessage`        | `websocket`      | Text or binary WebSocket message payload                                    |
+| `McpAuthenticator` | `mcp::auth`      | API key + bearer token auth for MCP SSE transport                           |
+| `ServiceClient`    | `service_client` | Typed S2S HTTP client with SSRF guard, allowlist, header validation (#400)  |
+| `HttpClient`       | `http_client`    | Lower-level HTTP client primitive — SSRF + DNS rebind + allowlist (#399)    |
 
-```rust
-// Session with custom config
-use kailash_nexus::session::{InMemorySessionStore, SessionConfig};
-let config = SessionConfig::new().with_cookie_name("my_session").with_ttl(3600);
-nexus.with_session_store(Arc::new(InMemorySessionStore::new()), config);
+```python
+# Python binding: session, websocket, MCP auth (consumed via kailash-enterprise wheel)
+import kailash
 
-// WebSocket broadcasting
-use kailash_nexus::websocket::{WsBroadcaster, WsHandlerFn};
-let broadcaster = WsBroadcaster::new();
-nexus.websocket("/ws", ws_handler, broadcaster.clone());
+# Session config (sync Python wrapper around the Rust SessionConfig)
+session_cfg = kailash.SessionConfig(cookie_name="my_session", ttl_seconds=3600)
+```
 
-// MCP authentication
-use kailash_nexus::mcp::auth::{McpAuthConfig, McpAuthenticator};
-let auth = McpAuthenticator::new(McpAuthConfig { api_keys: vec!["key".into()], ..Default::default() });
+### ServiceClient — Typed S2S HTTP With Eager Validation (v3.16.1)
+
+`ServiceClient` is the canonical type for service-to-service HTTP calls inside a Nexus deployment. It validates URLs, headers, and bearer tokens at construction time, applies an SSRF guard against private/loopback IPs *before* the allowlist check, and exposes a typed exception hierarchy (6 subclasses) so Python callers can `except` discrete failure modes without parsing exception messages.
+
+```python
+import kailash
+
+# Construction-time validation: bad URL, bad header, or bad token raises immediately.
+try:
+    client = kailash.ServiceClient(
+        base_url="https://api.example.com/v1",
+        allowed_hosts=["api.example.com"],
+        timeout_secs=10.0,
+        bearer_token="eyJhbGc...",                   # validated, CRLF rejected
+        headers={
+            "X-Request-Id": "req-abc-123",           # validated
+            "X-Tenant": "tenant-acme",               # validated
+        },
+    )
+except kailash.ServiceClientInvalidHeaderError as e:
+    log.error("client construction rejected", error=str(e))
+    raise
+
+# Typed call: returns parsed dict, raises ServiceClientHttpStatusError on non-2xx.
+try:
+    user = client.get("/users/42")
+except kailash.ServiceClientHttpStatusError as e:
+    return None  # treat 404 as "no user"
+except kailash.ServiceClientDeserializeError as e:
+    log.error("backend returned malformed json", error=str(e))
+    raise
+except kailash.ServiceClientError:
+    raise        # any other failure from the subsystem
+
+# Raw call: returns {"status": int, "headers": dict, "body": str}, no status check.
+resp = client.get_raw("/health")
+if resp["status"] == 200:
+    print(json.loads(resp["body"]))
+```
+
+**Key invariants enforced by the type:**
+
+1. **SSRF guard runs before allowlist.** Loopback (`127.0.0.0/8`), private (`10/8`, `172.16/12`, `192.168/16`), link-local (`169.254/16`), and cloud metadata hosts (`metadata.google.internal`, `metadata.internal`) are blocked unconditionally. `allowed_hosts` cannot bypass the SSRF check — it only adds an additional filter for public hosts.
+2. **Header validation at construction.** `try_with_header` (Rust) / `__init__` (Python) validates every header name + value through `reqwest::header::HeaderName::try_from` / `HeaderValue::try_from`. CRLF, NUL, and non-ASCII bytes are rejected before the builder returns.
+3. **Bearer token routes through header validator.** `with_bearer_token` is fallible (returns `Result<Self, _>` in Rust; raises in Python `__init__`) and delegates to `try_with_header` — a CRLF-injected token fails at construction, not on first request.
+4. **Error bodies are layer-truncated.** Rust forensic logs keep ~4KB; Python exception messages are tightened to ~512 bytes via `truncate_py_error_body`. See `skills/06-python-bindings/layered-truncation.md`.
+5. **Typed exception hierarchy.** Six PyO3 subclasses of `ServiceClientError`: `ServiceClientHttpError`, `ServiceClientHttpStatusError`, `ServiceClientSerializeError`, `ServiceClientDeserializeError`, `ServiceClientInvalidPathError`, `ServiceClientInvalidHeaderError`. See `skills/06-python-bindings/typed-exception-hierarchy.md`.
+6. **Delegating primitive pairs need direct tests.** `get`/`get_raw`, `post`/`post_raw`, `put`/`put_raw`, `delete`/`delete_raw` — each variant has its own direct binding test. See `rules/testing.md` § Delegating Primitives Need Direct Coverage.
+
+**Test placement:** Python binding tests cannot exercise happy-path roundtrips because the SSRF guard blocks loopback before the allowlist runs (wiremock binds to 127.0.0.1). Happy-path coverage lives in the Rust wiremock suite at `crates/kailash-nexus/src/service_client.rs`; the Python tests cover error paths, eager validation, exception class distinctness, and SSRF rejection. See `skills/12-testing-strategies/impossibility-surface.md` for the documented-impossibility pattern.
+
+```python
+# Other Additional Types (session, WebSocket, MCP auth) — shown in the table above.
+# Their Python binding shapes follow the same kwargs-at-construction pattern as ServiceClient.
 ```
 
 ## Framework Selection
