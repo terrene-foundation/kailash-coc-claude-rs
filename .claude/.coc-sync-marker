@@ -1,8 +1,15 @@
-last_sync: 2026-04-11T16:00:00Z
-source: loom
-version: 2.8.0
-build_sdk_version: 3.12.1
-files_updated: 3
-files_new: 0
-files_preserved: true
-gate1_proposal: "fix(security): resolve all convergence red team gaps (PR #322)"
+last_synced: "2026-04-15T04:30:00Z"
+loom_version: "2.8.7"
+sync_direction: "loom → kailash-coc-claude-rs USE template (Gate 2)"
+scope: "2.8.7 codify-completion artifacts + ServiceClient binding skills + ffi-specialist first-time placement"
+files_new:
+  - .claude/skills/12-testing-strategies/impossibility-surface.md
+  - .claude/skills/06-python-bindings/typed-exception-hierarchy.md
+  - .claude/skills/06-python-bindings/layered-truncation.md
+  - .claude/skills/18-security-patterns/header-validation-at-construction.md
+  - .claude/agents/ffi-specialist.md
+files_updated:
+  - .claude/rules/testing.md (Delegating Primitives section added)
+  - .claude/agents/frameworks/nexus-specialist.md (ServiceClient Python binding section added)
+files_unchanged:
+  - .claude/rules/independence.md (already identical to variant)

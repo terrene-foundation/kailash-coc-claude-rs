@@ -6,9 +6,9 @@
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.3",
+    "version": "2.8.7",
     "build_version": "3.15.2",
-    "synced_at": "2026-04-14T00:00:00+08:00",
+    "synced_at": "2026-04-15T04:30:00Z",
     "sdk_packages": {
       "kailash-enterprise": "3.15.2"
     }
@@ -85,9 +85,9 @@
     {
       "version": "2.8.0",
       "date": "2026-04-13",
-      "summary": "Sync kailash-rs 3.15.2 codify \u2014 Aegis identity variant (independence.md), security function name fixes (ApiKeyConfig::validate_key), DataClassification enum fix, cross-binding gap documentation. 5 new global skills, 4 updated variant files.",
+      "summary": "Sync kailash-rs 3.15.2 codify \u2014 (REVERTED 2026-04-15) kailash-rs-as-Aegis identity variant (independence.md) — misidentification, see 2.8.6 entry. Also: security function name fixes (ApiKeyConfig::validate_key), DataClassification enum fix, cross-binding gap documentation. 5 new global skills, 4 updated variant files.",
       "changes": [
-        "NEW VARIANT: rules/independence.md \u2014 Aegis two-track identity (replaces TF Foundation global for rs target). Origin: session 064a874b.",
+        "(REVERTED 2026-04-15) NEW VARIANT: rules/independence.md \u2014 introduced kailash-rs-as-Aegis identity framing; reverted in 2.8.6 because kailash-rs is the proprietary Kailash Rust SDK, not Aegis (Aegis is a separate downstream PACT-implementation by Integrum Global). Origin: session 064a874b.",
         "UPDATED VARIANT: rules/security.md \u2014 validate_token_against_list \u2192 ApiKeyConfig::validate_key.",
         "UPDATED VARIANT: skills/18-security-patterns/constant-time-comparison-rs.md \u2014 function name, hash-then-compare invariant, line references.",
         "UPDATED VARIANT: skills/18-security-patterns/fail-closed-defaults-rs.md \u2014 ClassificationLevel \u2192 DataClassification, cross-binding gap warning, enum disambiguation.",
