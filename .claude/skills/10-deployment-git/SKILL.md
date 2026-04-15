@@ -53,6 +53,10 @@ Production deployment patterns for:
 - **[git-workflow-quick](git-workflow-quick.md)** - Branch strategy and commit conventions
 - **[git-release-patterns](git-release-patterns.md)** - Pre-commit validation, release procedures, cargo publish
 
+### Version Bumps
+
+- **[rust-version-bump](rust-version-bump.md)** - Canonical procedure for raising rustc MSRV or adding/dropping a CPython target in the PyO3 wheel matrix. Cross-SDK counterpart to kailash-py's `python-version-bump`.
+
 ### Project Management
 
 - **[github-management-patterns](github-management-patterns.md)** - GitHub issues, PRs, project boards
