@@ -1,9 +1,10 @@
-last_synced: "2026-04-15T12:39:16Z"
-loom_version: "2.8.7"
-template_version: "2.9.0"
-sync_direction: "Python 3.14 support"
-scope: "Python 3.14 classifier (PyO3-backed kailash-rs)"
+last_synced: "2026-04-15T14:35:00Z"
+loom_version: "2.8.10"
+template_version: "2.9.2"
+sync_direction: "DataFlow annotationlib fallback (Python 3.14 PEP 749)"
+scope: "Variant-only skill authored retroactively from kailash-rs codify proposal"
 files:
-  - pyproject.toml
-  - .claude/VERSION
-  - .claude/.coc-sync-marker
+  - .claude/skills/06-python-bindings/annotation-resolution-fallback.md  # ADDED
+  - .claude/skills/06-python-bindings/SKILL.md                           # UPDATED (index row)
+  - .claude/VERSION                                                      # UPDATED (2.9.1 -> 2.9.2, sdk_packages expanded to full workspace)
+  - .claude/.coc-sync-marker                                             # UPDATED
