@@ -1,10 +1,18 @@
-last_synced: "2026-04-15T14:35:00Z"
-loom_version: "2.8.10"
-template_version: "2.9.2"
-sync_direction: "DataFlow annotationlib fallback (Python 3.14 PEP 749)"
-scope: "Variant-only skill authored retroactively from kailash-rs codify proposal"
+last_synced: "2026-04-19T12:00:00Z"
+loom_version: "2.8.15"
+template_version: "2.9.5"
+sync_direction: "Gate 2 distribution from loom 2.8.15 (round 2) — single-file delta sync for rules/dependencies.md extension (optional-dep feature-gate consistency from kailash-rs#417)"
+scope: "Minimal delta. One rule file updated. No new skills, no new guides, no SDK pin change. rs SDK remains 3.18.0."
 files:
-  - .claude/skills/06-python-bindings/annotation-resolution-fallback.md  # ADDED
-  - .claude/skills/06-python-bindings/SKILL.md                           # UPDATED (index row)
-  - .claude/VERSION                                                      # UPDATED (2.9.1 -> 2.9.2, sdk_packages expanded to full workspace)
-  - .claude/.coc-sync-marker                                             # UPDATED
+  - .claude/rules/dependencies.md                                           # MODIFIED (190 → 289 lines; new § 'Declared = Gated Consistently')
+  - .claude/VERSION                                                          # UPDATED (2.9.4 → 2.9.5, upstream 2.8.14 → 2.8.15)
+  - .claude/.coc-sync-marker                                                 # UPDATED
+not_applied:
+  - .github/ISSUE_TEMPLATE/cross-sdk.md                                      # build_only per proposal (BUILD-repo GitHub infra)
+  - crates/kailash-dataflow/tests/regression_405_upsert_sqli.rs              # build_only per proposal (Rust test inside kailash-rs)
+sdk_pins:
+  kailash-enterprise: ">=3.18.0"                                             # UNCHANGED (rs still 3.18.0)
+proposal_distributed:
+  path: /Users/esperie/repos/loom/kailash-rs/.claude/.proposals/latest.yaml
+  status_transition: reviewed → distributed
+  distributed_date: "2026-04-19"
