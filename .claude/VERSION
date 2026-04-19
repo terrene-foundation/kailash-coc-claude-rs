@@ -1,14 +1,14 @@
 {
-  "version": "2.9.7",
+  "version": "2.9.8",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-19",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.18",
+    "version": "2.8.19",
     "build_version": "3.18.0",
-    "synced_at": "2026-04-19T11:15:00Z",
+    "synced_at": "2026-04-19T14:30:00Z",
     "sdk_packages": {
       "kailash-value": "3.18.0",
       "kailash-core": "3.18.0",
@@ -61,6 +61,23 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.9.8",
+      "date": "2026-04-19",
+      "summary": "Sync loom 2.8.19 \u2014 7 global rule extensions from kailash-py round-10 post-release audit codify (cross-SDK, language-agnostic patterns). No rs SDK release; Cargo pins unchanged (3.18.0).",
+      "changes": [
+        "EXTENDED: rules/tenant-isolation.md \u2014 +Rule 3a 'Keyspace Version Bumps Require Invalidation-Path Sweep' (CRITICAL). When CacheKeyGenerator default version bumps (v1\u2192v2), every invalidation entry point MUST use a version-wildcard pattern (`dataflow:v*:...`) to sweep both legacy and current keys. BLOCKED rationalizations + origin (kailash-py PR #522/#529 fast-patch, dataflow 2.0.12).",
+        "EXTENDED: rules/security.md \u2014 +'Sanitizer Contract \u2014 DataFlow Display Hygiene' section (3 sub-rules: token-replace not quote-escape, type-confusion MUST raise, safe types pass through) + 'Multi-Site Kwarg Plumbing' section (security-relevant kwargs plumbed through helpers MUST be updated at every call site in the same PR). Rs-variant Rust clauses (Credential Comparison, Fail-Closed Defaults, Network Transport Hardening) preserved.",
+        "EXTENDED: rules/orphan-detection.md \u2014 +Rule 6 'Module-Scope Public Imports Appear In __all__' (HIGH). Any symbol imported at module-scope into a package's __init__.py MUST appear in __all__. Evidence: kailash-ml 0.11.0 eagerly imported DeviceReport + device_report_from_backend_info + device + use_device but omitted all four from __all__; patched in 0.11.1. USE-NOTE: Python-specific __all__ pattern. The rs USE template serves Python/Ruby binding consumers per sync-manifest.yaml lines 60-63, so Python examples land correctly.",
+        "EXTENDED: rules/cross-sdk-inspection.md \u2014 +\u00a73a 'Structural API-Divergence Disposition' (when sibling SDKs diverge structurally, close ticket with BOTH Tier-2 binding-path test + signature-invariant test, same PR; `Python doesn't have this API` closures are BLOCKED) + \u00a75 'Cross-SDK Symbol Citations MUST Be Grep-Verified' (every concrete symbol cited across SDKs verified against working tree before commit; evidence in commit body). Origin: kailash-py issue #525 / PR #528.",
+        "EXTENDED: rules/dependencies.md \u2014 +'Phantom Transitive Deps \u2014 Resolve Via Lockfile Upgrade, Not Local Caps' section (multi-ecosystem: uv + cargo + npm). Phantom transitive dep (installed by lockfile, zero-imports) holding a secondary package at an old cap MUST be resolved by `uv lock --upgrade-package X` / `cargo update -p X`, NOT by manifest-level caps. Origin: kailash-py PR #530 \u2014 google-generativeai 0.8.6 phantom blocked protobuf upgrade; dropped cleanly.",
+        "EXTENDED: rules/agents.md \u2014 Quality Gates table +'After release (post-merge audit)' row (RECOMMENDED reviewer run against merged main; if CRIT/HIGH surfaces, patch branch in SAME session and ship as x.y.z+1) + 'Verify Agent Deliverables Exist After Exit' section (parent orchestrator MUST ls/Read claimed files before trusting agent completion; budget-exhaustion-mid-message truncates final writes). Rs-variant narrower specialist list preserved.",
+        "EXTENDED: rules/framework-first.md \u2014 +'Framework Version-Stable Integration \u2014 Drive The Data, Not The Dispatch' section. Integrations MUST iterate registered-handlers data structure (on_startup / on_shutdown lists) NOT call dispatch method by name (startup() / shutdown()); dispatch names drift across framework versions. Origin: kailash-py issue #531 / PR #533 \u2014 kailash-nexus 2.1.0 crashed at uvicorn lifespan because FastAPI exposed only _startup; 2.1.1 fix iterated on_startup list. Rs-variant binding-focused anti-pattern table preserved.",
+        "PIN: Cargo workspace unchanged (3.18.0). No rs SDK release in this cycle; pyproject.toml kailash-enterprise>=3.18.0 unchanged.",
+        "HOOKS: 12/12 registered settings.json hooks exist on disk.",
+        "RS VARIANT NOTE: 3 of 7 files (security.md, agents.md, framework-first.md) have rs variants per sync-manifest.yaml. New 2.8.19 sections were MERGED into the existing rs variants (not overwrites) to preserve rs-variant content: Rust security clauses, narrower specialist list, binding-focused anti-pattern table. The 4 no-rs-variant files (tenant-isolation, orphan-detection, cross-sdk-inspection, dependencies) overwritten from global as-is."
+      ]
+    },
     {
       "version": "2.9.7",
       "date": "2026-04-19",
@@ -626,5 +643,5 @@
       ]
     }
   ],
-  "updated": "2026-04-19T11:15:00Z"
+  "updated": "2026-04-19T14:30:00Z"
 }
