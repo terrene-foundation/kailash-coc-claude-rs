@@ -169,8 +169,9 @@ When auditing for orphans, run this protocol against every class exposed on the 
 
 1. **Surface scan** — list every property, method, and attribute on the framework's top-level class that returns a `*Manager` / `*Executor` / `*Store` / `*Registry` / `*Engine` / `*Service`.
 2. **Hot-path grep** — for each candidate, grep the framework's source (NOT tests, NOT downstream consumers) for calls into the class's methods. Zero matches in the hot path = orphan.
-3. **Tier 2 grep** — for each non-orphan, grep `tests/integration/` and `tests/e2e/` for the class name. Zero matches = unverified wiring.
-4. **Collect-only sweep** — run `.venv/bin/python -m pytest --collect-only tests/ packages/*/tests/`. Every `ERROR <path>` / `ModuleNotFoundError` / `ImportError` at collection is a test-orphan. Disposition: delete the orphan test file (if the API is gone) or port its imports (if the API moved).
-5. **Disposition** — every orphan and every unverified wiring MUST be either fixed (wire + test) or deleted (remove from public surface).
+3. **Bridge-shim verification** — for every match from step 2, verify the call site is NOT an isolating shim (`LegacyHandlerAdapter`, `CompatBridge`, `FacadeAdapter`). If every hot-path call site routes through a shim whose job is to translate back to the OLD pre-refactor surface, the new surface is still an orphan — it has zero un-bridged consumers. **Why:** Shims are the most common way an orphan "looks wired" but isn't. A new trait can have dozens of Tier 1 test matches and a production call site whose only job is to translate inputs back to the old API; until the shim is removed, the new surface is never actually used. Evidence: kailash-rs#404 S4a (commit 90858bab) — hot-path grep alone found 6 call sites; bridge-shim verification reduced that to zero non-shim call sites, surfacing the orphan.
+4. **Tier 2 grep** — for each non-orphan, grep `tests/integration/` and `tests/e2e/` for the class name. Zero matches = unverified wiring.
+5. **Collect-only sweep** — run `.venv/bin/python -m pytest --collect-only tests/ packages/*/tests/`. Every `ERROR <path>` / `ModuleNotFoundError` / `ImportError` at collection is a test-orphan. Disposition: delete the orphan test file (if the API is gone) or port its imports (if the API moved).
+6. **Disposition** — every orphan and every unverified wiring MUST be either fixed (wire + test) or deleted (remove from public surface).
 
 This protocol runs as part of `/redteam` and `/codify`.

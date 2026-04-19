@@ -1,18 +1,19 @@
-last_synced: "2026-04-19T12:00:00Z"
-loom_version: "2.8.15"
-template_version: "2.9.5"
-sync_direction: "Gate 2 distribution from loom 2.8.15 (round 2) — single-file delta sync for rules/dependencies.md extension (optional-dep feature-gate consistency from kailash-rs#417)"
-scope: "Minimal delta. One rule file updated. No new skills, no new guides, no SDK pin change. rs SDK remains 3.18.0."
+last_synced: "2026-04-19T11:15:00Z"
+loom_version: "2.8.18"
+template_version: "2.9.7"
+sync_direction: "Gate 2 single-file body-shape correction — loom 2.8.17 → 2.8.18. Reconciles nexus-http-status-convention skill body shape ({error, status} → {error, code}) to match SDK contract verified by red-team grep against 8 production refs in crates/kailash-nexus/src/."
+scope: "1 file changed (MODIFIED). No SDK pin change. No manifest change. No variant/rs overlays affected."
 files:
-  - .claude/rules/dependencies.md                                           # MODIFIED (190 → 289 lines; new § 'Declared = Gated Consistently')
-  - .claude/VERSION                                                          # UPDATED (2.9.4 → 2.9.5, upstream 2.8.14 → 2.8.15)
+  - .claude/skills/03-nexus/nexus-http-status-convention.md                  # MODIFIED (rewritten 186 → 179 lines; body shape {error, status} → {error, code}; catalog expanded with code column; NexusHandlerError examples; handler_extract API)
+  - .claude/VERSION                                                          # UPDATED (2.9.6 → 2.9.7, upstream 2.8.17 → 2.8.18)
   - .claude/.coc-sync-marker                                                 # UPDATED
-not_applied:
-  - .github/ISSUE_TEMPLATE/cross-sdk.md                                      # build_only per proposal (BUILD-repo GitHub infra)
-  - crates/kailash-dataflow/tests/regression_405_upsert_sqli.rs              # build_only per proposal (Rust test inside kailash-rs)
+not_applied: []
+unchanged_skipped:
+  - All other artifacts (single-file delivery from loom 2.8.18 source)
 sdk_pins:
-  kailash-enterprise: ">=3.18.0"                                             # UNCHANGED (rs still 3.18.0)
+  kailash-enterprise: ">=3.18.0"                                             # UNCHANGED (no Cargo change)
 proposal_distributed:
-  path: /Users/esperie/repos/loom/kailash-rs/.claude/.proposals/latest.yaml
-  status_transition: reviewed → distributed
-  distributed_date: "2026-04-19"
+  note: "Loom-side correction, not BUILD-driven. No proposal status transition."
+hooks_verified:
+  count: 12/12
+  note: "Unchanged from 2.9.6 sync."

@@ -1,14 +1,14 @@
 {
-  "version": "2.9.5",
+  "version": "2.9.7",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-19",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.8.15",
+    "version": "2.8.18",
     "build_version": "3.18.0",
-    "synced_at": "2026-04-19T12:00:00Z",
+    "synced_at": "2026-04-19T11:15:00Z",
     "sdk_packages": {
       "kailash-value": "3.18.0",
       "kailash-core": "3.18.0",
@@ -61,6 +61,31 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.9.7",
+      "date": "2026-04-19",
+      "summary": "Single-file body-shape correction (loom 2.8.18) \u2014 skills/03-nexus/nexus-http-status-convention.md rewritten from {error, status} to {error, code} shape. No SDK pin change.",
+      "changes": [
+        "Reconcile nexus-http-status-convention skill body shape ({error, status} \u2192 {error, code}) to match SDK contract verified by red-team grep against 8 production refs in crates/kailash-nexus/src/. Companion to 2.8.17 rule."
+      ]
+    },
+    {
+      "version": "2.9.6",
+      "date": "2026-04-19",
+      "summary": "Sync loom 2.8.16 + 2.8.17 (2-version catch-up) \u2014 2 new global rules (worktree-isolation, nexus-http-status-convention) + 1 new global skill (nexus-extractors) + 3 extended global rules (orphan-detection step 3 bridge-shim, observability LogRecord reserved-attr, dataflow-identifier-safety Rule 6 primitive-vs-orchestrator). variants/py overlays for nexus-specialist + deployment.md NOT applied to rs target. Rs variant rules unchanged (test-skip decision tree extension to global testing.md NOT propagated to rs variant). SDK pin unchanged (3.18.0).",
+      "changes": [
+        "NEW RULE: rules/worktree-isolation.md \u2014 path-scoped to .claude/agents/** + .claude/commands/** + **/agents/**. 3 MUST clauses: (1) orchestrator pins absolute worktree path + verify instruction; (2) specialist agents self-verify cwd + git branch at Step 0; (3) parent verifies deliverables exist after agent exit. BLOCKED rationalizations enumerated. Origin: kailash-py session 2026-04-19 ml/dataflow/kaizen specialist drift PRs #502-#508 (loom 2.8.16).",
+        "NEW RULE: rules/nexus-http-status-convention.md \u2014 path-scoped to **/nexus/** + **/*handler* + **/*endpoint*. 5 MUST clauses freezing the NexusError variant \u2192 HTTP status mapping (12-row taxonomy), JSON error body shape ({error, code}), 5xx-vs-502/503/504 hard rule, extractor-based handler typed-status returns, legacy InvalidInput\u2192400 mapping. Cross-references handler-status-codes + nexus-extractors + nexus-webhook-hmac. Origin: kailash-rs#404 S8 (loom 2.8.17).",
+        "NEW SKILL: skills/03-nexus/nexus-extractors.md \u2014 HIGH-priority extractor surface reference (Headers, Bytes, BodyStream, Path, Query, State, Extension, TypedHeader, Json) + response shapes (plain dict, tuple, triple, None\u2192204, NexusHandlerError) + Ruby keyword-arg blocks + performance notes + backward compatibility. Origin: kailash-rs#404 S1-S7 (loom 2.8.17).",
+        "EXTENDED: rules/orphan-detection.md \u2014 Detection Protocol gains step 3 'Bridge-shim verification' (+1 step). Hot-path call sites that route through isolating shims (LegacyHandlerAdapter, CompatBridge, FacadeAdapter) do NOT count as wired \u2014 the new surface is still an orphan until non-shim consumers exist. Evidence: kailash-rs#404 S4a commit 90858bab (loom 2.8.17).",
+        "EXTENDED: rules/observability.md \u2014 +42 lines, LogRecord reserved-attribute collision section. structlog/stdlib field name collisions (process, thread, asctime, lineno) shadow the runtime-managed attributes and produce confusing logs. Cross-language: same failure mode in Python logging.LogRecord and Rust tracing::Span (loom 2.8.16).",
+        "EXTENDED: rules/dataflow-identifier-safety.md \u2014 +43 lines, new Rule 6 'Primitive-vs-Orchestrator Layer Distinction For Destructive Operations'. Per-DDL primitive callers use force_drop + DropRefusedError; multi-DDL orchestrator callers use force_downgrade / force_remove_columns / force_rollback + their respective *RefusedError types. The two MUST NOT subclass each other \u2014 distinct audit-trail attribution. Origin: kailash-py gh #510 + PR #517, cross-SDK parity with kailash-rs codify (loom 2.8.16).",
+        "RS VARIANT NOTE: variants/rs/rules/testing.md NOT updated with the test-skip-discipline triage decision tree that loom added to global rules/testing.md in 2.8.16 \u2014 the rs variant testing rule was last refreshed at 2.3.5 (Python-binding flavoring) and the global extension does not target rs's variant scope. Future rs codify cycle may upstream a rs-flavored equivalent.",
+        "VARIANTS NOT APPLIED: variants/py/agents/frameworks/nexus-specialist.md (Python middleware patterns) and variants/py/rules/deployment.md \u2014 py-only overlays from loom 2.8.16 round, not propagated to rs target.",
+        "SKIPPED (unchanged): rules/deployment.md (small loom edit, identical to rs template), rs variant rules/agents.md + zero-tolerance.md + testing.md + independence.md + patterns.md + connection-pool.md + framework-first.md + build-speed.md + e2e-god-mode.md + security.md (variant overlays in place; loom rs variants not modified in 2.8.16/2.8.17).",
+        "PIN: pyproject.toml kailash-enterprise>=3.18.0 unchanged (rs Cargo workspace remains at 3.18.0; no SDK release between 2.9.5 and 2.9.6 syncs)."
+      ]
+    },
     {
       "version": "2.9.5",
       "date": "2026-04-19",
@@ -601,5 +626,5 @@
       ]
     }
   ],
-  "updated": "2026-04-19"
+  "updated": "2026-04-19T11:15:00Z"
 }
