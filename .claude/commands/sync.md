@@ -107,8 +107,8 @@ Compare `.coc-sync-marker` timestamps. If already fresh: "Already up to date."
 
 **Scripts** (updated from template):
 
-- `scripts/hooks/*.js` — updated
-- `scripts/hooks/lib/*.js` — updated
+- `.claude/hooks/*.js` — updated
+- `.claude/hooks/lib/*.js` — updated
 
 ### 6. Verify integrity
 

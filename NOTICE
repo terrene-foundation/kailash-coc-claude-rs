@@ -1,0 +1,24 @@
+Kailash COC Claude (Rust-backed bindings USE template)
+Copyright 2026 Terrene Foundation Ltd. (Singapore CLG)
+
+This product includes software developed at the Terrene Foundation
+(https://terrene.foundation).
+
+Licensing summary for this repository:
+
+  * This template repository (agents, skills, rules, commands, hooks,
+    documentation): Apache License, Version 2.0. See LICENSE.
+  * Terrene Foundation specifications referenced here (CARE, EATP, CO,
+    PACT): CC BY 4.0, owned by Terrene Foundation.
+
+Dependencies mentioned by this template:
+
+  * kailash-rs Python binding (PyPI: `kailash`) — distributed free of
+    charge with no gating, no registration, and no paid tier. Hosted on
+    the Terrene Foundation GitHub organization.
+  * kailash-py (PyPI: `kailash` on the pure-Python track) — the
+    Terrene Foundation's fully open-source Python implementation of
+    the same specifications. Apache 2.0. Forkable.
+
+This template does not require payment, license keys, or account
+registration from its users.

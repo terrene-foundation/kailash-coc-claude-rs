@@ -5,11 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "my-kailash-project"  # TODO: Replace with your project name
 version = "1.0.0"
-description = "A Kailash SDK project (Rust-backed)"  # TODO: Replace with your project description
+description = "A Kailash SDK project (Rust-accelerated binding)"  # TODO: Replace with your project description
 authors = [
     {name = "Your Name", email = "your.email@example.com"}  # TODO: Replace with your info
 ]
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -22,8 +23,13 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    # Kailash Enterprise (Rust-backed, all-in-one: Core SDK + DataFlow + Nexus + Kaizen + Enterprise)
-    "kailash-enterprise>=3.18.0",
+    # Kailash (Rust-accelerated Python binding — free, no registration, no gating).
+    # Published on PyPI, source hosted on the Terrene Foundation GitHub org.
+    # The binding links against a Rust runtime whose source is trade secret,
+    # but install + use is free for every user.
+    # Alternative: replace with `kailash-py` for the fully open-source
+    # (Apache 2.0) pure-Python implementation of the same specs.
+    "kailash>=3.20.0",
     # CLI Framework
     "click>=8.0",
     "rich>=13.0.0",

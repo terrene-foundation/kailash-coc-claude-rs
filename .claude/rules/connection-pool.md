@@ -1,4 +1,6 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "**/db/**"
   - "**/pool*"
@@ -6,7 +8,11 @@ paths:
   - "**/infrastructure/**"
 ---
 
-# Connection Pool Safety Rules (Rust SDK + Python Bindings)
+# Connection Pool Safety Rules
+
+
+<!-- slot:neutral-body -->
+
 
 ### 1. Never Use Default Pool Size in Production
 
@@ -110,3 +116,5 @@ async def lifespan(app):
   **Why:** Each loop iteration allocates a new Rust-side connection handle that is not reclaimed until the loop completes, exhausting both pool slots and OS file descriptors.
 - No pool size from user input (API params, form fields)
   **Why:** An attacker-controlled pool size can trivially DoS the database by requesting thousands of connections in a single request.
+
+<!-- /slot:neutral-body -->

@@ -1,4 +1,6 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "deploy/**"
   - ".github/**"
@@ -7,6 +9,9 @@ paths:
 ---
 
 # SDK Release Rules
+
+
+<!-- slot:neutral-body -->
 
 ## Before Any Release
 
@@ -47,3 +52,5 @@ python -m venv /tmp/verify --clear
 Every SDK MUST have `deploy/deployment-config.md`. Run `/deploy` to create it.
 
 **Why:** Without a deployment config, release agents guess at package names, registries, and credentials, leading to failed or misdirected publishes.
+
+<!-- /slot:neutral-body -->

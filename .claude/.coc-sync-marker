@@ -1,32 +1,18 @@
-last_synced: "2026-04-19T14:30:00Z"
-loom_version: "2.8.19"
-template_version: "2.9.8"
-sync_direction: "Gate 2 single-cycle cross-SDK catch-up — loom 2.8.19 → rs USE template 2.9.8. Delivers 7 global rule extensions from kailash-py round-10 post-release audit codify (cross-SDK, language-agnostic patterns). No rs SDK release in this cycle; Cargo pins unchanged."
-scope: "7 rule files updated (4 overwrites + 3 merges to preserve rs-variant content). No SDK pin change. No manifest change. Gate 1 classification reused from py Gate 2 run."
-files:
-  - .claude/rules/tenant-isolation.md                                        # OVERWRITE (no rs variant; +Rule 3a Keyspace Version Bumps invalidation-path sweep, 112 → 140 lines)
-  - .claude/rules/orphan-detection.md                                        # OVERWRITE (no rs variant; +Rule 6 Module-Scope Public Imports in __all__, 151 → 192 lines; Python __all__ pattern lands on Python/Ruby binding-consumer rs template per manifest)
-  - .claude/rules/cross-sdk-inspection.md                                    # OVERWRITE (no rs variant; +§3a Structural API-Divergence Disposition + §5 Cross-SDK Symbol Citations Grep-Verified)
-  - .claude/rules/dependencies.md                                            # OVERWRITE (no rs variant; +Phantom Transitive Deps multi-ecosystem section covering uv/cargo/npm)
-  - .claude/rules/agents.md                                                  # MERGE (rs variant — +Quality Gates post-release audit row + Verify Agent Deliverables section + worktree-isolation.md cross-ref line; narrower rs specialist list preserved)
-  - .claude/rules/security.md                                                # MERGE (rs variant — +Sanitizer Contract display-hygiene section + Multi-Site Kwarg Plumbing section; Rust Credential Comparison + Fail-Closed Defaults + Network Transport Hardening preserved)
-  - .claude/rules/framework-first.md                                         # MERGE (rs variant — +Framework Version-Stable Integration 'Drive The Data, Not The Dispatch' section; binding-focused anti-pattern table preserved)
-  - .claude/VERSION                                                          # UPDATED (2.9.7 → 2.9.8; upstream 2.8.18 → 2.8.19; synced_at refreshed; sdk_packages unchanged at 3.18.0)
-  - .claude/.coc-sync-marker                                                 # UPDATED
-not_applied: []
-unchanged_skipped:
-  - agents/*, skills/*, commands/*, scripts/hooks/* (no changes in loom 2.8.19)
-  - CLAUDE.md (NEVER overwritten — preserved)
-  - .claude/settings.local.json (NEVER overwritten — preserved)
-sdk_pins:
-  kailash-enterprise: ">=3.18.0"                                             # UNCHANGED (no rs release between 2.9.6 and 2.9.8; rs Cargo workspace remains at 3.18.0)
-proposal_distributed:
-  note: "py Gate 2 already marked the proposal as distributed; rs Gate 2 is a consumer of the same round. No proposal status transition here."
-hooks_verified:
-  count: 12/12
-  note: "All 12 registered hook paths in settings.json resolve to .js files on disk. validate-prod-deploy.js is on disk but unregistered (intentional)."
-rs_variant_notes:
-  - "variants/py/* NOT applied to rs target (per guardrails)"
-  - "3 of 7 synced files (security.md, agents.md, framework-first.md) have rs variants in loom sync-manifest.yaml. New 2.8.19 sections merged INTO existing rs variants, not overwrites — preserves rs-variant content (Rust security clauses, narrower specialist list, binding anti-pattern table). USE-specific adaptations called out in VERSION changelog."
-  - "orphan-detection.md Rule 6 uses Python __all__ examples. Shipped as-is to rs template because sync-manifest.yaml lines 60-63 declare rs variant = Python examples (Python/Ruby binding consumers, NOT Rust developers)."
-build_repo_changes: []
+{
+  "synced_at": "2026-04-23T02:29:49.809571Z",
+  "source": "loom",
+  "variant": "rs",
+  "multi_cli": false,
+  "artifacts": {
+    "updated": 72,
+    "created": 39,
+    "unchanged": 679
+  },
+  "scripts": {
+    "updated": 3,
+    "created": 1,
+    "unchanged": 38
+  },
+  "overlay_composed": 10,
+  "cli_artifacts": null
+}

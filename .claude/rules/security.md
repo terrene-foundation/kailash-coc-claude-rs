@@ -1,4 +1,13 @@
+---
+priority: 0
+scope: baseline
+---
+
 # Security Rules
+
+
+<!-- slot:neutral-body -->
+
 
 ALL code changes in the repository.
 
@@ -105,23 +114,9 @@ All user-generated content MUST be encoded before display in HTML templates, JSO
 ✅ DOMPurify.sanitize(userContent)
 ```
 
-## MUST NOT
-
-- **No eval() on user input**: `eval()`, `exec()`, `subprocess.call(cmd, shell=True)` — BLOCKED
-
-**Why:** `eval()` on user input is arbitrary code execution — the attacker runs whatever they want on the server.
-
-- **No secrets in logs**: MUST NOT log passwords, tokens, or PII
-
-**Why:** Log files are widely accessible (CI, monitoring, support staff) and rarely encrypted, turning every logged secret into a breach.
-
-- **No .env in Git**: .env in .gitignore, use .env.example for templates
-
-**Why:** Once committed, secrets persist in git history even after removal, and are exposed to anyone with repo access.
-
 ## Sanitizer Contract — DataFlow Display Hygiene
 
-DataFlow's input sanitizer (`packages/kailash-dataflow/src/dataflow/core/nodes.py::sanitize_sql_input`) is a defense-in-depth display-path safety net, NOT the primary SQLi defense. Parameter binding (`$N` / `%s` / `?`) is the primary defense — see § Parameterized Queries above.
+DataFlow's input sanitizer is a defense-in-depth display-path safety net, NOT the primary SQLi defense. Parameter binding (`$N` / `%s` / `?`) is the primary defense — see § Parameterized Queries above.
 
 The sanitizer's contract is fixed:
 
@@ -161,7 +156,7 @@ value = str(value)  # {"x": "'; DROP TABLE"} becomes "{'x': \"'; DROP TABLE\"}"
 
 ### 3. Safe Types Are Returned As-Is
 
-Values of declared-safe types (`int`, `float`, `bool`, `Decimal`, `datetime`, `date`, `time`) MUST pass through unchanged. `dict` and `list` MUST also pass through unchanged when the field's declared type is `dict` or `list` (JSON / array columns). Bug #515 documents this: premature `json.dumps()` on dict/list breaks parameter binding in `AsyncSQLDatabaseNode`.
+Values of declared-safe types (`int`, `float`, `bool`, `Decimal`, `datetime`, `date`, `time`) MUST pass through unchanged. `dict` and `list` MUST also pass through unchanged when the field's declared type is `dict` or `list` (JSON / array columns).
 
 **BLOCKED rationalizations:**
 
@@ -169,8 +164,6 @@ Values of declared-safe types (`int`, `float`, `bool`, `Decimal`, `datetime`, `d
 - "We should silently coerce dict to JSON for safety"
 - "Type-confusion is an upstream concern, not the sanitizer's job"
 - "The integration tests can catch these"
-
-Origin: GitHub issues #492 (bulk_upsert SQLi via string-escape) + #493 (sanitizer contract drift, 3 pre-existing failing tests). The contract above pins the decision so a future refactor doesn't swing back to quote-escape.
 
 ## Multi-Site Kwarg Plumbing
 
@@ -181,16 +174,16 @@ When a security-relevant kwarg (classification policy, tenant scope, clearance c
 # Helper added `policy` + `model_name` kwargs for classification sanitisation.
 #
 # $ grep -rn 'validate_model(' src/ packages/
-# packages/kailash-dataflow/src/dataflow/features/express.py:_validate_if_enabled
-# packages/kailash-dataflow/src/dataflow/engine.py::validate_record
+# site_a: express._validate_if_enabled
+# site_b: engine.validate_record
 #
 # Both production call sites get policy+model_name in this PR:
-engine.validate_record(instance) -> validate_model(instance, policy=..., model_name=...)
-express._validate_if_enabled(...) -> validate_model(instance, policy=..., model_name=...)
+site_a.validate_record(instance) -> validate_model(instance, policy=..., model_name=...)
+site_b._validate_if_enabled(...) -> validate_model(instance, policy=..., model_name=...)
 
 # DO NOT — update primary site, skip the sibling
-express._validate_if_enabled(...) -> validate_model(instance, policy=..., model_name=...)
-engine.validate_record(instance)  -> validate_model(instance)   # bypasses sanitiser
+site_a._validate_if_enabled(...) -> validate_model(instance, policy=..., model_name=...)
+site_b.validate_record(instance)  -> validate_model(instance)   # bypasses sanitiser
 # ↑ The unpatched sibling surface still leaks classified field names / values in
 #   error messages; the sanitisation contract is broken on one public entry point.
 ```
@@ -205,7 +198,21 @@ engine.validate_record(instance)  -> validate_model(instance)   # bypasses sanit
 
 **Why:** A helper that takes a security-relevant kwarg has the kwarg precisely because the unqualified call leaks or misbehaves. Leaving any sibling call site on the unqualified signature ships the exact failure mode the kwarg was introduced to fix; the "safe default" is by definition the insecure default (otherwise the kwarg would not exist). The fix is mechanical — `grep -rn 'helper_name(' .` and patch every hit in the same PR.
 
-Origin: kailash-py PR #522 / PR #529 (2026-04-19) — BP-049 validation sanitiser `validate_model(policy=..., model_name=...)` landed in Express site but `DataFlowEngine.validate_record` was left unqualified; post-release reviewer caught it; fast-patched in dataflow 2.0.12.
+Origin: cross-SDK — BP-049 (2026-04-19) landed `validate_model(policy=..., model_name=...)` plumbing in kailash-py PR #522 but left one sibling unqualified; post-release reviewer caught it; fast-patched in PR #529.
+
+## MUST NOT
+
+- **No eval() on user input**: `eval()`, `exec()`, `subprocess.call(cmd, shell=True)` — BLOCKED
+
+**Why:** `eval()` on user input is arbitrary code execution — the attacker runs whatever they want on the server.
+
+- **No secrets in logs**: MUST NOT log passwords, tokens, or PII
+
+**Why:** Log files are widely accessible (CI, monitoring, support staff) and rarely encrypted, turning every logged secret into a breach.
+
+- **No .env in Git**: .env in .gitignore, use .env.example for templates
+
+**Why:** Once committed, secrets persist in git history even after removal, and are exposed to anyone with repo access.
 
 ## Kailash-Specific Security
 
@@ -289,3 +296,5 @@ dispatch(req).await
 ## Exceptions
 
 Security exceptions require: written justification, security-reviewer approval, documentation, and time-limited remediation plan.
+
+<!-- /slot:neutral-body -->

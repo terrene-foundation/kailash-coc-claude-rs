@@ -25,9 +25,13 @@ Vibe coding fails because AI forgets your conventions (amnesia), drifts across p
 
 ## What Is This?
 
-This COC template is for **Python and Ruby developers** who use the **Rust-backed** Kailash packages (`pip install kailash-enterprise` / `gem install kailash`). You write Python or Ruby — you never touch Rust. The Rust engine runs under the hood, giving you 25-435x faster performance and 100-300x less memory usage compared to pure interpreted SDKs.
+This COC template is for **Python and Ruby developers** who use the **Rust-backed** Kailash binding (`pip install kailash` / `gem install kailash`). You write Python or Ruby — you never touch Rust. The Rust engine runs under the hood to accelerate workflow execution compared to pure interpreted SDKs.
 
-> **Not a Rust developer?** You're in the right place. This template teaches Claude Code how to help you build Python and Ruby applications with the high-performance Kailash engine.
+The Rust-backed binding is **free to install**, requires **no registration**, and has **no paid tier**. The binding's source is hosted on the Terrene Foundation GitHub org and published to PyPI / RubyGems like any other native-accelerated library. (The underlying Rust runtime that the binding links against is a trade-secret product, but that is invisible to you — you only interact with the published binding.)
+
+**Prefer a fully open-source path?** The Foundation also maintains **`kailash-py`** — a pure-Python implementation of the same specs under Apache 2.0, forkable and hostable anywhere. It is a peer option, not a downgrade. Use whichever fits your preference for performance vs source transparency.
+
+> **Not a Rust developer?** You're in the right place. This template teaches Claude Code how to help you build Python and Ruby applications with the Rust-accelerated Kailash engine — or with the pure-Python alternative if you prefer.
 
 ---
 
@@ -118,15 +122,18 @@ The system discovers recurring patterns and automatically generates new skills, 
 
 ```bash
 # Clone
-git clone https://github.com/your-org/kailash-coc-claude-rs.git
+git clone https://github.com/terrene-foundation/kailash-coc-claude-rs.git
 cd kailash-coc-claude-rs
 
-# Install the Rust-backed Kailash package
+# Install the Rust-accelerated Kailash binding (free, no registration)
 # Python
-pip install kailash-enterprise
+pip install kailash
 
 # Ruby
 gem install kailash
+
+# Alternative: pure-Python, fully open-source (same specs, Apache 2.0)
+# pip install kailash-py
 
 # Configure
 cp .env.example .env   # Edit with your API keys
@@ -168,26 +175,25 @@ Gemfile            Ruby project configuration
 
 ## Relationship to CARE/EATP
 
-COC applies the same trust architecture from the [Kailash SDK's CARE/EATP framework](https://github.com/your-org/kailash_sdk) to codegen: humans define the operating envelope (Trust Plane), AI executes within those boundaries at machine speed (Execution Plane). Rules and hooks form the Operating Envelope. Mandatory review gates maintain Trust Lineage. Hook enforcement provides Audit Anchors.
+COC applies the same trust architecture the Terrene Foundation publishes in the [CARE and EATP open standards](https://terrene.foundation) (CC BY 4.0) to codegen: humans define the operating envelope (Trust Plane), AI executes within those boundaries at machine speed (Execution Plane). Rules and hooks form the Operating Envelope. Mandatory review gates maintain Trust Lineage. Hook enforcement provides Audit Anchors.
 
 ---
 
 ## Built For Kailash, Designed For Everyone
 
-Built for the [Kailash SDK](https://github.com/your-org/kailash_sdk) ecosystem, but the COC architecture is framework-agnostic. Fork this repo, replace the Kailash-specific skills and agents with your own framework knowledge, and you have COC for any stack.
+Built for the Kailash ecosystem, but the COC architecture is framework-agnostic. Fork this repo, replace the Kailash-specific skills and agents with your own framework knowledge, and you have COC for any stack.
 
-**Sibling repos**: [kailash-coc-claude-py](https://github.com/your-org/kailash-coc-claude-py) (Pure Python SDK) | [kailash-vibe-gemini-setup](https://github.com/your-org/kailash-vibe-gemini-setup) (Gemini CLI)
+**Sibling template**: [kailash-coc-claude-py](https://github.com/terrene-foundation/kailash-coc-claude-py) — the COC template for the pure-Python Kailash SDK (`pip install kailash-py`).
 
-> **Note**: There is no separate Ruby COC repo. This repo covers both Python and Ruby Rust-backed bindings.
+> **Note**: There is no separate Ruby COC template. This repo covers both Python and Ruby Rust-backed bindings.
 
 ---
 
 ## License
 
-Apache License, Version 2.0. See [LICENSE](LICENSE).
+Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright 2026 Terrene Foundation Ltd. (Singapore CLG).
 
 <p align="center">
   <a href=".claude/guides/claude-code/README.md">Full Documentation</a> |
-  <a href="https://github.com/your-org/kailash_sdk">Kailash SDK</a> |
-  <a href="https://github.com/your-org/kailash-coc-claude-py">Pure Python COC</a>
+  <a href="https://github.com/terrene-foundation/kailash-coc-claude-py">Pure-Python COC template</a>
 </p>

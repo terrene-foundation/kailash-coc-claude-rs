@@ -1,4 +1,6 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "tests/**"
   - "**/*test*"
@@ -10,7 +12,11 @@ paths:
   - "**/04-validate/**"
 ---
 
-# Testing Rules (Python bindings to kailash-rs)
+# Testing Rules
+
+
+<!-- slot:neutral-body -->
+
 
 This variant serves the kailash-coc-claude-rs USE template — for **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python.
 
@@ -112,6 +118,205 @@ tests/
 | General                              | 80%     |
 | Financial / Auth / Security-critical | 100%    |
 
+## Env-Var Test Isolation
+
+Process-level environment variables are shared across every test running in the same process. When two tests both mutate the same env var (`monkeypatch.setenv`, `os.environ[...] = ...`), the test runner's scheduling order becomes a silent input to each test's observable result. In isolation and in serial, both tests pass; parallel scheduling on CI (pytest-xdist) produces flaky failures that look like real regressions.
+
+### MUST: Serialize Env-Var-Mutating Tests Via Test-Module Lock
+
+Any two tests that both mutate the SAME env var MUST serialize through a shared lock at test-module scope. The lock MUST be held for the entire read-then-mutate window, not just the mutate call.
+
+```python
+# DO — pytest-xdist-safe: function-scoped monkeypatch + module-scoped lock
+import threading
+import pytest
+
+_ENV_LOCK = threading.Lock()
+
+@pytest.fixture(autouse=False)
+def _env_serialized():
+    with _ENV_LOCK:
+        yield
+
+def test_reads_max_connections_from_env(monkeypatch, _env_serialized):
+    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
+    client = kailash.ServiceClient()
+    assert client.max_connections == 7
+
+def test_defaults_to_99_when_env_unset(monkeypatch, _env_serialized):
+    monkeypatch.delenv("KAILASH_MAX_CONNECTIONS", raising=False)
+    client = kailash.ServiceClient()
+    assert client.max_connections == 99
+
+# DO NOT — no serialization, parallel xdist worker re-orders the mutations
+def test_reads_max_connections_from_env(monkeypatch):
+    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
+    # if the sibling test runs between setenv and client init, this sees 99
+    client = kailash.ServiceClient()
+    assert client.max_connections == 7  # FLAKY on CI, green locally
+```
+
+**Alternatives that also satisfy this rule:**
+
+- `pytest-forked` (run each test in a fresh subprocess — hard isolation, highest cost)
+- `monkeypatch` with `scope="function"` (default) AND the module-scoped lock above (cheap, sufficient for most cases)
+- `pytest.MonkeyPatch.context()` inside the test body combined with the lock
+
+**BLOCKED rationalizations:**
+
+- "The tests pass in isolation, CI scheduling is the bug"
+- "Adding a lock is overkill for two tests"
+- "pytest defaults to one-test-per-worker anyway"
+- "We can mark the tests `@pytest.mark.serial` instead" (only if the marker is actually honored by the runner — xdist does not enforce it without `--dist=loadgroup` + group assignment)
+- "monkeypatch auto-restores, so serialization is redundant"
+
+**Why:** Env vars are the textbook example of shared process state. `monkeypatch.setenv` restores at fixture teardown — which is AFTER the test body runs — so the sibling test can observe either the mutated value or the original depending on xdist worker scheduling. The flakiness surfaces intermittently on CI where test scheduling depends on runner load, producing a class of "passes locally, fails on CI" bugs that waste a full CI cycle per iteration. For binding consumer projects, env-var-driven config feeds through to the underlying Rust runtime via PyO3/Magnus — a flaky env race in the Python test suite produces non-deterministic binding behavior that looks like an FFI bug.
+
+Origin: Cross-SDK from kailash-rs PR #435 (2026-04-20) — `DATAFLOW_MAX_CONNECTIONS` env-var race produced a flaky CI failure (expected=7, actual=99). Python variant uses `monkeypatch` + `threading.Lock`; Rust variant uses `tokio::sync::Mutex` (see kailash-rs BUILD-repo testing.md).
+
+### Shared-Resource Test Isolation (Rust SDK)
+
+The env-var race above is one instance of a broader failure pattern: two tests mutating the same process-level shared resource race on parallel scheduling. The rule generalizes to any shared external state that Rust integration tests touch — a Docker Postgres container, a Redis instance, a shared cache, a file-system lockfile. Same contract: serialize across the read-then-mutate window via a test-module-scope Mutex.
+
+### MUST: Use `tokio::sync::Mutex` For Async Guards That Cross `.await`
+
+Any two integration tests that mutate the SAME shared external resource (real-PG container, real-Redis, shared cache, lockfile) MUST serialize through a `tokio::sync::Mutex` at test-module scope. The `std::sync::Mutex` form is BLOCKED when the guard crosses an `.await` point — it trips `clippy::await_holding_lock` AND risks deadlock if the tokio runtime moves the task to a different thread mid-await.
+
+```rust
+// DO — tokio::sync::Mutex, guard survives .await safely
+use tokio::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static PG_INTEGRATION_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+#[tokio::test]
+async fn test_real_pg_round_trip() {
+    let _guard = PG_INTEGRATION_LOCK.lock().await;
+    let pool = connect_real_pg().await;       // .await under tokio::sync guard — OK
+    let rows = pool.fetch_all("...").await;
+    assert_eq!(rows.len(), 3);
+}
+
+#[tokio::test]
+async fn test_real_pg_migration_applies_idempotently() {
+    let _guard = PG_INTEGRATION_LOCK.lock().await;
+    let pool = connect_real_pg().await;
+    migrate(&pool).await.unwrap();
+    migrate(&pool).await.unwrap();             // second apply MUST be a no-op
+}
+
+// DO NOT — std::sync::Mutex across .await
+static PG_INTEGRATION_LOCK: Lazy<std::sync::Mutex<()>> =
+    Lazy::new(|| std::sync::Mutex::new(()));
+
+#[tokio::test]
+async fn test_real_pg_round_trip() {
+    let _guard = PG_INTEGRATION_LOCK.lock().unwrap();   // BLOCKED
+    let pool = connect_real_pg().await;                  // held across .await
+    // clippy::await_holding_lock + deadlock risk if the task re-schedules
+}
+```
+
+**BLOCKED rationalizations:**
+
+- "The tests pass in isolation, CI scheduling is the bug"
+- "Docker is slow enough that the tests don't actually overlap"
+- "`cargo nextest` already isolates per-test processes" (only when configured with `test-threads = 1` OR per-test process isolation; not the default)
+- "std::sync::Mutex is faster and the guard is brief"
+- "`#[serial]` from the `serial_test` crate is simpler"
+- "We'll migrate to tokio::sync::Mutex later"
+
+**Why:** `cargo nextest` and `cargo test` default to thread-level parallelism. Two `#[tokio::test]` functions that both `connect_real_pg().await` against the SAME Docker container race on startup: the first test's `migrate()` may see the second test's schema state, the first test's `fetch_all` may see the second test's inserted rows. The flakiness is intermittent and scales with runner load — exactly the "passes locally, fails on CI under Mac-runner load" failure mode that wastes a full CI cycle per iteration. `tokio::sync::Mutex` is the only async-safe primitive; `std::sync::Mutex` deadlocks when the tokio runtime re-schedules the task mid-await; `#[serial]` works but has worse error messages on lock poisoning and doesn't compose with nested serialization domains (e.g. PG-lock + Redis-lock in the same test). The test-module-scope Lazy guarantees one Mutex instance per resource per test-module — adding a second shared resource adds a second lock, not a second test-module.
+
+Origin: kailash-rs commit b4ed4cb5 (2026-04-22) — serialize real-PG integration tests via `tokio::sync::Mutex`, fixing a 75% flake rate on Mac runners caused by Docker Postgres container startup race (per `specs/ci-infrastructure.md §5.4`). Generalizes the Env-Var pattern above from "shared env var" to any "shared external state" — the Mutex is the same structural defense either way.
+
+## MUST: Pytest Plugin + Marker Declaration Pair
+
+Any test file that uses `@pytest.mark.<X>` or the `<X>` fixture from a pytest plugin MUST declare the plugin in the owning sub-package's `[dev]` extras AND register the marker in that sub-package's pytest `markers` config in the SAME commit. Using a plugin without declaring it OR using a marker without registering it is BLOCKED — collection fails with `"'<X>' not found in markers configuration option"` or `ModuleNotFoundError` and no test in that sub-package can run.
+
+```toml
+# DO — plugin declared in [dev] extras AND marker registered in same pyproject
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-benchmark>=4.0.0",  # declared
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "benchmark: Performance benchmark tests (pytest-benchmark)",  # registered
+]
+```
+
+```python
+# DO — test uses the plugin AFTER declaration + registration landed
+@pytest.mark.benchmark
+def test_binding_read_performance(benchmark, client):
+    benchmark(lambda: client.get("/health"))
+
+# DO NOT — test uses plugin with neither declaration nor marker registration
+@pytest.mark.benchmark   # marker unregistered → collection fails
+def test_binding_read_performance(benchmark):   # benchmark fixture unavailable → ModuleNotFoundError
+    ...
+```
+
+**BLOCKED rationalizations:**
+
+- "The plugin is in CI so local works fine"
+- "pytest accepts unknown markers by default"
+- "We'll register the marker in a follow-up commit"
+- "The fixture is imported lazily so it doesn't matter"
+- "It works in the sub-package venv, root venv is a separate concern"
+
+**Why:** Pytest plugins form a hidden middle layer: declared in sub-package `[dev]` extras, registered in pytest `markers` config, invoked via decorator or fixture. Any one layer missing breaks collection with an unhelpful error and blocks the entire sub-package's test suite. For binding consumer projects that split tests across the root project and bindings/ sub-packages, missing plugin declarations silently break the whole sub-package.
+
+Origin: Cross-SDK from kailash-py 2026-04-20 /redteam collection-gate sweep — a test file in a sub-package used `@pytest.mark.benchmark` + `benchmark` fixture without declaring `pytest-benchmark`; blocked 11,917 tests from collection. Same failure shape in binding consumer projects.
+
+## Test-Skip Triage Decision Tree
+
+Every test that is skipped, xfailed, or deleted MUST be classified into exactly one of the three tiers below. Silent skips, unbounded `@pytest.mark.skip`, or empty test bodies pretending to be tests are BLOCKED.
+
+| Tier           | When                                                           | Action                                                                                                             |
+| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **ACCEPTABLE** | Missing dep / infra unavailable / platform constraint          | Keep skip; reason MUST name the constraint (`@pytest.mark.skipif(not REDIS_AVAILABLE, reason="redis required")`)   |
+| **BORDERLINE** | Real library limitation; documenting a known-failing edge case | Convert to `@pytest.mark.xfail(strict=False, reason="...")` — preserves test body, flips green when fixed upstream |
+| **BLOCKED**    | "TODO", "needs refactoring", "flaky", "times out", empty body  | DELETE the test (and any abandoned fixtures it owned); if the underlying bug matters, file an issue                |
+
+```python
+# DO — ACCEPTABLE: infra-conditional skip
+@pytest.mark.skipif(
+    os.environ.get("POSTGRES_TEST_URL") is None,
+    reason="requires POSTGRES_TEST_URL env var",
+)
+def test_real_postgres_round_trip(): ...
+
+# DO — BORDERLINE: convert to xfail with full reason
+@pytest.mark.xfail(
+    strict=False,
+    reason="kailash-rs bindings do not yet surface this edge case via PyO3",
+)
+def test_binding_edge_case(): ...
+
+# DO NOT — BLOCKED: TODO-style silent skip
+@pytest.mark.skip(reason="TODO")
+def test_something(): ...
+
+# DO NOT — BLOCKED: empty body pretending to be a test
+def test_binding_works():
+    pass  # implementation pending
+```
+
+**BLOCKED rationalizations:**
+
+- "It's only one skipped test"
+- "I'll fix the test when I have time"
+- "The test was passing before but now flakes — let me skip it for now"
+- "TODO comments in the skip reason are documentation"
+
+**Why:** Silent skips and empty test bodies inflate the green-test count without exercising any code. The next session reads "5950 tests pass" and concludes the suite is healthy when the actually-tested surface has shrunk. For binding consumer projects, the failure mode is amplified — a skipped binding test hides a broken FFI path that only surfaces when the binding is called in production. Deletion is the only honest disposition for a test that does not run; xfail is the only honest disposition for a test that documents a real limitation.
+
+Origin: Cross-SDK from kailash-py gh #512 / PR #518 (2026-04-19) — applied this triage to convert 1 test to xfail, delete 2 TODO-style tests, and delete 6 abandoned test files. Binding consumer projects face the same triage.
+
 ## Kailash Binding Patterns
 
 ```python
@@ -162,7 +367,7 @@ def test_service_client_get_works(client):
 # because the binding test never exercises that PyO3/Magnus boundary.
 ```
 
-**Why:** Binding-layer paired variants cross the FFI boundary independently — a refactor that changes the typed variant's PyO3 conversion while leaving the raw variant alone ships a silent FFI regression. Tests that only exercise one variant cannot catch this because the failure mode is *across* the binding boundary, not in the shared Rust core.
+**Why:** Binding-layer paired variants cross the FFI boundary independently — a refactor that changes the typed variant's PyO3 conversion while leaving the raw variant alone ships a silent FFI regression. Tests that only exercise one variant cannot catch this because the failure mode is _across_ the binding boundary, not in the shared Rust core.
 
 **BLOCKED rationalizations:**
 
@@ -200,3 +405,5 @@ Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, comm
 - Tests MUST NOT affect other tests (clean setup/teardown, isolated DBs)
   **Why:** Shared state between tests creates order-dependent results that pass locally but fail in CI where execution order differs.
 - Naming: `test_[feature]_[scenario]_[expected_result].py`
+
+<!-- /slot:neutral-body -->

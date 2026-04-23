@@ -1,11 +1,17 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "**/*.py"
   - "**/*.ts"
   - "**/*.js"
 ---
 
-# Kailash Pattern Rules (Rust SDK + Python Bindings)
+# Kailash Pattern Rules
+
+
+<!-- slot:neutral-body -->
+
 
 ### 1. Runtime Execution Pattern
 
@@ -150,3 +156,5 @@ def search(query: str) -> str:
 def get_settings() -> str:
     return '{"theme": "dark"}'
 ```
+
+<!-- /slot:neutral-body -->

@@ -1,4 +1,13 @@
-# Proprietary Product & Foundation Boundary Rules
+---
+priority: 0
+scope: baseline
+---
+
+# Foundation Independence Rules
+
+
+<!-- slot:neutral-body -->
+
 
 This repository is a **proprietary product** that implements open standards published by the Terrene Foundation. The Foundation rules that govern `kailash-py` (Apache 2.0, CC BY 4.0, no commercial coupling) DO NOT apply here. This file is the variant override of the global `independence.md` and exists specifically to clarify that boundary.
 
@@ -154,3 +163,5 @@ publish = true
 - `rules/terrene-naming.md` — the GLOBAL rule for naming TF entities, still applies for any reference TO TF projects from this repo
 - `rules/eatp.md`, `rules/pact-governance.md` — apply to the EATP and PACT spec implementations in this repo (which are subject to trade-secret rules, NOT TF Apache 2.0 rules)
 - `docs/00-authority/10-source-protection.md` — release auditor's reference for which crates are proprietary
+
+<!-- /slot:neutral-body -->

@@ -1,4 +1,12 @@
+---
+priority: 0
+scope: baseline
+---
+
 # Agent Orchestration Rules
+
+<!-- slot:neutral-body -->
+
 
 ## Specialist Delegation (MUST)
 
@@ -43,15 +51,14 @@ Reviews happen at COC phase boundaries, not per-edit. Skip only when explicitly 
 
 **Why:** Skipping gate reviews lets analysis gaps, security holes, and naming violations propagate to downstream repos where they are far more expensive to fix. Evidence: 0052-DISCOVERY §3.3 — six commits shipped without a single review because gates were phrased as "recommended." Upgrading to MUST + background agents makes reviews nearly free.
 
-| Gate                             | After Phase          | Enforcement | Review                                                                                                                                                                                                                                                                                         |
-| -------------------------------- | -------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Analysis complete                | `/analyze`           | RECOMMENDED | **reviewer**: Are findings complete? Gaps?                                                                                                                                                                                                                                                     |
-| Plan approved                    | `/todos`             | RECOMMENDED | **reviewer**: Does plan cover requirements?                                                                                                                                                                                                                                                    |
-| Implementation done              | `/implement`         | **MUST**    | **reviewer** + **security-reviewer**: Run as parallel background agents.                                                                                                                                                                                                                       |
-| Validation passed                | `/redteam`           | RECOMMENDED | **reviewer**: Are red team findings addressed?                                                                                                                                                                                                                                                 |
-| Knowledge captured               | `/codify`            | RECOMMENDED | **gold-standards-validator**: Naming, licensing compliance.                                                                                                                                                                                                                                    |
-| Before release                   | `/release`           | **MUST**    | **reviewer** + **security-reviewer** + **gold-standards-validator**: Blocking.                                                                                                                                                                                                                 |
-| After release (post-merge audit) | `/release` follow-up | RECOMMENDED | **reviewer** run against the MERGED release commit on main. Catches drift that pre-release review missed (e.g., a kwarg plumbing gap in a sibling call site, a keyspace bump with a missed invalidator). If CRIT/HIGH surfaces, open a patch branch in the SAME session and ship as `x.y.z+1`. |
+| Gate                | After Phase  | Enforcement | Review                                                                         |
+| ------------------- | ------------ | ----------- | ------------------------------------------------------------------------------ |
+| Analysis complete   | `/analyze`   | RECOMMENDED | **reviewer**: Are findings complete? Gaps?                                     |
+| Plan approved       | `/todos`     | RECOMMENDED | **reviewer**: Does plan cover requirements?                                    |
+| Implementation done | `/implement` | **MUST**    | **reviewer** + **security-reviewer**: Run as parallel background agents.       |
+| Validation passed   | `/redteam`   | RECOMMENDED | **reviewer**: Are red team findings addressed?                                 |
+| Knowledge captured  | `/codify`    | RECOMMENDED | **gold-standards-validator**: Naming, licensing compliance.                    |
+| Before release      | `/release`   | **MUST**    | **reviewer** + **security-reviewer** + **gold-standards-validator**: Blocking. |
 
 **BLOCKED responses when skipping MUST gates:**
 
@@ -60,7 +67,12 @@ Reviews happen at COC phase boundaries, not per-edit. Skip only when explicitly 
 - "The changes are straightforward, no review needed"
 - "Already reviewed informally during implementation"
 
-**Background agent pattern for MUST gates** — the review costs nearly zero parent context:
+<!-- /slot:neutral-body -->
+
+<!-- slot:examples -->
+
+
+### Quality Gates — Background Agent Pattern
 
 ```
 # At end of /implement, spawn reviews in background:
@@ -69,15 +81,27 @@ Agent({subagent_type: "security-reviewer", run_in_background: true, prompt: "Sec
 # Parent continues; reviews arrive as notifications
 ```
 
-## Zero-Tolerance
+### Reviewer Mechanical Sweeps
 
-Pre-existing failures MUST be fixed (see `rules/zero-tolerance.md` Rule 1). No workarounds for SDK bugs — deep dive and fix directly (Rule 4).
+```
+# DO — reviewer prompt enumerates mechanical sweeps to run
+Agent(subagent_type="reviewer", prompt="""
+... diff context ...
 
-**Why:** Workarounds create parallel implementations that diverge from the SDK, doubling maintenance cost and masking the root bug from being fixed.
+Mechanical sweeps (run BEFORE LLM judgment):
+1. Parity grep — every call site that returns a given result type must carry the required field
+2. `cargo check --workspace` / `pytest --collect-only -q` exit 0
+3. `cargo tree -d` / `pip check` — no new conflicts vs main
+4. For every public symbol added by this PR — verify the re-export reaches `pub use` / `__all__`
+""")
 
-## MUST: Worktree Isolation for Compiling Agents
+# DO NOT — reviewer prompt only includes diff context
+Agent(subagent_type="reviewer", prompt="Review the diff between main and feat/X.")
+# ↑ reviewer reads the diff, judges the new code, never runs the sweep.
+#   Orphan in untouched lines stays invisible.
+```
 
-When launching agents that will compile Rust code (build, test, implement), MUST use `isolation: "worktree"` to avoid build directory lock contention.
+### Worktree Isolation for Compiling Agents
 
 ```
 # DO: Independent target/ dirs, compile in parallel
@@ -89,55 +113,4 @@ Agent(prompt: "implement feature X...")
 Agent(prompt: "implement feature Y...")  # Blocks waiting for X's build lock
 ```
 
-**Why:** Cargo uses an exclusive filesystem lock on `target/`. Two cargo processes in the same directory serialize completely, turning parallel agents into sequential execution. Worktrees give each agent its own `target/` directory.
-
-**See `rules/worktree-isolation.md`** for the orchestrator pinning contract, the specialist self-check, and the post-agent file-existence verification. The `isolation: "worktree"` flag is necessary but not sufficient — without the verification layer, agents drift back to the main checkout silently.
-
-## MUST: Verify Agent Deliverables Exist After Exit
-
-When an agent reports completion of a file-writing task, the parent orchestrator MUST `ls` or `Read` the claimed file before trusting the completion claim. Agent "done" messages are NOT evidence of file creation — budget exhaustion mid-message truncates the final write, and the agent emits "Now let me write X..." with no tool call behind it.
-
-```python
-# DO — verify
-result = Agent(prompt="Write src/feature.py with ...")
-# parent's next step:
-Read("/abs/path/src/feature.py")  # raises if missing → retry
-
-# DO NOT — trust the completion message
-result = Agent(prompt="Write src/feature.py with ...")
-# parent moves on; src/feature.py never existed
-```
-
-**BLOCKED rationalizations:**
-
-- "The agent said 'done', that's good enough"
-- "Verifying every file slows the orchestrator"
-- "Now let me write the file…" (with no subsequent tool call)
-
-**Why:** Multi-agent sessions log occurrences where an agent hits its budget mid-message and reports success with zero files on disk. The `ls` check is O(1) and converts silent no-op into loud retry. See `rules/worktree-isolation.md` MUST Rule 3 for the full protocol.
-
-## MUST NOT
-
-- Framework work without specialist
-
-**Why:** Framework misuse without specialist review produces code that looks correct but violates invariants (e.g., pool sharing, session lifecycle, trust boundaries).
-
-- Sequential when parallel is possible
-
-**Why:** See Parallel Execution above — same rule, expressed as MUST NOT.
-
-- Raw SQL when DataFlow exists
-
-**Why:** Raw SQL bypasses DataFlow's access controls, audit logging, and dialect portability, creating ungoverned database access.
-
-- Custom API when Nexus exists
-
-**Why:** Custom API endpoints miss Nexus's built-in session management, rate limiting, and multi-channel deployment, requiring manual reimplementation.
-
-- Custom agents when Kaizen exists
-
-**Why:** Custom agent implementations bypass Kaizen's signature validation, tool safety, and structured reasoning, producing fragile agents.
-
-- Custom governance when PACT exists
-
-**Why:** Custom governance lacks PACT's D/T/R accountability grammar and verification gradient, making audit compliance unverifiable.
+<!-- /slot:examples -->

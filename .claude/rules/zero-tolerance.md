@@ -1,4 +1,13 @@
-# Zero-Tolerance Rules (Rust SDK)
+---
+priority: 0
+scope: baseline
+---
+
+# Zero-Tolerance Rules
+
+
+<!-- slot:neutral-body -->
+
 
 ## Scope
 
@@ -70,3 +79,5 @@ ALL version locations updated atomically:
 **Why:** Partially implemented Rust types expose uninitialized or default-valued fields through PyO3, causing downstream Python code to silently operate on zero/empty values instead of failing fast.
 
 **Test files excluded:** `test_*`, `*_test.*`, `*.test.*`, `*.spec.*`, `__tests__/`
+
+<!-- /slot:neutral-body -->

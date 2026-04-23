@@ -1,0 +1,345 @@
+---
+paths:
+  - "tests/**"
+  - "**/*test*"
+  - "**/*spec*"
+  - "conftest.py"
+  - "**/.spec-coverage*"
+  - "**/.test-results*"
+  - "**/02-plans/**"
+  - "**/04-validate/**"
+---
+
+# Testing Rules (Python bindings to kailash-rs)
+
+This variant serves the kailash-coc-claude-rs USE template — for **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python.
+
+## Test-Once Protocol (Implementation Mode)
+
+During `/implement`, tests run ONCE per code change, not once per phase.
+
+**Why:** Running the full test suite in every phase wastes 2-5 minutes per cycle, compounding to significant delays across a multi-phase session.
+
+1. `/implement` runs full suite ONCE per todo, writes `.test-results` to workspace
+2. Pre-commit runs Tier 1 unit tests as fast safety net
+3. CI runs the full matrix as final gate
+
+**Re-run during /implement only when:** commit hash mismatch, infrastructure change, or specific test suspected wrong.
+
+## Audit Mode Rules (Red Team / /redteam)
+
+When auditing test coverage, the rules invert: do NOT trust prior round outputs. Re-derive everything.
+
+### MUST: Re-derive coverage from scratch each audit round
+
+```bash
+# DO: re-derive
+pytest --collect-only -q tests/
+
+# DO NOT: trust the file
+cat .test-results  # BLOCKED in audit mode
+```
+
+**Why:** A previous round may have written `.test-results` claiming "5950 tests pass" — true, but those tests covered the OLD code, while new spec modules have zero tests. Without re-derivation, the audit certifies test counts that don't correspond to the new functionality.
+
+### MUST: Verify NEW modules have NEW tests
+
+For every new Python module a spec creates, grep the test directory for an import of that module. Zero importing tests = HIGH finding regardless of "tests pass".
+
+```bash
+# DO
+grep -rln "from my_app.wrapper_base\|import wrapper_base" tests/
+# Empty → HIGH: new module has zero test coverage
+```
+
+**Why:** Counting passing tests at the suite level lets new functionality ship with zero coverage as long as legacy tests still pass. Per-module test verification catches this.
+
+### MUST: Verify security mitigations have tests
+
+For every § Security Threats subsection in any spec, grep for a corresponding `test_<threat>` function. Missing = HIGH.
+
+**Why:** Documented threats with no test become "we said we'd handle it" claims that nothing actually verifies. Threats without tests are unmitigated.
+
+See `skills/spec-compliance/SKILL.md` for the full spec compliance verification protocol.
+
+## Regression Testing
+
+Every bug fix MUST include a regression test BEFORE the fix is merged.
+
+**Why:** Without a regression test, the same bug silently re-appears in a future refactor with no signal until a user reports it again.
+
+1. Write test that REPRODUCES the bug (must fail before fix, pass after)
+2. Place in `tests/regression/test_issue_*.py` with `@pytest.mark.regression`
+3. Regression tests are NEVER deleted
+
+```python
+@pytest.mark.regression
+def test_issue_42_user_creation_preserves_explicit_id():
+    """Regression: #42 — CreateUser silently drops explicit id."""
+    assert result["id"] == "custom-id-value"
+```
+
+## 3-Tier Testing
+
+### Tier 1 (Unit): Mocking allowed, <1s per test
+
+### Tier 2 (Integration): Real infrastructure recommended
+
+- Real database, real API calls (test server)
+- NO mocking (`@patch`, `MagicMock`, `unittest.mock` — BLOCKED)
+
+**Why:** Mocks at the binding boundary hide failures (connection handling, value serialization, lifetime management) that only surface with the real Python bindings exercising the underlying Rust runtime. Mocked binding objects bypass the FFI path entirely, so a passing mock-based test gives no confidence the binding actually works.
+
+### Tier 3 (E2E): Real everything
+
+- Real browser, real database, real bindings
+- State persistence verification — every write MUST be verified with a read-back
+
+**Why:** The binding write path crosses the Python/Rust boundary, value serialization, and the database driver. Any layer can silently succeed without persisting, so only a read-back proves the data actually landed.
+
+```
+tests/
+├── regression/     # Permanent bug reproduction
+├── unit/           # Tier 1: Mocking allowed
+├── integration/    # Tier 2: Real infrastructure
+└── e2e/           # Tier 3: Real everything
+```
+
+## Coverage Requirements
+
+| Code Type                            | Minimum |
+| ------------------------------------ | ------- |
+| General                              | 80%     |
+| Financial / Auth / Security-critical | 100%    |
+
+## Env-Var Test Isolation
+
+Process-level environment variables are shared across every test running in the same process. When two tests both mutate the same env var (`monkeypatch.setenv`, `os.environ[...] = ...`), the test runner's scheduling order becomes a silent input to each test's observable result. In isolation and in serial, both tests pass; parallel scheduling on CI (pytest-xdist) produces flaky failures that look like real regressions.
+
+### MUST: Serialize Env-Var-Mutating Tests Via Test-Module Lock
+
+Any two tests that both mutate the SAME env var MUST serialize through a shared lock at test-module scope. The lock MUST be held for the entire read-then-mutate window, not just the mutate call.
+
+```python
+# DO — pytest-xdist-safe: function-scoped monkeypatch + module-scoped lock
+import threading
+import pytest
+
+_ENV_LOCK = threading.Lock()
+
+@pytest.fixture(autouse=False)
+def _env_serialized():
+    with _ENV_LOCK:
+        yield
+
+def test_reads_max_connections_from_env(monkeypatch, _env_serialized):
+    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
+    client = kailash.ServiceClient()
+    assert client.max_connections == 7
+
+def test_defaults_to_99_when_env_unset(monkeypatch, _env_serialized):
+    monkeypatch.delenv("KAILASH_MAX_CONNECTIONS", raising=False)
+    client = kailash.ServiceClient()
+    assert client.max_connections == 99
+
+# DO NOT — no serialization, parallel xdist worker re-orders the mutations
+def test_reads_max_connections_from_env(monkeypatch):
+    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
+    # if the sibling test runs between setenv and client init, this sees 99
+    client = kailash.ServiceClient()
+    assert client.max_connections == 7  # FLAKY on CI, green locally
+```
+
+**Alternatives that also satisfy this rule:**
+
+- `pytest-forked` (run each test in a fresh subprocess — hard isolation, highest cost)
+- `monkeypatch` with `scope="function"` (default) AND the module-scoped lock above (cheap, sufficient for most cases)
+- `pytest.MonkeyPatch.context()` inside the test body combined with the lock
+
+**BLOCKED rationalizations:**
+
+- "The tests pass in isolation, CI scheduling is the bug"
+- "Adding a lock is overkill for two tests"
+- "pytest defaults to one-test-per-worker anyway"
+- "We can mark the tests `@pytest.mark.serial` instead" (only if the marker is actually honored by the runner — xdist does not enforce it without `--dist=loadgroup` + group assignment)
+- "monkeypatch auto-restores, so serialization is redundant"
+
+**Why:** Env vars are the textbook example of shared process state. `monkeypatch.setenv` restores at fixture teardown — which is AFTER the test body runs — so the sibling test can observe either the mutated value or the original depending on xdist worker scheduling. The flakiness surfaces intermittently on CI where test scheduling depends on runner load, producing a class of "passes locally, fails on CI" bugs that waste a full CI cycle per iteration. For binding consumer projects, env-var-driven config feeds through to the underlying Rust runtime via PyO3/Magnus — a flaky env race in the Python test suite produces non-deterministic binding behavior that looks like an FFI bug.
+
+Origin: Cross-SDK from kailash-rs PR #435 (2026-04-20) — `DATAFLOW_MAX_CONNECTIONS` env-var race produced a flaky CI failure (expected=7, actual=99). Python variant uses `monkeypatch` + `threading.Lock`; Rust variant uses `tokio::sync::Mutex` (see kailash-rs BUILD-repo testing.md).
+
+## MUST: Pytest Plugin + Marker Declaration Pair
+
+Any test file that uses `@pytest.mark.<X>` or the `<X>` fixture from a pytest plugin MUST declare the plugin in the owning sub-package's `[dev]` extras AND register the marker in that sub-package's pytest `markers` config in the SAME commit. Using a plugin without declaring it OR using a marker without registering it is BLOCKED — collection fails with `"'<X>' not found in markers configuration option"` or `ModuleNotFoundError` and no test in that sub-package can run.
+
+```toml
+# DO — plugin declared in [dev] extras AND marker registered in same pyproject
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-benchmark>=4.0.0",  # declared
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "benchmark: Performance benchmark tests (pytest-benchmark)",  # registered
+]
+```
+
+```python
+# DO — test uses the plugin AFTER declaration + registration landed
+@pytest.mark.benchmark
+def test_binding_read_performance(benchmark, client):
+    benchmark(lambda: client.get("/health"))
+
+# DO NOT — test uses plugin with neither declaration nor marker registration
+@pytest.mark.benchmark   # marker unregistered → collection fails
+def test_binding_read_performance(benchmark):   # benchmark fixture unavailable → ModuleNotFoundError
+    ...
+```
+
+**BLOCKED rationalizations:**
+
+- "The plugin is in CI so local works fine"
+- "pytest accepts unknown markers by default"
+- "We'll register the marker in a follow-up commit"
+- "The fixture is imported lazily so it doesn't matter"
+- "It works in the sub-package venv, root venv is a separate concern"
+
+**Why:** Pytest plugins form a hidden middle layer: declared in sub-package `[dev]` extras, registered in pytest `markers` config, invoked via decorator or fixture. Any one layer missing breaks collection with an unhelpful error and blocks the entire sub-package's test suite. For binding consumer projects that split tests across the root project and bindings/ sub-packages, missing plugin declarations silently break the whole sub-package.
+
+Origin: Cross-SDK from kailash-py 2026-04-20 /redteam collection-gate sweep — a test file in a sub-package used `@pytest.mark.benchmark` + `benchmark` fixture without declaring `pytest-benchmark`; blocked 11,917 tests from collection. Same failure shape in binding consumer projects.
+
+## Test-Skip Triage Decision Tree
+
+Every test that is skipped, xfailed, or deleted MUST be classified into exactly one of the three tiers below. Silent skips, unbounded `@pytest.mark.skip`, or empty test bodies pretending to be tests are BLOCKED.
+
+| Tier           | When                                                           | Action                                                                                                             |
+| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **ACCEPTABLE** | Missing dep / infra unavailable / platform constraint          | Keep skip; reason MUST name the constraint (`@pytest.mark.skipif(not REDIS_AVAILABLE, reason="redis required")`)   |
+| **BORDERLINE** | Real library limitation; documenting a known-failing edge case | Convert to `@pytest.mark.xfail(strict=False, reason="...")` — preserves test body, flips green when fixed upstream |
+| **BLOCKED**    | "TODO", "needs refactoring", "flaky", "times out", empty body  | DELETE the test (and any abandoned fixtures it owned); if the underlying bug matters, file an issue                |
+
+```python
+# DO — ACCEPTABLE: infra-conditional skip
+@pytest.mark.skipif(
+    os.environ.get("POSTGRES_TEST_URL") is None,
+    reason="requires POSTGRES_TEST_URL env var",
+)
+def test_real_postgres_round_trip(): ...
+
+# DO — BORDERLINE: convert to xfail with full reason
+@pytest.mark.xfail(
+    strict=False,
+    reason="kailash-rs bindings do not yet surface this edge case via PyO3",
+)
+def test_binding_edge_case(): ...
+
+# DO NOT — BLOCKED: TODO-style silent skip
+@pytest.mark.skip(reason="TODO")
+def test_something(): ...
+
+# DO NOT — BLOCKED: empty body pretending to be a test
+def test_binding_works():
+    pass  # implementation pending
+```
+
+**BLOCKED rationalizations:**
+
+- "It's only one skipped test"
+- "I'll fix the test when I have time"
+- "The test was passing before but now flakes — let me skip it for now"
+- "TODO comments in the skip reason are documentation"
+
+**Why:** Silent skips and empty test bodies inflate the green-test count without exercising any code. The next session reads "5950 tests pass" and concludes the suite is healthy when the actually-tested surface has shrunk. For binding consumer projects, the failure mode is amplified — a skipped binding test hides a broken FFI path that only surfaces when the binding is called in production. Deletion is the only honest disposition for a test that does not run; xfail is the only honest disposition for a test that documents a real limitation.
+
+Origin: Cross-SDK from kailash-py gh #512 / PR #518 (2026-04-19) — applied this triage to convert 1 test to xfail, delete 2 TODO-style tests, and delete 6 abandoned test files. Binding consumer projects face the same triage.
+
+## Kailash Binding Patterns
+
+```python
+# Use the Python binding API — never reach into the Rust crate directly
+import kailash
+
+def test_workflow_execution():
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("NoOpNode", "n1", {})
+    wf = builder.build(reg)
+    rt = kailash.Runtime(reg)
+    result = rt.execute(wf)
+    assert result["results"] is not None
+```
+
+## Delegating Primitives Need Direct Coverage
+
+When a binding-layer class exposes paired variants that delegate to a shared core (e.g. `get` / `get_raw`, `post` / `post_raw`, `put` / `put_raw`, `delete` / `delete_raw`), each variant MUST have at least one test that calls it directly through the Python or Ruby binding — not a test that calls only one variant and reaches the other by delegation.
+
+This is a narrow rule about delegating primitive pairs. It is NOT a universal "every binding method has a direct test" mandate.
+
+### MUST: One Direct Test Per Variant Through The Binding
+
+```python
+# DO — one test per variant, called through the binding
+import kailash
+
+def test_service_client_get_typed_returns_dict(client):
+    """Direct exercise of the typed .get() Python binding method."""
+    user = client.get("/users/42")
+    assert isinstance(user, dict)
+    assert user["name"] == "Alice"
+
+def test_service_client_get_raw_returns_response_dict(client):
+    """Direct exercise of the raw .get_raw() Python binding method."""
+    resp = client.get_raw("/users/42")
+    assert isinstance(resp, dict)
+    assert resp["status"] == 200
+    assert "Alice" in resp["body"]
+
+# DO NOT — exercise only the typed variant and trust delegation
+def test_service_client_get_works(client):
+    """Only calls client.get(); never touches client.get_raw()."""
+    user = client.get("/users/42")
+    assert user["name"] == "Alice"
+# A refactor that changes get_raw's error mapping ships a silent regression
+# because the binding test never exercises that PyO3/Magnus boundary.
+```
+
+**Why:** Binding-layer paired variants cross the FFI boundary independently — a refactor that changes the typed variant's PyO3 conversion while leaving the raw variant alone ships a silent FFI regression. Tests that only exercise one variant cannot catch this because the failure mode is *across* the binding boundary, not in the shared Rust core.
+
+**BLOCKED rationalizations:**
+
+- "The typed variant calls the raw variant internally"
+- "Both variants share the same Rust execute() core"
+- "Integration tests at the Rust layer catch this"
+- "PyO3 wrapping is mechanical, it can't drift"
+
+### MUST: Mechanical Enforcement Via Grep
+
+`/redteam` MUST grep the binding test directory for direct call sites of each known raw variant and report any pair where one side has zero matches.
+
+```bash
+# DO — check each binding-exposed variant has a direct test in YOUR project's
+# test directory. Adjust TEST_DIR for your layout (the default `tests/` works
+# for most kailash-enterprise consumer projects).
+TEST_DIR="${TEST_DIR:-tests}"
+for variant in get_raw post_raw put_raw delete_raw; do
+  count=$(grep -rln "client\.$variant(" "$TEST_DIR" | wc -l)
+  if [ "$count" -eq 0 ]; then
+    echo "MISSING: no test calls client.$variant() through the Python binding"
+  fi
+done
+```
+
+**Why:** Mechanical grep at audit time catches the regression before it reaches a downstream consumer. Manual "I think I tested both" is not auditable across PyO3/Magnus binding refactors.
+
+Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`). The Rust `put_raw` and `delete_raw` had wiremock coverage; the Python binding equivalents at `bindings/kailash-python/tests/test_service_client.py` had no direct exercise — every test went through the typed `.put()` / `.delete()` variants. Fixed by adding direct binding-layer tests for each raw variant. The pattern applies to every binding pair that wraps a Rust delegating-primitive.
+
+## Rules
+
+- Test-first development for new features
+- Tests MUST be deterministic (no random data without seeds, no time-dependent assertions)
+  **Why:** Non-deterministic tests produce intermittent failures that erode trust in the suite, causing real binding regressions to be dismissed as flaky.
+- Tests MUST NOT affect other tests (clean setup/teardown, isolated DBs)
+  **Why:** Shared state between tests creates order-dependent results that pass locally but fail in CI where execution order differs.
+- Naming: `test_[feature]_[scenario]_[expected_result].py`

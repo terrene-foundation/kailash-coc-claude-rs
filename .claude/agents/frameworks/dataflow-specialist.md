@@ -64,6 +64,7 @@ Route common questions directly — saves reading SKILL.md:
 5. **`auto_migrate=True`** works correctly in Docker/Nexus — no event loop issues
 6. **Deprecated params removed**: `enable_model_persistence`, `skip_registry`, `skip_migration`, `existing_schema_mode`
 7. **Higher-level engines must delegate to primitives** — engines like DataFabricEngine must call `express.list()` etc., not reimplement query building (skips input validation)
+8. **`multi_tenant=True` is runtime predicate injection, NOT RLS emission** — DataFlow's migration generator emits only `CREATE TABLE` / `ALTER TABLE` / `CREATE INDEX` / `DROP TABLE`. It never writes `ENABLE ROW LEVEL SECURITY`, `CREATE POLICY`, or `SECURITY DEFINER`. On any model declaring PII-shaped columns — `email`, `phone`, `password_hash`, `national_id`, `mfa_secret`, `session_token` — this specialist MUST block auto-approval of the migration until the operator has explicitly decided the RLS posture per the review checklist in `skills/18-security-patterns/dataflow-rls-posture.md`. The pre-auth carveout pattern (SECURITY DEFINER helpers with pinned search_path, REVOKE PUBLIC + GRANT app_role, minimum-disclosure return columns, tenant-filter, CI-enforced pgTAP assertions) lives in `skills/18-security-patterns/rls-security-definer-preauth-carveout.md`. Refuse to ship a principal-table migration with `USING(true)` or with no RLS at all when the column set names PII — the operator still owns the decision, but the specialist's gate converts a silent default into an explicit one.
 
 ## Key Rules
 

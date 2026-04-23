@@ -1,4 +1,6 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "**/migrations/**"
   - "**/db/**"
@@ -11,6 +13,9 @@ paths:
 ---
 
 # Schema & Data Migration Rules
+
+
+<!-- slot:neutral-body -->
 
 The schema is the contract between code and data. Every change to that contract MUST go through a numbered, reviewable, reversible migration. Direct DDL and ad-hoc data fixes are how schemas drift from code, and how production silently breaks.
 
@@ -193,3 +198,5 @@ Origin: kailash-rs codify cycle (2026-04-19) — destructive migration paths lan
 - `rules/zero-tolerance.md` Rule 4 (No Workarounds for Core SDK Issues) — if DataFlow's auto-migration is missing a feature, or if `MigrationManager.apply_downgrade` / `rollback` is missing the `force_downgrade` parameter, fix the SDK API; do not write raw DDL or inline `down_sql` execution around it.
 - `rules/zero-tolerance.md` Rule 2 (No Stubs) — a `force_downgrade` parameter that is accepted but never checked is a fake safety gate and BLOCKED under the "fake classification / fake encryption" pattern.
 - `rules/framework-first.md` — DataFlow's `@db.model` is the highest-abstraction migration path for Kailash apps. Drop to a primitive migration framework only when the model layer cannot express the change.
+
+<!-- /slot:neutral-body -->
