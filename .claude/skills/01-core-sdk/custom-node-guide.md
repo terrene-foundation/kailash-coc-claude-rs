@@ -488,11 +488,11 @@ mod tests {
 For kailash-core nodes:
 
 ```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core && cargo clippy -p kailash-core -- -D warnings
+PATH="$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core && cargo clippy -p kailash-core -- -D warnings
 ```
 
 For kailash-nodes nodes:
 
 ```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-nodes && cargo clippy -p kailash-nodes -- -D warnings
+PATH="$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-nodes && cargo clippy -p kailash-nodes -- -D warnings
 ```

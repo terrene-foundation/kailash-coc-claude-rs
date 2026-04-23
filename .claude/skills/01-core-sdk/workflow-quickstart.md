@@ -140,5 +140,5 @@ let config = RuntimeConfig {
 ## Verify
 
 ```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- --nocapture 2>&1
+PATH="$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- --nocapture 2>&1
 ```

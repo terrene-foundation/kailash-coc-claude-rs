@@ -281,5 +281,5 @@ let workflow = builder.build(&registry);
 ## Verify
 
 ```bash
-PATH="/Users/esperie/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- connection --nocapture 2>&1
+PATH="$HOME/.cargo/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:$PATH" SDKROOT=$(xcrun --show-sdk-path) cargo test -p kailash-core -- connection --nocapture 2>&1
 ```
