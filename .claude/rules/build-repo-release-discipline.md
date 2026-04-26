@@ -16,7 +16,6 @@ paths:
 
 # BUILD Repo Release Discipline
 
-
 <!-- slot:neutral-body -->
 
 ## Scope
@@ -83,7 +82,9 @@ print(AgentDiagnostics, TraceExporter)
 
 **PyPI cache lag**: `pypi.org/pypi/<pkg>/json` `info.version` field can show the OLD version for up to several minutes after a successful tag-push + publish-workflow-success. Retry the clean-venv install up to 3× with 60s between attempts before declaring release failure. The simple index (`pypi.org/simple/<pkg>/`) can be even slower to reflect the new wheel. If the workflow run shows success and the `.../2.10.1/json` endpoint returns metadata, the release DID happen — trust the verification retry loop.
 
-**Why:** A release can succeed on PyPI metadata but fail on wheel upload, tag collision, or downstream dependency pinning — all of which surface only when a clean install runs the import. The installability check is the "smoke test" that proves the release reached consumers.
+**Latent failures count**: When the clean-venv check fails, the broken pattern is the scope of the hotfix — NOT just the most-recent PR's diff. The same failure may have been latent in main for many sessions, hidden behind editable installs in every dev environment. "It's been working" / "this PR didn't introduce it" / "main was green" are BLOCKED rationalizations. Fix the entire broken pattern in the hotfix; file a follow-up issue ONLY if the fix exceeds one shard (per `autonomous-execution.md` Rule 1). See `dependencies.md` § "MUST: `__init__.py` Module-Scope Imports Honor The Manifest" for the structural defense that prevents the failure class.
+
+**Why:** A release can succeed on PyPI metadata but fail on wheel upload, tag collision, or downstream dependency pinning — all of which surface only when a clean install runs the import. The installability check is the "smoke test" that proves the release reached consumers. Editable installs hide cross-package import dependency gaps; the clean-venv check is the only gate that catches them, and limiting hotfix scope to "what this PR changed" leaves the latent class of failure intact for the next release to re-discover.
 
 ### 3. Release Scope Enumerated Before First Merge Of The Session
 
@@ -126,6 +127,42 @@ Per `rules/autonomous-execution.md` § "Structural vs Execution Gates", release 
 ```
 
 **Why:** The human owns release authorization (version increment + public-API commitment). But the agent owns scope enumeration. Splitting these correctly keeps the human's authority intact while closing the sibling-drift trap.
+
+### 5. PR Review MUST Sweep Sub-Package Version Bumps Before Merge
+
+Every PR-review gate (per `rules/agents.md` § Quality Gates row "Implementation done") MUST mechanically check: for each sub-package whose `packages/<pkg>/src/**/*.py` has changes in the diff, the SAME PR MUST also modify `packages/<pkg>/pyproject.toml::version` AND `packages/<pkg>/src/<pkg>/__init__.py::__version__`. A PR that ships sub-package src changes without a same-PR version bump is BLOCKED at PR-review time, NOT discovered later at `/release` time.
+
+```bash
+# DO — pre-merge mechanical sweep, run on every PR review
+for pkg_dir in packages/*/; do
+  pkg=$(basename "$pkg_dir")
+  src_changed=$(git diff origin/main...HEAD -- "$pkg_dir/src/" --name-only | wc -l)
+  ver_changed=$(git diff origin/main...HEAD -- "$pkg_dir/pyproject.toml" "$pkg_dir/src/*/__init__.py" \
+    | grep -cE '^\+\s*(version|__version__)\s*=' )
+  if [ "$src_changed" -gt 0 ] && [ "$ver_changed" -lt 2 ]; then
+    echo "BLOCKED: $pkg src changed but version bump missing in same PR"
+    exit 1
+  fi
+done
+
+# DO NOT — defer the check to /release
+# (Wave 4 PR #632 modified packages/kailash-mcp/src/.../auth/{providers,oauth}.py
+#  but mcp pyproject stayed at 0.2.9. Caught only at /release-time enumeration,
+#  required a separate fix-PR #634 to bump mcp 0.2.9 → 0.2.10. Net cost:
+#  one extra PR, one extra CI cycle, one extra admin merge, ~15min of pacing.)
+```
+
+**BLOCKED rationalizations:**
+
+- "The mcp changes fold into the next kailash release wave alongside #631"
+- "The bump can be a follow-up PR"
+- "PyPI consumers will get the fix in the dependency tree"
+- "We'll catch it at /release time"
+- "The PR title says 'security' so the version bump is implicit"
+
+**Why:** Sub-package src ships as that sub-package's wheel — there is no transitive path that delivers a `kailash-mcp` source change to consumers without a `kailash-mcp` version bump and a new PyPI publish. PR-review-time mechanical check converts an O(/release-time hotfix) cost into an O(grep) check; the alternative ("fold into next wave") is the exact rationalization that produces the silent sibling-drift this rule's § 1 was authored to prevent. Cross-SDK applicable: same Cargo.toml + lib.rs version atomicity in kailash-rs, same release-cycle / sibling-drift pattern.
+
+Origin: Session 2026-04-26 Wave 4 (kailash-py) — PR #632 (kailash-mcp/auth/\* security fix) merged without bumping mcp 0.2.9. Caught at /release-time scope enumeration; required fix-PR #634 (separate CI + admin merge) to bump mcp 0.2.9 → 0.2.10.
 
 ## MUST NOT
 

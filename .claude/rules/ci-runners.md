@@ -299,6 +299,135 @@ jobs:
 
 Origin: kailash-rs 2026-04-22 — PR #543 (v3.20.4, rustls-webpki + Docker install-if-missing on `esperie-linux-arm`), PR #545 (v3.20.5, `gh` install-if-missing), PR #551 + #552 (rescue workflow + contents:write follow-up). Three tag-time bugs in three consecutive releases; dispatch-proxy rule codifies Layer 2 of the prevention plan per the session notes' "still unbuilt" observation. Applies to every tag-gated job: `publish-ruby-gem`, `publish-pypi-wheels`, `publish-crates`, and any future release surface.
 
+### 9. Binding-CI `paths-ignore` Covers ALL Doc-Only Surfaces
+
+Every binding-channel CI workflow (`python.yml`, `nodejs.yml`, `ruby.yml`) MUST include a `paths-ignore` filter that excludes ALL doc-only surfaces — not just `**/*.md`. The current `paths-ignore: ['**/*.md']` is necessary but NOT sufficient: edits to `.claude/skills/`, `.claude/agents/`, `.claude/rules/`, `docs/`, `specs/` (all CC artifacts and project docs) still trigger the full binding matrix even though they cannot affect compiled wheels.
+
+```yaml
+# DO — comprehensive doc-only exclusion
+on:
+  pull_request:
+    paths:
+      - "bindings/kailash-python/**"
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/python.yml"
+    paths-ignore:
+      - "**/*.md"
+      - ".claude/**"
+      - "docs/**"
+      - "specs/**"
+      - "workspaces/**"
+      - "memory/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+
+# DO NOT — partial paths-ignore that still fires on .claude/ edits
+on:
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+```
+
+**BLOCKED rationalizations:**
+
+- "`**/*.md` already covers most doc files"
+- "Catch-all paths-ignore might mask real changes"
+- "Adding more excludes is over-optimization"
+- "The cost is small per PR"
+- "Each doc-only PR only burns 1 minute per workflow"
+
+**Why:** Bindings ship compiled wheels — none of the listed doc-only surfaces can affect what's built. Each non-excluded doc-only PR triggers ALL binding workflows, each billed at 1-minute minimum on `ubuntu-latest` even when they short-circuit. Compounded over 30-50 doc/codify PRs per month, this is ~150-200 min/month of pure overhead. Excluding `.claude/**`, `docs/**`, `specs/**`, `workspaces/**`, `memory/**` recovers all of that for zero correctness cost.
+
+Origin: 2026-04-25 gh-manager CI burn audit — 66 of 580 GHA-billable minutes were doc-only PR triggers on binding workflows. Closing this gap eliminates that recurring class of waste.
+
+### 10. Workflow Crons MUST Have Explicit Cost Footer
+
+Every `.github/workflows/*.yml` with `schedule: cron:` MUST include a comment block at the top of the file stating: (a) the cron cadence in plain English, (b) the worst-case monthly billing footprint at `ubuntu-latest` rates, (c) the failure-mode behavior. Workflows with cadence ≥ once-per-hour AND no fast-exit short-circuit are BLOCKED.
+
+```yaml
+# DO — cost-footer documents budget impact upfront
+name: CI Queue Monitor
+# ─────────────────────────────────────────────────────────────────
+# COST FOOTPRINT
+#   Cadence:        every 30 minutes (cron: "*/30 * * * *")
+#   Monthly worst:  48 runs/day × 30 days × 1 min = 1,440 min/month
+#   Fast-exit:      YES — `gh api` no-op returns in <10s.
+# ─────────────────────────────────────────────────────────────────
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+
+# DO NOT — uncosted high-frequency cron
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # silently consumes ~8,640 min/month
+```
+
+**BLOCKED rationalizations:**
+
+- "Cron is cheap, the workflow exits in seconds"
+- "GitHub bills exact runtime, not minimum" (FALSE — billing is per-job, 1-min minimum)
+- "We can audit cost later when usage pattern stabilizes"
+- "The monitor is critical — frequency reflects priority"
+- "Higher cadence catches issues faster"
+
+**Why:** GitHub Actions bills a 1-minute minimum per job invocation regardless of actual runtime. A workflow on `*/5 * * * *` consumes a minimum of 8,640 min/month even if every run exits in under 10 seconds. On a 3,000-min/month free tier, a single mis-cadenced cron consumes 280%+ of the budget BEFORE any productive CI runs. The cost footer makes the trade-off explicit at author time and forces an active decision about cadence vs cost.
+
+Origin: 2026-04-25 kailash-rs gh-manager audit — `ci-queue-monitor.yml` configured at `cron: "*/5 * * * *"` consumed 288 min/day. Cadence MUST drop to `*/30` minimum.
+
+### 11. Release PRs MUST Skip The PR-Gate Suite
+
+Pull requests from a `release/v*` branch contain ONLY version anchors + CHANGELOG updates — zero code surface. Running the full PR-gate suite on them re-exercises code that was already tested on the source-change PRs that the release bundles. Every PR-gate job in every workflow MUST gate its `if:` to also exclude `release/*` head refs.
+
+```yaml
+# DO — PR-gate jobs exclude release branches
+jobs:
+  fmt:
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/')
+    ...
+
+  build:
+    if: ${{ !startsWith(github.head_ref, 'release/') }}
+    ...
+
+# DO NOT — PR-gate jobs fire on release/v* PRs
+jobs:
+  fmt:
+    if: github.event_name == 'pull_request'
+    # No head_ref exclusion — release/v3.23.0 re-runs the whole suite
+    # against a diff that is ONLY Cargo.toml/Cargo.lock/CHANGELOG.md/version anchors.
+    ...
+```
+
+**BLOCKED rationalizations:**
+
+- "The version bump might have broken something; defense-in-depth"
+- "Running CI on release PRs is the standard release gate"
+- "We want to verify the Cargo.lock regeneration didn't break compile"
+- "Admin-merge with bypass is safer than baking skip into the workflow"
+- "Next contributor might add real code changes to a release branch"
+- "release.yml's source-protection-audit is a different gate; we still need PR CI"
+
+**Why:** Release PRs under the `release/v*` branch convention (see `git.md` § "Release-Prep PRs MUST Use `release/v*` Branch Convention") are by contract metadata-only. The source changes they bundle were each individually verified on their own PR — re-running the full suite a third time against a pure-metadata diff adds no coverage and wastes ~45 min of runner wall-clock per release cycle. The tag-triggered `release.yml` has its own `source-protection-audit` gate that validates the actual published artifacts — THAT is the release gate, not PR CI. If a contributor smuggles a code change into a `release/v*` branch, the merge-commit push event will still fire integration jobs on main post-merge.
+
+**Contract:** `release/v*` branches are reserved for release-cut commits — version bumps in `Cargo.toml` / `bindings/kailash-python/pyproject.toml`, version-anchor updates in `specs/_index.md` + `specs/release-pipeline.md`, CHANGELOG entries, and Cargo.lock regeneration side effects. Anything else on a `release/v*` branch is a process error.
+
+**Enforcement:** `/redteam` MUST verify every PR-gate job in every workflow includes `!startsWith(github.head_ref, 'release/')` in its `if:` clause:
+
+```bash
+for f in .github/workflows/rust.yml .github/workflows/python.yml \
+         .github/workflows/ruby.yml .github/workflows/nodejs.yml; do
+  pr_gated=$(grep -c "if:.*pull_request\|if:.*!startsWith.*release" "$f")
+  jobs_count=$(grep -c "^  [a-z][a-z_-]*:$" "$f")
+  real_jobs=$((jobs_count - 1))
+  echo "$f: $real_jobs jobs, $pr_gated have release-skip clause"
+done
+```
+
+Origin: 2026-04-22 kailash-rs session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min Mac Studio + bindings).
+
 ## MUST NOT Rules
 
 ### 1. Never Commit Registration Tokens

@@ -46,16 +46,24 @@ Check `.claude/.coc-sync-marker` for the template. If missing, auto-detect:
 
 ### 2. Locate template
 
-Search paths (in order):
+Resolution order (canonical, v2.9.1+) — **GitHub-backed cache wins by default**, local clones are offline-only fallback:
 
-1. `../{template}/` (sibling directory)
-2. `../../loom/{template}/` (loom parent)
-3. **GitHub fetch** — if not found locally, shallow-clone from GitHub:
-   ```bash
-   git clone --depth 1 https://github.com/terrene-foundation/kailash-coc-claude-rs.git /tmp/kailash-coc-template
-   ```
-   Use `/tmp/kailash-coc-template` as the template path. Clean up after sync with `rm -rf /tmp/kailash-coc-template`.
-4. Ask user for path (last resort)
+1. **`KAILASH_COC_TEMPLATE_PATH` env var** — explicit developer escape hatch. Use this when iterating on un-pushed local template changes. MUST point at a directory containing `.claude/`.
+2. **Cache** at `~/.cache/kailash-coc/<template>/`. Auto-update via `git -C <cache> fetch --depth 1 origin main && git -C <cache> reset --hard origin/main` on every sync.
+3. **Shallow clone** to cache if no cache exists: `git clone --depth 1 --single-branch --branch main https://github.com/terrene-foundation/kailash-coc-claude-rs.git ~/.cache/kailash-coc/kailash-coc-claude-rs/`.
+4. **Offline fallback only** — local sibling `../{template}/` or `~/repos/loom/{template}/`. Used ONLY when steps 2-3 all fail (network unreachable). Emit `freshness NOT guaranteed` notice.
+
+If a local sibling is detected during online resolution but NOT used, emit one-line stderr notice: "Found local clone at X but using GitHub-backed cache for freshness. Set KAILASH_COC_TEMPLATE_PATH=X to use the local clone instead."
+
+**Why the change**: pre-v2.9.1 the local sibling was step 1, silently shadowing the auto-updating cache forever and forcing users to `git pull` two repos before every downstream sync.
+
+### 2.5. Read obsoleted-paths manifest from the resolved template
+
+Read `<resolved-template>/.claude/.coc-obsoleted` (slim purpose-built file emitted by coc-sync). Each non-comment, non-blank line is a repo-relative path; trailing slash means directory. If the file is missing, the template predates v2.9.1 — log one-line warning, skip the purge, proceed.
+
+### 2.6. Purge obsoleted paths in this consumer (MUST, before merge)
+
+For each entry in `.coc-obsoleted`, recursively delete the matching path. This is the ONLY mechanism by which downstream consumers purge stale orphan directories from former COC layouts (`scripts/hooks/`, `.claude/scripts/`, `scripts/resolve-template.js`). Skipping it leaves `require("./lib/...")` resolving against the wrong sibling and ships hooks that fail at every CC session start with `MODULE_NOT_FOUND`.
 
 ### 3. Check SDK version compatibility
 

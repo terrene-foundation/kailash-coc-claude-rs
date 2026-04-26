@@ -5,6 +5,8 @@ scope: baseline
 
 # Agent Orchestration Rules
 
+See `.claude/guides/rule-extracts/agents.md` for full evidence, extended examples, and post-mortems.
+
 <!-- slot:neutral-body -->
 
 
@@ -66,6 +68,39 @@ Reviews happen at COC phase boundaries, not per-edit. Skip only when explicitly 
 - "Reviews will happen in a follow-up session"
 - "The changes are straightforward, no review needed"
 - "Already reviewed informally during implementation"
+
+## MUST: Verify Specialist Tool Inventory Before Implementation Delegation
+
+When delegating IMPLEMENTATION work (any task involving file edits, commits, build/test invocation, version bumps), the orchestrator MUST select a specialist whose declared tool set includes `Edit` AND `Bash`. Read-only specialists (`security-reviewer`, `analyst`, `reviewer`, `gold-standards-validator`, `value-auditor`) MUST NOT be delegated implementation tasks — their tool set is `Read, Write, Grep, Glob` (and a few have `Task`), with no Edit + no Bash. Pure-research / pure-review delegations are fine.
+
+```
+# DO — match agent's tools to the mission
+Agent(subagent_type: "tdd-implementer", isolation: "worktree",
+      prompt: "Implement Class 1 fix + Class 3 helper + commit per cadence")
+# tdd-implementer has Edit + Bash → can git commit + cargo build
+
+Agent(subagent_type: "security-reviewer", run_in_background: true,
+      prompt: "Audit unsafe blocks; post findings as PR comment")
+# security-reviewer is read-only → audit OK
+
+# DO NOT — assign code-edit + commit work to a read-only agent
+Agent(subagent_type: "security-reviewer", isolation: "worktree",
+      prompt: "Apply Class 1 fix + ≥5 commits + cargo green")
+# ↑ security-reviewer cannot run `git commit`, cannot run `cargo`; the agent
+#   exits without committing OR fakes the work; either outcome wastes a shard.
+```
+
+**BLOCKED rationalizations:**
+
+- "security-reviewer is the security domain, so security-relevant edits go there"
+- "The agent will figure out its tool limitations"
+- "I'll re-launch with a different specialist if it halts"
+- "Read-only review IS implementation when the diff is trivial"
+- "The agent has Write — that's enough for code edits"
+
+**Why:** Read-only specialists halt mid-instruction at file-edit boundaries with no recovery — the agent emits "Now let me wire X" then exits with zero tool calls because Edit is not available, OR fabricates commit-style language without actually committing (violating `git.md` § "Commit-Message Claim Accuracy"). Either outcome wastes one full shard's budget AND requires re-launch with a tools-equipped specialist (e.g., `tdd-implementer`, `build-fix`, `python-binding`). Verifying tool inventory pre-launch is O(1); re-launch + re-read of all context is O(N) on shard size.
+
+Origin: 2026-04-25 v3.23 sprint Wave 2 W3 (kailash-rs) — security-reviewer assigned to apply CodeQL Class 1 fingerprint helper + connection.rs migration + ≥5 commits + cargo verification; agent's tool set was `Read, Write, Grep, Glob` only; reported "audit complete, code edits blocked by tool constraints" after writing audit doc + fingerprint.rs without committing; re-launched as tdd-implementer (with Bash) to complete. Cross-SDK independent re-discovery: 2026-04-26 Wave 4 (kailash-py) — security-reviewer launched twice for alg_id Layer-1 + JWT iss claim implementation; both halted at edit boundaries; recovered via pact-specialist + orchestrator-takeover.
 
 <!-- /slot:neutral-body -->
 

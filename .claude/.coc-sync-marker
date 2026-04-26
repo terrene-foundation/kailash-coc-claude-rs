@@ -1,18 +1,65 @@
-{
-  "synced_at": "2026-04-23T02:29:49.809571Z",
-  "source": "loom",
-  "variant": "rs",
-  "multi_cli": false,
-  "artifacts": {
-    "updated": 72,
-    "created": 39,
-    "unchanged": 679
-  },
-  "scripts": {
-    "updated": 3,
-    "created": 1,
-    "unchanged": 38
-  },
-  "overlay_composed": 10,
-  "cli_artifacts": null
-}
+# COC Sync Marker — kailash-coc-claude-rs
+# Format: YAML (per coc-sync.md Step 9 — Known drift fixed: previous JSON marker
+# was incompatible with per-CLI drift detection). Patched to YAML schema in v2.9.1
+# fan-out (this sync) per coc-sync.md "Format MUST be YAML, not JSON" directive.
+timestamp: 2026-04-26T15:08:00Z
+source: loom/.claude
+source_version: 2.9.1
+variant: rs
+template: kailash-coc-claude-rs
+clis: [claude]
+multi_cli: false
+template_version: 2.9.15->2.9.16
+sdk_pins_changed: false
+stats:
+  updated: ~700              # bulk artifact sync (agents/commands/rules/skills/guides/hooks/bin)
+  created: 1                 # .coc-obsoleted
+  unchanged: 0               # bulk-rsync diff threshold not measured per-file
+  composed: 13               # rs slot-keyed + full-file rule overlays:
+                             # 10 slot-composed via compose.mjs (agents, ci-runners,
+                             # connection-pool, e2e-god-mode, framework-first,
+                             # independence, patterns, security, testing, zero-tolerance)
+                             # — 4 of the 10 (patterns/security/testing/zero-tolerance)
+                             # passed through with WARN "overlay introduces slot
+                             # 'neutral-body' not in global"; composed = global byte-equivalent.
+                             # 3 full-file overlays: build-speed, dataflow-null-typing, release.
+  preserved: 1               # CLAUDE.md (template-owned; 10794B, dated 2026-04-21)
+  baselines_emitted:         # CC-only template; no Codex/Gemini emission
+    cc: 0                    # CLAUDE.md preserved, not emitted
+    codex: 0                 # n/a (CC-only template)
+    gemini: 0                # n/a (CC-only template)
+  baseline_emission_bytes: ~ # n/a — CC-only template has no multi-CLI baselines
+  cli_artifacts: ~           # n/a — no .codex/ or .gemini/ trees on CC-only template
+  obsoleted_purged:          # Step 4.5 — load-bearing v2.9.1 release lever
+    - scripts/hooks/         # purged (was present pre-sync)
+    - scripts/resolve-template.js  # purged (was present pre-sync)
+    # .claude/scripts/ already absent pre-sync — not purged
+  coc_obsoleted_emitted: .claude/.coc-obsoleted   # 3 entries written for downstream consumers
+  cross_sdk_inspection_purged: rules/cross-sdk-inspection.md  # was orphan from pre-2.9.x; reconciled this sync
+v291_deltas_landed:
+  - .claude/agents/cli-orchestrator.md          # path update
+  - .claude/agents/codex-architect.md           # 4 path updates
+  - .claude/commands/sync.md                    # rs variant overlay (rewritten Downstream Sync)
+  - .claude/hooks/lib/template-resolver.js      # rewrite
+  - .claude/hooks/validate-workflow.js          # annotated transitional matcher
+  - .claude/bin/resolve-template.js             # NEW canonical thin shim
+verification:
+  hooks_resolved: 12/12
+  scripts_hooks_refs_in_settings: 0  # MUST be 0 per Step 8
+  scripts_hooks_dir_present: false   # MUST be false per Step 8
+  scripts_resolve_template_present: false  # MUST be false per Step 8
+  claude_scripts_dir_present: false  # MUST be false per Step 8
+  coc_obsoleted_present: true        # MUST be true per Step 8
+  coc_obsoleted_entries: 3           # MUST be 3 per manifest
+  build_path_leaks_in_md: 0          # zero /Users/esperie/repos/ refs in synced .md files
+  bin_resolve_template_present: true
+  hooks_lib_template_resolver_present: true
+note: |
+  v2.9.1 hooks-consolidation + sync-template-resolver-UX-fix release.
+  Step 4.5 (NEW v2.9.1) fired: scripts/hooks/ and scripts/resolve-template.js
+  purged; .coc-obsoleted manifest emitted at .claude/.coc-obsoleted with the
+  3 obsoleted-paths the manifest declares. settings.json was already pointing
+  at .claude/hooks/ (no rewrite needed). 12/12 hooks resolved on disk. Marker
+  format flipped JSON → YAML per coc-sync.md Step 9 directive ("Known drift").
+  Cross-sdk-inspection.md (excluded artifact present from pre-sync drift)
+  also purged for parity with kailash-coc-rs. CLAUDE.md preserved (10794B).
