@@ -76,15 +76,11 @@ EffectiveEnvelope (computed -- can only be tighter)
 
 ### 5-Step Access Enforcement
 
-1. Resolve role clearance (fail if missing or non-ACTIVE vetting -- SUSPENDED/EXPIRED/REVOKED all denied)
+1. Resolve role clearance (fail if missing or non-ACTIVE vetting)
 2. Classification check (effective clearance >= item classification)
 3. Compartment check (SECRET/TOP_SECRET: role must hold all compartments)
 4. Containment check (same unit, downward, T-inherits-D, KSP, Bridge)
 5. No path found -> DENY (fail-closed)
-
-### Clearance Lifecycle FSM
-
-`PENDING -> ACTIVE -> SUSPENDED -> ACTIVE` (reinstatement) or `-> REVOKED` (terminal). Use `transition_clearance()` for status changes, `grant_clearance()` for new grants. `revoke_clearance()` preserves the record with REVOKED status for audit trail.
 
 ### GovernanceEngine
 
@@ -156,12 +152,17 @@ Discovered during kailash-rs red team. Violations are BLOCK-level findings.
 
 `float('nan')` in context dicts bypasses financial comparisons because `NaN < X` and `NaN > X` are both `False`. `verify_action()` must validate with `math.isfinite()` on ALL numeric context values -- including `transaction_amount`, `cost`, `daily_total`, and any cumulative context values.
 
+## ML Integration Surface (pact 0.10.0+, M10 W32c)
+
+`pact.ml` — ML governance module: `check_trial_admission`, `check_engine_method_clearance`, `check_cross_tenant_op`. See `specs/pact-ml-integration.md`. Every `km.*` engine method routes through D/T/R clearance axes (`axis: Literal["D","T","R"]`, `min_level: Literal["L","M","H"]`) per `ml-engines-v2-addendum.md §E9.2`. Origin: `feat/w32c-pact-ml-governance` merged at `84bd67f4`.
+
 ## When NOT to Use This Agent
 
 - For EATP protocol questions (trust chains, delegation, signing) -> use `co-reference` skill
 - For AI agent execution patterns (signatures, tools) -> use **kaizen-specialist**
 - For database operations -> use **dataflow-specialist**
 - For API deployment -> use **nexus-specialist**
+- For ML engine selection / training / serving -> use **ml-specialist**
 
 ## Full Documentation
 

@@ -176,3 +176,42 @@ rustup toolchain install 1.95 --profile minimal --component clippy
 ```
 
 Origin: 2026-04-20 /codify — PR #437 flagged twice by CI's clippy 1.95 on bare technology names in doc comments; local 1.93.1 produced zero findings on the same diff. Cross-principle with nightly-rustfmt section above: match CI's pinned toolchain version for linters, not just formatters.
+
+## MUST: Run Full CI Job-Set Locally Before FIRST Push AND Before Admin-Merge
+
+**Both** the first `git push -u` to an open PR branch AND every subsequent admin-merge MUST be preceded by the full local CI parity command set. The merger cannot rely on "CI will catch it" because every push to an open PR retriggers the full PR-gate matrix; cancelled-mid-flight runs (under `concurrency: cancel-in-progress`) are still billed for elapsed wall-clock minutes.
+
+```bash
+# DO — pre-flight ALL commands BEFORE first push AND BEFORE admin-merge
+cargo +nightly fmt --all --check
+cargo +1.95 clippy --workspace --all-targets -- -D warnings
+cargo nextest run --workspace
+RUSTDOCFLAGS="-Dwarnings" cargo doc --workspace \
+  --exclude kailash-ruby --exclude kailash-python --no-deps
+RUSTDOCFLAGS="-Dwarnings" cargo doc --workspace \
+  --exclude kailash-ruby --no-deps --no-default-features
+# All five MUST exit 0. Then git push (or gh pr merge).
+
+# DO NOT — push first, fix-up later
+git push -u origin feat/branch                   # CI run #1 starts billing
+# CI fails on fmt drift
+git commit -am "style: fmt" && git push          # CI run #2 starts; #1 cancelled
+                                                  # but already billed for mid-flight wall-clock
+# DO NOT — admin-merge with cargo check alone
+cargo check -p <crate> && gh pr merge <N> --admin --merge --delete-branch
+```
+
+**BLOCKED rationalizations:**
+
+- "CI will catch it on the next push"
+- "concurrency: cancel-in-progress refunds mid-flight minutes" (it does NOT)
+- "cargo check is sufficient for first push"
+- "Documentation is styling, non-load-bearing"
+- "I'll fix format in a follow-up"
+- "The `--no-default-features` doc invocation is paranoid"
+- "Pre-flight takes too long; fix-ups are quicker"
+- "Three push cycles is normal practice"
+
+**Why:** Three v3.23 PRs (#566/#596/#597) admin-merged with `cargo check` clean but `cargo +nightly fmt --check` dirty AND `RUSTDOCFLAGS=-Dwarnings cargo doc --no-default-features` failing. PR #598 inherited all three classes via rebase; three fix-up commits cost three CI cycles + orchestrator turns. The Documentation job has TWO invocations because feature-gated paths surface different intra-doc-link graphs — admin-merge without the slim-build check leaves them latent. The first-push gate is structurally cheaper than the admin-merge gate at preventing fix-up cycles. `gh pr merge --admin --merge` bypasses branch protection's CI-green gate; the merger MUST run the same job-set locally first.
+
+Origin: 2026-04-25 v3.23 sprint codify — admin-merging #596 + #597 propagated nightly-fmt drift + rustdoc `-Dwarnings` failures onto main; #598 inherited all three classes; PR #598 cycle of 5 sequential pushes (08:43Z → 10:14Z) caused 71 min of cancelled-but-billed Workspace Tests. Cross-references `git.md` § "Pre-FIRST-Push CI Parity Discipline" (always-loaded baseline) for branch-time visibility.
