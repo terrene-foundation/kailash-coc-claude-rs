@@ -5,7 +5,7 @@ scope: baseline
 
 # Agent Orchestration Rules
 
-See `.claude/guides/rule-extracts/agents.md` for full evidence, extended examples, and post-mortems.
+See `.claude/guides/rule-extracts/agents.md` for full evidence, extended examples, post-mortems, recovery-protocol commands, the gate-review table, and CLI-syntax variants.
 
 <!-- slot:neutral-body -->
 
@@ -103,49 +103,3 @@ Agent(subagent_type: "security-reviewer", isolation: "worktree",
 Origin: 2026-04-25 v3.23 sprint Wave 2 W3 (kailash-rs) — security-reviewer assigned to apply CodeQL Class 1 fingerprint helper + connection.rs migration + ≥5 commits + cargo verification; agent's tool set was `Read, Write, Grep, Glob` only; reported "audit complete, code edits blocked by tool constraints" after writing audit doc + fingerprint.rs without committing; re-launched as tdd-implementer (with Bash) to complete. Cross-SDK independent re-discovery: 2026-04-26 Wave 4 (kailash-py) — security-reviewer launched twice for alg_id Layer-1 + JWT iss claim implementation; both halted at edit boundaries; recovered via pact-specialist + orchestrator-takeover.
 
 <!-- /slot:neutral-body -->
-
-<!-- slot:examples -->
-
-
-### Quality Gates — Background Agent Pattern
-
-```
-# At end of /implement, spawn reviews in background:
-Agent({subagent_type: "reviewer", run_in_background: true, prompt: "Review all changes since last gate..."})
-Agent({subagent_type: "security-reviewer", run_in_background: true, prompt: "Security audit all changes..."})
-# Parent continues; reviews arrive as notifications
-```
-
-### Reviewer Mechanical Sweeps
-
-```
-# DO — reviewer prompt enumerates mechanical sweeps to run
-Agent(subagent_type="reviewer", prompt="""
-... diff context ...
-
-Mechanical sweeps (run BEFORE LLM judgment):
-1. Parity grep — every call site that returns a given result type must carry the required field
-2. `cargo check --workspace` / `pytest --collect-only -q` exit 0
-3. `cargo tree -d` / `pip check` — no new conflicts vs main
-4. For every public symbol added by this PR — verify the re-export reaches `pub use` / `__all__`
-""")
-
-# DO NOT — reviewer prompt only includes diff context
-Agent(subagent_type="reviewer", prompt="Review the diff between main and feat/X.")
-# ↑ reviewer reads the diff, judges the new code, never runs the sweep.
-#   Orphan in untouched lines stays invisible.
-```
-
-### Worktree Isolation for Compiling Agents
-
-```
-# DO: Independent target/ dirs, compile in parallel
-Agent(isolation: "worktree", prompt: "implement feature X...")
-Agent(isolation: "worktree", prompt: "implement feature Y...")
-
-# DO NOT: Multiple agents sharing same target/ (serializes on lock)
-Agent(prompt: "implement feature X...")
-Agent(prompt: "implement feature Y...")  # Blocks waiting for X's build lock
-```
-
-<!-- /slot:examples -->
