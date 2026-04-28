@@ -1,6 +1,6 @@
 # Kailash COC Claude (Rust-backed Bindings)
 
-This repository is the **COC (Cognitive Orchestration for Codegen) setup** for Claude Code — providing agents, skills, rules, and hooks for building applications with the **Rust-accelerated Kailash Python and Ruby bindings** (`pip install kailash` / `gem install kailash`). All projects using this setup inherit these capabilities through the `.claude/` directory.
+This repository is the **COC (Cognitive Orchestration for Codegen) setup** for Claude Code — providing agents, skills, rules, and hooks for building applications with the **Rust-accelerated Kailash Python and Ruby bindings** (`pip install kailash-enterprise` / `gem install kailash`). All projects using this setup inherit these capabilities through the `.claude/` directory.
 
 > **Important**: This COC is for **Python and Ruby developers** who use the Rust-accelerated Kailash binding. The binding is free to install, needs no registration, and has no paid tier. You write Python or Ruby — you never touch Rust. For the fully open-source pure-Python alternative, see `kailash-coc-claude-py` (`pip install kailash-py`).
 
@@ -177,12 +177,12 @@ end
 
 | Framework       | Purpose                                | Python Install        | Ruby Install          |
 | --------------- | -------------------------------------- | --------------------- | --------------------- |
-| **Core SDK**    | Workflow orchestration, 140+ nodes     | `pip install kailash` | `gem install kailash` |
+| **Core SDK**    | Workflow orchestration, 140+ nodes     | `pip install kailash-enterprise` | `gem install kailash` |
 | **DataFlow**    | Zero-config database operations        | included              | included              |
 | **Nexus**       | Multi-channel deployment (API+CLI+MCP) | included              | included              |
 | **Kaizen**      | AI agent framework                     | included              | included              |
 | **Trust / ABAC**| RBAC, ABAC, audit, multi-tenancy       | included              | included              |
 
-All frameworks ship in a single package per language. Python: `pip install kailash` (import via `import kailash`). Ruby: `gem install kailash` (require via `require "kailash"`). Both installs are free and ungated. Infrastructure auto-scales via env vars — see `skills/01-core-sdk/enterprise-infrastructure.md`.
+All frameworks ship in a single package per language. Python: `pip install kailash-enterprise` (import via `import kailash`). Ruby: `gem install kailash` (require via `require "kailash"`). Both installs are free and ungated. Infrastructure auto-scales via env vars — see `skills/01-core-sdk/enterprise-infrastructure.md`.
 
 **Pure-Python alternative**: `pip install kailash-py` — Apache 2.0, fully open source, same specs, forkable. Choose whichever path fits your preference for performance vs full source transparency.
