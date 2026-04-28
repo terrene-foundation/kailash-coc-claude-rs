@@ -24,12 +24,12 @@ classifiers = [
 ]
 dependencies = [
     # Kailash (Rust-accelerated Python binding — free, no registration, no gating).
-    # Published on PyPI, source hosted on the Terrene Foundation GitHub org.
-    # The binding links against a Rust runtime whose source is trade secret,
-    # but install + use is free for every user.
+    # The PyPI distribution name is `kailash-enterprise`; the import name is
+    # `import kailash`. The binding links against a Rust runtime whose source
+    # is trade secret, but install + use is free for every user.
     # Alternative: replace with `kailash-py` for the fully open-source
     # (Apache 2.0) pure-Python implementation of the same specs.
-    "kailash>=3.23.0",
+    "kailash-enterprise>=3.23.0",
     # CLI Framework
     "click>=8.0",
     "rich>=13.0.0",

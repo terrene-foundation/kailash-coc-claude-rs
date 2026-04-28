@@ -11,8 +11,9 @@ Fastest path to running workflows with the Rust-backed `kailash` package.
 ## Installation
 
 ```bash
-# From PyPI (production)
-pip install kailash
+# From PyPI (production) — distribution name is `kailash-enterprise`,
+# import name is `import kailash`.
+pip install kailash-enterprise
 
 # Development mode (when working inside the kailash workspace)
 cd bindings/kailash-python
