@@ -93,7 +93,7 @@ app.start()
 ### Import Errors
 
 ```bash
-pip install kailash  # kailash-rs bundles Nexus
+pip install kailash-enterprise  # kailash-rs bundles Nexus
 ```
 
 ### Port Conflicts

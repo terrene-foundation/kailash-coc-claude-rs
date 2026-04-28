@@ -15,7 +15,7 @@ The `kailash` package name is shared between two implementations:
 |                       | Original Python SDK         | Python Bindings (v2)                                                              |
 | --------------------- | --------------------------- | --------------------------------------------------------------------------------- |
 | Implementation        | Pure Python                 | Rust core via PyO3                                                                |
-| Install               | `pip install kailash` (old) | `pip install kailash` (new)                                                       |
+| Install               | `pip install kailash` (old) | `pip install kailash-enterprise` (new — `import kailash` unchanged)               |
 | Runtime               | `LocalRuntime`              | `kailash.Runtime`                                                                 |
 | Registry              | Created internally          | `kailash.NodeRegistry()` passed explicitly                                        |
 | Execute return        | `(results, run_id)` tuple   | `{"results": ..., "run_id": ..., "metadata": ...}` dict                           |
