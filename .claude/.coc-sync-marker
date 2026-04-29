@@ -1,21 +1,24 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-04-28T06:43:07.275392+00:00
+timestamp: 2026-04-29T09:23:11+00:00
 source: loom/.claude
 variant: rs
 clis: [claude]
-loom_version: 2.9.5
-loom_sha: 1f65a4e
+loom_version: 2.10.0
+loom_sha: 23fa489
 stats:
-  updated: 121
-  created: 0
-  unchanged: 1040
-  composed: 7
-  preserved: 1   # CLAUDE.md preserved per Step 7
-  purged: 0
+  composed: 10        # rs-overlaid rules composed via compose.mjs
+  variant_only: 156   # rs-only artifacts written from variants/rs/ (rules + agents + skills + commands)
+  preserved: 1        # CLAUDE.md preserved per Step 7
+  purged: 0           # all obsoleted paths already absent (idempotent)
   baselines_emitted:
-    cc: 0
-    codex: 0
-    gemini: 0
+    cc: 0             # CLAUDE.md preserved, not emitted
+    codex: 0          # CC-only target — no Codex emission
+    gemini: 0         # CC-only target — no Gemini emission
   integrity:
-    hooks_ok: 0
-    hooks_total: 0
+    hooks_ok: 12
+    hooks_total: 12
+    scripts_hooks_leaks_in_settings: 0
+notes: |
+  Legacy CC-only USE template. Cargo.toml not present (template scaffolds
+  Python+Ruby project via pip install kailash-enterprise + gem install kailash);
+  cargo check N/A. pyproject.toml already pins kailash-enterprise>=3.23.0.

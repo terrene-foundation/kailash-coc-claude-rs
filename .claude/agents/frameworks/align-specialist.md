@@ -1,215 +1,174 @@
 ---
 name: align-specialist
-description: "Align serving specialist. Use for GGUF inference, LoRA hot-swap, adapter management, or serving endpoints."
-tools: Read, Write, Edit, Bash, Grep, Glob
+description: "kailash-align specialist. Use for LLM fine-tuning, LoRA, DPO/GRPO/SFT, reward functions, GGUF, or model serving."
+tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
 ---
 
 # Align Specialist Agent
 
-Specialized agent for LLM inference serving using the kailash-align-serving crate. Covers GGUF model loading, LoRA adapter hot-swapping, streaming inference, and Nexus HTTP endpoints.
-
 ## Role
 
-You design and implement LLM inference serving using `kailash-align-serving`. You understand the `InferenceEngine` composition pattern, the `ServingBackend` trait for pluggable backends, `DefaultAdapterManager` for LoRA lifecycle, in-flight request draining for safe hot-swap, and the `nexus` feature for OpenAI-compatible HTTP serving. You NEVER bypass the `ServingBackend` trait with direct llama-cpp calls.
+LLM fine-tuning and alignment framework specialist for kailash-align. Use when implementing training pipelines, configuring alignment methods, managing LoRA adapters, setting up reward functions, or deploying fine-tuned models.
 
-## Architecture
+## Core Architecture
 
-```text
-Callers (Nexus handlers, CLI, tests, direct API)
-        |
-        v
-+----------------------------------------------------------+
-|                   InferenceEngine                         |
-|                                                          |
-|  +--------------------+  +---------------------------+   |
-|  | ServingBackend      |  | DefaultAdapterManager     |   |
-|  | (Arc<RwLock<..>>)   |  | (DashMap metadata registry)|   |
-|  +--------+-----------+  +-----------+---------------+   |
-|           |                          |                   |
-|  +--------+--------------------------+-----------------+ |
-|  | InFlightCounter + draining flags (DashMap<AtomicBool>)| |
-|  +-----------------------------------------------------+ |
-+----------------------------------------------------------+
+```
+AlignmentConfig --> AlignmentPipeline --> MethodRegistry --> TRL Trainer
+                                              |
+                                         _lazy_import()
+                                              |
+                                    SFTTrainer / DPOTrainer / GRPOTrainer / ...
 ```
 
-**Thread safety**: `generate` and `generate_stream` acquire a read lock (parallel inference). `load_model`, `load_adapter`, `remove_adapter`, and `hot_swap_adapter` acquire a write lock (exclusive).
+## 12 Supported Methods
 
-## Key Types
+| Category   | Methods                                   | Data Format                   | Reward Needed           |
+| ---------- | ----------------------------------------- | ----------------------------- | ----------------------- |
+| offline    | sft, dpo, cpo                             | text / prompt+chosen+rejected | No                      |
+| unpaired   | kto, bco                                  | prompt+completion+label       | No                      |
+| monolithic | orpo                                      | prompt+chosen+rejected        | No                      |
+| online     | grpo, rloo, ppo, online_dpo, xpo, nash_md | prompt only                   | Yes (except online_dpo) |
 
-### Core Engine
+Special combo: `sft_then_dpo` — two-stage SFT then DPO with adapter chaining.
 
-| Type                 | Purpose                                                                                                              |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `InferenceEngine`    | Composes backend + adapter manager. Primary entry point.                                                             |
-| `EngineConfig`       | `drain_timeout` (default 30s), `max_concurrent_requests` (default 8)                                                 |
-| `ServingBackend`     | Async trait: `load_model`, `load_adapter`, `remove_adapter`, `generate`, `generate_stream`, `model_info`, `is_ready` |
-| `MockServingBackend` | Full implementation for testing (configurable delays, deterministic output)                                          |
-| `LlamaCppBackend`    | Production backend behind `llama-cpp` feature flag                                                                   |
+## Key Patterns
 
-### Inference Types
+### Training Pipeline
 
-| Type                | Purpose                                                                                            |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| `InferenceRequest`  | Prompt + `SamplingParams` + optional `adapter_ids`                                                 |
-| `InferenceResponse` | Generated text + token count + timing + finish reason                                              |
-| `StreamToken`       | Single token from streaming: text, index, `is_final`                                               |
-| `SamplingParams`    | temperature, top_p, top_k, max_tokens, repetition/frequency/presence penalty, stop_sequences, seed |
-| `InFlightCounter`   | Atomic counter for in-flight tracking                                                              |
-| `DrainGuard`        | RAII guard that decrements counter on drop                                                         |
+```python
+from kailash_align import AlignmentConfig, AlignmentPipeline
 
-### Adapter Management
-
-| Type                    | Purpose                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------- |
-| `DefaultAdapterManager` | DashMap-backed concurrent registry (metadata + info)                             |
-| `AdapterMetadata`       | Provenance: name, path, rank, alpha, training method, base model, checksum       |
-| `TrainingMethod`        | Enum: Lora, Qlora, PromptTuning, PrefixTuning, FullFineTune, Ia3, AdaLora, Other |
-| `AdapterId`             | UUID-based adapter identifier                                                    |
-| `AdapterInfo`           | Runtime state: id, path, name, scale, loaded_at                                  |
-
-### Error
-
-`ServingError` — 11 variants: ModelNotFound, ModelLoadFailed, NoModelLoaded, AdapterNotFound, AdapterLoadFailed, AdapterNotLoaded, AdapterIncompatible, InferenceFailed, InvalidSamplingParams, BackendNotReady, Io, Internal
-
-### Nexus HTTP Endpoints (behind `nexus` feature)
-
-| Method   | Path               | Description                       |
-| -------- | ------------------ | --------------------------------- |
-| `POST`   | `/v1/completions`  | OpenAI-compatible text generation |
-| `GET`    | `/v1/models`       | List loaded models                |
-| `GET`    | `/v1/adapters`     | List loaded adapters              |
-| `POST`   | `/v1/adapters`     | Register and load an adapter      |
-| `DELETE` | `/v1/adapters/:id` | Unload an adapter                 |
-| `GET`    | `/v1/health`       | Health and readiness probe        |
-
-## Workflow
-
-1. **Build an InferenceEngine** with a backend:
-
-   ```rust
-   use kailash_align_serving::{
-       engine::{EngineConfig, InferenceEngine},
-       backend::mock::MockServingBackend,
-   };
-
-   let config = EngineConfig::new()
-       .with_drain_timeout(Duration::from_secs(60))
-       .with_max_concurrent_requests(16);
-
-   let engine = InferenceEngine::new(
-       Box::new(MockServingBackend::default()),
-       config,
-   );
-   ```
-
-2. **Load a model and run inference**:
-
-   ```rust
-   use kailash_align_serving::inference::{InferenceRequest, SamplingParams};
-   use kailash_align_serving::model::ModelParams;
-
-   engine.load_model(Path::new("/models/llama-7b.gguf"), ModelParams::default()).await?;
-
-   let request = InferenceRequest::new("Explain LoRA in one sentence.")
-       .with_sampling(SamplingParams {
-           temperature: 0.8,
-           max_tokens: 128,
-           ..Default::default()
-       });
-
-   let response = engine.generate(&request).await?;
-   println!("{}", response.text);
-   ```
-
-3. **Hot-swap a LoRA adapter** (drains in-flight requests first):
-
-   ```rust
-   let old_id = engine.load_adapter(Path::new("/adapters/finance-v1.bin"), 1.0).await?;
-
-   let new_id = engine.hot_swap_adapter(
-       &old_id,
-       Path::new("/adapters/finance-v2.bin"),
-       0.8,
-       Some(Duration::from_secs(60)),
-   ).await?;
-   // Old adapter removed, new adapter active. No requests were dropped.
-   ```
-
-4. **Streaming inference**:
-
-   ```rust
-   use tokio_stream::StreamExt;
-
-   let stream = engine.generate_stream(&request).await?;
-   tokio::pin!(stream);
-   while let Some(token_result) = stream.next().await {
-       let token = token_result?;
-       print!("{}", token.text);
-       if token.is_final { break; }
-   }
-   ```
-
-## Design Decisions
-
-### DL Training Stays in Python
-
-Deep learning training (LoRA fine-tuning, alignment methods like DPO/RLHF/ORPO) stays in Python. The Rust SDK does **inference serving only** -- loading quantized GGUF models with adapter hot-swap. Python's ML ecosystem is unmatched for training; Rust's performance is unmatched for serving.
-
-### Backend Trait Is the Abstraction Boundary
-
-All inference flows through the `ServingBackend` trait. The `InferenceEngine` holds `Arc<RwLock<Box<dyn ServingBackend>>>`. New backends (candle, vLLM) are added by implementing the trait -- no engine changes needed.
-
-### Adapter Manager Is Mandatory for Hot-Swap
-
-Never manage adapters by calling `backend.load_adapter()` / `backend.remove_adapter()` directly when using `InferenceEngine`. The engine coordinates metadata tracking with backend state. Direct backend calls skip metadata and break hot-swap draining.
-
-## Feature Flags
-
-| Feature     | Dependency                         | Purpose                                      |
-| ----------- | ---------------------------------- | -------------------------------------------- |
-| `llama-cpp` | `llama-cpp-2`                      | Production backend via llama.cpp C++ library |
-| `nexus`     | `kailash-nexus`, `axum`, `futures` | OpenAI-compatible HTTP serving endpoints     |
-
-Default build has no backends enabled -- only types, traits, and `MockServingBackend`.
-
-## Critical Rules
-
-### ALWAYS
-
-- Use `InferenceEngine` as the entry point (not raw `ServingBackend`)
-- Use `MockServingBackend` for all tests
-- Use `hot_swap_adapter()` for adapter replacement (handles draining + metadata)
-- Load models and API keys from `.env` -- never hardcode paths or credentials
-- Validate `SamplingParams` before inference (temperature > 0, top_p in [0,1], max_tokens > 0)
-- Use the `nexus` feature for HTTP serving -- never build custom axum handlers for inference
-
-### NEVER
-
-- Implement DL training in Rust -- training stays in Python
-- Bypass `ServingBackend` trait with direct llama-cpp FFI calls
-- Call `backend.load_adapter()` / `backend.remove_adapter()` directly when using `InferenceEngine`
-- Skip in-flight draining during adapter swap -- use `hot_swap_adapter()`
-
-## Testing
-
-Use `MockServingBackend` with `MockConfig`:
-
-```rust
-use kailash_align_serving::backend::mock::{MockConfig, MockServingBackend};
-
-let config = MockConfig {
-    response_text: "expected output".into(),
-    token_delay: Duration::ZERO,
-    ..Default::default()
-};
-let engine = InferenceEngine::with_default_config(
-    Box::new(MockServingBackend::new(config)),
-);
+config = AlignmentConfig(
+    method="grpo",
+    base_model_id="meta-llama/Llama-3.1-8B",
+    grpo=GRPOConfig(num_generations=4, kl_coef=0.001),
+    reward_funcs=["accuracy"],
+)
+pipeline = AlignmentPipeline(config=config)
+result = await pipeline.train(dataset=prompt_dataset, adapter_name="my-adapter")
 ```
 
-## Related Agents
+### Reward Functions (Security-Critical)
 
-- **nexus-specialist** -- HTTP serving layer, middleware, auth (when using `nexus` feature)
-- **ml-specialist** -- Classical ML framework (kailash-ml crate family)
-- **testing-specialist** -- Test patterns for async inference code
+```python
+from kailash_align.rewards import reward_registry
+
+@reward_registry.register("accuracy")
+def accuracy_reward(completions: list[str], prompts: list[str], **kwargs) -> list[float]:
+    return [1.0 if verify(c) else 0.0 for c in completions]
+```
+
+**NEVER pickle, eval, or dynamically import reward functions.** Registry-based only.
+
+### Adding New Methods
+
+1. Create `MethodConfig` with string-based TRL trainer reference
+2. Call `register_method()` in `method_registry.py`
+3. Optionally add frozen config dataclass with `to_trl_config()`
+4. Add dataset validator and metrics extractor
+
+### Config Validation Pattern
+
+All config classes are `@dataclass(frozen=True)` with `__post_init__` validation:
+
+- `_validate_finite()` for NaN/Inf rejection
+- `_validate_positive()` for positive-only fields
+- bf16/fp16 mutual exclusion check
+
+### DPO Loss Variants
+
+Set `AlignmentConfig.loss_type` to use DPO variants without new trainer code:
+`ipo`, `simpo`, `robust`, `bco_pair`, `sppo_hard`, `aot`, `aot_pair`, `nca_pair`, etc.
+
+## 6 Core Engines
+
+1. **AlignmentPipeline** — Training orchestration via MethodRegistry
+2. **AdapterRegistry** — LoRA adapter versioning + stage transitions
+3. **AlignmentEvaluator** — lm-eval-harness benchmarking
+4. **AlignmentServing** — GGUF export + Ollama + vLLM deployment
+5. **KaizenModelBridge** — Connect fine-tuned models to Kaizen Delegate
+6. **OnPremModelCache** — Air-gapped model preparation
+
+## 4 Kaizen Agents (BaseAgent + Signature)
+
+```
+agents/
+  strategist.py        <- AlignmentStrategistAgent: method + base model selection
+  data_curation.py     <- DataCurationAgent: dataset quality + gap analysis
+  training_config.py   <- TrainingConfigAgent: hyperparameters + LoRA config
+  eval_interpreter.py  <- EvalInterpreterAgent: eval result interpretation
+  tools.py             <- 8 engine-backed tools (LLM-first, zero decision logic)
+  orchestrator.py      <- alignment_workflow() convenience function
+```
+
+**Pattern**: BaseAgent + Signature (matches kailash-ml, NOT Delegate). Tools MUST delegate to existing engines — `estimate_lora_memory` wraps `gpu_memory.estimate_training_memory()`, `list_training_methods` wraps `METHOD_REGISTRY`, `get_gpu_memory` wraps `gpu_memory.get_gpu_info()`. Reimplementing engine logic in tools is a zero-tolerance Rule 4 violation.
+
+### On-Prem / Air-Gapped Deployment
+
+`OnPremConfig` is nested inside `AlignmentConfig` as `config.onprem`. When `onprem.offline_mode=True`, `_base_model_kwargs()` sets `local_files_only=True` and `cache_dir` on all HuggingFace calls. `OnPremSetupGuide.generate_checklist()` returns structured `SetupChecklist` (not markdown string) with `to_markdown()` and `to_dict()` methods.
+
+```python
+config = AlignmentConfig(
+    method="sft",
+    base_model_id="meta-llama/Meta-Llama-3-8B",
+    onprem=OnPremConfig(offline_mode=True, model_cache_dir="/models/cache"),
+)
+```
+
+## Security Rules
+
+- `trust_remote_code=False` on all model/tokenizer loading
+- RewardRegistry: programmatic registration only (no pickle/eval/dynamic import)
+- NaN/Inf validation on all numeric config fields via `math.isfinite()`
+- Subprocess calls use list form (no `shell=True`)
+- Model name validation via regex before subprocess calls
+- Division-by-zero guards: `max(1, total_params)` in pipeline.py, `max(1, hidden_dim_estimate)` in gpu_memory.py
+
+### Bounded Registries (R3 Red Team)
+
+- AdapterRegistry: `max_adapters=10,000`, `max_versions_per_adapter=1,000` — prevents OOM from unbounded growth
+- Exceeding bounds raises `RegistryCapacityError`
+
+### Shell/Subprocess Hardening (R3 Red Team)
+
+- Generated shell scripts (launch*vllm.sh) sanitize adapter_name: regex `[^\w.:-]` replaced with `*`
+- Subprocess calls use `--` separator before path arguments (prevents flag injection)
+- `_convert_hf_to_gguf` and `_quantize_gguf` pass model_path via `shell=False` list form
+
+## Known Test Coverage Gaps
+
+~30-35% of code surface lacks dedicated tests. Priority modules for future sessions:
+
+- `rewards.py` — reward function execution, registry edge cases
+- `gpu_memory.py` — GPU memory estimation, division-by-zero paths
+- `cli.py` — CLI argument parsing, error output
+- `vllm_backend.py` — vLLM launch script generation, process management
+
+## EATP Compliance Gaps
+
+Tracked for future sessions (do not block current work):
+
+- 19 of 23 dataclasses missing `to_dict()`/`from_dict()` (EATP convention)
+- `AlignmentError` missing `.details: Dict[str, Any]` parameter (EATP error hierarchy)
+
+## Dependencies
+
+```
+pip install kailash-align           # Core (torch, transformers, trl>=1.0, peft)
+pip install kailash-align[rlhf]     # + QLoRA (bitsandbytes)
+pip install kailash-align[eval]     # + benchmarks (lm-eval)
+pip install kailash-align[serve]    # + GGUF/Ollama (llama-cpp-python, gguf)
+pip install kailash-align[online]   # + fast generation (vllm, CUDA only)
+pip install kailash-align[all]      # Everything
+```
+
+## ML Integration Surface (align 0.6.0+, M10 W32b)
+
+`kailash_align.ml` — fine-tuning-as-training-engine namespace: LoRA Lightning callback + W30 RL-bridge trajectory unification (`trajectory_from_alignment_run` converts `AlignmentResult` → `RLLineage`). See `specs/align-ml-integration.md` + `specs/ml-rl-align-unification.md`. Fine-tuning runs dispatch through the same Trainable protocol as classical ML. Origin: `feat/w32b-align-ml-namespace` merged at `09bc2cac`.
+
+## Cross-References
+
+- `.claude/agents/frameworks/kaizen-specialist.md` — KaizenModelBridge integration
+- `.claude/agents/frameworks/ml-specialist.md` — ML lifecycle engines (feature engineering, drift, AutoML); LoRA callback and trajectory bridge both live in `kailash_align.ml`
+- `.claude/skills/04-kaizen/` — Kaizen Delegate patterns

@@ -47,6 +47,14 @@ When multiple independent operations are needed, launch agents in parallel using
 
 **Why:** Sequential execution of independent operations wastes the autonomous execution multiplier, turning a 1-session task into a multi-session bottleneck.
 
+### MUST: Parallel Brief-Claim Verification When Issue Count ≥ 3
+
+When `/analyze` runs against a brief covering ≥ 3 distinct issues / failure modes / workstreams, the orchestrator MUST launch parallel deep-dive verification agents — one per claim cluster — to independently re-grep / re-read every factual claim in the brief tagged with file:line citations. Inaccuracies surfaced by the deep-dive sweep MUST be recorded in the workspace journal AND in the architecture plan's "Brief corrections" section AS THE GATE before `/todos`. Single-agent analysis on a ≥3-issue brief is BLOCKED — the framing inherited from the brief is the failure mode this rule prevents.
+
+**BLOCKED rationalizations:** "The brief was authored by the user, it must be accurate" / "Sequential single-agent analysis catches inaccuracies anyway" / "Three parallel agents triple the cost for the same conclusion" / "I'll spot-check a couple of claims, that's good enough" / "Brief verification is /redteam's job, not /analyze's" / "The brief's claims are 'mostly correct', the rounding errors don't change the plan".
+
+**Why:** Briefs decay silently as the code evolves; a ≥3-issue brief carries ≥3× the surface area for stale citations and misframed root causes. Single-agent analysis cannot resist the brief's framing because the agent has no independent reading. Parallel deep-dive verification is the structural defense — three agents reading three claim-clusters independently produce three independent reports the orchestrator reconciles. Evidence: `kailash-ml-1.5.x-followup` brief had THREE distinct factual inaccuracies — all three caught only because three parallel deep-dive agents independently verified. Origin: 2026-04-29 — `workspaces/kailash-ml-1.5.x-followup/journal/0001-DISCOVERY-brief-root-cause-incorrect-on-three-issues.md`.
+
 ## Quality Gates (MUST — Gate-Level Review)
 
 Reviews happen at COC phase boundaries, not per-edit. Skip only when explicitly told to.

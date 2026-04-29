@@ -1,6 +1,6 @@
 # COC obsoleted paths (purged on every sync)
 # Source: loom/.claude/sync-manifest.yaml::obsoleted
-# Synced: 2026-04-28T06:43:07.275094+00:00
+# Synced: 2026-04-29T08:08:34+00:00
 scripts/hooks/
 .claude/scripts/
 scripts/resolve-template.js
