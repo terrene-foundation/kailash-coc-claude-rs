@@ -1,14 +1,14 @@
 {
-  "version": "2.9.20",
+  "version": "2.9.21",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-29",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.10.1",
+    "version": "2.10.2",
     "build_version": "3.23.0",
-    "synced_at": "2026-04-29T17:46:00+00:00",
+    "synced_at": "2026-04-29T11:17:06Z",
     "sdk_packages": {
       "kailash-value": "3.23.0",
       "kailash-core": "3.23.0",
@@ -65,6 +65,21 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.9.21",
+      "date": "2026-04-29",
+      "summary": "Sync loom 2.10.2 \u2014 sync-hygiene remediation. (1) commands/codify.md cc-architect rename completion (lines 101 + 128 missed in v2.9.x rename). (2) 4 obsoleted-paths added to .coc-obsoleted: agents/claude-code-architect.md (rename), .claude/projects/, .claude/scheduled_tasks.lock, .claude/test-harness/ (loom-local pollution). (3) Paired exclude entries (projects/**, scheduled_tasks.lock, test-harness/**) so /sync prevents re-introduction. Surgical patch \u2014 only commands/codify.md changed in artifact set. Stale state purged via .coc-obsoleted contract.",
+      "changes": [
+        "FIX: .claude/commands/codify.md \u2014 cc-architect rename completion (loom 2.10.2 source fix; lines 101+128 in narrative).",
+        "PURGED via .coc-obsoleted: .claude/agents/claude-code-architect.md (rename remediation; agent file lingered post-rename).",
+        "PURGED via .coc-obsoleted: .claude/projects/ (Claude Code per-user state cache; never artifact-managed).",
+        "PURGED via .coc-obsoleted: .claude/scheduled_tasks.lock (Claude Code scheduled-task lock; never artifact-managed).",
+        "PURGED via .coc-obsoleted: .claude/test-harness/ (loom multi-CLI parity test fixtures; consumers do not run the harness).",
+        "ONE-SHOT PURGE: .claude/learning/ (loom-leaked from 2026-03-02; manifest excluded but no auto-purge mechanism for excluded paths).",
+        ".coc-obsoleted regenerated (16 lines = 13 obsoleted paths) so downstream consumers inherit the purge contract on next /sync.",
+        "VERSION: template 2.9.20 \u2192 2.9.21; upstream loom 2.10.1 \u2192 2.10.2."
+      ]
+    },
     {
       "version": "2.9.20",
       "date": "2026-04-29",
