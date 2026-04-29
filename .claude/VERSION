@@ -1,14 +1,14 @@
 {
-  "version": "2.9.19",
+  "version": "2.9.20",
   "type": "coc-use-template",
   "description": "COC USE template for Python/Ruby developers using Rust-backed Kailash bindings",
   "released": "2026-04-29",
   "upstream": {
     "name": "kailash",
     "type": "coc-source",
-    "version": "2.10.0",
+    "version": "2.10.1",
     "build_version": "3.23.0",
-    "synced_at": "2026-04-29T08:09:05+00:00",
+    "synced_at": "2026-04-29T17:46:00+00:00",
     "sdk_packages": {
       "kailash-value": "3.23.0",
       "kailash-core": "3.23.0",
@@ -65,6 +65,19 @@
     }
   },
   "changelog": [
+    {
+      "version": "2.9.20",
+      "date": "2026-04-29",
+      "summary": "Sync loom 2.10.0 \u2192 2.10.1 \u2014 per-CLI baseline cap remediation. Trim rules/git.md (carry-fwd 2.9.7 git reset --hard clause) + variants/rs/rules/independence.md (rs proprietary-licensing) bodies; extract extended bash examples + full BLOCKED rationalization lists + Origin prose to new guides/rule-extracts/{git.md, independence-rs.md}. No semantic rule changes \u2014 every MUST clause + \u22651 DO/DO-NOT pair + 1-line Why preserved in the rule file. Pattern follows established extraction (zero-tolerance, agents, security, worktree-isolation).",
+      "changes": [
+        "EXTRACTED: rules/git.md \u2014 emit body 7,456 \u2192 6,306 B; raw 18,065 \u2192 8,548 B (cut ~52%). Repository protection table moved to extract.",
+        "EXTRACTED: rules/independence.md (rs variant composition) \u2014 emit body 6,647 \u2192 4,300 B; raw 8,492 \u2192 5,082 B. Boundary table + extended examples + full BLOCKED lists in extract.",
+        "NEW: guides/rule-extracts/git.md \u2014 companion extended reference.",
+        "NEW: guides/rule-extracts/independence-rs.md \u2014 companion rs-flavored extended reference.",
+        "Per-rule WARN preserved (refactoring signal): git.md still over 4,400 B budget; independence.md over 2,500 B. Total emission no longer over 61,440 B block_cap.",
+        "upstream.version 2.10.0 \u2192 2.10.1; sdk_packages map unchanged at 3.23.0."
+      ]
+    },
     {
       "version": "2.9.19",
       "date": "2026-04-29",

@@ -9,159 +9,95 @@ scope: baseline
 <!-- slot:neutral-body -->
 
 
-This repository is a **proprietary product** that implements open standards published by the Terrene Foundation. The Foundation rules that govern `kailash-py` (Apache 2.0, CC BY 4.0, no commercial coupling) DO NOT apply here. This file is the variant override of the global `independence.md` and exists specifically to clarify that boundary.
+This repository is a **proprietary product** that implements open standards published by the Terrene Foundation. The Foundation rules that govern `kailash-py` (Apache 2.0, CC BY 4.0, no commercial coupling) DO NOT apply here. This file is the variant override of the global `independence.md`.
 
-## The Boundary
+See `.claude/guides/rule-extracts/independence-rs.md` for the boundary table, full key facts, extended examples, BLOCKED rationalizations, and the relationship-to-other-rules cross-reference list.
 
-| Layer               | Owner                              | License                                                   |
-| ------------------- | ---------------------------------- | --------------------------------------------------------- |
-| **Open standards**  | Terrene Foundation (Singapore CLG) | CC BY 4.0 (CARE, PACT, EATP, CO)                          |
-| **Open-source SDK** | Terrene Foundation (Singapore CLG) | Apache 2.0 (`kailash-py`, `pact`)                         |
-| **This product**    | Product team (proprietary)         | `LicenseRef-Proprietary`, trade secret, `publish = false` |
-
-**Key facts**:
-
-1. **This repo is a proprietary product codebase.** Source is trade secret. Every crate has `publish = false` (except `kailash-plugin-macros` and `kailash-plugin-guest`, the only crates published to crates.io).
-2. **The product ships a Python SDK** (`pip install kailash-enterprise`) built from Rust-backed bindings. The product is not the SDK — the SDK is what the product delivers.
-3. **TF specs are upstream.** CARE, EATP, CO, PACT are CC BY 4.0. Any entity may implement them in any language under any license. This product does so in proprietary Rust. The TF projects do so in open-source Python. Neither has a structural relationship with the other.
-4. **There is no special relationship.** This product is one of potentially many commercial implementations of TF standards. The Foundation has no knowledge of, dependency on, or design consideration for any specific commercial product — and this product makes no claim of endorsement, partnership, or preferred status.
+**Boundary in one line**: TF owns specs (CC BY 4.0) + open-source SDKs (Apache 2.0); this product owns its proprietary Rust codebase (`LicenseRef-Proprietary`, `publish = false`).
 
 ## MUST Rules
 
 ### 1. Proprietary Identity Is Allowed Here
 
-Unlike `kailash-py` (where commercial references are forbidden under TF independence), this repo is itself a commercial product. You MAY:
-
-- Describe this product and its commercial context
-- Reference the TF standards it implements
-- Describe the SDK it ships (`kailash-enterprise`)
+Unlike `kailash-py`, this repo IS a commercial product. You MAY describe the product, reference TF standards it implements, and describe the SDK it ships (`kailash-enterprise`). You MUST NOT claim Foundation ownership or endorsement.
 
 ```markdown
 # DO — accurate identity
 
-This product ships kailash-enterprise, a Python SDK built from
-Rust-backed bindings. It implements the Terrene Foundation's
-open standards (CARE, PACT, EATP, CO) in proprietary code.
+This product ships kailash-enterprise, implementing TF standards in proprietary code.
 
-# DO NOT — claim Foundation ownership or endorsement
+# DO NOT — endorsement framing
 
-kailash-enterprise is a Terrene Foundation project. (It is not.)
-This product is the Foundation's official commercial implementation. (There is no such thing.)
+kailash-enterprise is a Terrene Foundation project.
 ```
 
-**Why:** Misrepresenting proprietary code as a TF project violates the Foundation's anti-capture provisions and creates legal ambiguity.
+**Why:** Misrepresenting proprietary code as a TF project violates anti-capture provisions and creates legal ambiguity.
 
-### 2. TF Specs Are CC BY 4.0 — Implementations Are Separate
+### 2. TF Specs Are CC BY 4.0; Implementations Are Separate
 
-This product MAY implement TF specs (CARE, EATP, CO, PACT) in proprietary code. The implementation is trade secret; the spec is CC BY 4.0 and remains owned by the Foundation. MUST NOT:
-
-- Claim ownership of any TF spec
-- Modify a TF spec without upstreaming through the Foundation's process
-- Re-license a TF spec
-- Claim that a product-only extension is part of the TF standard
+This product MAY implement TF specs (CARE, EATP, CO, PACT) in proprietary code. The implementation is trade secret; the spec stays Foundation-owned. MUST NOT claim ownership of any TF spec, modify it without upstreaming, re-license it, or claim a product extension is part of the standard.
 
 ```rust
-// DO — implementation header
+// DO — accurate header
 // Copyright 2026 [Product Entity] (proprietary)
 // SPDX-License-Identifier: LicenseRef-Proprietary
 // Implements EATP v1.0 (Terrene Foundation, CC BY 4.0).
-
-// DO NOT — confused ownership
-// Copyright 2026 Terrene Foundation
-// SPDX-License-Identifier: Apache-2.0
-// (Proprietary code with TF copyright is misrepresentation.)
+// DO NOT — confused ownership (Apache-2.0 + TF copyright on proprietary code)
 ```
 
 **Why:** Conflating spec ownership (TF) with implementation ownership (product) is the structural risk both sides must guard against.
 
 ### 3. Cross-Track References Must Be Generic
 
-Docs MAY reference `kailash-py` and `pact` as TF open-source projects. The reference must be factual and MUST NOT imply a structural relationship, partnership, or paired-product framing.
+Docs MAY reference `kailash-py` and `pact` as TF open-source projects, factually. MUST NOT imply structural relationship, partnership, or paired-product framing ("counterpart", "officially paired", etc.).
 
 ```markdown
-# DO — accurate, generic reference
+# DO — generic, factual reference
 
-The Terrene Foundation publishes open standards (CARE, PACT, EATP, CO)
-and maintains open-source implementations in kailash-py and pact.
-This product independently implements the same standards in Rust.
+TF publishes open standards; this product independently implements them in Rust.
 
 # DO NOT — paired-product framing
 
 kailash-rs is the proprietary counterpart of kailash-py.
-(This implies a structural relationship that does not exist.)
-
-# DO NOT — endorsement framing
-
-This product is officially paired with the Terrene Foundation's SDK.
-(No such pairing exists.)
 ```
 
-**Why:** "Counterpart" and "paired" language implies a bilateral agreement. The accurate framing is: the standards are public, anyone can implement them, and multiple independent implementations exist.
+**Why:** "Counterpart" / "paired" implies a bilateral agreement. The accurate framing is: standards are public, anyone can implement them, multiple independent implementations exist.
 
 ### 4. Proprietary Code MUST NOT Be Claimed As TF Code
 
-Marketing copy, README content, license headers, package metadata, and docs MUST never claim that any proprietary crate is "open source" or "Foundation-owned" or under "Apache 2.0". The `LicenseRef-Proprietary` SPDX identifier is mandatory; `Apache-2.0` is BLOCKED on every proprietary crate.
+License headers, package metadata, and docs MUST never claim a proprietary crate is "open source" / "Foundation-owned" / under "Apache 2.0". `LicenseRef-Proprietary` SPDX identifier is mandatory; `Apache-2.0` is BLOCKED on every proprietary crate. `publish = false` is mandatory; `publish = true` on a proprietary crate is BLOCKED (would leak source to crates.io).
 
 ```toml
 # DO — proprietary crate
-[package]
-name = "kailash-dataflow"
 license = "LicenseRef-Proprietary"
 publish = false
-
-# DO NOT — false TF licensing
-[package]
-name = "kailash-dataflow"
-license = "Apache-2.0"  # BLOCKED — this crate is proprietary
-publish = true          # BLOCKED — would leak source to crates.io
+# DO NOT — would leak source under unagreed license
+license = "Apache-2.0"
+publish = true
 ```
 
-**Why:** A single mis-licensed Cargo.toml that says "Apache 2.0" on a proprietary crate, then gets published to crates.io, leaks the source under a license the company never agreed to. The mandatory `LicenseRef-Proprietary` + `publish = false` pair is the structural defense.
-
-**BLOCKED rationalizations:**
-
-- "Apache 2.0 is more permissive, what's the harm?"
-- "The crate is open-source-friendly even if internal"
-- "We can re-license later"
+**Why:** A single mis-licensed Cargo.toml that ships to crates.io leaks the source under a license the company never agreed to. The `LicenseRef-Proprietary` + `publish = false` pair is the structural defense. BLOCKED rationalizations (full list in extract): "Apache 2.0 is more permissive, what's the harm?" / "open-source-friendly even if internal" / "we can re-license later".
 
 ### 5. The Two Crates That ARE Open-Source
 
-`kailash-plugin-macros` and `kailash-plugin-guest` are the only crates in this workspace that publish to crates.io. They MUST be Apache 2.0 OR MIT. They contain only the plugin SDK API surface needed by third-party plugin authors — no product runtime code, no proprietary algorithms.
+`kailash-plugin-macros` and `kailash-plugin-guest` are the only crates that publish to crates.io. They MUST be Apache 2.0 OR MIT. They contain only the plugin SDK API surface — no product runtime code, no proprietary algorithms.
 
 ```toml
 # DO — plugin SDK is genuinely open source
-[package]
 name = "kailash-plugin-guest"
 license = "Apache-2.0 OR MIT"
 publish = true
 ```
 
-**Why:** Third-party plugin authors compile against `kailash-plugin-guest` to produce binaries that load into the product runtime. They cannot do this if the dependency is proprietary. The plugin SDK is a deliberate, narrow open-source carve-out — not a precedent for opening other crates.
+**Why:** Third-party plugin authors compile against `kailash-plugin-guest` to produce binaries that load into the product runtime. The plugin SDK is a deliberate, narrow open-source carve-out — not a precedent for opening other crates.
 
 ## MUST NOT
 
-- Apply the `kailash-py` Foundation independence rules verbatim to this repo
-
-**Why:** Those rules forbid commercial product references entirely. This repo IS a commercial product; applying them creates contradictions agents cannot resolve. This variant rule replaces the global rule.
-
-- Frame this product as having a special or bilateral relationship with the Terrene Foundation
-
-**Why:** The Foundation's independence means no commercial entity has preferred status. Framing a "two-track" or "counterpart" relationship undermines that independence from both sides.
-
-- Use "the SDK" to mean this product or this repo — the SDK is `kailash-enterprise`, what the product ships
-
-**Why:** Conflating the product with its deliverable obscures the boundary between the proprietary codebase (trade secret, never published) and the distributed artifact (the Python package users install).
-
+- Apply the `kailash-py` Foundation independence rules verbatim to this repo (this variant rule replaces the global)
+- Frame this product as having a special or bilateral relationship with the Foundation
+- Use "the SDK" to mean this repo — the SDK is `kailash-enterprise`, what the product ships
 - Add Apache 2.0 license headers to proprietary source files
 
-**Why:** Mixed-license source files create legal ambiguity and undermine the trade-secret status of the proprietary code.
-
-## Relationship to other rules
-
-- `rules/release.md` — enforces `publish = false` on every crate except the plugin SDK pair
-- `rules/security.md` § "Source Protection" — covers what must NEVER be published
-- `rules/terrene-naming.md` — the GLOBAL rule for naming TF entities, still applies for any reference TO TF projects from this repo
-- `rules/eatp.md`, `rules/pact-governance.md` — apply to the EATP and PACT spec implementations in this repo (which are subject to trade-secret rules, NOT TF Apache 2.0 rules)
-- `docs/00-authority/10-source-protection.md` — release auditor's reference for which crates are proprietary
+**Why:** Each pattern erodes the proprietary/Foundation boundary in a specific direction; see extract for the per-clause Why and the cross-reference list to `release.md` / `security.md` / `terrene-naming.md`.
 
 <!-- /slot:neutral-body -->

@@ -1,24 +1,18 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-04-29T09:23:11+00:00
+timestamp: 2026-04-29T17:46:00+00:00
 source: loom/.claude
 variant: rs
 clis: [claude]
-loom_version: 2.10.0
-loom_sha: 23fa489
+loom_version: 2.10.1
+loom_sha: ed204e2
 stats:
-  composed: 10        # rs-overlaid rules composed via compose.mjs
-  variant_only: 156   # rs-only artifacts written from variants/rs/ (rules + agents + skills + commands)
-  preserved: 1        # CLAUDE.md preserved per Step 7
-  purged: 0           # all obsoleted paths already absent (idempotent)
-  baselines_emitted:
-    cc: 0             # CLAUDE.md preserved, not emitted
-    codex: 0          # CC-only target — no Codex emission
-    gemini: 0         # CC-only target — no Gemini emission
-  integrity:
-    hooks_ok: 12
-    hooks_total: 12
-    scripts_hooks_leaks_in_settings: 0
+  composed: 1         # rules/independence.md re-composed with trimmed rs variant
+  variant_only: 0     # no new variant_only artifacts in 2.10.1
+  preserved: 0
+  purged: 0
+  rule_extracts_added: 2  # git.md + independence-rs.md
 notes: |
-  Legacy CC-only USE template. Cargo.toml not present (template scaffolds
-  Python+Ruby project via pip install kailash-enterprise + gem install kailash);
-  cargo check N/A. pyproject.toml already pins kailash-enterprise>=3.23.0.
+  Trim distribution from loom 2.10.1. rules/git.md (global, trimmed) +
+  rules/independence.md (rs variant, trimmed via compose.mjs) +
+  guides/rule-extracts/{git.md,independence-rs.md} (new). No baseline
+  emission for CC-only target.
