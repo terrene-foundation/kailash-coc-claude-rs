@@ -195,7 +195,7 @@ async def confirm_destructive(self, *, force: bool = False) -> None:
 
 **Why:** A multi-DDL orchestrator invokes the primitive layer N times. If the orchestrator catches a shared `DropRefusedError`, the wrong layer claims responsibility for the refusal — the audit trail records "downgrade refused" when in fact one of the inner primitives refused first. Distinct error types preserve the layer attribution that incident-response queries depend on.
 
-Origin: kailash-py gh #510 + PR #517 (2026-04-19) — conflating primitive-vs-orchestrator inside #508's `drop_confirmation.py` required splitting in #517. Cross-SDK parity with kailash-rs codify (2026-04-19).
+Origin: 2026-04-19 — conflating primitive-vs-orchestrator inside an earlier `drop_confirmation.py` required splitting into distinct error types.
 
 ## MUST NOT
 

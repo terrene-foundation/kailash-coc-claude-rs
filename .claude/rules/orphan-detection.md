@@ -97,7 +97,7 @@ Any PR that removes a public symbol MUST delete or port the tests that import it
 
 **Why:** Test files that fail at collection block the ENTIRE suite, not just themselves. One orphan import takes down the 100 tests collected after it.
 
-Origin: kailash-py commits `d3e7e0ef` + `5edc941f` — 9 orphan test files left by DataFlow 2.0 refactor silently broke integration collection.
+Origin: 2026-04 — 9 orphan test files left by a DataFlow refactor silently broke integration collection.
 
 ### 4a. Stub Implementation MUST Sweep Deferral Tests In Same Commit
 

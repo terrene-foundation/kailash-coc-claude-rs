@@ -29,7 +29,7 @@ async def create_user(req: CreateUserRequest):
 
 ## Rule 7 — Bulk Op WARN: Evidence
 
-Source audit (kailash-py): `packages/kailash-dataflow/src/dataflow/nodes/bulk_create.py::BulkCreate._handle_batch_error()` had `except Exception: continue` with zero logging. `BulkUpsert` used `print()` instead of a structured logger. A bulk op returning `failed: 10663` produced no WARN line in the log pipeline; alerting never fired.
+Source audit: `BulkCreate._handle_batch_error()` had `except Exception: continue` with zero logging. `BulkUpsert` used `print()` instead of a structured logger. A bulk op returning `failed: 10663` produced no WARN line in the log pipeline; alerting never fired.
 
 See 0052-DISCOVERY §2.1 and `guides/deterministic-quality/06-observability-primitives.md` §2.
 

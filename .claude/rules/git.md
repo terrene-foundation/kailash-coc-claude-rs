@@ -37,7 +37,7 @@ git checkout -b release/v3.23.0 && git push -u origin release/v3.23.0
 git checkout -b feat/v3.23.0-release-prep
 ```
 
-**Why:** PR-gate workflows check `if: !startsWith(github.head_ref, 'release/')`. Branching from `release/v*` triggers the auto-skip and saves ~45 min × matrix-size of CI minutes per release-prep PR. If the work IS NOT metadata-only, split: keep code fix on `feat/`/`fix/` branch, cut release-prep on a separate `release/v*` branch. See extract for evidence (kailash-rs PR #602, ~120 min wasted).
+**Why:** PR-gate workflows check `if: !startsWith(github.head_ref, 'release/')`. Branching from `release/v*` triggers the auto-skip and saves ~45 min × matrix-size of CI minutes per release-prep PR. If the work IS NOT metadata-only, split: keep code fix on `feat/`/`fix/` branch, cut release-prep on a separate `release/v*` branch. Evidence: a recent BUILD release-prep PR opened from `feat/...-release-prep` instead of `release/v*` consumed ~120 min of avoidable PR-gate CI on a metadata-only diff.
 
 ### Pre-FIRST-Push CI Parity Discipline (MUST)
 
@@ -51,7 +51,7 @@ git push -u origin feat/<branch>
 git push -u origin feat/<branch>; git commit -am "style: fmt"; git push  # CI run #2 still bills run #1's wall-clock
 ```
 
-**Why:** With `concurrency: cancel-in-progress: true` on the workflow, prior in-flight runs are cancelled — but **the cancelled runs are still billed for the wall-clock minutes already consumed before cancellation**. PR #598 (2026-04-25) had a 71-minute Workspace Tests run cancelled mid-flight; those 71 min were charged. Pre-flighting takes ~5-10 min; the alternative is N × 45 min of billed CI per fix-up cycle.
+**Why:** With `concurrency: cancel-in-progress: true` on the workflow, prior in-flight runs are cancelled — but **the cancelled runs are still billed for the wall-clock minutes already consumed before cancellation**. A recent BUILD release had a 71-minute Workspace Tests run cancelled mid-flight; those 71 min were charged. Pre-flighting takes ~5-10 min; the alternative is N × 45 min of billed CI per fix-up cycle.
 
 ## Branch Protection
 
@@ -79,7 +79,7 @@ git reset --hard origin/main
 git reset --hard origin/main         # silently wipes M files and untracked files; no reflog
 ```
 
-**Why:** `git reset --hard` is the most destructive git operation that doesn't rewrite history — and unlike force-push, the destruction is unrecoverable. `git reset --keep` exists in git specifically to provide the same effect with structural safety. Sibling of `dataflow-identifier-safety.md` Rule 4 (DROP) and `schema-migration.md` Rule 7 (downgrade) — same structural-confirmation pattern. Origin: kailash-py 2026-04-28 PR #691 wiped `.session-notes`; cross-language principle.
+**Why:** `git reset --hard` is the most destructive git operation that doesn't rewrite history — and unlike force-push, the destruction is unrecoverable. `git reset --keep` exists in git specifically to provide the same effect with structural safety. Sibling of `dataflow-identifier-safety.md` Rule 4 (DROP) and `schema-migration.md` Rule 7 (downgrade) — same structural-confirmation pattern. Origin: 2026-04-28 — a `git reset --hard` wiped uncommitted `.session-notes`; cross-language principle.
 
 ## Rules
 
@@ -143,6 +143,6 @@ fix(dataflow): clamp MAX_PARAMS and drop unused `second_start` binding
 # (diff only contains the clamp; the binding is still there)
 ```
 
-**Why:** `git log --grep` is the cheapest institutional-knowledge search across a repo — a body that claims something the diff doesn't contain poisons every future search that lands on it. Amending is BLOCKED because it loses the audit trail; a follow-up commit preserves both the original claim AND the correction. Origin: 2026-04-20 kailash-rs self-correction; cross-language principle.
+**Why:** `git log --grep` is the cheapest institutional-knowledge search across a repo — a body that claims something the diff doesn't contain poisons every future search that lands on it. Amending is BLOCKED because it loses the audit trail; a follow-up commit preserves both the original claim AND the correction. Origin: 2026-04-20 commit-body self-correction; cross-language principle.
 
 <!-- /slot:neutral-body -->

@@ -11,7 +11,6 @@ Runtime lifecycle management with reference-counted sharing, context managers, a
 > Category: `core-sdk`
 > Priority: `CRITICAL`
 > SDK Version: `2.1.0+`
-> Issue: terrene-foundation/kailash-py#71
 
 ## The Problem
 

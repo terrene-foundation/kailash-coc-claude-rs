@@ -29,3 +29,8 @@
 .claude/rules/build-repo-release-discipline.md
 .claude/skills/10-deployment-git/multi-package-release-wave.md
 .claude/skills/30-claude-code-patterns/sdk-upstream-donation.md
+
+# ─── auto-extended 2026-04-30 from loom v2.11.0 ──────
+# Files newly distributed in this sync that contain legitimate
+# src/kailash/ references. Auto-appended by coc-sync Step 7.5.
+.claude/commands/cc-audit.md

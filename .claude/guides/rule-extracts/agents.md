@@ -41,7 +41,7 @@ Mechanical sweeps (run BEFORE LLM judgment):
 Agent(subagent_type="reviewer", prompt="Review the diff between main and feat/X.")
 ```
 
-Origin: kailash-py session 2026-04-19 ML GPU-first Phase 1 codify cycle. See `skills/30-claude-code-patterns/worktree-orchestration.md` § "Reviewer Prompts — Mechanical AST/Grep Sweep" for full evidence.
+Origin: 2026-04-19 codify cycle. See `skills/30-claude-code-patterns/worktree-orchestration.md` § "Reviewer Prompts — Mechanical AST/Grep Sweep" for full evidence.
 
 ## Worktree Isolation — Extended Post-Mortems
 

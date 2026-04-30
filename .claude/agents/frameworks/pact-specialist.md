@@ -140,9 +140,9 @@ Per `.claude/rules/pact-governance.md`:
 5. **NaN/Inf validation** -- `math.isfinite()` on all numeric constraints
 6. **Thread safety** -- All engine methods acquire `self._lock`
 
-## Security Invariants (Cross-SDK)
+## Security Invariants
 
-Discovered during kailash-rs red team. Violations are BLOCK-level findings.
+Violations are BLOCK-level findings.
 
 ### 1. GovernanceContext Must NOT Be Deserializable
 
