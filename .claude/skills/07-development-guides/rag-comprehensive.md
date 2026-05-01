@@ -142,7 +142,7 @@ result = {
     # Generate answer with LLM
     workflow.add_node("LLMAgentNode", "generator", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": []  # Will be constructed dynamically
     })
 
@@ -325,7 +325,7 @@ def create_conversational_rag():
     # Rephrase query with history
     workflow.add_node("LLMAgentNode", "query_rephraser", {
         "provider": "openai",
-        "model": "gpt-4",
+        "model": os.environ["LLM_MODEL"],
         "messages": []
     })
 

@@ -1,133 +1,157 @@
 ---
-name: nexus-config-options
-description: "NexusConfig fields, Preset system, MiddlewareConfig for kailash-rs Nexus."
+skill: nexus-config-options
+description: Configuration capabilities for Nexus including ports, auth, rate limiting, monitoring
+priority: MEDIUM
+tags: [nexus, configuration, options, settings]
 ---
 
-# Nexus Configuration Options (kailash-rs)
+# Nexus Configuration Options
 
-Configuration is object-based using `NexusConfig`, `Preset`, and `MiddlewareConfig`.
+## Configuration Capabilities
 
-## NexusConfig
+Nexus supports configuration through constructor parameters, environment variables, and configuration files. The exact parameter names and defaults vary by SDK.
 
-```python
-from kailash.nexus import NexusConfig
+### Capability Matrix
 
-config = NexusConfig(
-    host="0.0.0.0",                       # Bind address (default: "0.0.0.0")
-    port=3000,                             # Server port (default: 3000)
-    # api_port=3000,                       # Alias for port
-    cli_name="myapp",                      # CLI command name
-    enable_api=True,                       # Enable API channel (default: True)
-    enable_cli=True,                       # Enable CLI channel (default: True)
-    enable_mcp=True,                       # Enable MCP channel (default: True)
-    graceful_shutdown_timeout_secs=30,     # Shutdown timeout (default: 30)
-)
+| Category        | Capability               | Shared API                            |
+| --------------- | ------------------------ | ------------------------------------- |
+| **Server**      | API port                 | `api_port` / `port`                   |
+| **Server**      | API host/bind address    | Constructor param                     |
+| **Server**      | MCP port                 | `mcp_port`                            |
+| **Discovery**   | Auto-discover workflows  | `auto_discovery` (False for DataFlow) |
+| **Security**    | Authentication           | `add_plugin(auth_plugin)`             |
+| **Security**    | Rate limiting            | Constructor or plugin                 |
+| **Security**    | CORS                     | Constructor or middleware             |
+| **Monitoring**  | Enable monitoring        | Constructor param                     |
+| **Monitoring**  | Health checks            | `health_check()`                      |
+| **Sessions**    | Session timeout          | Constructor param                     |
+| **Sessions**    | Session backend          | Constructor param (memory/redis)      |
+| **Logging**     | Log level                | Constructor param                     |
+| **Logging**     | Log format (text/json)   | Constructor param                     |
+| **Performance** | Max concurrent workflows | Constructor param                     |
+| **Performance** | Request timeout          | Constructor param                     |
+| **API**         | API prefix/versioning    | Constructor param                     |
+| **Enterprise**  | Presets                  | `preset` param                        |
+
+## Shared Configuration Patterns
+
+### Port Configuration
+
+```
+app = Nexus(api_port=8000, mcp_port=3001)
 ```
 
-### Using NexusConfig with NexusApp
+### DataFlow Integration
 
-```python
-from kailash.nexus import NexusApp, NexusConfig
-
-app = NexusApp(config=NexusConfig(port=8080, cli_name="myplatform"))
-app.start()  # No args needed -- host/port come from config
+```
+app = Nexus(auto_discovery=False)  # CRITICAL: prevents startup blocking
 ```
 
-### Using NexusConfig with Nexus (Low-Level)
+### Presets
 
-```python
-from kailash.nexus import Nexus, NexusConfig
-
-nexus = Nexus(config=NexusConfig(port=3000, enable_mcp=False))
-nexus.start()
+```
+app = Nexus(preset="saas")
+app = Nexus(preset="enterprise")
 ```
 
-## Preset System
+### Middleware and Plugins
 
-Presets apply predefined middleware stacks:
-
-```python
-from kailash.nexus import NexusApp, NexusConfig, Preset
-
-# String preset
-app = NexusApp(
-    config=NexusConfig(port=3000),
-    preset="enterprise",
-)
-
-# Preset object
-app = NexusApp(
-    config=NexusConfig(port=3000),
-    preset=Preset.enterprise(),
-)
-
-# On low-level Nexus
-nexus = Nexus(preset=Preset.saas())
+```
+app.add_middleware(SomeMiddleware, param="value")
+app.include_router(my_router)
+app.add_plugin(auth_plugin)
 ```
 
-Available presets configure middleware stacks appropriate for each deployment scenario.
+### Health Check
 
-## MiddlewareConfig (Low-Level Nexus)
-
-For fine-grained middleware control on the low-level `Nexus`:
-
-```python
-from kailash.nexus import Nexus, NexusConfig, MiddlewareConfig
-
-nexus = Nexus(config=NexusConfig(port=3000))
-nexus.set_middleware(MiddlewareConfig(...))
-nexus.start()
+```
+health = app.health_check()
 ```
 
-## NexusApp Convenience Methods
+## Environment Variables
 
-`NexusApp` provides convenience methods that wrap common configuration:
+Common environment variables (exact names may vary by SDK):
 
-```python
-from kailash.nexus import NexusApp, NexusConfig
+```bash
+# Environment
+export NEXUS_ENV=production          # Controls security auto-enable
 
-app = NexusApp(config=NexusConfig(port=3000))
+# Server
+export NEXUS_API_PORT=8000
+export NEXUS_MCP_PORT=3001
 
-# CORS
-app.add_cors(origins=["https://example.com"])
+# Security
+export NEXUS_ENABLE_AUTH=true
 
-# Rate limiting
-app.add_rate_limit(max_requests=100, window_secs=60)
+# Sessions
+export NEXUS_REDIS_URL=redis://localhost:6379
+
+# Logging
+export NEXUS_LOG_LEVEL=INFO
 ```
 
-## Channel Configuration
+## Configuration Files
 
-Disable channels you do not need:
+Nexus supports YAML configuration files. Load config from file and pass to constructor:
 
-```python
-# API only (no CLI, no MCP)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=False)
+```yaml
+# nexus.yaml
+server:
+  api_port: 8000
+  mcp_port: 3001
 
-# API + MCP (no CLI)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=True)
+security:
+  auth_enabled: true # Config key varies by SDK
+  rate_limit: 1000
 
-# All channels (default)
-config = NexusConfig()  # enable_api=True, enable_cli=True, enable_mcp=True
+monitoring:
+  enabled: true
+
+sessions:
+  timeout: 3600
+  backend: redis
+
+logging:
+  level: INFO
+  format: json
 ```
 
-## Key Differences from kailash-py
+## Production vs Development
 
-| Aspect          | kailash-py                          | kailash-rs                                                 |
-| --------------- | ----------------------------------- | ---------------------------------------------------------- |
-| Config style    | Flat kwargs: `Nexus(api_port=8000)` | Object: `NexusConfig(port=3000)`                           |
-| Default port    | 8000                                | 3000                                                       |
-| Port field      | `api_port`                          | `port` (with `api_port` alias)                             |
-| Channel control | `mcp_port`, separate flags          | `enable_api`, `enable_cli`, `enable_mcp`                   |
-| CORS            | `cors_origins=[...]` kwarg          | `app.add_cors(origins=[...])` method                       |
-| Rate limiting   | `rate_limit=1000` kwarg             | `app.add_rate_limit(max_requests=100, window_secs=60)`     |
-| Presets         | `Nexus(preset="saas")`              | `NexusApp(preset="saas")` or `Nexus(preset=Preset.saas())` |
+| Setting         | Development  | Production                 |
+| --------------- | ------------ | -------------------------- |
+| Auth            | Disabled     | Enabled (auto or explicit) |
+| Rate limiting   | Disabled/low | 100-5000 req/min           |
+| Auto-discovery  | Optional     | Disabled                   |
+| Session backend | Memory       | Redis                      |
+| Log format      | Text         | JSON                       |
+| Monitoring      | Optional     | Enabled                    |
+| HTTPS           | Optional     | Required                   |
 
-## Quick Reference
+## Security Defaults
 
-| Use Case               | Configuration                                                      |
-| ---------------------- | ------------------------------------------------------------------ |
-| Development            | `NexusApp()` -- all defaults                                       |
-| Custom port            | `NexusApp(config=NexusConfig(port=8080))`                          |
-| API only               | `NexusApp(config=NexusConfig(enable_cli=False, enable_mcp=False))` |
-| Enterprise             | `NexusApp(config=NexusConfig(port=3000), preset="enterprise")`     |
-| With CORS + rate limit | `app.add_cors([...])` then `app.add_rate_limit(...)`               |
+Nexus includes production-safe defaults:
+
+- **Environment-aware auth**: auto-enabled when `NEXUS_ENV=production`
+- **Rate limiting**: default rate limit for DoS protection
+- **Input validation**: dangerous keys blocked, size limits enforced, path traversal prevented across all channels
+- **Auto-discovery disabled by default**: prevents blocking with DataFlow
+
+## Best Practices
+
+1. Use environment variables for sensitive config (secrets, URLs)
+2. Separate dev/prod configs
+3. Enable monitoring in production
+4. Disable auto-discovery in production
+5. Use Redis for distributed sessions
+6. Set appropriate timeouts
+7. Enable rate limiting in production
+8. Use structured logging (JSON) in production
+
+See language-specific variant for complete constructor parameter reference, default values, and configuration validation examples.
+
+## Related Skills
+
+- [nexus-quickstart](nexus-quickstart.md) - Basic setup
+- [nexus-enterprise-features](nexus-enterprise-features.md) - Production features
+- [nexus-production-deployment](nexus-production-deployment.md) - Deploy configuration

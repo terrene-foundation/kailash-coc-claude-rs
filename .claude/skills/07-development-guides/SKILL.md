@@ -1,11 +1,15 @@
 ---
 name: development-guides
-description: "Comprehensive development guides for advanced Kailash SDK features including custom node development, MCP development, async patterns, testing strategies, production deployment, RAG systems, security patterns, monitoring, and SDK internals. Use when asking about 'development guide', 'advanced features', 'custom node development', 'async node development', 'MCP development', 'production deployment', 'testing strategies', 'RAG implementation', 'security patterns', 'monitoring setup', 'circuit breaker', 'compliance', 'edge computing', or 'SDK internals'."
+description: "Kailash dev guides: custom nodes, MCP, async, testing, deployment, RAG, security, monitoring, SDK internals."
 ---
 
 # Kailash Patterns - Development Guides
 
 Comprehensive guides for advanced Kailash SDK development, covering custom development, production deployment, testing, and enterprise features.
+
+## When to Use
+
+Use these guides when asking about development guide, advanced features, custom node development, async node development, MCP development, production deployment, testing strategies, RAG implementation, security patterns, monitoring setup, circuit breaker, compliance, edge computing, or SDK internals.
 
 ## Overview
 
@@ -157,7 +161,7 @@ Use this skill when you need:
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core SDK fundamentals
 - **[06-cheatsheets](../cheatsheets/SKILL.md)** - Quick reference patterns
-- **[08-nodes-reference](../../08-nodes-reference/SKILL.md)** - Node reference
+- **[08-nodes-reference](../nodes/SKILL.md)** - Node reference
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
 
 ## Support

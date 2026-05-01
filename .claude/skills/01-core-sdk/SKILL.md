@@ -1,90 +1,186 @@
-# Kailash Workspace Crate Reference
+---
+name: core-sdk
+description: "Kailash Core SDK. Use for WorkflowBuilder, nodes, connections, runtime, async, cycles, MCP, OpenTelemetry tracing."
+---
 
-Quick reference for all crates in the workspace. For full API docs, read the crate source or run `cargo doc --workspace --no-deps`.
+# Kailash Core SDK - Foundational Skills
 
-## Crate Map
+Comprehensive guide to Kailash Core SDK fundamentals for workflow automation and integration.
 
-| Crate                  | Purpose                | Key Types                                                                                        | Skill                        |
-| ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------- |
-| **kailash-value**      | Universal data type    | `Value` enum, `ValueMap` (`BTreeMap<Arc<str>, Value>`)                                           | (this file)                  |
-| **kailash-core**       | Workflow engine        | `Node` trait, `WorkflowBuilder`, `Runtime`, `AuditLog`, `EventBus`                               | (this file)                  |
-| **kailash-nodes**      | 139+ built-in nodes    | Control flow, HTTP, SQL, AI, Auth, Security, RAG, Edge                                           | `skills/08-nodes-reference/` |
-| **kailash-macros**     | Proc-macros            | `#[kailash_node]`, `#[dataflow::model]`, `#[derive(Signature)]`                                  | (this file)                  |
-| **kailash-plugin**     | WASM + native plugins  | `wasmtime` sandbox, `libloading` cdylib                                                          | (this file)                  |
-| **kailash-dataflow**   | Database framework     | `DataFlow`, `QueryDialect`, `MigrationManager`, 11 nodes/model                                   | `skills/02-dataflow/`        |
-| **kailash-nexus**      | Multi-channel platform | `NexusEngine`, axum handlers, tower middleware, K8s probes                                       | `skills/03-nexus/`           |
-| **kailash-kaizen**     | AI agent SDK           | `BaseAgent`, TAOD loop, `LlmClient`, `CostTracker`                                               | `skills/04-kaizen/`          |
-| **kaizen-agents**      | LLM orchestration      | `GovernedSupervisor`, `PlanMonitor`, hydration, CallerEvent streaming, TaodRunner Python binding | `skills/32-kaizen-agents/`   |
-| **eatp**               | Trust protocol         | Ed25519 keys, CareChain, delegation, reasoning traces                                            | `skills/26-eatp-reference/`  |
-| **trust-plane**        | Trust environment      | `TrustProject`, `StrictEnforcer`, shadow mode                                                    | `skills/29-trust-plane/`     |
-| **kailash-governance** | Governance primitives  | `GovernanceEngine`, D/T/R, envelopes, LCA, DelegationBuilder, RBAC matrix                        | `skills/29-pact/`            |
-| **kailash-pact**       | PACT governance        | Re-exports governance, adds agent, MCP, YAML, SQLite                                             | `skills/29-pact/`            |
-| **kailash-enterprise** | Enterprise features    | RBAC, ABAC, audit, multi-tenancy, human competencies                                             | `skills/05-enterprise/`      |
+## When to Use
 
-## kailash-value
+Use Core SDK when asking about workflow basics, core sdk, create workflow, workflow builder, node patterns, connections, runtime, parameters, imports, installation, getting started, workflow execution, async workflows, error handling, cyclic workflows, PythonCode node, SwitchNode, or MCP integration. Also covers observability: OpenTelemetry, OTel, tracing, `TracingLevel`, `WorkflowTracer`, node instrumentation, `NodeInstrumentor`, database instrumentation, Prometheus metrics, `MetricsBridge`, `KAILASH_TRACING_LEVEL`, and span attributes.
 
-```rust
-pub enum Value {
-    Null, Bool(bool), Integer(i64), Float(f64),
-    String(Arc<str>), Bytes(Bytes),
-    Array(Vec<Value>), Object(BTreeMap<Arc<str>, Value>),
-}
-pub type ValueMap = BTreeMap<Arc<str>, Value>;
+## Features
+
+The Core SDK provides the foundational building blocks for creating custom workflows with fine-grained control:
+
+- **110+ Workflow Nodes**: Pre-built nodes for AI, API, database, file operations, logic, and more
+- **WorkflowBuilder API**: String-based workflow construction with type safety
+- **Dual Runtime Support**: AsyncLocalRuntime (Docker/FastAPI) and LocalRuntime (CLI/scripts)
+- **Advanced Patterns**: Cyclic workflows, conditional execution, error handling
+- **MCP Integration**: Built-in Model Context Protocol support
+- **Parameter Passing**: Flexible data flow between nodes
+- **Zero Configuration**: Auto-detection of runtime context
+- **Production Ready**: Enterprise features including monitoring, validation, and debugging
+
+## Quick Start
+
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime.local import LocalRuntime
+
+workflow = WorkflowBuilder()
+workflow.add_node("NodeName", "id", {"param": "value"})
+
+# Use context manager for proper resource cleanup (recommended)
+with LocalRuntime() as runtime:
+    results, run_id = runtime.execute(workflow.build())
 ```
 
-Design: `Arc<str>` zero-cost cloning, `BTreeMap` deterministic iteration, `Bytes` for binary. Feature: `arrow` enables `From<arrow::RecordBatch>`.
+## Reference Documentation
 
-## kailash-core
+### Getting Started
 
-**Node trait**: Single async trait -- `type_name()`, `input_params()`, `output_params()`, `execute()`.
+- **[workflow-quickstart](workflow-quickstart.md)** - Create basic workflows with WorkflowBuilder
+- **[kailash-installation](kailash-installation.md)** - Installation and setup guide
+- **[kailash-imports](kailash-imports.md)** - Import patterns and module organization
 
-**WorkflowBuilder**: `add_node(type, id, config)` -> `connect(src, out, dst, in)` -> `build(&registry)?` (validation boundary).
+### Core Patterns
 
-**Runtime**: `execute(&workflow, inputs).await` (async) or `execute_sync(&workflow, inputs)` (sync wrapper). Returns `ExecutionResult { results, run_id, metadata }`.
+- **[node-patterns-common](node-patterns-common.md)** - Common node usage patterns
+- **[connection-patterns](connection-patterns.md)** - Linking nodes and data flow
+- **[param-passing-quick](param-passing-quick.md)** - Parameter passing strategies
+- **[runtime-execution](runtime-execution.md)** - Executing workflows (sync/async)
+- **[runtime-lifecycle](runtime-lifecycle.md)** - Runtime lifecycle, ref counting, acquire/release, context managers
 
-**RuntimeConfig**: `strict_input_validation: bool` (default false).
+### Advanced Topics
 
-**Resources**: `PoolRegistry` (global sharing) -> `ResourceRegistry` (LIFO shutdown via `runtime.shutdown().await`).
+- **[async-workflow-patterns](async-workflow-patterns.md)** - Asynchronous workflow execution
+- **[async-resource-safety](async-resource-safety.md)** - `__del__` hardening, double-check locking, pool lifecycle, static analysis guardrails
+- **[cycle-workflows-basics](cycle-workflows-basics.md)** - Cyclic workflow patterns
+- **[error-handling-patterns](error-handling-patterns.md)** - Error management strategies
+- **[switchnode-patterns](switchnode-patterns.md)** - Conditional routing with SwitchNode
+- **[pythoncode-best-practices](pythoncode-best-practices.md)** - PythonCode node best practices
+- **[mcp-integration-guide](mcp-integration-guide.md)** - Model Context Protocol integration
 
-**AuditLog** (v3.3): Append-only SHA-256 hash chain, `verify_chain()`, retention policies, legal hold.
+### Runtime Diagnostics
 
-**EventBus** (v3.3): `DomainEventBus` trait, `InMemoryEventBus` (DashMap), `EventBridge`.
+- **[runtime-progress](runtime-progress.md)** - ProgressRegistry for node progress tracking (contextvars, thread-safe callbacks, bounded deque)
+- **[runtime-watchdog](runtime-watchdog.md)** - EventLoopWatchdog for asyncio stall detection (heartbeat + thread, StallReport, task stack capture)
 
-**Telemetry**: Feature-gated `telemetry` -- `init_telemetry()`, `workflow_span()`, `node_span()`.
+## Key Concepts
 
-**EventLoopWatchdog** (`watchdog.rs`): Tokio runtime stall detection. Spawns a background task that measures event loop responsiveness -- WARN at 500ms delta, ERROR at 2s, with a 30s startup grace period. Observation-only (never cancels tasks). `EventLoopWatchdog::spawn(WatchdogConfig::default())` returns a `JoinHandle`.
+### Canonical Node Pattern (4-Parameter)
 
-**ProgressTracker** (`progress.rs`): Milestone-based progress reporting for long-running operations. Emits `ProgressUpdate` (items_processed, percent_complete, elapsed, ETA, errors_count) via an `OnProgress` callback (`Arc<dyn Fn(ProgressUpdate) + Send + Sync>`) at 25/50/75/100% boundaries. `default_progress_handler()` logs via `tracing::info!`. Usage: `ProgressTracker::new(total, Some(callback))` then `.tick()` per item, `.record_error()` on failure, `.finish()` at end.
+**This is the single source of truth for node configuration.** All other skills reference this section.
 
-## kailash-nodes
+```python
+workflow.add_node(
+    "NodeClassName",  # 1. Node type (PascalCase, string)
+    "unique_node_id", # 2. Unique ID (snake_case, string)
+    {                 # 3. Configuration dict
+        "param1": "value",
+        "param2": 123
+    },
+    connections=[]    # 4. Optional: input connections
+)
+```
 
-139 nodes (binding) / ~145+ (workspace with `excel`, `pdf`, `wasm` features). Categories: control_flow(8), transform(9), http(7), sql(3), file(7), ai(9), auth(10), security(12), monitoring(10), edge(14), rag(7), enterprise(8), embedded(4), + DataFlow-generated (11/model).
+| Parameter   | Type | Description                          | Example                         |
+| ----------- | ---- | ------------------------------------ | ------------------------------- |
+| Node type   | str  | The node class name (PascalCase)     | `"LLMNode"`, `"HTTPRequest"`    |
+| Node ID     | str  | Unique identifier (snake_case)       | `"fetch_data"`, `"process_1"`   |
+| Config      | dict | Node-specific configuration          | `{"url": "..."}`                |
+| Connections | list | Optional input connections (4-tuple) | `[("src", "out", "dst", "in")]` |
 
-## kailash-dataflow
+**Connection Methods**:
 
-sqlx-backed. `#[dataflow::model]` generates 11 node types. Multi-database (SQLite/PG/MySQL) via `QueryDialect::from_url()`. Field validation (7 validators), data classification, `LazyDataFlow`, `MigrationManager`, `QueryEngine`.
+```python
+# Method 1: add_connection (4-positional params - explicit)
+workflow.add_connection("read_file", "content", "transform", "input")
 
-**Gotchas**: Never set `created_at`/`updated_at` manually. `Create` uses flat params. `Update` uses `filter` + `fields`. PK must be `id`. `soft_delete` only affects DELETE.
+# Method 2: connect (flexible API with keyword args)
+workflow.connect("read_file", "transform", from_output="content", to_input="input")
 
-## kailash-nexus
+# Method 3: connect with mapping (multiple outputs)
+workflow.connect("node1", "node2", mapping={"content": "input", "meta": "metadata"})
+```
 
-axum + tower. Handler pattern, Presets (None/Lightweight/Standard/SaaS/Enterprise), enterprise middleware (Auth JWT RS256, CSRF, Audit, Metrics), K8s probes, `OpenApiGenerator`, MCP channel, AgentUI SSE.
+### WorkflowBuilder Pattern
 
-## kailash-kaizen + kaizen-agents
+- String-based node API: `workflow.add_node("NodeName", "id", {})`
+- Always call `.build()` before execution
+- Never `workflow.execute(runtime)` - always `runtime.execute(workflow.build())`
 
-SDK (`kailash-kaizen`): BaseAgent TAOD loop, `#[derive(Signature)]`, LLM providers (OpenAI/Anthropic/Google/Mistral/Cohere), memory, trust framework (GovernedAgent, CircuitBreaker, ShadowEnforcer), CostTracker.
+### Runtime Selection
 
-Orchestration (`kaizen-agents`): GovernedSupervisor, PlanMonitor, gradient (G1-G9), hydration (TF-IDF, search_tools), CallerEvent streaming (6 variants + wire types), 9 governance modules, audit trail. See `skills/32-kaizen-agents/`.
+- **AsyncLocalRuntime**: For Docker/FastAPI (async contexts) - async-first, no threading, 10-100x faster
+- **LocalRuntime**: For CLI/scripts (sync contexts) - synchronous execution with thread support
+- **get_runtime()**: Auto-detection helper that selects appropriate runtime based on context
 
-## Language Bindings
+Both runtimes return identical structure: `(results, run_id)` tuple.
 
-| Binding | Technology           | Install                                    |
-| ------- | -------------------- | ------------------------------------------ |
-| Python  | PyO3 + maturin       | `pip install kailash-enterprise`           |
-| Ruby    | Magnus + rb-sys      | `gem install kailash`                      |
-| Node.js | napi-rs              | `npm install @kailash/core`                |
-| WASM    | wasm-bindgen         | `npm install @kailash/wasm`                |
-| Go      | CGo via kailash-capi | `go get github.com/kailash-sdk/kailash-go` |
-| Java    | JNI via kailash-capi | Maven `com.kailash:kailash-core`           |
+### Runtime Architecture
 
-C ABI (`kailash-capi`): Opaque pointers, JSON exchange, `cbindgen` header generation.
+Both LocalRuntime and AsyncLocalRuntime inherit from BaseRuntime with shared capabilities:
+
+**BaseRuntime Foundation**:
+
+- 29 configuration parameters (debug, enable_cycles, conditional_execution, connection_validation, etc.)
+- Execution metadata management
+- Common initialization and validation modes (strict, warn, off)
+
+**Shared Mixins**:
+
+- **CycleExecutionMixin**: Cyclic workflow execution with validation
+- **ValidationMixin**: Workflow structure validation (5 methods)
+- **ConditionalExecutionMixin**: Conditional execution and branching with SwitchNode support
+
+**AsyncLocalRuntime-Specific**:
+
+- WorkflowAnalyzer for optimal execution strategy
+- Level-based parallelism for concurrent execution
+- Thread pool for sync nodes without blocking
+- Semaphore control to prevent resource exhaustion
+
+## Critical Rules
+
+- ✅ ALWAYS: `runtime.execute(workflow.build())`
+- ✅ String-based nodes: `workflow.add_node("NodeName", "id", {})`
+- ✅ 4-parameter connections: `(source_id, source_param, target_id, target_param)`
+- ✅ Docker/FastAPI: Use AsyncLocalRuntime (mandatory)
+- ✅ CLI/Scripts: Use LocalRuntime
+- ❌ NEVER: `workflow.execute(runtime)`
+- ❌ NEVER: Instance-based nodes
+- ❌ NEVER: Use LocalRuntime in Docker (causes hangs)
+
+## When to Use This Skill
+
+Use this skill when you need to:
+
+- Create custom workflows from scratch
+- Understand workflow fundamentals
+- Learn node patterns and connections
+- Set up runtime execution
+- Handle errors in workflows
+- Implement cyclic or async patterns
+- Integrate with MCP
+- Get started with Kailash SDK
+
+## Related Skills
+
+- **[02-dataflow](../02-dataflow/SKILL.md)** - Database operations framework built on Core SDK
+- **[03-nexus](../03-nexus/SKILL.md)** - Multi-channel platform framework built on Core SDK
+- **[04-kaizen](../04-kaizen/SKILL.md)** - AI agent framework built on Core SDK
+- **[06-cheatsheets](../06-cheatsheets/SKILL.md)** - Quick reference patterns
+- **[08-nodes-reference](../08-nodes-reference/SKILL.md)** - Complete node reference
+- **[09-workflow-patterns](../09-workflow-patterns/SKILL.md)** - Industry workflow templates
+- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Mandatory best practices
+
+## Support
+
+For complex workflows or debugging, invoke:
+
+- `pattern-expert` - Workflow patterns and cyclic debugging
+- `testing-specialist` - Test workflow implementations

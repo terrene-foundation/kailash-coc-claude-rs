@@ -12,45 +12,29 @@ description: "React + Kailash SDK integration. Use when asking 'react integratio
 
 ## Quick Setup
 
-### 1. Backend API (Rust)
+### 1. Backend API (Python)
+```python
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
-```rust
-use kailash_nexus::{NexusApp, Preset};
-use kailash_nexus::handler::Handler;
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use std::sync::Arc;
+# Create workflow
+workflow = WorkflowBuilder()
+workflow.add_node("LLMNode", "chat", {
+    "provider": "openai",
+    "model": os.environ["LLM_MODEL"],
+    "prompt": "{{input.message}}"
+})
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv().ok();
-
-    let registry = Arc::new(NodeRegistry::default());
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("LLMNode", "chat", ValueMap::from([
-        ("provider".into(), Value::String("openai".into())),
-        ("model".into(), Value::String(
-            std::env::var("DEFAULT_LLM_MODEL").expect("DEFAULT_LLM_MODEL in .env").into()
-        )),
-        ("prompt".into(), Value::String("{{input.message}}".into())),
-    ]));
-    let workflow = builder.build(&registry)?;
-
-    let app = NexusApp::new()
-        .preset(Preset::Standard)
-        .handler("/execute", Handler::from_workflow(workflow, registry));
-
-    app.serve("0.0.0.0:3000").await?;
-    Ok(())
-}
+# Deploy as API
+api = WorkflowAPI(workflow.build())
+api.run(port=8000)  # POST /execute
 ```
 
 ### 2. React Frontend
-
 ```typescript
 // src/api/workflow.ts
 export async function executeWorkflow(message: string) {
-  const response = await fetch('http://localhost:3000/execute', {
+  const response = await fetch('http://localhost:8000/execute', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({inputs: {message}})
@@ -89,25 +73,24 @@ export function Chat() {
 ## Streaming Responses
 
 ```typescript
-// Backend (Rust) — enable SSE streaming on the NexusApp:
-//   use kailash_nexus::agentui::SseHandler;
-//   app.handler("/stream", SseHandler::from_workflow(workflow, registry));
+// Backend (Python)
+api = WorkflowAPI(workflow.build(), streaming=True)
 
 // Frontend (React)
 async function streamWorkflow(message: string) {
-  const response = await fetch("http://localhost:3000/stream", {
-    method: "POST",
-    body: JSON.stringify({ inputs: { message } }),
+  const response = await fetch('http://localhost:8000/stream', {
+    method: 'POST',
+    body: JSON.stringify({inputs: {message}})
   });
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
   while (true) {
-    const { done, value } = await reader.read();
+    const {done, value} = await reader.read();
     if (done) break;
     const chunk = decoder.decode(value);
-    console.log(chunk); // Update UI incrementally
+    console.log(chunk);  // Update UI incrementally
   }
 }
 ```

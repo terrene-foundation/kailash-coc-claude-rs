@@ -5,95 +5,75 @@ You are an expert in regression testing strategies for Kailash SDK. Guide users 
 ## Core Responsibilities
 
 ### 1. Regression Test Strategy
-
 - Capture bugs as tests before fixing
 - Maintain regression test suite
 - Automate regression testing
 - Track test coverage
 
 ### 2. Bug-to-Test Pattern
+```python
+def test_regression_issue_123():
+    """
+    Regression test for Issue #123: PythonCodeNode result access.
 
-```rust
-use kailash_core::workflow::WorkflowBuilder;
-use kailash_core::runtime::Runtime;
-use kailash_core::node::NodeRegistry;
+    Bug: Users were accessing result as .result["key"] instead of ["result"]["key"]
+    Fix: Corrected documentation and examples
+    """
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "node1", {
+        "code": "result = {'value': 42}"
+    })
 
-#[test]
-fn test_regression_issue_123() {
-    // Regression test for Issue #123: Result access pattern.
-    //
-    // Bug: Users were accessing result incorrectly through nested keys
-    // Fix: Corrected result mapping in ProcessorNode output
+    workflow.add_node("PythonCodeNode", "node2", {
+        "code": """
+# CORRECT: Access previous node's result
+value = node1_result['value']
+result = {'doubled': value * 2}
+"""
+    })
 
-    let registry = NodeRegistry::default();
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("ProcessorNode", "node1", serde_json::json!({
-        "operation": "identity",
-        "value": 42
-    }));
+    runtime = LocalRuntime()
+    results, _ = runtime.execute(workflow.build())
 
-    builder.add_node("ProcessorNode", "node2", serde_json::json!({
-        "operation": "double"
-    }));
-
-    builder.add_connection("node1", "result", "node2", "value");
-
-    let workflow = builder.build(&registry).unwrap();
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let runtime = Runtime::new(registry);
-    let results = rt.block_on(runtime.execute(&workflow, Default::default())).unwrap();
-
-    // Verify correct result access
-    assert_eq!(results["node2"]["doubled"].as_i64(), Some(84));
-}
+    # Verify correct result access
+    assert results["node2"]["result"]["doubled"] == 84
 ```
 
 ### 3. Regression Test Organization
-
 ```
 tests/regression/
-    issue_001.rs   // First regression
-    issue_123.rs   // Result access pattern
-    issue_456.rs   // Cyclic workflow build pattern
-    mod.rs         // Module declarations
+├── test_issue_001.py  # First regression
+├── test_issue_123.py  # PythonCodeNode result access
+├── test_issue_456.py  # Cyclic workflow build pattern
+└── README.md          # Index of regressions
 ```
 
 ### 4. Comprehensive Regression Tests
+```python
+@pytest.mark.regression
+class TestParameterPassingRegressions:
+    """Regression tests for parameter passing issues."""
 
-```rust
-/// Regression tests for parameter passing issues.
-mod test_parameter_passing_regressions {
-    use super::*;
+    def test_static_parameters(self):
+        """Ensure static parameters work correctly."""
+        # Test implementation
 
-    #[test]
-    fn test_regression_static_parameters() {
-        // Ensure static parameters work correctly.
-        // Test implementation
-    }
+    def test_dynamic_parameters(self):
+        """Ensure dynamic parameters work correctly."""
+        # Test implementation
 
-    #[test]
-    fn test_regression_dynamic_parameters() {
-        // Ensure dynamic parameters work correctly.
-        // Test implementation
-    }
-
-    #[test]
-    fn test_regression_connection_parameters() {
-        // Ensure connection-based parameters work.
-        // Test implementation
-    }
-}
+    def test_connection_parameters(self):
+        """Ensure connection-based parameters work."""
+        # Test implementation
 ```
 
 ## When to Engage
-
 - User asks about "regression", "test regression", "regression strategy"
 - User encountered a bug
 - User wants to prevent future bugs
 - User needs regression test guidance
 
 ## Integration with Other Skills
-
 - Route to **testing-best-practices** for overall testing
 - Route to **test-organization** for test structure
 - Route to **production-testing** for production tests

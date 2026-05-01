@@ -1,40 +1,70 @@
 ---
 skill: nexus-for-fastapi-users
-description: Nexus pattern translation for developers migrating from FastAPI to NexusApp (kailash-enterprise)
+description: Nexus pattern translation for developers familiar with route-first HTTP frameworks
 priority: HIGH
-tags: [nexus, translation, onboarding, routes, handlers, api, fastapi]
+tags: [nexus, translation, onboarding, routes, handlers, api]
 ---
 
-# Nexus for Route-First Developers (kailash-enterprise)
+# Nexus for Route-First Developers
 
-NexusApp is workflow-first: register once, get API + CLI + MCP. This guide translates common route-first patterns into NexusApp equivalents.
+Nexus is workflow-first: register once, get API + CLI + MCP. This guide translates common route-first patterns into Nexus equivalents.
+
+## Zero-Rewrite Migration: `app.include_router()`
+
+Nexus accepts a stock `fastapi.APIRouter` and mounts every route on it under an optional prefix. Existing routers migrate as-is — no decorator rewrites, no handler reshaping, no touching downstream Pydantic models or `Depends()` graphs. This is the first step of any migration; everything below is for routes you choose to rewrite as Nexus handlers so they also gain CLI + MCP channels.
+
+```python
+from fastapi import APIRouter
+from nexus import Nexus
+
+# Existing router — unchanged
+user_router = APIRouter()
+
+@user_router.get("/{user_id}")
+async def get_user(user_id: str):
+    return {"user_id": user_id}
+
+@user_router.post("")
+async def create_user(user: UserModel):
+    ...
+
+# Mount on Nexus
+app = Nexus()
+app.include_router(user_router, prefix="/api/users", tags=["Users"])
+app.start()
+# Result: GET /api/users/{user_id}, POST /api/users — same as FastAPI
+```
+
+- `include_router()` accepts `prefix`, `tags`, `dependencies`, and any additional kwargs forwarded to FastAPI's own `include_router`.
+- Returns `self`, so calls chain: `app.include_router(r1).include_router(r2, prefix="/v2")`.
+- Safe to call before OR after `app.start()` — routers added pre-start are queued and installed during gateway init; routers added post-start are mounted immediately.
+- Passing a non-`APIRouter` raises `TypeError` at the call site, not at request time.
+- A `prefix` that overlaps an existing Nexus route emits a WARN log (non-blocking) so conflicts surface during startup instead of on the first 404.
+
+**When to stop with `include_router` and rewrite as a Nexus handler:** when the route needs to run on CLI or MCP channels in addition to HTTP. Routers mounted via `include_router` stay HTTP-only; Nexus handlers (below) expose the same logic on all three channels from a single registration.
 
 ## Route Definition
 
 ```python
-# FastAPI: one decorator per endpoint
+# Route-first: one decorator per endpoint
 @app.get("/items/{id}")
 async def get_item(id: int): ...
 
 @app.post("/items")
 async def create_item(item: ItemModel): ...
 
-# NexusApp: one handler, all channels
-from kailash.nexus import NexusApp
-
-app = NexusApp()
-
+# Nexus: one handler, all channels
 @app.handler("get_item")
 async def get_item(id: int) -> dict:
     return {"item": await db.express.read("Item", id)}
 
-# Result: POST /api/get_item + CLI + MCP
+# Result: POST /workflows/get_item/execute + CLI + MCP
 ```
 
 ## Request Validation
 
 ```python
-# FastAPI: Pydantic model as parameter
+# Route-first: Pydantic model as parameter
 class OrderRequest(BaseModel):
     user_id: str
     amount: float
@@ -43,111 +73,101 @@ class OrderRequest(BaseModel):
 @app.post("/orders")
 async def create_order(order: OrderRequest): ...
 
-# NexusApp: type annotations on handler function
+# Nexus: type annotations on handler function
 @app.handler("create_order")
 async def create_order(user_id: str, amount: float, items: list[str]) -> dict:
     return {"status": "created"}
 
-# Request: POST /api/create_order
-# Body: {"user_id": "123", "amount": 99.99, "items": ["a", "b"]}
+# Request: POST /workflows/create_order/execute
+# Body: {"inputs": {"user_id": "123", "amount": 99.99, "items": ["a", "b"]}}
 ```
 
-## Dependency Injection → NexusAuthPlugin
+## Dependency Injection
 
 ```python
-# FastAPI: Depends() for request-scoped dependencies
+# Route-first: Depends() for request-scoped dependencies
 def get_current_user(token: str = Depends(oauth2_scheme)):
     return verify_token(token)
 
 @app.get("/profile")
 async def get_profile(user=Depends(get_current_user)): ...
 
-# NexusApp: ctx populated by NexusAuthPlugin
-from kailash.nexus import NexusApp, NexusAuthPlugin, JwtConfig
-
-app = NexusApp()
-auth = NexusAuthPlugin.saas_app(
-    jwt=JwtConfig(secret="your-secret-key", algorithm="HS256"),
-    roles={
-        "admin": ["read:*", "write:*"],
-        "user": ["read:posts"],
-    },
-)
-app.add_plugin(auth)
-
+# Nexus: session context via X-Session-ID header
 @app.handler("get_profile")
-async def get_profile(ctx) -> dict:
-    return {"user_id": ctx.user.id, "org": ctx.user.organization_id}
+async def get_profile(session_id: str) -> dict:
+    session = app.session_manager.get(session_id)
+    user = session.metadata.get("user")
+    return {"user": user}
 ```
 
 ## Middleware
 
 ```python
-# FastAPI
+# Route-first
 from starlette.middleware.cors import CORSMiddleware
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
-# NexusApp: identical API
-from kailash.nexus import NexusApp
-app = NexusApp()
+# Nexus: identical API
+app = Nexus()
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
 ```
 
-## Per-Handler Authorization (AuthGuard)
+## Authentication (JWT + RBAC)
 
 ```python
-# FastAPI: Depends(require_permission("x:y"))
-@app.post("/agents")
-async def create_agent(user=Depends(require_permission("agents:create"))): ...
+# Route-first: manual JWT setup across multiple files
+# security.py, dependencies.py, middleware.py ...
 
-# NexusApp: AuthGuard per handler
-from kailash.nexus import AuthGuard
+# Nexus: single plugin
+from nexus.auth import create_auth_plugin
 
-@app.handler("create_agent", guard=AuthGuard.RequirePermission("agents:create"))
-async def create_agent(ctx, name: str) -> dict:
-    return await service.create(name=name, org_id=ctx.user.organization_id)
+auth_plugin = create_auth_plugin(
+    jwt_secret="your-secret-key",
+    algorithm="HS256",
+    roles={
+        "admin": ["read:*", "write:*"],
+        "user": ["read:posts"],
+    },
+)
+app = Nexus()
+app.add_plugin(auth_plugin)
 
-@app.handler("delete_agent", guard=AuthGuard.RequireAllPermissions(["agents:delete", "admin:confirm"]))
-async def delete_agent(ctx, agent_id: str) -> dict:
-    return await service.delete(agent_id, ctx.user.organization_id)
+# Request: curl -H "Authorization: Bearer eyJ..." ...
+```
+
+## Streaming / SSE
+
+```python
+# Route-first: StreamingResponse
+from starlette.responses import StreamingResponse
+
+@app.get("/stream")
+async def stream():
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+# Nexus: SSE via event system
+# See nexus-eventbus-phase2.md for /events/stream endpoint
 ```
 
 ## DataFlow Auto-CRUD
 
 ```python
-# FastAPI: write 5 CRUD endpoints per model manually
+# Route-first: write 5 CRUD endpoints per model manually
 
-# NexusApp: zero endpoints written
-app = NexusApp()
+# Nexus: zero endpoints written
+app = Nexus(auto_discovery=False)
 db = DataFlow("postgresql://...", models=[User, Post, Comment])
 app.register_dataflow(db)
 # Result: /api/User/create, /api/User/read, /api/User/list, etc.
 ```
 
-## Tenant Isolation
-
-```python
-# FastAPI: manual org_id extraction per route
-@app.get("/agents")
-async def list_agents(user=Depends(get_current_user)):
-    return await service.list({"organization_id": user.org_id})
-
-# NexusApp: ctx.user populated by NexusAuthPlugin — MUST NOT accept org_id as parameter
-@app.handler("list_agents")
-async def list_agents(ctx) -> dict:
-    return await service.list({"organization_id": ctx.user.organization_id})
-```
-
 ## Key Mental Model Shift
 
-| Concept      | FastAPI                        | NexusApp                                   |
-| ------------ | ------------------------------ | ------------------------------------------ |
-| Unit of work | HTTP endpoint                  | Handler or workflow                        |
-| Registration | Per-verb, per-path             | Once, all channels                         |
-| Channels     | HTTP only                      | API + CLI + MCP                            |
-| Auth         | `Depends(get_current_user)`    | `NexusAuthPlugin` populates `ctx`          |
-| RBAC         | `Depends(require_permission)`  | `AuthGuard.RequirePermission`              |
-| Tenant       | Manual org_id per route        | `ctx.user.organization_id` (trusted)       |
-| Sessions     | External store                 | Built-in, cross-channel                    |
-| CRUD         | Write each endpoint            | DataFlow auto-generates                    |
-| Import       | `from fastapi import ...`      | `from kailash.nexus import NexusApp, ...`  |
+| Concept      | Route-first         | Nexus                    |
+| ------------ | ------------------- | ------------------------ |
+| Unit of work | HTTP endpoint       | Handler or workflow      |
+| Registration | Per-verb, per-path  | Once, all channels       |
+| Channels     | HTTP only           | API + CLI + MCP          |
+| Auth         | Manual per-route    | Plugin, applied globally |
+| Sessions     | External store      | Built-in, cross-channel  |
+| CRUD         | Write each endpoint | DataFlow auto-generates  |

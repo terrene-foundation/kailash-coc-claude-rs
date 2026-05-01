@@ -5,292 +5,142 @@ description: "Generate Kailash MCP server template. Use when requesting 'MCP ser
 
 # MCP Server Template
 
-Production-ready MCP server template using `kailash-nexus` built-in MCP implementation.
+Production-ready MCP server template using Kailash SDK's built-in MCP implementation.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `MEDIUM`
-> Related Skills: [`CLAUDE.md`](../../../../CLAUDE.md), [`03-nexus`](../../03-nexus/)
-> Related Subagents: `mcp-specialist` (enterprise MCP), `nexus-specialist` (deployment)
+> SDK Version: `0.9.25+` (MCP v0.6.6+)
+> Related Skills: [`mcp-integration-guide`](../../06-cheatsheets/mcp-integration-guide.md)
+> Related Subagents: `mcp-specialist` (enterprise MCP), `pattern-expert`
 
 ## Basic MCP Server Template
 
-```rust
-//! Basic MCP Server using kailash-nexus.
+```python
+"""Basic MCP Server using Kailash SDK"""
 
-use kailash_nexus::mcp::{McpServer, McpTool};
+from kailash_mcp import MCPServer
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let mut server = McpServer::new("my-tools");
+# Create server
+server = MCPServer("my-server")
 
-    // Register a tool with input schema and async handler
-    server.register_tool(
-        McpTool::new("process_data")
-            .description("Process data with specified operation")
-            .input_schema(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "data": {
-                        "type": "string",
-                        "description": "Input data to process"
-                    },
-                    "operation": {
-                        "type": "string",
-                        "enum": ["uppercase", "lowercase", "reverse"],
-                        "default": "uppercase"
-                    }
-                },
-                "required": ["data"]
-            }))
-            .handler(|params| async move {
-                let data = params["data"].as_str().unwrap_or_default();
-                let operation = params["operation"].as_str().unwrap_or("uppercase");
+# Register tools
+@server.tool()
+async def process_data(data: str, operation: str = "uppercase") -> dict:
+    """Process data with specified operation."""
+    if operation == "uppercase":
+        result = data.upper()
+    elif operation == "lowercase":
+        result = data.lower()
+    else:
+        result = data
 
-                let result = match operation {
-                    "uppercase" => data.to_uppercase(),
-                    "lowercase" => data.to_lowercase(),
-                    "reverse" => data.chars().rev().collect(),
-                    _ => data.to_string(),
-                };
+    return {
+        "result": result,
+        "operation": operation,
+        "input_length": len(data)
+    }
 
-                Ok(serde_json::json!({
-                    "result": result,
-                    "operation": operation,
-                    "input_length": data.len()
-                }))
-            }),
-    )?;
+@server.tool()
+async def search_database(query: str, limit: int = 10) -> dict:
+    """Search database and return results."""
+    # Implement your database search logic
+    results = [
+        {"id": 1, "title": f"Result for: {query}"},
+        {"id": 2, "title": f"Another result for: {query}"}
+    ]
 
-    // Register a second tool
-    server.register_tool(
-        McpTool::new("search_records")
-            .description("Search records by query")
-            .input_schema(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": { "type": "string" },
-                    "limit": { "type": "integer", "default": 10 }
-                },
-                "required": ["query"]
-            }))
-            .handler(|params| async move {
-                let query = params["query"].as_str().unwrap_or_default();
-                let limit = params["limit"].as_i64().unwrap_or(10);
+    return {
+        "results": results[:limit],
+        "count": len(results),
+        "query": query
+    }
 
-                // Implement your search logic here
-                let results = vec![
-                    serde_json::json!({"id": 1, "title": format!("Result for: {query}")}),
-                    serde_json::json!({"id": 2, "title": format!("Another result for: {query}")}),
-                ];
-
-                Ok(serde_json::json!({
-                    "results": &results[..std::cmp::min(results.len(), limit as usize)],
-                    "count": results.len(),
-                    "query": query
-                }))
-            }),
-    )?;
-
-    // Serve over stdio (for Claude Desktop, etc.)
-    server.serve_stdio().await?;
-    Ok(())
-}
-```
-
-## SSE Transport Template
-
-For HTTP-based MCP servers (browser clients, remote agents):
-
-```rust
-//! MCP Server with SSE transport via kailash-nexus.
-
-use kailash_nexus::mcp::{McpServer, McpTool};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let mut server = McpServer::new("my-sse-tools");
-
-    server.register_tool(
-        McpTool::new("analyze")
-            .description("Analyze input text")
-            .input_schema(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "text": { "type": "string" }
-                },
-                "required": ["text"]
-            }))
-            .handler(|params| async move {
-                let text = params["text"].as_str().unwrap_or_default();
-                Ok(serde_json::json!({
-                    "word_count": text.split_whitespace().count(),
-                    "char_count": text.len(),
-                    "lines": text.lines().count()
-                }))
-            }),
-    )?;
-
-    // Serve over SSE on a given address
-    server.serve_sse("0.0.0.0:3001").await?;
-    Ok(())
-}
+# Run server
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(server.run())
 ```
 
 ## Production MCP Server Template
 
-MCP server integrated with Nexus middleware (auth, rate limiting, metrics):
+```python
+"""Production MCP Server with Authentication and Monitoring"""
 
-```rust
-//! Production MCP Server with Nexus middleware.
+from kailash_mcp import MCPServer, APIKeyAuth
+import logging
 
-use kailash_nexus::{NexusApp, Preset};
-use kailash_nexus::mcp::{McpServer, McpTool};
-use tracing::info;
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+# Setup authentication
+auth = APIKeyAuth({
+    "admin_key": {
+        "permissions": ["admin", "tools", "resources"],
+        "rate_limit": 1000
+    },
+    "user_key": {
+        "permissions": ["tools"],
+        "rate_limit": 100
+    }
+})
 
-    // Build Nexus app with enterprise preset (auth, rate limiting, CORS)
-    let app = NexusApp::builder()
-        .preset(Preset::Enterprise)
-        .build()?;
+# Create server with enterprise features
+server = MCPServer(
+    "production-server",
+    auth_provider=auth,
+    enable_metrics=True,
+    enable_cache=True,
+    cache_ttl=600
+)
 
-    // Create MCP server
-    let mut mcp = McpServer::new("production-tools");
+# Register tools with permissions
+@server.tool(required_permission="tools", cache_key="process_data", cache_ttl=300)
+async def process_data(data: str) -> dict:
+    """Process data with caching."""
+    logger.info(f"Processing data: {data[:50]}...")
+    return {"result": data.upper(), "cached": True}
 
-    mcp.register_tool(
-        McpTool::new("process_data")
-            .description("Process data securely")
-            .input_schema(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "data": { "type": "string" }
-                },
-                "required": ["data"]
-            }))
-            .handler(|params| async move {
-                let data = params["data"].as_str().unwrap_or_default();
-                info!("Processing data: {}...", &data[..data.len().min(50)]);
-                Ok(serde_json::json!({
-                    "result": data.to_uppercase(),
-                    "processed": true
-                }))
-            }),
-    )?;
+@server.tool(required_permission="admin")
+async def admin_operation(action: str) -> dict:
+    """Admin-only operation."""
+    logger.info(f"Admin action: {action}")
+    return {"action": action, "status": "completed"}
 
-    // Mount MCP server on the Nexus app
-    app.mount_mcp(mcp);
-
-    info!("Starting production MCP server on 0.0.0.0:3000");
-    app.serve("0.0.0.0:3000").await?;
-    Ok(())
-}
-```
-
-## MCP Server with Workflow Execution
-
-Expose Kailash workflows as MCP tools:
-
-```rust
-//! MCP Server that executes Kailash workflows as tools.
-
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use kailash_nexus::mcp::{McpServer, McpTool};
-use std::sync::Arc;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let registry = Arc::new(NodeRegistry::default());
-    let runtime = Arc::new(Runtime::new(RuntimeConfig::default(), registry.clone()));
-
-    let reg = registry.clone();
-    let rt = runtime.clone();
-
-    let mut server = McpServer::new("workflow-tools");
-
-    server.register_tool(
-        McpTool::new("run_etl")
-            .description("Run an ETL pipeline on the given file")
-            .input_schema(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "file_path": { "type": "string" }
-                },
-                "required": ["file_path"]
-            }))
-            .handler(move |params| {
-                let reg = reg.clone();
-                let rt = rt.clone();
-                async move {
-                    let file_path = params["file_path"]
-                        .as_str()
-                        .unwrap_or("data.csv");
-
-                    let mut builder = WorkflowBuilder::new();
-                    builder.add_node("CSVReaderNode", "read", ValueMap::from([
-                        ("file_path".into(), Value::String(file_path.into())),
-                    ]));
-                    builder.add_node("JSONTransformNode", "transform", ValueMap::from([
-                        ("expression".into(), Value::String("@".into())),
-                    ]));
-                    builder.connect("read", "data", "transform", "data");
-
-                    let workflow = builder.build(&reg)
-                        .map_err(|e| anyhow::anyhow!("{e}"))?;
-                    let result = rt.execute(&workflow, ValueMap::new()).await
-                        .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-                    Ok(serde_json::json!({
-                        "run_id": result.run_id,
-                        "status": "completed",
-                        "nodes_executed": result.results.len()
-                    }))
-                }
-            }),
-    )?;
-
-    server.serve_stdio().await?;
-    Ok(())
-}
+# Run server
+if __name__ == "__main__":
+    import asyncio
+    logger.info("Starting production MCP server...")
+    asyncio.run(server.run())
 ```
 
 ## Related Patterns
 
-- **MCP protocol**: See `crates/kailash-nexus/` for McpServer, transports (stdio, SSE, HTTP)
-- **Nexus deployment**: See `.claude/skills/03-nexus/` for NexusApp, Preset, middleware
-- **Tool registration**: Each `McpTool` has name, description, input_schema, handler
+- **MCP integration**: [`mcp-integration-guide`](../../06-cheatsheets/mcp-integration-guide.md)
+- **MCP in workflows**: Use with LLMAgentNode
+- **Advanced MCP**: [`mcp-advanced-features`](../../05-kailash-mcp/mcp-advanced-features.md)
 
 ## When to Escalate
 
 Use `mcp-specialist` subagent when:
 
 - Enterprise MCP architecture
-- Multi-transport configuration (stdio + SSE + HTTP)
-- Advanced features (resources, progress reporting, structured content)
-
-Use `nexus-specialist` when:
-
-- Integrating MCP with full Nexus middleware stack
-- Production deployment with auth, rate limiting, CORS
+- Multi-transport configuration
+- Advanced features (structured tools, resources, progress)
+- Production deployment
 
 ## Documentation References
 
 ### Primary Sources
 
-- **MCP in Nexus**: [`crates/kailash-nexus/`](../../../../crates/kailash-nexus/) -- McpServer, McpTool, transports
-- **Nexus Skills**: [`.claude/skills/03-nexus/`](../../03-nexus/) -- Handler patterns, middleware
-- **CLAUDE.md**: [`CLAUDE.md`](../../../../CLAUDE.md) -- MCP channel overview
+- **MCP Specialist**: [`.claude/agents/frameworks/mcp-specialist.md` (lines 39-59)](../../../../.claude/agents/frameworks/mcp-specialist.md#L39-L59)
 
 ## Quick Tips
 
-- Start with `serve_stdio()` for local development and Claude Desktop integration
-- Use `serve_sse()` for HTTP-based clients and browser agents
-- Mount on `NexusApp` for production with middleware (auth, rate limiting)
-- Each tool handler is an async closure returning `Result<serde_json::Value, _>`
-- Never hardcode API keys in handlers -- use `std::env::var()` with `dotenvy`
+- 💡 **Start simple**: Use basic template first, add features progressively
+- 💡 **Authentication**: Enable in production
+- 💡 **Caching**: Use for expensive operations
+- 💡 **Logging**: Add comprehensive logging
 
 <!-- Trigger Keywords: MCP server template, create MCP server, MCP server boilerplate, Model Context Protocol server, MCP server example, MCP template, production MCP server -->

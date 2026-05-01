@@ -1,164 +1,163 @@
 ---
-name: nexus-multi-channel
-description: "Multi-channel architecture (API + CLI + MCP) via NexusConfig channel flags."
+skill: nexus-multi-channel
+description: Nexus multi-channel architecture - single workflow, three interfaces (API/CLI/MCP)
+priority: HIGH
+tags: [nexus, multi-channel, api, cli, mcp, architecture]
 ---
 
-# Nexus Multi-Channel Architecture (kailash-rs)
+# Nexus Multi-Channel Architecture
 
 Register once, deploy to API + CLI + MCP automatically.
 
-## Core Pattern
+## Core Concept
 
-```python
-from kailash.nexus import NexusApp, NexusConfig
+Traditional platforms require separate implementations for each interface. Nexus generates all three from a single registration:
 
-app = NexusApp(config=NexusConfig(port=3000))
-
-@app.handler("github-user", description="Look up a GitHub user")
-async def github_user(username: str) -> dict:
-    import httpx
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"https://api.github.com/users/{username}")
-        return resp.json()
-
-app.start()
+```
+app = Nexus()
+app.register("github-user", workflow.build())
 
 # Now available as:
-# 1. REST API:  POST http://localhost:3000/api/github-user
-# 2. CLI:       nexus run github-user --username octocat
-# 3. MCP:       AI agents discover as "github-user" tool
+# 1. REST API: POST /workflows/github-user/execute
+# 2. CLI: nexus run github-user --username octocat
+# 3. MCP: AI agents discover as "github-user" tool
 ```
 
-## Channel Configuration
+## Architecture
 
-Control which channels are active via `NexusConfig`:
-
-```python
-from kailash.nexus import NexusConfig
-
-# All channels (default)
-config = NexusConfig(enable_api=True, enable_cli=True, enable_mcp=True)
-
-# API only
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=False)
-
-# API + MCP (no CLI)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=True)
+```
+                    Nexus Core
+  +-----------+  +-----------+  +-----------+
+  |    API    |  |    CLI    |  |    MCP    |
+  |  Channel  |  |  Channel  |  |  Channel  |
+  +-----+-----+  +-----+-----+  +-----+-----+
+        +---------------+---------------+
+           Session Manager & Event Router
+  +------------------------------------------+
+  |          Enterprise Gateway              |
+  +------------------------------------------+
+  +------------------------------------------+
+  |             Kailash SDK                  |
+  |       Workflows | Nodes | Runtime        |
+  +------------------------------------------+
 ```
 
 ## API Channel
 
-Handlers automatically get REST endpoints:
+Registered workflows get REST endpoints automatically:
 
 ```bash
-# Execute handler
-curl -X POST http://localhost:3000/api/github-user \
+# Execute workflow
+curl -X POST http://localhost:8000/workflows/github-user/execute \
   -H "Content-Type: application/json" \
-  -d '{"username": "octocat"}'
+  -d '{"inputs": {"username": "octocat"}}'
+
+# Get workflow schema
+curl http://localhost:8000/workflows/github-user/schema
 
 # Health check
-curl http://localhost:3000/health
-```
-
-Custom REST endpoints for API-only routes:
-
-```python
-@app.endpoint("/api/v1/status", methods=["GET"])
-async def status():
-    return app.health_check()
+curl http://localhost:8000/health
 ```
 
 ## CLI Channel
 
-Handlers automatically become CLI commands:
+Registered workflows become CLI commands:
 
 ```bash
-# Execute handler
+# Execute workflow
 nexus run github-user --username octocat
 
-# List available handlers
+# List available workflows
 nexus list
 
-# Help
-nexus --help
-```
-
-Configure CLI name:
-
-```python
-config = NexusConfig(cli_name="myplatform")
-# Now: myplatform run github-user --username octocat
+# Get workflow info
+nexus info github-user
 ```
 
 ## MCP Channel
 
-Handlers automatically become MCP tools discoverable by AI agents:
+Workflows become MCP tools discoverable by AI agents:
 
-```json
-{
-  "tools": [
-    {
-      "name": "github-user",
-      "description": "Look up a GitHub user",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "username": { "type": "string" }
-        },
-        "required": ["username"]
-      }
-    }
-  ]
-}
 ```
-
-MCP clients (Claude Desktop, custom agents) connect and discover tools automatically.
+app = Nexus(mcp_port=3001)
+app.register("github-lookup", workflow.build())
+# AI agents connect on port 3001 and discover "github-lookup" as a tool
+```
 
 ## Cross-Channel Parameter Consistency
 
 Same inputs work across all channels:
 
-```python
-# API request
-{"username": "octocat"}
+```
+# API Request
+{"inputs": {"username": "octocat", "include_repos": true}}
 
-# CLI command
-nexus run github-user --username octocat
+# CLI Command
+nexus run github-user --username octocat --include-repos true
 
-# MCP call
-client.call_tool("github-user", {"username": "octocat"})
+# MCP Call
+{"name": "github-user", "arguments": {"username": "octocat", "include_repos": true}}
 ```
 
-## Channel Comparison
+## Unified Sessions
 
-| Feature   | API  | CLI       | MCP         |
-| --------- | ---- | --------- | ----------- |
-| Access    | HTTP | Terminal  | MCP Clients |
-| Input     | JSON | Args/JSON | Structured  |
-| Output    | JSON | Text/JSON | Structured  |
-| Sessions  | Yes  | Yes       | Yes         |
-| Auth      | Yes  | Yes       | Yes         |
-| Streaming | Yes  | Yes       | Yes         |
+Sessions work across all channels. A workflow started via API can be continued via CLI or MCP using the same session ID.
 
-## Key Differences from kailash-py
+```
+# API: start session
+POST /workflows/process/execute
+Headers: X-Session-ID: session-123
+Body: {"inputs": {"step": 1}}
 
-| Aspect        | kailash-py                  | kailash-rs                                         |
-| ------------- | --------------------------- | -------------------------------------------------- |
-| Channel flags | Implicit (port-based)       | Explicit: `enable_api`, `enable_cli`, `enable_mcp` |
-| MCP config    | `mcp_port=3001`             | `enable_mcp=True` in NexusConfig                   |
-| API prefix    | `/workflows/{name}/execute` | `/api/{name}`                                      |
-| Default port  | 8000 (API), 3001 (MCP)      | 3000 (unified)                                     |
+# CLI: continue same session
+nexus run process --session session-123 --step 2
+
+# MCP: complete with full state preserved
+{"name": "process", "arguments": {"step": 3, "session_id": "session-123"}}
+```
+
+## Channel Configuration
+
+Port configuration is shared:
+
+```
+app = Nexus(api_port=8000, mcp_port=3001)
+```
+
+Channel-specific configuration (CLI prompts, API compression, MCP caching) varies by SDK. See language-specific variant for channel configuration details.
 
 ## Best Practices
 
-1. Design handlers that work across all channels -- return structured data
-2. Add `description` parameter for MCP tool discovery and CLI help
-3. Use type annotations for automatic parameter schema generation
-4. Test all three channels during development
-5. Disable unused channels in production for reduced attack surface
+### 1. Channel-Agnostic Design
+
+Design workflows that produce structured output usable by all channels. Avoid channel-specific logic in the workflow itself.
+
+### 2. Progressive Enhancement
+
+Start with basic registration, then add channel-specific features as needed:
+
+```
+app = Nexus()
+app.register("workflow", workflow.build())
+# API, CLI, MCP all work immediately
+# Add auth, rate limiting, middleware progressively
+```
+
+### 3. Test All Channels
+
+During development, verify your workflow works via API, CLI, and MCP. Parameters should behave identically across all three.
+
+## Key Takeaways
+
+- Single registration creates three interfaces automatically
+- Same parameters work across all channels
+- Unified session management across channels
+- Test all channels during development
+- Channel-specific configuration available per SDK
 
 ## Related Skills
 
-- [nexus-api-patterns](nexus-api-patterns.md) - REST API patterns
+- [nexus-api-patterns](nexus-api-patterns.md) - API usage patterns
+- [nexus-cli-patterns](nexus-cli-patterns.md) - CLI command patterns
 - [nexus-mcp-channel](nexus-mcp-channel.md) - MCP integration details
-- [nexus-config-options](nexus-config-options.md) - Channel configuration
+- [nexus-sessions](nexus-sessions.md) - Session management guide

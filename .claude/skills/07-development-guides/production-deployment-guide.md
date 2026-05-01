@@ -6,7 +6,7 @@ You are an expert in deploying Kailash SDK workflows to production. Guide users 
 
 ### 1. Production-Ready Patterns
 
-- Docker deployment with axum/tower HTTP server
+- Docker deployment with AsyncLocalRuntime
 - Environment configuration management
 - Error handling and logging
 - Health checks and monitoring
@@ -14,274 +14,238 @@ You are an expert in deploying Kailash SDK workflows to production. Guide users 
 
 ### 2. Docker Deployment Pattern (RECOMMENDED)
 
-```rust
-use kailash_core::workflow::WorkflowBuilder;
-use kailash_core::runtime::Runtime;
-use kailash_core::node::NodeRegistry;
-use kailash_nexus::prelude::*;
+```python
+from kailash.api.workflow_api import WorkflowAPI
+from kailash.workflow.builder import WorkflowBuilder
 
-#[tokio::main]
-async fn main() {
-    // Create workflow
-    let registry = NodeRegistry::default();
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("ProcessorNode", "processor", Default::default());
+# Create workflow
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": "result = {'status': 'processed', 'data': input_data}"
+})
 
-    let workflow = builder.build(&registry).expect("workflow build failed");
-
-    // Deploy with Nexus (axum-based HTTP server)
-    let app = axum::Router::new()
-        .route("/execute", axum::routing::post(execute_workflow));
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
+# Deploy with WorkflowAPI (automatically uses AsyncLocalRuntime)
+api = WorkflowAPI(workflow.build())
+api.run(host="0.0.0.0", port=8000)  # Production-ready, no threading issues
 ```
 
 **Dockerfile**:
 
 ```dockerfile
-FROM rust:1.82-slim AS builder
+FROM python:3.11-slim
 
 WORKDIR /app
-COPY . .
-RUN cargo build --release
 
-FROM debian:bookworm-slim
-COPY --from=builder /app/target/release/workflow-server /usr/local/bin/
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
 EXPOSE 8000
-CMD ["workflow-server"]
+
+CMD ["python", "app.py"]
 ```
 
 ### 3. Runtime Selection for Production
 
-```rust
-use kailash_core::runtime::Runtime;
-use kailash_core::node::NodeRegistry;
+```python
+from kailash.runtime import get_runtime, AsyncLocalRuntime, LocalRuntime
 
-// All execution is async via tokio
-let registry = NodeRegistry::default();
-let runtime = Runtime::new(registry);
+# Docker/async production (async context) - RECOMMENDED
+runtime = AsyncLocalRuntime()
+# Or use auto-detection
+runtime = get_runtime("async")
 
-// Execute workflow
-let results = runtime.execute(&workflow, inputs).await?;
+# CLI/Scripts (sync context)
+runtime = LocalRuntime()
+# Or use auto-detection
+runtime = get_runtime("sync")
+
+# Execute
+results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+# Or sync
+results, run_id = runtime.execute(workflow.build())
 ```
 
 ### 4. Environment Configuration
 
-```rust
-use std::env;
+```python
+import os
+from dotenv import load_dotenv
 
-fn main() {
-    dotenv::dotenv().ok(); // Load from .env file
+load_dotenv()  # Load from .env file
 
-    let api_url = env::var("API_URL").expect("API_URL must be set");
-    let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
-    let environment = env::var("ENVIRONMENT").unwrap_or_else(|_| "production".into());
+workflow = WorkflowBuilder()
+workflow.add_node("HTTPRequestNode", "api_call", {
+    "url": "${API_URL}",  # References $API_URL
+    "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "X-Environment": "${ENVIRONMENT}"
+    }
+})
 
-    // Use in workflow node config
-    let mut config = ValueMap::new();
-    config.insert("url".into(), api_url.into());
-    config.insert("headers".into(), /* ... */);
-}
-
-// .env file:
-// API_URL=https://api.production.com
-// API_TOKEN=prod_token_xyz
-// ENVIRONMENT=production
+# .env file:
+# API_URL=https://api.production.com
+# API_TOKEN=prod_token_xyz
+# ENVIRONMENT=production
 ```
 
 ### 5. Multi-Worker Connection Pool Management
 
-In multi-replica deployments, each replica creates its own database connection pools. This can exhaust database connections (8 replicas x 30 connections = 240).
+In multi-worker deployments (e.g., Gunicorn with 8 workers), each worker process creates its own database connection pools. This can exhaust database connections (8 workers x 30 connections = 240).
 
-**Solution**: Use `with_external_pool` to inject a shared pool per replica:
+**Solution**: Use `external_pool` to inject a shared pool per worker:
 
-```rust
-use axum::{routing::post, Router, Json, Extension};
-use sqlx::postgres::PgPoolOptions;
-use std::sync::Arc;
+```python
+import asyncpg
+import os
+from nexus import Nexus
+from kailash.nodes.data.async_sql import AsyncSQLDatabaseNode
 
-struct AppState {
-    db_pool: sqlx::PgPool,
-}
+app = Nexus(auto_discovery=False)
 
-#[tokio::main]
-async fn main() {
-    dotenv::dotenv().ok();
+# Create ONE pool at startup (shared across all handlers in this worker)
+_db_pool = None
 
-    // Create ONE pool per replica at startup
-    let pool = PgPoolOptions::new()
-        .min_connections(2)
-        .max_connections(10) // DB max connections / number of replicas
-        .connect(&std::env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+async def get_pool():
+    global _db_pool
+    if _db_pool is None:
+        _db_pool = await asyncpg.create_pool(
+            os.environ["DATABASE_URL"],
+            min_size=2,
+            max_size=10,  # DB max connections / number of workers
+        )
+    return _db_pool
 
-    let state = Arc::new(AppState { db_pool: pool });
-
-    let app = Router::new()
-        .route("/process", post(process_data))
-        .layer(Extension(state));
-
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-
-async fn process_data(
-    Extension(state): Extension<Arc<AppState>>,
-    Json(data): Json<serde_json::Value>,
-) -> Json<serde_json::Value> {
-    let row = sqlx::query_as::<_, (i64,)>(
-        "INSERT INTO results (data) VALUES ($1) RETURNING id",
+@app.handler("process_data", description="Process data with shared pool")
+async def process_data(value: str) -> dict:
+    pool = await get_pool()
+    node = AsyncSQLDatabaseNode(
+        name="processor",
+        database_type="postgresql",
+        query="INSERT INTO results (data) VALUES ($1) RETURNING id",
+        params=[value],
+        external_pool=pool,
     )
-    .bind(data["value"].as_str().unwrap_or_default())
-    .fetch_one(&state.db_pool)
-    .await
-    .unwrap();
+    try:
+        result = await node.execute_async()
+        return {"id": result["result"]["data"][0]["id"]}
+    finally:
+        await node.cleanup()
 
-    Json(serde_json::json!({ "id": row.0 }))
-}
+app.start()
 ```
 
 **Key Rules**:
 
-- The SDK **borrows** the pool -- it will NOT close it
-- `cleanup()` is safe -- only marks the adapter disconnected
-- Set `max_connections = max_db_connections / num_replicas`
-- Pool type must match database (PgPool for PostgreSQL, MySqlPool for MySQL, SqlitePool for SQLite)
+- The SDK **borrows** the pool — it will NOT close it
+- `cleanup()` is safe — only marks the adapter disconnected
+- Set `max_pool_size = max_db_connections / num_workers`
+- Pool type must match `database_type` (asyncpg.Pool for postgresql, aiomysql.Pool for mysql, aiosqlite.Connection for sqlite)
 
 ### 6. Production Error Handling
 
-```rust
-use kailash_core::workflow::WorkflowBuilder;
-use kailash_core::runtime::Runtime;
-use tracing::{info, error};
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import AsyncLocalRuntime
+import logging
 
-async fn execute_production_workflow(
-    runtime: &Runtime,
-    workflow: &Workflow,
-    inputs: ValueMap,
-) -> Result<serde_json::Value, serde_json::Value> {
-    info!("Starting workflow execution");
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-    match runtime.execute(workflow, inputs).await {
-        Ok(results) => {
-            info!("Workflow completed successfully");
-            Ok(serde_json::json!({ "status": "success", "results": results }))
-        }
-        Err(e) => {
-            error!(error = %e, "Workflow execution failed");
-            Err(serde_json::json!({
-                "status": "error",
-                "error": "execution_failed",
-                "message": e.to_string()
-            }))
-        }
-    }
-}
+async def execute_production_workflow(workflow_def, inputs):
+    """Production-ready workflow execution with error handling."""
+    runtime = AsyncLocalRuntime()
+
+    try:
+        logger.info("Starting workflow execution")
+        results = await runtime.execute_workflow_async(workflow_def, inputs)
+        logger.info("Workflow completed successfully")
+        return {"status": "success", "results": results}
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        return {"status": "error", "error": "validation_failed", "message": str(e)}
+
+    except ConnectionError as e:
+        logger.error(f"Connection error: {e}")
+        return {"status": "error", "error": "connection_failed", "message": str(e)}
+
+    except Exception as e:
+        logger.exception("Unexpected error during workflow execution")
+        return {"status": "error", "error": "internal_error", "message": "An unexpected error occurred"}
 ```
 
 ### 7. Health Check Endpoint
 
-```rust
-use axum::{routing::get, Router, Json};
+Nexus provides built-in health checks via `app.health_check()`. For custom checks:
 
-async fn health_check() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
+```python
+from nexus import Nexus
+
+app = Nexus(auto_discovery=False)
+
+@app.handler("health", description="Health check for load balancers")
+async def health_check() -> dict:
+    return {
         "status": "healthy",
         "service": "workflow-api",
         "version": "1.0.0"
-    }))
-}
-
-async fn readiness_check() -> (axum::http::StatusCode, Json<serde_json::Value>) {
-    // Check database, external APIs, etc.
-    match check_dependencies().await {
-        Ok(_) => (
-            axum::http::StatusCode::OK,
-            Json(serde_json::json!({ "status": "ready" })),
-        ),
-        Err(e) => (
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({ "status": "not_ready", "error": e.to_string() })),
-        ),
     }
-}
 
-let app = Router::new()
-    .route("/health", get(health_check))
-    .route("/ready", get(readiness_check));
+@app.handler("ready", description="Readiness check - verify dependencies")
+async def readiness_check() -> dict:
+    try:
+        # Check database, external APIs, etc.
+        return {"status": "ready"}
+    except Exception as e:
+        return {"status": "not_ready", "error": str(e)}
+
+app.start()
 ```
 
 ### 8. Production Logging Pattern
 
-```rust
-use tracing::{info, error, instrument};
-use tracing_subscriber::EnvFilter;
+```python
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": """
+import logging
+logger = logging.getLogger(__name__)
 
-fn init_logging() {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .json() // Structured JSON output
-        .init();
-}
-
-#[instrument(skip(inputs))]
-async fn process_data(inputs: &ValueMap) -> Result<ValueMap, NodeError> {
-    info!(input_count = inputs.len(), "Processing input");
-
-    let result = do_processing(inputs).await.map_err(|e| {
-        error!(error = %e, "Processing failed");
-        e
-    })?;
-
-    info!(output_count = result.len(), "Processing complete");
-    Ok(result)
-}
+try:
+    logger.info(f"Processing input: {input_data}")
+    result = process_data(input_data)
+    logger.info(f"Processing complete: {len(result)} items")
+except Exception as e:
+    logger.error(f"Processing failed: {e}", exc_info=True)
+    raise
+"""
+})
 ```
 
 ### 9. Graceful Shutdown
 
-```rust
-use tokio::signal;
+```python
+import signal
+import sys
+from kailash.api.workflow_api import WorkflowAPI
 
-#[tokio::main]
-async fn main() {
-    let app = build_router();
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+def signal_handler(sig, frame):
+    """Handle shutdown signals gracefully."""
+    logger.info("Shutdown signal received, cleaning up...")
+    # Clean up resources
+    sys.exit(0)
 
-    tracing::info!("Starting server on 0.0.0.0:8000");
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c().await.expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
-
-    tracing::info!("Shutdown signal received, cleaning up...");
-}
+# Start API
+api = WorkflowAPI(workflow.build())
+api.run(host="0.0.0.0", port=8000)
 ```
 
 ### 10. Docker Compose for Production
@@ -298,7 +262,6 @@ services:
       - ENVIRONMENT=production
       - API_URL=${API_URL}
       - API_TOKEN=${API_TOKEN}
-      - RUST_LOG=info
     env_file:
       - .env.production
     restart: unless-stopped
@@ -312,37 +275,38 @@ services:
 
 ### 11. Monitoring and Metrics
 
-```rust
-use metrics::{counter, histogram};
-use std::time::Instant;
+```python
+from prometheus_client import Counter, Histogram
+import time
 
-async fn execute_with_metrics(
-    runtime: &Runtime,
-    workflow: &Workflow,
-    inputs: ValueMap,
-) -> Result<ValueMap, NodeError> {
-    counter!("workflow_executions_total").increment(1);
-    let start = Instant::now();
+# Metrics
+workflow_executions = Counter('workflow_executions_total', 'Total workflow executions')
+workflow_errors = Counter('workflow_errors_total', 'Total workflow errors')
+workflow_duration = Histogram('workflow_duration_seconds', 'Workflow execution duration')
 
-    let result = runtime.execute(workflow, inputs).await;
+async def execute_with_metrics(workflow_def, inputs):
+    """Execute workflow with metrics tracking."""
+    workflow_executions.inc()
+    start_time = time.time()
 
-    let duration = start.elapsed().as_secs_f64();
-    histogram!("workflow_duration_seconds").record(duration);
-
-    if result.is_err() {
-        counter!("workflow_errors_total").increment(1);
-    }
-
-    result
-}
+    try:
+        runtime = AsyncLocalRuntime()
+        results = await runtime.execute_workflow_async(workflow_def, inputs)
+        return results
+    except Exception as e:
+        workflow_errors.inc()
+        raise
+    finally:
+        duration = time.time() - start_time
+        workflow_duration.observe(duration)
 ```
 
 ## Critical Production Rules
 
-1. **ALWAYS use tokio async runtime for HTTP servers**
+1. **ALWAYS use AsyncLocalRuntime for Docker/async production deployments**
 2. **NEVER commit secrets - use environment variables**
 3. **ALWAYS implement health checks**
-4. **ALWAYS use structured logging (tracing)**
+4. **ALWAYS use structured logging**
 5. **ALWAYS handle errors gracefully**
 6. **ALWAYS implement graceful shutdown**
 
@@ -356,7 +320,7 @@ async fn execute_with_metrics(
 ## Teaching Approach
 
 1. **Assess Environment**: Understand deployment target
-2. **Recommend Patterns**: axum/Nexus for HTTP servers, tokio for async runtime
+2. **Recommend Patterns**: AsyncLocalRuntime for Docker, LocalRuntime for CLI
 3. **Security First**: Environment variables, no hardcoded secrets
 4. **Operational Excellence**: Logging, monitoring, health checks
 5. **Test Before Deploy**: Validate in staging environment

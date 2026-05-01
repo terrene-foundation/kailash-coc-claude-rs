@@ -1,147 +1,60 @@
 ---
-name: nexus-production-deployment
-description: "Production deployment patterns: NexusConfig, presets, graceful shutdown, health checks, monitoring."
+skill: nexus-production-deployment
+description: Production deployment patterns, Docker, Kubernetes, scaling, and health checks
+priority: MEDIUM
+tags: [nexus, production, deployment, docker, kubernetes, scaling]
 ---
 
-# Nexus Production Deployment (kailash-rs)
+# Nexus Production Deployment
 
-Production-ready configuration and deployment patterns.
+## Shared Production Configuration
 
-## Minimal Production Setup
+These settings apply across all SDKs:
 
-```python
-import os
-from kailash.nexus import NexusApp, NexusConfig
-
-app = NexusApp(
-    config=NexusConfig(
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", "3000")),
-        graceful_shutdown_timeout_secs=30,
-    ),
+```
+app = Nexus(
+    api_port=8000,          # Or from PORT env var
+    auto_discovery=False,   # Manual registration only
+    preset="enterprise",    # Or configure individually
 )
 
-app.add_cors(origins=[os.environ["ALLOWED_ORIGIN"]])
-app.add_rate_limit(max_requests=100, window_secs=60)
+# Register workflows explicitly
+app.register("workflow-name", workflow.build())
 
-@app.handler("status", description="Platform status")
-async def status() -> dict:
-    return app.health_check()
+# Add auth plugin
+app.add_plugin(auth_plugin)
 
+# Start
 app.start()
 ```
 
-## Enterprise Setup with Preset
+## Production Checklist
 
-```python
-from kailash.nexus import NexusApp, NexusConfig, Preset
-
-app = NexusApp(
-    config=NexusConfig(
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", "3000")),
-        graceful_shutdown_timeout_secs=30,
-    ),
-    preset="enterprise",  # or Preset.enterprise()
-)
-
-app.add_cors(origins=["https://app.example.com"])
-app.add_rate_limit(max_requests=500, window_secs=60)
-
-# Register production handlers...
-
-app.start()
-```
-
-## Full Production Example with Auth
-
-```python
-import os
-from kailash.nexus import (
-    NexusApp, NexusConfig, Nexus, Preset,
-    NexusAuthPlugin, JwtConfig,
-)
-
-def create_production_app():
-    # Auth plugin
-    auth = NexusAuthPlugin.enterprise(
-        jwt=JwtConfig(
-            algorithm="RS256",
-            jwks_url=os.environ["JWKS_URL"],
-            jwks_cache_ttl=3600,
-            issuer=os.environ["JWT_ISSUER"],
-            audience=os.environ["JWT_AUDIENCE"],
-        ),
-        rbac={
-            "admin": ["*"],
-            "editor": ["read:*", "write:*"],
-            "viewer": ["read:*"],
-        },
-    )
-
-    app = NexusApp(
-        config=NexusConfig(
-            host="0.0.0.0",
-            port=int(os.getenv("PORT", "3000")),
-            graceful_shutdown_timeout_secs=30,
-            enable_api=True,
-            enable_cli=False,   # Disable CLI in production containers
-            enable_mcp=True,
-        ),
-        preset="enterprise",
-    )
-
-    app.add_cors(origins=[os.environ["ALLOWED_ORIGIN"]])
-    app.add_rate_limit(max_requests=500, window_secs=60)
-
-    # Register handlers...
-
-    return app
-
-app = create_production_app()
-app.start()
-```
+| Setting          | Value            | Why                                     |
+| ---------------- | ---------------- | --------------------------------------- |
+| `auto_discovery` | `False`          | Prevents blocking with DataFlow         |
+| Authentication   | Enabled          | Use NEXUS_ENV=production or auth plugin |
+| Rate limiting    | 100-5000 req/min | DoS protection                          |
+| Session backend  | Redis            | Multi-replica session sharing           |
+| Monitoring       | Enabled          | Health and performance metrics          |
+| Log format       | JSON             | Machine-parseable logs                  |
 
 ## Health Checks
 
-```python
-# Programmatic health check
+```
 health = app.health_check()
-print(health)
-
-# HTTP health endpoint (automatic)
-# GET http://localhost:3000/health
 ```
 
 ```bash
-# External health check
-curl http://localhost:3000/health
+curl http://localhost:8000/health
+# {"status": "healthy", "version": "...", "uptime": 3600, "workflows": 5}
 ```
 
-## Graceful Shutdown
+## Docker
 
-Configure shutdown timeout to allow in-flight requests to complete:
+### Dockerfile
 
-```python
-config = NexusConfig(
-    graceful_shutdown_timeout_secs=30,  # Wait up to 30s for requests to finish
-)
-```
-
-## Channel Selection for Production
-
-```python
-# Web service (API + MCP, no CLI)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=True)
-
-# Internal service (API only)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=False)
-
-# Agent platform (all channels)
-config = NexusConfig(enable_api=True, enable_cli=True, enable_mcp=True)
-```
-
-## Docker Deployment
+Adapt base image and build steps for your SDK language.
 
 ```dockerfile
 FROM python:3.11-slim
@@ -149,80 +62,127 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-EXPOSE 3000
-CMD ["python", "main.py"]
+ENV NEXUS_ENV=production
+EXPOSE 8000 3001
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+CMD ["python", "app.py"]
 ```
 
+### docker-compose.yml
+
 ```yaml
-# docker-compose.yml
+version: "3.8"
 services:
   nexus:
     build: .
-    ports:
-      - "3000:3000"
+    ports: ["8000:8000", "3001:3001"]
     environment:
-      - PORT=3000
-      - ALLOWED_ORIGIN=https://app.example.com
-      - JWKS_URL=https://auth.example.com/.well-known/jwks.json
-      - JWT_ISSUER=https://auth.example.com
-      - JWT_AUDIENCE=https://api.example.com
+      - NEXUS_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/nexus
+      - REDIS_URL=redis://redis:6379
+    depends_on: [postgres, redis]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
-      timeout: 10s
-      retries: 3
+    restart: unless-stopped
+  postgres:
+    image: postgres:15
+    environment: [POSTGRES_DB=nexus, POSTGRES_PASSWORD=password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+  redis:
+    image: redis:7-alpine
+    volumes: [redis_data:/data]
+volumes:
+  postgres_data:
+  redis_data:
 ```
 
-## Scaling
+## Kubernetes
 
-```bash
-# Multiple instances behind load balancer
-docker-compose up --scale nexus=3
+### Deployment + Service
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: nexus }
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: nexus } }
+  template:
+    metadata: { labels: { app: nexus } }
+    spec:
+      containers:
+        - name: nexus
+          image: nexus-app:latest
+          ports:
+            - { containerPort: 8000, name: api }
+            - { containerPort: 3001, name: mcp }
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: nexus-secrets, key: database-url }
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef: { name: nexus-secrets, key: redis-url }
+          resources:
+            requests: { memory: "512Mi", cpu: "500m" }
+            limits: { memory: "2Gi", cpu: "2000m" }
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata: { name: nexus }
+spec:
+  selector: { app: nexus }
+  ports: [{ name: api, port: 8000 }, { name: mcp, port: 3001 }]
+  type: LoadBalancer
 ```
 
-## Introspection (Low-Level Nexus)
+### HPA (Horizontal Pod Autoscaler)
 
-For production monitoring via the low-level Nexus:
-
-```python
-from kailash.nexus import Nexus
-
-nexus = Nexus(config=NexusConfig(port=3000))
-
-# Registration counts
-print(f"Workflows: {nexus.workflow_count()}")
-print(f"Handlers: {nexus.handler_count()}")
-print(f"Plugins: {nexus.plugin_count()}")
-
-# Lists
-print(f"Workflows: {nexus.list_workflows()}")
-print(f"Handlers: {nexus.get_registered_handlers()}")
-print(f"Plugins: {nexus.plugin_names()}")
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: nexus-hpa }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: nexus }
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
 ```
 
-## Key Differences from kailash-py
+## MUST NOT in Production
 
-| Aspect         | kailash-py                                 | kailash-rs                               |
-| -------------- | ------------------------------------------ | ---------------------------------------- |
-| Port config    | `Nexus(api_port=8000, api_host="0.0.0.0")` | `NexusConfig(host="0.0.0.0", port=3000)` |
-| Shutdown       | Not explicitly configurable                | `graceful_shutdown_timeout_secs`         |
-| Monitoring     | `Nexus(enable_monitoring=True)`            | Health check built-in                    |
-| Auto-discovery | `Nexus(auto_discovery=False)` for DataFlow | Not applicable                           |
+- Disable auth without API gateway protection
+- Disable rate limiting
+- Enable auto-discovery (causes blocking delay)
+- Hardcode secrets in source code
 
-## Checklist
+## CI/CD (GitHub Actions)
 
-1. Use `NexusConfig` with explicit host/port
-2. Configure `graceful_shutdown_timeout_secs`
-3. Add CORS with specific origins
-4. Enable rate limiting
-5. Use RS256 JWT for production auth
-6. Disable unused channels
-7. Set up health check monitoring
-8. Use environment variables for all configuration
-9. Deploy behind a reverse proxy for HTTPS
+```yaml
+name: Deploy
+on: { push: { branches: [main] } }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -t nexus-app:${{ github.sha }} .
+      - run: docker push registry.example.com/nexus-app:${{ github.sha }}
+      - run: kubectl set image deployment/nexus nexus=registry.example.com/nexus-app:${{ github.sha }} -n nexus
+```
 
-## Related Skills
-
-- [nexus-security-best-practices](nexus-security-best-practices.md) - Auth and security
-- [nexus-config-options](nexus-config-options.md) - Configuration reference
-- [nexus-multi-channel](nexus-multi-channel.md) - Channel selection
+See language-specific variant for full constructor parameter lists and SDK-specific production configuration.

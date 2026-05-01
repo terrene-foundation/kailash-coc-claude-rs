@@ -1,6 +1,6 @@
 ---
 name: decide-framework
-description: "Choose between Core SDK, DataFlow, Nexus, and Kaizen frameworks for your Kailash Rust project. Use when asking 'which framework', 'should I use Core SDK or DataFlow', 'Nexus vs Core', 'framework selection', or 'what's the difference between frameworks'."
+description: "Choose between Core SDK, DataFlow, Nexus, and Kaizen frameworks for your Kailash project. Use when asking 'which framework', 'should I use Core SDK or DataFlow', 'Nexus vs Core', 'framework selection', or 'what's the difference between frameworks'."
 ---
 
 # Framework Selection Guide
@@ -10,8 +10,9 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 > **Skill Metadata**
 > Category: `cross-cutting` (decision-support)
 > Priority: `CRITICAL`
+> SDK Version: `0.9.25+`
 > Related Skills: [`dataflow-quickstart`](../../02-dataflow/dataflow-quickstart.md), [`nexus-quickstart`](../../03-nexus/nexus-quickstart.md), [`kaizen-baseagent-template`](../../04-kaizen/kaizen-baseagent-template.md)
-> Related Subagents: ``decide-framework` skill` (complex architecture), `dataflow-specialist`, `nexus-specialist`, `kaizen-specialist`
+> Related Subagents: `framework-advisor` (complex architecture), `dataflow-specialist`, `nexus-specialist`, `kaizen-specialist`
 
 ## Quick Decision Matrix
 
@@ -27,151 +28,167 @@ Quick decision tree to choose the right Kailash framework: Core SDK, DataFlow, N
 
 ## Framework Comparison
 
-### Core SDK (`kailash-core` / `kailash-nodes`)
+### Core SDK (`pip install kailash`)
 
 **Foundational building blocks for workflow automation**
 
 **When to Choose:**
 
-- Building custom workflows and automation
-- Need fine-grained control over execution
-- Integrating with existing systems
-- Creating domain-specific solutions
-- Single-purpose workflows
+- ✅ Building custom workflows and automation
+- ✅ Need fine-grained control over execution
+- ✅ Integrating with existing systems
+- ✅ Creating domain-specific solutions
+- ✅ Single-purpose workflows
 
 **Key Components:**
 
 - WorkflowBuilder with 140+ nodes
-- Unified Runtime with `execute()` (async) and `execute_sync()` (sync)
+- LocalRuntime, ParallelRuntime, AsyncLocalRuntime
 - String-based node API
-- NodeRegistry for node discovery
+- MCP integration built-in
 
 **Example:**
 
-```rust
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use std::sync::Arc;
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-let mut builder = WorkflowBuilder::new();
-builder.add_node("CSVProcessorNode", "reader", ValueMap::from([
-    ("file_path".into(), Value::String("data.csv".into())),
-]));
-builder.add_node("JSONTransformNode", "process", ValueMap::from([
-    ("expression".into(), Value::String("@.length()".into())),
-]));
-builder.connect("reader", "data", "process", "data");
+workflow = WorkflowBuilder()
+workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
+workflow.add_node("PythonCodeNode", "process", {"code": "result = len(data)"})
+workflow.add_connection("reader", "data", "process", "data")
 
-let registry = Arc::new(NodeRegistry::default());
-let workflow = builder.build(&registry)?;
-
-let runtime = Runtime::new(RuntimeConfig::default(), registry);
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-### DataFlow (`kailash-dataflow`)
+### DataFlow (`pip install kailash-dataflow`)
 
 **Zero-config database framework built ON Core SDK**
 
 **When to Choose:**
 
-- Database operations are primary concern
-- Need automatic CRUD node generation
-- Want enterprise database features (pooling, transactions)
-- Building data-intensive applications
-- PostgreSQL or SQLite database
+- ✅ Database operations are primary concern
+- ✅ Need automatic CRUD node generation
+- ✅ Want enterprise database features (pooling, transactions)
+- ✅ Building data-intensive applications
+- ✅ PostgreSQL or SQLite database
 
 **Key Features:**
 
-- `ModelDefinition` generates 11 nodes per model
-- Compile-time query verification via sqlx
+- `@db.model` decorator generates 11 nodes per model
+- MongoDB-style query syntax
 - Multi-tenancy, audit trails, compliance
 - Auto-migration system
-- **NOT an ORM** -- workflow-based
+- **NOT an ORM** - workflow-based
 
 **Example:**
 
-```rust
-use kailash_dataflow::{DataFlow, ModelDefinition, FieldType};
+```python
+from dataflow import DataFlow
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-let user_model = ModelDefinition::new("User")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::String, |f| f.required())
-    .field("email", FieldType::String, |f| f.required().unique())
-    .build()?;
+db = DataFlow("postgresql://localhost/db")
 
-let df = DataFlow::new("postgres://localhost/db").await?;
-df.register_model(user_model)?;
-// Auto-generates: CreateUser, ReadUser, UpdateUser, DeleteUser,
-// ListUser, BulkCreateUser, CountUser, UpsertUser, etc.
+@db.model
+class User:
+    name: str
+    email: str
+
+# Automatically generates: UserCreateNode, UserReadNode, UserUpdateNode,
+# UserDeleteNode, UserListNode, UserBulkCreateNode, etc.
+
+workflow = WorkflowBuilder()
+workflow.add_node("UserCreateNode", "create", {
+    "name": "Alice",
+    "email": "alice@example.com"
+})
+
+runtime = LocalRuntime()
+results, run_id = runtime.execute(workflow.build())
 ```
 
-### Nexus (`kailash-nexus`)
+### Nexus (`pip install kailash-nexus`)
 
 **Multi-channel platform built ON Core SDK**
 
 **When to Choose:**
 
-- Need API + CLI + MCP access simultaneously
-- Want zero-configuration platform deployment
-- Building AI agent integrations (MCP)
-- Require unified session management
-- Enterprise platform deployment
+- ✅ Need API + CLI + MCP access simultaneously
+- ✅ Want zero-configuration platform deployment
+- ✅ Building AI agent integrations (MCP)
+- ✅ Require unified session management
+- ✅ Enterprise platform deployment
 
 **Key Features:**
 
-- Builder pattern: `NexusApp::builder().preset(Preset::Standard).build()?`
+- True zero-config: `Nexus()` with no parameters
 - Automatic workflow registration
 - Unified sessions across all channels
-- Tower middleware: CORS, rate limiting, auth, audit
-- Preset system: None, Lightweight, Standard, SaaS, Enterprise
+- Progressive enterprise enhancement
 
 **Example:**
 
-```rust
-use kailash_nexus::{NexusApp, Preset};
+```python
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-let app = NexusApp::builder()
-    .preset(Preset::Standard)
-    .build()?;
+app = Nexus()  # Zero configuration!
 
-app.register("my_handler", handler_fn).await?;
-app.serve("0.0.0.0:3000").await?;
-// Now accessible via API, CLI, and MCP
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "process", {
+    "code": "result = {'message': 'Hello!'}"
+})
+
+app.register("my_workflow", workflow.build())
+app.start()  # Now accessible via API, CLI, and MCP!
 ```
 
-### Kaizen (`kailash-kaizen`)
+### Kaizen (`pip install kailash-kaizen`)
 
 **AI agent framework built ON Core SDK**
 
 **When to Choose:**
 
-- Building AI agents with LLMs
-- Multi-agent coordination needed
-- Signature-based programming preferred
-- Multi-modal processing (vision/audio/text)
-- A2A protocol for semantic capability matching
+- ✅ Building AI agents with LLMs
+- ✅ Multi-agent coordination needed
+- ✅ Signature-based programming preferred
+- ✅ Multi-modal processing (vision/audio/text)
+- ✅ A2A protocol for semantic capability matching
 
 **Key Features:**
 
-- BaseAgent architecture with TAOD loop (think/act/observe/decide)
-- `#[derive(Signature)]` for structured I/O contracts
-- OrchestrationRuntime for multi-agent coordination
-- LLM providers: OpenAI, Anthropic, Google, Mistral, Cohere via raw HTTP
-- Cost tracking with atomic microdollar accounting
+- BaseAgent architecture with lazy initialization
+- Signature-based I/O (InputField/OutputField)
+- SharedMemoryPool for multi-agent coordination
+- Automatic A2A capability card generation
 
 **Example:**
 
-```rust
-use kailash_kaizen::{BaseAgent, AgentConfig, LlmClient};
+```python
+from kaizen.core.base_agent import BaseAgent
+from kaizen.signatures import Signature, InputField, OutputField
+from dataclasses import dataclass
 
-let config = AgentConfig::builder()
-    .provider("openai")
-    .model_from_env("OPENAI_MODEL")
-    .build()?;
+class QASignature(Signature):
+    question: str = InputField(description="User question")
+    answer: str = OutputField(description="Answer")
 
-let agent = BaseAgent::new(config);
-let response = agent.run("What is machine learning?").await?;
+@dataclass
+class QAConfig:
+    llm_provider: str = os.environ.get("LLM_PROVIDER", "openai")
+    model: str = os.environ.get("LLM_MODEL", "")
+
+class QAAgent(BaseAgent):
+    def __init__(self, config: QAConfig):
+        super().__init__(config=config, signature=QASignature())
+
+    def ask(self, question: str) -> dict:
+        return self.run(question=question)
+
+agent = QAAgent(QAConfig())
+result = agent.ask("What is machine learning?")
 ```
 
 ## Framework Combinations
@@ -180,95 +197,82 @@ let response = agent.run("What is machine learning?").await?;
 
 Perfect for database applications needing API, CLI, and MCP access:
 
-```rust
-use kailash_dataflow::{DataFlow, ModelDefinition, FieldType};
-use kailash_nexus::{NexusApp, Preset};
-use kailash_core::{WorkflowBuilder, NodeRegistry};
-use kailash_core::value::ValueMap;
-use std::sync::Arc;
+```python
+from dataflow import DataFlow
+from nexus import Nexus
+from kailash.workflow.builder import WorkflowBuilder
 
-// Step 1: Define models
-let user_model = ModelDefinition::new("User")
-    .field("id", FieldType::Integer, |f| f.primary_key())
-    .field("name", FieldType::String, |f| f.required())
-    .field("email", FieldType::String, |f| f.required().unique())
-    .build()?;
+# Step 1: Create Nexus with auto_discovery=False
+app = Nexus(auto_discovery=False)
 
-let df = DataFlow::new("postgres://localhost/db").await?;
-df.register_model(user_model)?;
+# Step 2: Create DataFlow (defaults work correctly)
+db = DataFlow("postgresql://localhost/db")
 
-// Step 2: Create Nexus app
-let app = NexusApp::builder()
-    .preset(Preset::Standard)
-    .build()?;
+@db.model
+class User:
+    name: str
+    email: str
 
-// Step 3: Register workflows using generated nodes
-let registry = Arc::new(NodeRegistry::default());
-let mut builder = WorkflowBuilder::new();
-builder.add_node("ListUser", "list_users", ValueMap::new());
-let workflow = builder.build(&registry)?;
+# Step 3: Register workflows
+workflow = WorkflowBuilder()
+workflow.add_node("UserListNode", "list_users", {})
+app.register("list_users", workflow.build())
 
-app.register("list_users", workflow).await?;
-app.serve("0.0.0.0:3000").await?;
+app.start()
 ```
 
 ### Core SDK + Kaizen (AI-Powered Workflows)
 
 Ideal for custom workflows with AI decision-making:
 
-```rust
-use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
-use kailash_core::value::{Value, ValueMap};
-use std::sync::Arc;
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kaizen.core.base_agent import BaseAgent
 
-let mut builder = WorkflowBuilder::new();
-builder.add_node("LLMNode", "ai_process", ValueMap::from([
-    ("provider".into(), Value::String("openai".into())),
-    ("model".into(), Value::String(
-        std::env::var("OPENAI_MODEL").unwrap_or_default().into()
-    )),
-]));
+# Kaizen agent for AI processing
+agent = QAAgent(config)
 
-let registry = Arc::new(NodeRegistry::default());
-let workflow = builder.build(&registry)?;
-
-let runtime = Runtime::new(RuntimeConfig::default(), registry);
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
+# Core SDK workflow for orchestration
+workflow = WorkflowBuilder()
+workflow.add_node("PythonCodeNode", "ai_process", {
+    "code": "import os; from openai import OpenAI; client = OpenAI(); resp = client.chat.completions.create(model=os.environ['LLM_MODEL'], messages=messages); result = {'response': resp.choices[0].message.content}",
+    "input_variables": ["messages"]
+})
 ```
 
 ## Decision Flowchart
 
 ```
 START: What's your primary use case?
-  |
-  |-- Database-heavy application?
-  |     YES -> DataFlow
-  |     |
-  |     +-- Need multi-channel access (API/CLI/MCP)?
-  |          YES -> DataFlow + Nexus
-  |          NO -> DataFlow alone
-  |
-  |-- Multi-channel platform needed?
-  |     YES -> Nexus
-  |     |
-  |     +-- Need database operations?
-  |          YES -> DataFlow + Nexus
-  |          NO -> Nexus alone
-  |
-  |-- AI agent system?
-  |     YES -> Kaizen
-  |     |
-  |     +-- Need custom workflow orchestration?
-  |          YES -> Kaizen + Core SDK
-  |          NO -> Kaizen alone
-  |
-  +-- Custom workflows/integrations?
-       YES -> Core SDK
+  │
+  ├─ Database-heavy application?
+  │    YES → DataFlow
+  │    │
+  │    └─ Need multi-channel access (API/CLI/MCP)?
+  │         YES → DataFlow + Nexus
+  │         NO → DataFlow alone
+  │
+  ├─ Multi-channel platform needed?
+  │    YES → Nexus
+  │    │
+  │    └─ Need database operations?
+  │         YES → DataFlow + Nexus
+  │         NO → Nexus alone
+  │
+  ├─ AI agent system?
+  │    YES → Kaizen
+  │    │
+  │    └─ Need custom workflow orchestration?
+  │         YES → Kaizen + Core SDK
+  │         NO → Kaizen alone
+  │
+  └─ Custom workflows/integrations?
+       YES → Core SDK
 ```
 
 ## When to Escalate to Subagent
 
-Use ``decide-framework` skill` subagent when:
+Use `framework-advisor` subagent when:
 
 - Complex multi-framework architecture needed
 - Evaluating migration paths between frameworks
@@ -277,30 +281,43 @@ Use ``decide-framework` skill` subagent when:
 
 Use framework specialists when you've chosen:
 
-- **DataFlow** -> `dataflow-specialist` for implementation
-- **Nexus** -> `nexus-specialist` for deployment
-- **Kaizen** -> `kaizen-specialist` for AI patterns
+- **DataFlow** → `dataflow-specialist` for implementation
+- **Nexus** → `nexus-specialist` for deployment
+- **Kaizen** → `kaizen-specialist` for AI patterns
+
+## Within-Framework Layer Selection
+
+After choosing your framework, choose your abstraction layer. See `rules/framework-first.md`.
+
+**Rule of thumb**: Start with the Engine layer. Drop to Primitives only when the Engine can't express your need.
+
+| Framework | Start here (Engine) | Drop to this (Primitives) when...         |
+| --------- | ------------------- | ----------------------------------------- |
+| DataFlow  | `db.express.*`      | Multi-step workflows, custom transactions |
+| Nexus     | `Nexus()`           | Custom protocols, non-standard channels   |
+| Kaizen    | `Delegate`          | Custom execution loops, non-TAOD agents   |
+| PACT      | `GovernanceEngine`  | Custom envelope patterns                  |
 
 ## Documentation References
 
 ### Framework Documentation
 
-- **Workspace Architecture**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Workspace Architecture section
-- **Core SDK**: `crates/kailash-core/` -- Node trait, WorkflowBuilder, Runtime
-- **DataFlow**: `crates/kailash-dataflow/` -- ModelDefinition, sqlx, QueryInterceptor
-- **Nexus**: `crates/kailash-nexus/` -- axum handlers, tower middleware, presets
-- **Kaizen**: `crates/kailash-kaizen/` -- BaseAgent, TAOD loop, OrchestrationRuntime
+- **Core SDK Overview**: [`CLAUDE.md` (lines 12-17)](../../../../CLAUDE.md#L12-L17)
+- **DataFlow Overview**: [`CLAUDE.md` (lines 19-25)](../../../../CLAUDE.md#L19-L25)
+- **Nexus Overview**: [`CLAUDE.md` (lines 27-33)](../../../../CLAUDE.md#L27-L33)
+- **Kaizen Overview**: [`CLAUDE.md` (lines 35-41)](../../../../CLAUDE.md#L35-L41)
+- **Framework Relationships**: [`CLAUDE.md` (lines 43-46)](../../../../CLAUDE.md#L43-L46)
 
 ### Detailed Guides
 
-- **Skills**: `.claude/skills/01-core/`, `.claude/skills/02-dataflow/`, `.claude/skills/03-nexus/`, `.claude/skills/04-kaizen/`
-- **Examples**: `examples/` directory
+- **Framework Advisor**: [`.claude/agents/implementation/pattern-expert.md`](../../../../.claude/agents/implementation/pattern-expert.md)
 
 ## Quick Tips
 
-- **Start with Core SDK**: If unsure, start with Core SDK and add frameworks later
-- **Frameworks stack**: DataFlow/Nexus/Kaizen are built ON Core SDK, not replacements
-- **Mix and match**: You can use multiple frameworks in the same project
-- **Consult specialists**: Use framework-specific subagents for detailed implementation
+- 💡 **Start with Core SDK**: If unsure, start with Core SDK and add frameworks later
+- 💡 **Frameworks stack**: DataFlow/Nexus/Kaizen are built ON Core SDK, not replacements
+- 💡 **Mix and match**: You can use multiple frameworks in the same project
+- 💡 **Zero-config first**: Try DataFlow/Nexus zero-config before adding complexity
+- 💡 **Consult specialists**: Use framework-specific subagents for detailed implementation
 
 <!--Trigger Keywords: which framework, should I use Core SDK or DataFlow, Nexus vs Core, framework selection, what's the difference between frameworks, choose framework, Core SDK vs DataFlow, DataFlow vs Nexus, framework comparison, best framework for, framework decision -->

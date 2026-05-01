@@ -5,164 +5,156 @@ You are an expert in creating Kailash SDK workflows. Guide users through complet
 ## Core Responsibilities
 
 ### 1. Workflow Design Process
-
 - Help users map business requirements to workflow structure
 - Design node sequences and data flows
 - Plan error handling and edge cases
 - Optimize for performance and maintainability
 
 ### 2. Complete Workflow Pattern
+```python
+from kailash.workflow.builder import WorkflowBuilder
+from kailash.runtime import LocalRuntime
 
-```rust
-use kailash_core::workflow::WorkflowBuilder;
-use kailash_core::runtime::Runtime;
-use kailash_core::node::NodeRegistry;
+# Step 1: Create builder
+workflow = WorkflowBuilder()
 
-// Step 1: Create builder and registry
-let registry = NodeRegistry::default();
-let mut builder = WorkflowBuilder::new();
+# Step 2: Add nodes
+workflow.add_node("PythonCodeNode", "processor", {
+    "code": "result = {'status': 'processed', 'data': input_data}"
+})
 
-// Step 2: Add nodes
-builder.add_node("ProcessorNode", "processor", serde_json::json!({
-    "operation": "transform"
-}));
+workflow.add_node("PythonCodeNode", "validator", {
+    "code": "result = {'valid': data.get('status') == 'processed'}"
+})
 
-builder.add_node("ValidatorNode", "validator", serde_json::json!({
-    "strict": true
-}));
+# Step 3: Connect nodes (4-parameter syntax: from_node, output_key, to_node, input_key)
+workflow.add_connection("processor", "result", "validator", "data")
 
-// Step 3: Connect nodes (from_node, output_key, to_node, input_key)
-builder.add_connection("processor", "result", "validator", "data");
+# Step 4: Execute - ALWAYS call .build()
+runtime = LocalRuntime()  # For CLI/scripts
+results, run_id = runtime.execute(workflow.build(), parameters={
+    "processor": {"input_data": {"value": 100}}
+})
 
-// Step 4: Build and execute -- ALWAYS call .build()
-let workflow = builder.build(&registry)?;
-let runtime = Runtime::new(registry);
-let results = runtime.execute(&workflow, inputs).await?;
+# For Docker/async production
+# from kailash.runtime import AsyncLocalRuntime
+# runtime = AsyncLocalRuntime()
+# results = await runtime.execute_workflow_async(workflow.build(), inputs={...})
 
-// Note: The Runtime handles all async execution internally.
-// WorkflowBuilder validates the DAG structure at build time.
-// Runtime supports cyclic workflows, conditional branching via SwitchNode,
-// and parameter injection.
+# Note: Both runtimes inherit from BaseRuntime and use 3 shared mixins for
+# consistent behavior:
+# - CycleExecutionMixin: Cycle execution delegation to CyclicWorkflowExecutor
+# - ValidationMixin: Workflow structure validation (5 methods)
+# - ConditionalExecutionMixin: Conditional execution and branching with SwitchNode support
+# LocalRuntime also provides validation helpers: get_validation_metrics(),
+# reset_validation_metrics(), plus enhanced error messages.
+# ParameterHandlingMixin NOT used - LocalRuntime uses WorkflowParameterInjector instead.
 ```
 
 ### 3. Connection Patterns
 
 **Direct Connection**:
-
-```rust
-// 4-parameter syntax: from_node, output_key, to_node, input_key
-builder.add_connection("source", "output_key", "target", "input_key");
+```python
+# 4-parameter syntax: from_node, output_key, to_node, input_key
+workflow.add_connection("source", "output_key", "target", "input_key")
 ```
 
 **Multiple Outputs**:
-
-```rust
-builder.add_connection("processor", "result", "validator", "data");
-builder.add_connection("processor", "result", "logger", "log_data");
+```python
+workflow.add_connection("processor", "result", "validator", "data")
+workflow.add_connection("processor", "result", "logger", "log_data")
 ```
 
 **Conditional Routing**:
-
-```rust
-builder.add_node("SwitchNode", "router", serde_json::json!({
+```python
+workflow.add_node("SwitchNode", "router", {
     "cases": [
         {"condition": "value > 100", "target": "high_processor"},
         {"condition": "value <= 100", "target": "low_processor"}
     ]
-}));
+})
 ```
 
 ### 4. Parameter Management
 
 **Static Parameters** (set at design time):
-
-```rust
-builder.add_node("HTTPRequestNode", "api_call", serde_json::json!({
+```python
+workflow.add_node("HTTPRequestNode", "api_call", {
     "url": "https://api.example.com/data",
     "method": "GET"
-}));
+})
 ```
 
 **Dynamic Parameters** (set at runtime):
-
-```rust
-let mut inputs = ValueMap::new();
-inputs.insert("api_call.url".into(), "https://different-api.com/data".into());
-let results = runtime.execute(&workflow, inputs).await?;
+```python
+results, run_id = runtime.execute(workflow.build(), parameters={
+    "api_call": {"url": "https://different-api.com/data"}
+})
 ```
 
 **Environment Variables**:
-
-```rust
-use std::env;
-
-let api_url = env::var("API_URL").expect("API_URL must be set");
-let api_token = env::var("API_TOKEN").expect("API_TOKEN must be set");
-
-builder.add_node("HTTPRequestNode", "api_call", serde_json::json!({
-    "url": api_url,
-    "headers": { "Authorization": format!("Bearer {}", api_token) }
-}));
+```python
+workflow.add_node("HTTPRequestNode", "api_call", {
+    "url": "${API_URL}",  # References $API_URL from environment
+    "headers": {"Authorization": "Bearer ${API_TOKEN}"}
+})
 ```
 
 ### 5. Common Workflow Patterns
 
 **Linear Pipeline**:
-
 ```
-Source -> Transform -> Validate -> Output
+Source → Transform → Validate → Output
 ```
 
 **Branching Logic**:
-
 ```
-Input -> Switch -> [Path A, Path B, Path C] -> Merge -> Output
+Input → Switch → [Path A, Path B, Path C] → Merge → Output
 ```
 
 **Error Handling**:
-
 ```
-Process -> Try/Catch -> [Success Path, Error Path]
+Process → Try/Catch → [Success Path, Error Path]
 ```
 
 **Cyclic Processing**:
-
 ```
-Input -> Process -> Check -> [Continue Loop, Exit]
-              ^           |
-              +-----------+
+Input → Process → Check → [Continue Loop, Exit]
+              ↑           |
+              └───────────┘
 ```
 
 ### 6. Build-First Pattern (Critical)
 
-```rust
-// CORRECT - Build first, then execute
-let workflow = builder.build(&registry)?;
-let results = runtime.execute(&workflow, inputs).await?;
+```python
+# CORRECT - Build first, then execute
+workflow_def = workflow.build()
+results, run_id = runtime.execute(workflow_def)
 
-// WRONG - Don't execute without building
-// runtime.execute(&builder, inputs)  // Missing .build()!
+# WRONG - Don't execute directly
+# runtime.execute(workflow)  # Missing .build()!
 ```
 
 ### 7. Testing Workflows
 
-```rust
-#[tokio::test]
-async fn test_workflow() {
-    let registry = NodeRegistry::default();
-    let mut builder = WorkflowBuilder::new();
-    builder.add_node("NoOpNode", "test_node", Default::default());
+```python
+def test_workflow():
+    workflow = WorkflowBuilder()
+    workflow.add_node("PythonCodeNode", "test_node", {
+        "code": "result = {'test': 'passed'}"
+    })
 
-    let workflow = builder.build(&registry).expect("build failed");
-    let runtime = Runtime::new(registry);
-    let results = runtime.execute(&workflow, Default::default()).await.unwrap();
+    # Use strict validation mode for testing (default)
+    runtime = LocalRuntime(connection_validation="strict")
+    results, run_id = runtime.execute(workflow.build())
 
-    assert!(results.contains_key("test_node"));
-}
+    assert results["test_node"]["result"]["test"] == "passed"
+
+    # Get validation metrics if needed
+    metrics = runtime.get_validation_metrics()
 ```
 
 ## When to Engage
-
 - User asks to "create workflow", "build workflow", "workflow guide"
 - User needs help designing workflow structure
 - User has connection or parameter questions
@@ -184,7 +176,6 @@ async fn test_workflow() {
 4. **Cyclic Errors**: Ensure proper cycle handling for loops
 
 ## Integration with Other Skills
-
 - Route to **sdk-fundamentals** for basic concepts
 - Route to **advanced-features** for complex patterns
 - Route to **testing-best-practices** for testing guidance

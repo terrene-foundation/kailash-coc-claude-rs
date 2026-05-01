@@ -119,10 +119,11 @@ Merges loom/ source + variant overlays into USE template repos. This is a **merg
 
 **Process**:
 
-1. **Read manifest** (`sync-manifest.yaml`) for tiers, variants, exclusions
+1. **Read manifest** (`sync-manifest.yaml`) for tiers, variants, exclusions (`exclude:`, `use_exclude:`)
 2. **Inventory the template** — read what's currently there before computing changes
 3. **Compute expected state** for the target (py or rs):
    - Global codegen-content from `.claude/`: `agents/`, `commands/`, `rules/`, `skills/`, `guides/`
+   - **Apply `use_exclude:`** — paths listed there are BUILD-only (cross-SDK parity, sibling-SDK awareness, loom-internal mechanism guides). USE-template emission MUST skip them. Symmetric with `build_exclude:` for `/sync-to-build`. `/sync-to-build` ignores `use_exclude:`.
    - **Global runtime infrastructure from `.claude/` (MUST include — easily missed):**
      - `.claude/hooks/**` (canonical since v2.9.1) — every `*.js` plus the `lib/` sibling helpers
      - `.claude/bin/**` — `resolve-template.js`, `emit.mjs`, and any other resolver/emitter binaries
