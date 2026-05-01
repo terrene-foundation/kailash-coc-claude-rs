@@ -1,8 +1,8 @@
 {
-  "version": "2.11.2",
+  "version": "2.12.0",
   "type": "coc-source",
   "description": "COC artifact source of truth (codegen)",
-  "released": "2026-04-30",
+  "released": "2026-05-01",
   "upstream": {
     "name": "co",
     "repo": "terrene-foundation/co",
@@ -10,6 +10,20 @@
     "version_url": "https://raw.githubusercontent.com/terrene-foundation/co/main/.claude/VERSION"
   },
   "changelog": [
+    {
+      "version": "2.12.0",
+      "date": "2026-05-01",
+      "summary": "MINOR: codify spec-accuracy rule from loom issue #18 (origin: 2026-04-21 tpc/tpc_cash_treasury-scenario /redteam audit surfacing 8 phantom Databricks-accessor citations + 6 plugged Monte-Carlo volatility constants). Rule blocks gap-annotated specs (Phase-1/Phase-2, Promised/Current, Target/Fallback, scaffold-now-wire-later framings) — every cited symbol MUST resolve via grep / ast.parse / find at merge time; work trackers MUST live in workspaces/todos/ or GH issues, never inline in spec content; spec extension follows merged code (spec-first BLOCKED, code-first-without-spec also BLOCKED per specs-authority.md Rule 5). STRUCTURAL CLASSIFICATION CHOICE: rule shipped as `priority: 10, scope: path-scoped` (paths: specs/**, workspaces/**/specs/**, 02-plans/**, briefs/**) — NOT priority:0 baseline as the issue framing suggested. Rationale: (a) per `rule-authoring.md` MUST Rule 5, path-scoped is the default — baseline requires justification; (b) failure mode (phantom citations) only fires when editing spec files, exactly the trigger condition for path-scoping; (c) sister rule `specs-authority.md` is already path-scoped at the same paths, spec-accuracy is its content sibling; (d) avoids the rs-axis cap-headroom trap entirely (post-2.11.2 rs-axis emission was 59,879 B / 61,440 B block_cap, 2.54% headroom — adding a CRIT-baseline rule would have pushed AGENTS.md/GEMINI.md emission into BLOCK without a CRIT demotion first). Path-scoped classification means baseline emission stays at 59,879 B (verified — 10 CRIT rules unchanged). Issue's reference to `data-availability.md` as a precedent is from the downstream reporter's mental model — that file does not exist in loom canonical (verified). Rule body is 196 lines (under 200-line rule-authoring guidance), 10,581 B raw. Companion `guides/rule-extracts/spec-accuracy.md` carries the full 2026-04-21 phantom-Databricks post-mortem, the gap-tracker migration playbook, the BLOCKED-rationalization with-Why list, the relationship-to-other-rules table, and the full 3-sweep audit protocol (split-state framing scan + citation resolution + future-tense scan).",
+      "changes": [
+        "NEW RULE: .claude/rules/spec-accuracy.md (196 LOC, 10,581 B raw) — priority:10 / scope:path-scoped — paths: specs/**, specs/_index.md, workspaces/**/specs/**, 02-plans/**, briefs/**. Six MUST clauses (citations resolve, no split-state, out-of-scope is not a gap, work trackers outside specs, incremental extension, historical change logs permitted past-tense), five MUST NOT (phantom citations, Phase-1/2 framings, gap-honesty as virtue, permanent gap trackers, spec for unimplemented behavior), three structural carve-outs (out-of-scope sections, append-only change logs, reserved-for-future-work numbering anchors), audit protocol with 2-sweep grep set.",
+        "NEW EXTRACT: .claude/guides/rule-extracts/spec-accuracy.md — full 2026-04-21 phantom-Databricks post-mortem (8 cited accessors, 0 implemented; 6 plugged Monte-Carlo volatility constants), 4-step migration playbook for existing gap trackers, 8 BLOCKED rationalizations enumerated with Why for each, relationship-to-other-rules cross-reference table (zero-tolerance.md Rule 2, specs-authority.md, autonomous-execution.md, rule-authoring.md), full 3-sweep audit protocol (extends rule body's 2-sweep with future-tense scan).",
+        "MANIFEST: sync-manifest.yaml::tiers.co += `rules/spec-accuracy.md` (ships to all USE templates as path-scoped CO rule alongside specs-authority.md and rule-authoring.md).",
+        "DOC: CLAUDE.md Rules Index += `rules/spec-accuracy.md` row labelled 'Spec accuracy (no phantom citations / no Phase-1/2 framings)' under CO category, immediately after specs-authority.md.",
+        "BASELINE TELEMETRY (verified post-add): rs-axis codex AGENTS.md unchanged at 59,879 B [WARN tier, 1,561 B headroom]; rs-axis gemini GEMINI.md unchanged at 59,888 B [WARN tier, 1,552 B headroom]; py-axis codex AGENTS.md unchanged at 58,058 B. Path-scoped rule contributes zero baseline emission — cap-headroom trap fully side-stepped.",
+        "FUTURE WORK FLAG (carry into next session): rs-axis cap-headroom trap remains at 2.54% post-add (no regression, no improvement). Cleanest demotion candidate identified: `cross-cli-parity.md` (3,064 B emission, structurally loom-only meta-authoring rule — same Phase F4 precedent that demoted `rule-authoring.md` and `variant-authoring.md` from CRIT-baseline to HIGH path-scoped on 2026-04-22). Demotion would free ~3 KB headroom and is independent of the spec-accuracy add — file separately as 2.13.0 single-purpose cycle.",
+        "ISSUE: closes loom #18 with structural-classification deviation note (path-scoped vs reporter's baseline framing) referenced in PR / issue comment."
+      ]
+    },
     {
       "version": "2.11.2",
       "date": "2026-04-30",
