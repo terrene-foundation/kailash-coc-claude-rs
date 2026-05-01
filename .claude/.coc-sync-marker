@@ -1,68 +1,99 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-04-30T05:50:00Z
+timestamp: 2026-04-30T01:13:00Z
 source: loom/.claude
-loom_version: 2.11.0
-loom_source_sha: 068415b
+loom_version: 2.11.2
+loom_source_sha: 25a0501
 variant: rs
 clis: ["claude"]
-template_version: 2.11.0
-sync_kind: USE-template-leakage-remediation
+template_version: 2.11.2
+sync_kind: cap-headroom-restoration + use_obsoleted-purge
+
 stats:
-  updated: 38
-  created: 1
-  unchanged: 4
-  composed: 6           # rs slot-keyed overlays composed via compose.mjs (agents, zero-tolerance, testing, patterns, framework-first, ci-runners)
-  preserved: ["CLAUDE.md", "README.md", "pyproject.toml", "Gemfile"]
-  files_added_this_sync:
-    - .claude/rules/upstream-issue-hygiene.md   # new CRIT-baseline rule (priority:0)
-  files_updated_this_sync:
-    rules: 20             # 14 globals (incl 2 composed-changed) + 6 composed (4 unchanged-after-composition)
-    skills: 16
-    agents: 2
-    rule_extracts: 4
-  files_purged: []        # no obsoleted entries in 2.11.0 (use_exclude is filter-on-sync, not purge)
-  manifest_changes:
-    use_exclude_added:
-      - rules/cross-sdk-inspection.md
-      - skills/30-claude-code-patterns/sdk-upstream-donation.md
-      - guides/co-setup/**
-      - guides/deterministic-quality/**
-      - guides/automated-maintenance.md
-      - rules/documentation.md
-      - guides/rule-extracts/independence-rs.md
-      - guides/rule-extracts/git.md
-flagged_pre_existing_use_excluded:
-  description: |
-    Files now declared use_exclude in 2.11.0 that already exist at the
-    target from prior sync cycles. NOT auto-deleted (use_exclude is a
-    filter-on-this-sync, not an obsoletion). Decide separately whether
-    to add to obsoleted: in a follow-up sync.
-  paths:
+  updated: 2                 # rules/git.md (trim) + .claude/VERSION
+  created: 1                 # .claude/.coc-obsoleted (NEW manifest)
+  unchanged: 0               # all other artifacts already at 2.11.0 form (only git.md changed loom-side)
+  composed: 0                # no slot-keyed variant changes since 2.11.0 (rules/git.md is global-only)
+  preserved: ["CLAUDE.md", "README.md", "pyproject.toml", "Gemfile", "LICENSE", "NOTICE", "SECURITY.md", "CONTRIBUTING.md", "conftest.py", "spec/", "scripts/", "tests/", "uv.lock", "workspaces/"]
+  files_purged:              # Step 4.5 — UNION(obsoleted, use_obsoleted) intersected with target presence
     - .claude/rules/documentation.md
     - .claude/skills/30-claude-code-patterns/sdk-upstream-donation.md
-    - .claude/guides/co-setup/         # directory
-    - .claude/guides/deterministic-quality/   # directory
+    - .claude/guides/co-setup/
+    - .claude/guides/deterministic-quality/
     - .claude/guides/rule-extracts/git.md
     - .claude/guides/rule-extracts/independence-rs.md
-allowlist_refresh:
-  appended: 1
-  new_entries:
-    - .claude/commands/cc-audit.md
+
+  files_updated_this_sync:
+    rules: 1                 # rules/git.md trimmed: 8673 B -> 7098 B raw (Discipline section abridgement)
+    version: 1               # .claude/VERSION 2.11.0 -> 2.11.2
+
+  files_added_this_sync:
+    - .claude/.coc-obsoleted   # 13 + 7 = 20 paths (obsoleted UNION use_obsoleted), 34-line manifest
+
+  baselines_emitted:
+    cc: 0                     # CLAUDE.md preserved per Step 7
+    codex: 0                  # CC-only target — no AGENTS.md emission for legacy rs-claude
+    gemini: 0                 # CC-only target — no GEMINI.md emission for legacy rs-claude
+
+  baseline_emission_bytes:
+    note: N/A — CC-only target (clis [claude]); Step 6.5 not applicable
+
+  cli_artifacts:
+    note: N/A — CC-only target; Step 6.6 not applicable
+
+manifest_changes_distributed:
+  use_obsoleted_block_NEW:
+    - .claude/rules/documentation.md
+    - .claude/skills/30-claude-code-patterns/sdk-upstream-donation.md
+    - .claude/guides/co-setup/
+    - .claude/guides/deterministic-quality/
+    - .claude/guides/automated-maintenance.md
+    - .claude/guides/rule-extracts/git.md
+    - .claude/guides/rule-extracts/independence-rs.md
+  per_rule_size_budget_added:
+    - "upstream-issue-hygiene.md: 4000"   # validator-14 CRIT-budget gap closed
+  rule_trims:
+    - rules/git.md             # Discipline section: Issue Closure + Pre-Commit Hook Workarounds + Commit-Message Claim Accuracy collapsed into bullet list
+
 verification:
   hooks_in_settings_json: OK
   scripts_hooks_remnants: 0
   scripts_dir_present: false
   claude_md_preserved: true
-  baseline_emission: N/A         # CC-only target; no AGENTS.md/GEMINI.md emission
+  use_obsoleted_purge_complete: true   # all 6 pre-existing paths removed (7th, automated-maintenance.md, was already absent)
+  coc_obsoleted_emitted: true
+  baseline_emission: N/A               # CC-only target
+
+allowlist_refresh:
+  appended: 0
+  reason: |
+    No new files containing src/kailash/ references were distributed
+    in this sync (rules/git.md trim is non-SDK-pin-related); allowlist
+    is unchanged from 2.11.0 sync.
+
 notes: |
-  Loom 2.11.0 USE-template downstream-context leakage remediation. New
-  CRIT-baseline rule rules/upstream-issue-hygiene.md added (priority:0,
-  scope:baseline, ~10KB). Anonymized ~80 leakage sites across rules /
-  skills / agents / extracts (Origin lines, Cross-SDK footers, absolute
-  paths replaced with placeholders). 8 BUILD-only artifacts moved into
-  the new use_exclude: tier — 6 of them already exist in this target
-  from prior cycles and are FLAGGED above; not auto-purged. SDK pin
-  (kailash-enterprise>=3.23.0) was already current; no update needed.
-  Pre-existing artifact-flow.md and other files showed minor linter-
-  applied trailing-whitespace adjustments — left as-is per intentional
-  modifications.
+  Loom 2.11.2 sync-hygiene patch. Two distributed changes:
+
+  (1) rules/git.md trimmed: Discipline section collapsed three
+  secondary subsections (Issue Closure / Pre-Commit Hook Workarounds /
+  Commit-Message Claim Accuracy) into a tight bullet list. All
+  load-bearing MUST clauses preserved + 1 DO/DO-NOT example per clause
+  + Why preserved. Full extended examples routed to
+  guides/rule-extracts/git.md (which itself remains use_excluded —
+  BUILD-only authoring context per 2.11.0 classification). Raw size:
+  8673 B -> 7098 B (-1575 B, -18%).
+
+  (2) NEW manifest tier use_obsoleted: realized — 7 paths previously
+  flagged as pre-existing-but-use_excluded in the 2.11.0 sync marker
+  are now actively purged from this target AND propagated to
+  downstream consumers via .claude/.coc-obsoleted. The .coc-obsoleted
+  file unions the 13-entry universal obsoleted: list and the 7-entry
+  use_obsoleted: list into one 34-line manifest the next downstream
+  /sync will read.
+
+  SDK pin (kailash-enterprise>=3.23.0) confirmed current against the
+  kailash-rs BUILD repo Cargo workspace at version 3.23.0; no bump
+  required.
+
+  Per-CLI baseline emission not applicable to this CC-only legacy
+  target (clis [claude]). Cap-headroom restoration applies to the
+  multi-CLI sibling kailash-coc-rs/ only — see that target's marker.

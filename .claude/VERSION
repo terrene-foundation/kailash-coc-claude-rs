@@ -1,5 +1,5 @@
 {
-  "version": "2.11.0",
+  "version": "2.11.2",
   "type": "coc-source",
   "description": "COC artifact source of truth (codegen)",
   "released": "2026-04-30",
@@ -10,6 +10,28 @@
     "version_url": "https://raw.githubusercontent.com/terrene-foundation/co/main/.claude/VERSION"
   },
   "changelog": [
+    {
+      "version": "2.11.2",
+      "date": "2026-04-30",
+      "summary": "PATCH: cap-headroom restoration + new `use_obsoleted:` manifest tier (active-purge complement of use_exclude:). (1) Trimmed `rules/git.md` § Discipline section: collapsed three secondary subsections (Issue Closure / Pre-Commit Hook Workarounds / Commit-Message Claim Accuracy) into a tight bullet list — preserves the load-bearing MUST clauses + Why and routes full DO/DO NOT examples to `guides/rule-extracts/git.md`. Drop ~1.0 KB raw / ~0.8 KB post-abridgement. git.md emission: 6,431 B → 5,627 B (within +30% of 4,400 B budget). (2) Added per-rule budget entry `upstream-issue-hygiene.md: 4000` to sync-manifest.yaml::cli_variants.context/root.md.codex.abridgement_protocol.per_rule_size_budget_bytes — clears the validator-14 'CRIT rule requires a budget' warning. (3) AGENTS.md / GEMINI.md emission headroom restored from ~4.2% to ~5.5% (3,382 B / 61,440 B block_cap on rs language axis). Still WARN tier (steady-state per v6 §2.2) but next CRIT addition has more buffer. (4) NEW manifest tier `use_obsoleted:` symmetric with `use_exclude:` — declares paths to actively purge from USE templates AND propagate to downstream consumers via `.coc-obsoleted`, while BUILD repos preserve them. coc-sync agent Step 4.5 updated to UNION `obsoleted:` + `use_obsoleted:` for purge + emit. /sync-to-build IGNORES use_obsoleted: (BUILD repos legitimately own those paths). (5) Populated use_obsoleted: with 7 paths flagged by 2.11.0 sync agents as pre-existing copies in USE templates after the use_exclude: classification: rules/documentation.md, skills/30-claude-code-patterns/sdk-upstream-donation.md, guides/co-setup/, guides/deterministic-quality/, guides/automated-maintenance.md, guides/rule-extracts/{git,independence-rs}.md.",
+      "changes": [
+        "RULE TRIM: rules/git.md — collapsed Issue Closure Discipline + Pre-Commit Hook Workarounds + Commit-Message Claim Accuracy into a single bullet-list `## Discipline` section with one combined Why. MUST clauses preserved as bullets; full DO/DO NOT examples routed to guides/rule-extracts/git.md. Raw size 8,673 → ~7,650 B; post-abridgement 6,431 → 5,627 B (within +30% of 4,400 B budget).",
+        "MANIFEST: sync-manifest.yaml::cli_variants.context/root.md.codex.abridgement_protocol.per_rule_size_budget_bytes += `upstream-issue-hygiene.md: 4000` (10 CRIT-baseline rules total now have explicit budgets).",
+        "MANIFEST: sync-manifest.yaml — NEW top-level `use_obsoleted:` block (after use_exclude:). 7 entries covering pre-existing-in-USE-templates copies of newly-use_excluded paths. Documented as symmetric with use_exclude: — purges from USE templates + propagates to downstream consumers; BUILD repos preserve.",
+        "AGENT: agents/management/coc-sync.md Step 4.5 — read BOTH obsoleted: AND use_obsoleted:; purge UNION; emit UNION to `.coc-obsoleted`.",
+        "COMMAND: commands/sync-to-build.md § 3 — added `use_obsoleted:` documentation; clarified that /sync-to-build IGNORES use_obsoleted: (BUILD repos legitimately own those paths).",
+        "EFFECT ON 2026-04-30 RE-SYNC: next /sync to USE templates will (a) purge the 7 use_obsoleted: paths from kailash-coc-claude-{py,rs,rb} + kailash-coc-{py,rs}, (b) emit the union to each target's .coc-obsoleted, (c) downstream consumer apps' next /sync will inherit the purge contract and remove their stale copies. BUILD repos kailash-py / kailash-rs / kailash-prism are unaffected — they retain the BUILD-only artifacts."
+      ]
+    },
+    {
+      "version": "2.11.1",
+      "date": "2026-04-30",
+      "summary": "PATCH: manifest accuracy correction + cap-headroom flag. (1) Add 3 missing variant entries to use_exclude per 2.11.0 changelog claim — variants/py/rules/ci-runners.md, variants/rs/rules/ci-runners.md, variants/rs/skills/management/** (these have zero functional effect on USE-template emission because variants/** is already universally excluded; the entries document BUILD-only intent at the manifest layer and are a backstop if variant emission semantics ever change). (2) Document the CRIT-baseline cap-headroom regression flagged by both multi-CLI sync agents during 2.11.0 distribution: adding upstream-issue-hygiene.md as the 10th priority:0 baseline rule consumed most of the post-2.10.1 extraction buffer; AGENTS.md / GEMINI.md emission headroom dropped from ~12.7% (53,620 B) to ~1.2-4.2% (~58,800-60,700 B / 61,440 block_cap) on the rs language axis. Both targets remain in WARN tier (no BLOCK), but the next CRIT addition will block emission unless an existing rule is demoted to path-scoped per v6 §A.2 OR upstream-issue-hygiene is itself trimmed. Captured in per-target .coc-sync-marker files at both kailash-coc-py and kailash-coc-rs. No code change this release; flag-only.",
+      "changes": [
+        "MANIFEST: sync-manifest.yaml — appended 3 entries to `use_exclude:`: variants/py/rules/ci-runners.md, variants/rs/rules/ci-runners.md, variants/rs/skills/management/**. Per `rules/git.md` § Commit-Message Claim Accuracy: the 2.11.0 changelog promised these entries; this patch delivers them.",
+        "FLAG (no code change): CRIT-baseline cap headroom dropped to ~1.2% on rs language axis (multi-CLI emission); next priority:0 rule will hit block_cap_bytes=61,440. Captured in `.coc-sync-marker` at kailash-coc-py + kailash-coc-rs USE templates. Remediation paths: (a) demote a CRIT to path-scoped per v6 §A.2 (precedent: `rule-authoring.md` + `variant-authoring.md` demoted at Phase F4 for the same reason); (b) trim upstream-issue-hygiene.md body; (c) raise block_cap_bytes (structurally constrained — Codex override-flag ceiling is 64 KiB minus 4 KiB safety margin = 61,440)."
+      ]
+    },
     {
       "version": "2.11.0",
       "date": "2026-04-30",

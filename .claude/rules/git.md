@@ -100,49 +100,12 @@ feat(dataflow): add logging to bulk create
 
 **Why:** Mixed commits are impossible to revert cleanly. Leaked secrets require key rotation across all environments. Large binaries permanently bloat the repo. Commit bodies that explain "why" are the cheapest form of institutional documentation — co-located, versioned, `git log --grep`-searchable, never stale.
 
-## Issue Closure Discipline
+## Discipline
 
-Closing a GitHub issue as "completed" MUST include a commit SHA, PR number, or merged-PR link in the close comment. Closing with no code reference is BLOCKED.
+- **Issue closure**: `gh issue close <N>` MUST include a commit SHA / PR number / merged-PR link in the comment. Closing with no code reference is BLOCKED.
+- **Pre-commit hook workarounds**: when pre-commit auto-stash fails despite hooks passing standalone, `git -c core.hooksPath=/dev/null commit ...` MUST be documented in the commit body + a follow-up todo filed. Silent `--no-verify` is BLOCKED.
+- **Commit-message claim accuracy**: commit bodies MUST describe ONLY changes actually present in the diff. Over-claiming a refactor / deletion / side-effect is BLOCKED. If the claim was made in error, push a FOLLOW-UP commit that delivers what the prior message said — do NOT amend.
 
-```bash
-# DO — close with delivered-code reference
-gh issue close 351 --comment "Fixed in #412 (commit a1b2c3d)"
-# DO NOT — close with no code proof
-gh issue close 351 --comment "Resolved"
-```
-
-**Why:** Issues closed with zero delivered code references break traceability; the next session cannot verify whether the fix actually shipped.
-
-## Pre-Commit Hook Workarounds
-
-When pre-commit auto-stash causes commits to fail despite hooks passing in direct invocation, the workaround `git -c core.hooksPath=/dev/null commit ...` MUST be documented in the commit body, AND a follow-up todo MUST be filed against the pre-commit configuration. Silent re-tries with `--no-verify` are BLOCKED.
-
-```bash
-# DO — document the bypass; file a follow-up todo
-git -c core.hooksPath=/dev/null commit -m "fix(security): ...
-
-Pre-commit auto-stash fails to restore staged changes; bypassed.
-TODO: fix pre-commit stash/restore interaction (#NNN)."
-# DO NOT — silent --no-verify
-git commit --no-verify -m "fix(security): ..."
-```
-
-**Why:** Recurring across sessions; without documentation each session re-discovers the workaround at high cost. With documentation the next agent finds it via `git log --grep`.
-
-## Commit-Message Claim Accuracy
-
-Commit bodies MUST describe ONLY changes actually present in the diff. Claiming a refactor, deletion, or side-effect that the diff does NOT contain is BLOCKED. If the claim was made in error, push a FOLLOW-UP commit that actually does what the prior message said — do NOT amend, do NOT ignore.
-
-```bash
-# DO — body describes exactly what the diff contains
-fix(dataflow): clamp user-SQL $N index at MAX_PARAMS = 65535
-# DO — follow-up commit corrects an earlier over-claiming body
-fix(dataflow): actually drop the unused `second_start` binding
-# DO NOT — claim a change the diff does not contain
-fix(dataflow): clamp MAX_PARAMS and drop unused `second_start` binding
-# (diff only contains the clamp; the binding is still there)
-```
-
-**Why:** `git log --grep` is the cheapest institutional-knowledge search across a repo — a body that claims something the diff doesn't contain poisons every future search that lands on it. Amending is BLOCKED because it loses the audit trail; a follow-up commit preserves both the original claim AND the correction. Origin: 2026-04-20 commit-body self-correction; cross-language principle.
+**Why:** Issues closed without code refs break traceability; undocumented workarounds force every session to re-discover the same fix; over-claiming commit bodies poison `git log --grep` (the cheapest institutional-knowledge search). See extract for full DO/DO NOT examples.
 
 <!-- /slot:neutral-body -->
