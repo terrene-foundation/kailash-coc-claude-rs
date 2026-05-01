@@ -98,6 +98,46 @@ Required conditions (ALL four):
 
 Origin: PR #611 release cycle (2026-04-23) — 17 `py/unsafe-cyclic-import` findings deferred via issue #612 after ml-specialist verified all cycles are TYPE_CHECKING-guarded; 23 other CodeQL errors fixed in the release PR.
 
+### Rule 1c: "Pre-Existing" Is Unprovable After Context Boundary
+
+Any disposition that classifies an issue as "pre-existing", "not introduced in this session", or "outside the session's blast radius" MUST cite a specific commit SHA AND demonstrate that the SHA pre-dates the session's first tool call. After `/clear`, auto-compaction, conversation resume, sub-agent handoff, or any other context boundary, the agent has no audit trail of its prior-turn edits — the "pre-existing" claim is structurally unfalsifiable and is BLOCKED. The disposition under uncertainty is: fix it.
+
+```bash
+# DO — claim is grounded in git history that pre-dates the session
+$ git log --oneline path/to/file.py | head -5
+a1b2c3d 2026-03-15 fix(auth): rate-limit login endpoint
+# (current session's first tool call: 2026-05-01 14:22)
+# → Issue introduced 2026-03-15, 47 days before session start. Pre-existing claim is grounded.
+# → Per Rule 1, still MUST be fixed. The grounding only authorizes the *factual claim*, not the deferral.
+
+# DO NOT — bare "pre-existing" assertion after /clear or context compaction
+"This warning is pre-existing, not introduced in this session — out of scope."
+# (no SHA, no timestamp, no proof. After /clear the agent has no memory of its
+#  prior-turn edits; the claim could equally well be hiding self-introduced damage.)
+
+# DO NOT — "git blame shows it's old" without checking the session boundary
+$ git blame path/to/file.py
+# (blame shows the line is from 2024; agent declares pre-existing.
+#  But the agent re-introduced the same bug in turn 14 of THIS session via
+#  a refactor that touched the same line; blame surfaces the original 2024
+#  author, not the session's regression.)
+```
+
+**BLOCKED rationalizations:**
+
+- "I would remember if I introduced it earlier in this session"
+- "The issue obviously predates my work"
+- "git blame shows the line is old"
+- "/clear is just for token budget, my prior edits are still in the working tree"
+- "The user resumed the session, so it's effectively continuous"
+- "Sub-agent handoffs preserve enough context to claim non-introduction"
+- "The diff is small enough that I'd notice if I caused it"
+- "Provenance proof is bureaucracy when the fix is trivial"
+
+**Why:** Wrapper-default scope discipline (CC's "a bug fix doesn't need surrounding code cleaned up", `~/repos/contrib/claude-code-source-code/src/constants/prompts.ts:201`) is sound for short-horizon coding assistants where the agent's edit log IS the session log. In COC's long-horizon institutional codebase, sessions cross `/clear`, auto-compaction, and resume boundaries that erase the edit log; the agent's recall is no longer evidence. `git blame` is also insufficient — the agent may have re-introduced an old bug via a same-session refactor that blame attributes to the original author. The structural defense is symmetric: either cite a SHA that proves pre-existence relative to session start, or fix it. "Pre-existing" without provenance grounding is BLOCKED regardless of how confident the claim feels.
+
+Origin: 2026-05-01 — user identified that wrapper-default scope discipline (CC system prompt `prompts.ts:201–203`) creates a structural amnesia after `/clear` / auto-compaction; the agent declares "pre-existing, not in scope" with no audit trail to back the claim. Closes the rationalization loophole that Rule 1's BLOCKED list named but did not structurally defeat.
+
 ## Rule 2: No Stubs, Placeholders, Or Deferred Implementation
 
 Production code MUST NOT contain:
