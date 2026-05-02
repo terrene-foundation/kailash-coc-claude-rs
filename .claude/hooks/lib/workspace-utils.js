@@ -20,7 +20,12 @@ function detectActiveWorkspace(cwd) {
   try {
     const entries = fs.readdirSync(wsDir, { withFileTypes: true });
     const projects = entries
-      .filter((e) => e.isDirectory() && e.name !== "instructions")
+      .filter(
+        (e) =>
+          e.isDirectory() &&
+          e.name !== "instructions" &&
+          !e.name.startsWith("_"),
+      )
       .map((e) => {
         const fullPath = path.join(wsDir, e.name);
         try {
@@ -155,7 +160,12 @@ function findAllSessionNotes(cwd) {
   try {
     const entries = fs.readdirSync(wsDir, { withFileTypes: true });
     for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name === "instructions") continue;
+      if (
+        !entry.isDirectory() ||
+        entry.name === "instructions" ||
+        entry.name.startsWith("_")
+      )
+        continue;
       const notesPath = path.join(wsDir, entry.name, ".session-notes");
       const result = readSessionNotesFile(notesPath);
       if (result) {
