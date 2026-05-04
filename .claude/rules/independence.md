@@ -1,6 +1,19 @@
 ---
-priority: 0
-scope: baseline
+priority: 10
+scope: path-scoped
+paths:
+  - "**/*.py"
+  - "**/*.rs"
+  - "**/*.rb"
+  - "**/Cargo.toml"
+  - "**/pyproject.toml"
+  - "**/Gemfile"
+  - "**/LICENSE*"
+  - "**/NOTICE*"
+  - "specs/**"
+  - "docs/**"
+  - "**/CHANGELOG*"
+  - "**/README*"
 ---
 
 # Foundation Independence Rules

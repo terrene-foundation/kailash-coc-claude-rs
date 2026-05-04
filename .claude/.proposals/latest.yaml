@@ -1,0 +1,240 @@
+source_repo: loom
+codify_date: 2026-04-12
+codify_session: "feat(co): specs authority system — phase command integration"
+loom_version: "2.8.0" # from .claude/VERSION
+coc_version: "2.8.0"
+
+# Upstream target: atelier/ (CC+CO authority)
+#
+# Context: On 2026-04-12 loom shipped commit eacd989 "feat(co): add specs
+# authority system for alignment drift prevention" — new rule + phase command
+# integration. Atelier already received `rules/specs-authority.md` and the
+# `rules/artifact-flow.md` proposal-lifecycle additions (both show mtime
+# 2026-04-12 17:10 on atelier side). However the PHASE COMMAND updates that
+# operationalize the rule never made it into a proposal and remain loom-only.
+#
+# This proposal covers ONLY the still-outstanding atelier-bound work: phase
+# command integration + the rules/agents.md "Specs Context in Delegation"
+# clause. The already-placed rules are listed under `already_placed:` for
+# audit trail completeness but require no atelier action.
+
+changes:
+  # ─── PHASE COMMAND INTEGRATION (atelier phase names differ from loom) ──
+  #
+  # Atelier phase names: analyze → plan → execute → vet → codify → wrapup
+  # Loom (COC) phase names: analyze → todos → implement → redteam → codify → wrapup
+  #
+  # The specs/ integration is the SAME in both; only command file names and
+  # inline phase references need adaptation.
+
+  - file: commands/analyze.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/analyze.md
+    reason: >
+      Add Step 5 "Create specs/ (MUST — before red team)": create `specs/`
+      at project root with `_index.md` manifest organized by domain ontology.
+      This is the load-bearing gate that converts the specs-authority rule
+      from theoretical to operational — /plan and /execute hard-stop if
+      specs/ is missing (MUST Rule 1). Without this, the rule exists but
+      nothing ever creates the directory.
+    diff_lines: "+20 -1"
+    adaptation_notes: >
+      Loom's analyze.md Step 5 is drop-in compatible with atelier's
+      analyze.md. The phrase "before red team" should become "before vet"
+      in atelier's version to match /vet naming. Step references "workspaces
+      /<project>/" structure which atelier shares.
+
+  - file: commands/todos.md → atelier commands/plan.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/plan.md
+    reason: >
+      Add specs read-gate and todo→spec linkage: (a) Read `specs/_index.md`
+      and all relevant spec files before building plan. (b) HARD STOP if
+      `specs/_index.md` missing — return to /analyze Step 5, do NOT create
+      specs during /plan. (c) Each todo MUST reference which spec file(s)
+      it implements (e.g., "Implements: specs/authentication.md §Login
+      Flow"). This is MUST Rule 4 ("Phase Commands Read Specs Before Acting")
+      operationalized as a plan-level contract.
+    diff_lines: "+4"
+    adaptation_notes: >
+      Replace "todo" terminology with "task" if atelier uses that. Replace
+      "/analyze Step 5" reference with atelier's equivalent. The hard-stop
+      language ("STOP — return to /analyze") is deliberate tripwire
+      wording from rules/rule-authoring.md and should be preserved verbatim.
+
+  - file: commands/implement.md → atelier commands/execute.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/execute.md
+    reason: >
+      Five specs-related additions to the /execute loop:
+      (1) Brief-change detection — if any file in briefs/ was modified after
+      specs/_index.md, STOP and flag for user (re-run /analyze or acknowledge).
+      (2) Context anchoring — re-read relevant spec files at start of every
+      todo; spec is the authority on what to build.
+      (3) Code-as-truth caveat — read current source before calling any
+      existing function; code is truth for what EXISTS NOW, specs are truth
+      for what SHOULD exist.
+      (4) Deviation check — if execution deviates from spec, STOP: update
+      spec with deviation + rationale, flag user-visible changes for approval
+      before marking complete.
+      (5) Orchestrator-only spec writes — specialist agents report domain
+      truth changes in output; only orchestrator applies them sequentially.
+      This prevents concurrent spec writes from parallel subagents.
+    diff_lines: "+47 -12"
+    adaptation_notes: >
+      The five additions map directly into any execution phase. Keep the
+      orchestrator-only spec-write rule verbatim — it's the race condition
+      fix from /redteam Round 2 (scenario: parallel specialists rewriting
+      specs/data-model.md).
+
+  - file: commands/redteam.md → atelier commands/vet.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/vet.md
+    reason: >
+      Three specs-related additions to /vet:
+      (a) Specs as PRIMARY source in audit surface — specs/** reads take
+      priority over plans/ and journals/.
+      (b) Specs-to-code verification — for every file in specs/, extract
+      assertions at FIELD level (not just endpoint/class level) and verify
+      against code via grep/AST. Divergence without logged deviation = HIGH.
+      (c) Cross-spec consistency — grep all specs for shared terms (TTLs,
+      limits, field names, endpoint paths); contradictory values = HIGH.
+      (d) Brief-to-spec coverage — for each brief requirement, verify it
+      maps to ≥1 spec section; unmapped = HIGH.
+    diff_lines: "+28 -6"
+    adaptation_notes: >
+      The field-level assertion extraction is critical — endpoint-level audits
+      miss parameter drift (the exact failure the spec authority system was
+      designed to prevent). Keep the "= HIGH" severity markers.
+
+  - file: commands/codify.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/codify.md
+    reason: >
+      Add specs/ to the knowledge-extraction source list in Step 1. Specs/
+      contain the nuanced decisions, contracts, and constraints that should
+      inform agent and skill updates during codification. Without this,
+      /codify still works from plans and journals but misses the detailed
+      domain truth that specs capture.
+    diff_lines: "+8 -2"
+    adaptation_notes: >
+      One-line addition to the knowledge source list. Atelier's codify.md
+      already reads docs/00-authority/; add specs/ as a peer source.
+
+  - file: commands/wrapup.md
+    action: modified
+    suggested_tier: cc
+    canonical_path: .claude/commands/wrapup.md
+    reason: >
+      Add specs/ to the "already has for free" persistence list so session
+      notes don't redundantly recapture domain truth that specs already hold.
+    diff_lines: "+1"
+    adaptation_notes: >
+      Trivial addition: one bullet under existing persistence list.
+
+  # ─── RULES AGENTS.MD — SPECS CONTEXT IN DELEGATION ────────────────────
+
+  - file: rules/agents.md → atelier rules/execution-discipline.md
+    action: modified
+    suggested_tier: co
+    canonical_path: .claude/rules/execution-discipline.md
+    reason: >
+      Add "Specs Context in Delegation (MUST)" clause: every specialist
+      delegation prompt MUST include relevant spec file content from specs/.
+      Orchestrator reads specs/_index.md, selects relevant files, includes
+      them inline. This operationalizes specs-authority.md MUST Rule 7 at
+      the rule layer so the delegation contract is enforced outside /execute.
+      Without this, /execute includes specs but one-off Agent() calls from
+      other commands (/vet, /codify, ad-hoc) skip the context entirely.
+    diff_lines: "+12"
+    adaptation_notes: >
+      Clause wording is universal. Place adjacent to any existing delegation
+      or parallel-execution clauses. Cross-reference specs-authority.md
+      MUST Rule 7 for the full protocol and examples.
+
+# ─── ALREADY PLACED IN ATELIER (audit trail only, no action needed) ────
+already_placed:
+  - file: rules/specs-authority.md
+    placed_at: .claude/rules/specs-authority.md
+    placed_on: 2026-04-12
+    notes: >
+      Adapted to atelier phase names (/execute, /vet, /plan) and tenant_id
+      example replaced with domain-agnostic constraint example. Origin line
+      updated to cite CO (not COC) phase system. 194 lines, matches loom's
+      line count exactly.
+
+  - file: rules/artifact-flow.md § Proposal Lifecycle
+    placed_at: .claude/rules/artifact-flow.md
+    placed_on: 2026-04-12
+    notes: >
+      Three-state lifecycle (pending_review → reviewed → distributed) and
+      append-never-overwrite MUST rule both present in atelier's copy
+      (grep "pending_review|Append, Never Overwrite" returns 8 matches,
+      same as loom).
+
+# ─── EXPLICITLY NOT PROPOSED (stays in loom) ──────────────────────────
+not_proposed:
+  - file: guides/co-setup/09-proposal-protocol.md
+    reason: >
+      Extracted from codify.md Steps 7-8 documenting the BUILD→loom→atelier
+      proposal flow. This is loom-repo-specific infrastructure (loom is the
+      COC authority; atelier is its upstream, not its downstream). Atelier
+      has its own view of the proposal flow in rules/artifact-flow.md which
+      is sufficient for atelier's perspective.
+
+  - file: sync-manifest.yaml (+1 line adding specs-authority to CO tier)
+    reason: >
+      Loom-specific manifest. Atelier does not use sync-manifest.yaml —
+      it has its own distribution mechanism (/sync-to-coc).
+
+status: distributed
+reviewed_at: 2026-04-12T12:25:53Z
+distributed_at: 2026-04-12T12:25:53Z
+distribution_notes: >
+  Adaptations placed in atelier 1.2.0 and co-template 1.2.0. No file push-back
+  to loom: atelier's versions are CO-level (domain-neutral) and loom's versions
+  are COC-level (codegen-specific) — they are legitimately divergent and both
+  canonical in their respective authorities. Loom retains brief-change detection
+  and orchestrator-only spec writes (both valid for COC parallel specialist
+  execution). Loom retains /implement, /todos, /redteam command names and all
+  code/method-signature examples.
+decisions:
+  - file: commands/analyze.md
+    decision: accepted
+    placed_at: .claude/commands/analyze.md
+    notes: "Added as new Step 5 with methodology examples. 'before red team' → 'before vet'. Renumbered subsequent steps."
+
+  - file: commands/todos.md → commands/plan.md
+    decision: accepted
+    placed_at: .claude/commands/plan.md
+    notes: "Specs read-gate added to Step 1 context anchoring with HARD STOP. Spec-file reference added to Step 3 task decomposition. 'todo' → 'task'."
+
+  - file: commands/implement.md → commands/execute.md
+    decision: accepted
+    placed_at: .claude/commands/execute.md
+    notes: "3 of 5 sub-items accepted. Specs added to context anchoring (Step 2). 'Code-as-truth' generalized to 'artifact on disk'. Deviation check added to Step 6. REJECTED: brief-change detection (no evidence of failure mode in methodology work) and orchestrator-only spec writes (no parallel agent race condition in atelier)."
+
+  - file: commands/redteam.md → commands/vet.md
+    decision: accepted
+    placed_at: .claude/commands/vet.md
+    notes: "Specs as PRIMARY source in Step 1. Field-level assertion extraction, cross-spec consistency, brief-to-spec coverage all added. Codegen terms generalized to methodology terms."
+
+  - file: commands/codify.md
+    decision: accepted
+    placed_at: .claude/commands/codify.md
+    notes: "specs/ added to Step 2 workspace trail extraction table. Execution Model section trimmed for headroom against 150-line cap."
+
+  - file: commands/wrapup.md
+    decision: accepted
+    placed_at: .claude/commands/wrapup.md
+    notes: "Added 'What the next session already has' persistence list (atelier version didn't have one). Includes specs/ alongside git, todos, journal, phase outputs."
+
+  - file: rules/agents.md → rules/execution-discipline.md
+    decision: accepted
+    placed_at: .claude/rules/execution-discipline.md
+    notes: "Added as MUST §5 'Specs Context in Delegation' with DO/DO NOT examples, BLOCKED phrases, Why: line. paths: frontmatter updated to include **/specs/**. Cross-references specs-authority.md MUST Rule 7."
