@@ -50,15 +50,26 @@ function detectRepoScopeDriftText(text) {
 function detectRepoScopeDriftBash(command, cwd) {
   if (!command || typeof command !== "string") return null;
   // gh ... --repo X (where X != cwd's repo)
-  const m = command.match(/\bgh\b[^|;]*--repo\s+([^\s]+)/);
+  const m = command.match(/\bgh\b[^|;]*--repo\s+(?:["']?)([^\s"']+)(?:["']?)/);
   if (!m) return null;
-  const targetRepo = m[1];
-  // Best-effort: if the target repo basename doesn't match cwd's path, flag.
+  const targetRepo = m[1].replace(/^["']|["']$/g, "");
+  // hook-output-discipline.md MUST-3: skip shell-variable references —
+  // `payload.tool_input.command` is the pre-expansion string, so $REPO /
+  // ${REPO} / $(...) / `...` cannot be evaluated at hook time.
+  if (
+    /^\$\{?\w+\}?$/.test(targetRepo) ||
+    /\$\(/.test(targetRepo) ||
+    /`/.test(targetRepo)
+  ) {
+    return null;
+  }
   const cwdBase = path.basename(cwd || process.cwd());
   if (!targetRepo.includes(cwdBase)) {
+    // hook-output-discipline.md MUST-2: lexical regex finding emits
+    // halt-and-report, never block. Block requires structural signal.
     return {
       rule_id: "repo-scope-discipline/MUST-NOT-1",
-      severity: "block",
+      severity: "halt-and-report",
       evidence: `gh --repo ${targetRepo} from cwd basename ${cwdBase}`,
     };
   }
