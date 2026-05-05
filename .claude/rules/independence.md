@@ -18,7 +18,6 @@ paths:
 
 # Foundation Independence Rules
 
-
 <!-- slot:neutral-body -->
 
 
