@@ -1,6 +1,6 @@
 ---
 name: nexus
-description: "Kailash Nexus - zero-config multi-channel platform for deploying workflows as API + CLI + MCP simultaneously. Use when asking about 'Nexus', 'multi-channel', 'platform deployment', 'API deployment', 'CLI deployment', 'MCP deployment', 'unified sessions', 'workflow deployment', 'production deployment', 'API gateway', 'session management', 'health monitoring', 'enterprise platform', 'plugins', 'event system', or 'workflow registration'."
+description: "Kailash Nexus: zero-config multi-channel platform deploying workflows as API+CLI+MCP. Sessions, health, plugins, event system, workflow registration, enterprise deploy."
 ---
 
 # Kailash Nexus - Multi-Channel Platform Framework

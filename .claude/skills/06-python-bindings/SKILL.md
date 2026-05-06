@@ -1,6 +1,6 @@
 ---
 name: python-bindings
-description: "PyO3 Python binding patterns for Kailash Rust SDK. Use when asking about 'Python binding', 'PyO3', 'maturin', 'pip install kailash', 'Python wrapper', 'pyi stubs', 'Value mapping', or 'register_callback'."
+description: "PyO3 Python binding patterns for Kailash Rust SDK: maturin, pip install, .pyi stubs, Value mapping, register_callback. Use for Python wrappers."
 ---
 
 # Python Bindings — Quick Reference
@@ -246,18 +246,18 @@ pipe = Pipeline([("scaler", scaler), ("model", model)])
 
 ## Skill Files
 
-| File                                  | Content                                                              |
-| ------------------------------------- | -------------------------------------------------------------------- |
-| `python-v2-quickstart.md`             | v2 API migration guide                                               |
-| `python-cheatsheet.md`                | Common patterns                                                      |
-| `python-common-mistakes.md`           | Pitfalls and fixes                                                   |
-| `python-custom-nodes.md`              | Callback node patterns                                               |
-| `python-framework-bindings.md`        | DataFlow/Nexus/Kaizen/Enterprise Python API                          |
-| `python-gold-standards.md`            | Binding quality rules                                                |
-| `python-migration-guide.md`           | v1 to v2 migration                                                   |
-| `python-available-nodes.md`           | Node list for Python                                                 |
-| `annotation-resolution-fallback.md`   | annotationlib fallback for `typing.get_type_hints` NameError on 3.14+ |
-| `async-bridging.md`                   | Async Rust <-> Python bridging                                       |
+| File                                | Content                                                               |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `python-v2-quickstart.md`           | v2 API migration guide                                                |
+| `python-cheatsheet.md`              | Common patterns                                                       |
+| `python-common-mistakes.md`         | Pitfalls and fixes                                                    |
+| `python-custom-nodes.md`            | Callback node patterns                                                |
+| `python-framework-bindings.md`      | DataFlow/Nexus/Kaizen/Enterprise Python API                           |
+| `python-gold-standards.md`          | Binding quality rules                                                 |
+| `python-migration-guide.md`         | v1 to v2 migration                                                    |
+| `python-available-nodes.md`         | Node list for Python                                                  |
+| `annotation-resolution-fallback.md` | annotationlib fallback for `typing.get_type_hints` NameError on 3.14+ |
+| `async-bridging.md`                 | Async Rust <-> Python bridging                                        |
 
 ## Related
 

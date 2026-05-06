@@ -1,6 +1,6 @@
 ---
 name: testing-strategies
-description: "Comprehensive testing strategies for the Kailash Rust SDK including the 3-tier testing approach with NO MOCKING policy for Tiers 2-3. Use when asking about 'testing', 'test strategy', '3-tier testing', 'unit tests', 'integration tests', 'end-to-end tests', 'testing workflows', 'testing DataFlow', 'testing Nexus', 'NO MOCKING', 'real infrastructure', 'test organization', or 'testing best practices'."
+description: "Kailash Rust testing: 3-tier strategy with NO MOCKING policy for Tier 2/3. Real infra, regression tests, coverage. Use for test design, organization, best practices."
 ---
 
 # Kailash Testing Strategies

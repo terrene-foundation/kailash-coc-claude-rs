@@ -1,6 +1,6 @@
 ---
 name: architecture-decisions
-description: "Architecture decision guides for Kailash Rust SDK including framework selection (Core SDK vs DataFlow vs Nexus vs Kaizen), runtime selection (async execute vs sync execute_sync), database selection (PostgreSQL vs SQLite), node selection, and test tier selection. Use when asking about 'which framework', 'choose framework', 'which runtime', 'which database', 'which node', 'architecture decision', 'when to use', 'Core SDK vs DataFlow', 'PostgreSQL vs SQLite', 'async vs sync', or 'test tier selection'."
+description: "Kailash Rust architecture decisions: framework (Core/DataFlow/Nexus/Kaizen), runtime (async/sync), DB (PostgreSQL/SQLite), node, test tier. Use for 'which X' choice."
 ---
 
 # Kailash Architecture Decisions
