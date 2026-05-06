@@ -1,6 +1,6 @@
 ---
 name: python-bindings
-description: "PyO3 Python binding patterns for Kailash Rust SDK: maturin, pip install, .pyi stubs, Value mapping, register_callback. Use for Python wrappers."
+description: "PyO3 Python bindings for Kailash Rust — maturin, .pyi stubs, Value mapping, register_callback."
 ---
 
 # Python Bindings — Quick Reference

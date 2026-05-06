@@ -1,6 +1,6 @@
 ---
 name: gold-standards
-description: "Kailash Rust SDK gold standards via Python binding — imports, params, error handling, NO mocking Tier 2/3, security, docs."
+description: "Kailash Rust gold standards — imports, params, error handling, NO mocking Tier 2/3, security."
 ---
 
 # Kailash Gold Standards - Mandatory Best Practices
@@ -37,16 +37,16 @@ Mandatory best practices and standards for all Kailash Rust SDK development. The
 
 ## Quick Reference: 8 Critical Standards
 
-| # | Standard                 | DO                                                    | DO NOT                                       |
-|---|--------------------------|-------------------------------------------------------|----------------------------------------------|
-| 1 | Imports                  | `use kailash_core::{WorkflowBuilder, Runtime};`      | `use kailash_core::*;`                       |
-| 2 | NO MOCKING (Tier 2-3)   | Real DB via `dotenvy` + `DATABASE_URL`                | `mockall::automock` in integration tests     |
-| 3 | 4-param connections      | `connect("src", "output", "tgt", "input")`            | `connect("src", "tgt")`                      |
-| 4 | build() before execute   | `let wf = builder.build(&registry)?;`                 | `runtime.execute(&builder, inputs)`          |
-| 5 | Error handling           | `.ok_or(NodeError::MissingInput{..})?`                | `.unwrap()` in production                    |
-| 6 | Secrets                  | `std::env::var("API_KEY")`                            | `let api_key = "sk-...";`                    |
-| 7 | TDD                      | Write test first, then implement                      | Implement first, add tests later             |
-| 8 | Explicit errors          | `match result { Ok(..) => .., Err(..) => .. }`       | `let _ = result;`                            |
+| #   | Standard               | DO                                              | DO NOT                                   |
+| --- | ---------------------- | ----------------------------------------------- | ---------------------------------------- |
+| 1   | Imports                | `use kailash_core::{WorkflowBuilder, Runtime};` | `use kailash_core::*;`                   |
+| 2   | NO MOCKING (Tier 2-3)  | Real DB via `dotenvy` + `DATABASE_URL`          | `mockall::automock` in integration tests |
+| 3   | 4-param connections    | `connect("src", "output", "tgt", "input")`      | `connect("src", "tgt")`                  |
+| 4   | build() before execute | `let wf = builder.build(&registry)?;`           | `runtime.execute(&builder, inputs)`      |
+| 5   | Error handling         | `.ok_or(NodeError::MissingInput{..})?`          | `.unwrap()` in production                |
+| 6   | Secrets                | `std::env::var("API_KEY")`                      | `let api_key = "sk-...";`                |
+| 7   | TDD                    | Write test first, then implement                | Implement first, add tests later         |
+| 8   | Explicit errors        | `match result { Ok(..) => .., Err(..) => .. }`  | `let _ = result;`                        |
 
 ## Compliance Checklists
 

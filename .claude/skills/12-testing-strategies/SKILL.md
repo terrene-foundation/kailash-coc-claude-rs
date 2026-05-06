@@ -1,6 +1,6 @@
 ---
 name: testing-strategies
-description: "Kailash Rust testing: 3-tier strategy with NO MOCKING policy for Tier 2/3. Real infra, regression tests, coverage. Use for test design, organization, best practices."
+description: "Kailash Rust testing — 3-tier with NO MOCKING for Tier 2/3. Mocks against real infra BLOCKED."
 ---
 
 # Kailash Testing Strategies

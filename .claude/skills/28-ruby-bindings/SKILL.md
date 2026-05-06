@@ -1,6 +1,6 @@
 ---
 name: ruby-bindings
-description: "Magnus Ruby binding patterns for Kailash Rust SDK. Use when asking about 'Ruby binding', 'Magnus', 'rb-sys', 'gem kailash', 'Ruby wrapper', 'GVL release', or 'block-based lifecycle'."
+description: "Magnus Ruby bindings for Kailash Rust — block-based lifecycle, GVL release, gem packaging."
 ---
 
 # Ruby Bindings — Quick Reference

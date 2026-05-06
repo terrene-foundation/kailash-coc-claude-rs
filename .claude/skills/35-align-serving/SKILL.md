@@ -1,6 +1,6 @@
 ---
 name: align-serving
-description: "GGUF model serving with LoRA hot-swap. Use when asking about 'align serving', 'inference engine', 'LoRA adapter', 'GGUF', 'model serving', 'llm serving', or 'completions endpoint'."
+description: "GGUF LLM serving with LoRA hot-swap, batch inference, Nexus HTTP — direct llama.cpp use BLOCKED."
 ---
 
 # Align Serving -- Quick Reference

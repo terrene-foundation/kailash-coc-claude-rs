@@ -1,6 +1,6 @@
 ---
 name: enterprise
-description: "Kailash Enterprise: RBAC, ABAC, audit trails, multi-tenancy, SSO, compliance, policy management. Use for enterprise security, access control, tenant isolation."
+description: "Kailash Enterprise (Rust) — RBAC, ABAC, audit trails, multi-tenancy, SSO, policy management."
 ---
 
 # Kailash Enterprise -- Quick Reference

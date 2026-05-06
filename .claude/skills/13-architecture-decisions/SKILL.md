@@ -1,6 +1,6 @@
 ---
 name: architecture-decisions
-description: "Kailash Rust architecture decisions: framework (Core/DataFlow/Nexus/Kaizen), runtime (async/sync), DB (PostgreSQL/SQLite), node, test tier. Use for 'which X' choice."
+description: "Kailash Rust architecture — framework/runtime/DB/node/test-tier picks. Use for 'which X' choices."
 ---
 
 # Kailash Architecture Decisions

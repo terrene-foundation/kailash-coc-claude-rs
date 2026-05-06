@@ -1,6 +1,6 @@
 ---
 name: code-templates
-description: "Kailash Rust code templates: workflows (basic + cyclic), custom nodes, MCP servers, all 3 test tiers (unit/integration/E2E). Use for boilerplate, scaffolding, starter code."
+description: "Kailash Rust scaffolding — workflows, cyclic, custom nodes, MCP servers, 3-tier test boilerplate."
 ---
 
 # Kailash Code Templates

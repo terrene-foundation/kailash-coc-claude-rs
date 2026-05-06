@@ -1,6 +1,6 @@
 ---
 name: kailash-mcp
-description: "Kailash MCP (Model Context Protocol): server, client, tools, resources, prompts, auth, transports (stdio/SSE/HTTP), testing. Use for AI agent integration."
+description: "Kailash MCP (Rust) — server, client, tools, resources, auth, transports. For AI agent integration."
 ---
 
 # Kailash MCP - Model Context Protocol Integration

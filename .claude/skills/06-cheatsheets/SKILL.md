@@ -1,6 +1,6 @@
 ---
 name: cheatsheets
-description: "Kailash SDK cheatsheets: patterns, nodes, workflows, cycles, performance, security, multi-tenancy, sagas, custom nodes. Quick reference for common mistakes and production patterns."
+description: "Kailash Rust cheatsheets — patterns, workflows, cycles, multi-tenancy, sagas, common mistakes."
 ---
 
 # Kailash Patterns - Quick Reference Cheatsheets

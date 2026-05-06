@@ -1,6 +1,6 @@
 ---
 name: trust-plane
-description: "Trust-plane crate: file-backed projects, constraint enforcement, shadow mode, delegation, CLI, MCP, bindings. Use for crates/trust-plane or trust_plane modules."
+description: "Trust-plane crate — file-backed projects, constraint enforcement, shadow mode, delegation, CLI."
 ---
 
 # Trust-Plane Patterns

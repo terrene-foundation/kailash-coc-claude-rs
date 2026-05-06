@@ -1,6 +1,6 @@
 ---
 name: error-troubleshooting
-description: "Kailash Rust SDK errors via Python binding — Nexus hangs, connection errors, runtime errors, cycles, validation, template syntax."
+description: "Kailash Rust errors — Nexus hangs, connection, runtime, cycles, validation, template syntax."
 ---
 
 # Kailash Rust SDK Error Troubleshooting

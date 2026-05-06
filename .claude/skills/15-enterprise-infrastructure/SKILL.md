@@ -1,6 +1,6 @@
 ---
 name: enterprise-infrastructure
-description: "Kailash enterprise infra: progressive infrastructure, dialect-portable SQL, store factory, task queues, worker registry, idempotency."
+description: "Kailash enterprise infra — dialect-portable SQL, store factory, task queues, idempotency."
 ---
 
 # Enterprise Infrastructure - Skills
@@ -69,8 +69,8 @@ The user's workflow code is identical at all levels.
 
 ### Source Code Layout
 
-| Package                                           | Purpose                                                    |
-| ------------------------------------------------- | ---------------------------------------------------------- |
+| Package | Purpose |
+| ------- | ------- |
 
 ## Critical Rules
 

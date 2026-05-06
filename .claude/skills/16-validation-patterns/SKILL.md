@@ -1,6 +1,6 @@
 ---
 name: validation-patterns
-description: "Kailash Rust validation: parameter, DataFlow, connection, use-statement, workflow structure, security. Use for compliance checking, lint, verification, code review."
+description: "Kailash Rust validation — parameter, DataFlow, connection, workflow, security. Use for code review."
 ---
 
 # Kailash Validation Patterns

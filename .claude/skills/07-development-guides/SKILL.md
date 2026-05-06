@@ -1,6 +1,6 @@
 ---
 name: development-guides
-description: "Kailash Rust SDK dev guides via Python binding — custom nodes, MCP, async, testing, deployment, RAG, security, monitoring."
+description: "Kailash Rust dev guides — custom nodes, MCP, async, testing, deployment, RAG, monitoring."
 ---
 
 # Kailash Patterns - Development Guides

@@ -1,6 +1,6 @@
 ---
 name: pact
-description: "PACT governance: D/T/R addressing, clearance, envelopes, 5-step access, 4-zone gradient, GovernanceEngine, PactGovernedAgent. Use for kailash.pact / bindings."
+description: "PACT governance (Rust) — D/T/R addressing, clearance, envelopes, 5-step access, 4-zone gradient."
 ---
 
 # PACT Governance Framework Patterns

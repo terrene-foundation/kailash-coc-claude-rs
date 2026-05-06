@@ -1,6 +1,6 @@
 ---
 name: deployment-git
-description: "Kailash Rust deploy + Git: Docker multi-stage, K8s orchestration, CI/CD, branching, releases. Use for deployment, containerization, Git workflows, production rollouts."
+description: "Kailash Rust deployment + Git — Docker, K8s, CI/CD, releases. Manual deploy steps BLOCKED."
 ---
 
 # Deployment & Git Workflows

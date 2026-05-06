@@ -1,6 +1,6 @@
 ---
 name: 32-trust-posture
-description: "Graduated trust posture (L1-L5). MANDATORY for /codify rule authoring, /redteam audit design, /implement gates. Without it: rules ship without severity tags + grace periods."
+description: "Graduated trust posture (L1-L5). MANDATORY at /codify, /redteam, /implement. Without: rules ship untagged."
 ---
 
 # Trust Posture — Implementation Skill

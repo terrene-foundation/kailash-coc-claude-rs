@@ -1,6 +1,6 @@
 ---
 name: nexus
-description: "Kailash Nexus: zero-config multi-channel platform deploying workflows as API+CLI+MCP. Sessions, health, plugins, event system, workflow registration, enterprise deploy."
+description: "Kailash Nexus (Rust) — MANDATORY for API+CLI+MCP unified deployment. Direct axum/tonic BLOCKED."
 ---
 
 # Kailash Nexus - Multi-Channel Platform Framework

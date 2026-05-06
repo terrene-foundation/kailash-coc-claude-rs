@@ -1,6 +1,6 @@
 ---
 name: governance
-description: "Governance patterns: trust-enforced agents, verification gradient, delegation chains, human intervention, compliance reports. Use for governed agents + trust postures."
+description: "Governance (Rust) — trust enforcement, verification gradient, delegation, human intervention."
 ---
 
 # Governance Patterns
