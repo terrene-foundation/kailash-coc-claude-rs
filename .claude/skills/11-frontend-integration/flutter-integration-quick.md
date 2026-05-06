@@ -12,30 +12,48 @@ description: "Flutter + Kailash integration. Use when asking 'flutter integratio
 
 ## Quick Setup
 
-### 1. Backend API (Python)
-```python
-from kailash.api.workflow_api import WorkflowAPI
-from kailash.workflow.builder import WorkflowBuilder
+### 1. Backend API (Rust)
 
-workflow = WorkflowBuilder()
-workflow.add_node("LLMNode", "chat", {
-    "provider": "openai",
-    "model": os.environ["LLM_MODEL"],
-    "prompt": "{{input.message}}"
-})
+```rust
+use kailash_nexus::{NexusApp, Preset};
+use kailash_nexus::handler::Handler;
+use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+use kailash_core::value::{Value, ValueMap};
+use std::sync::Arc;
 
-api = WorkflowAPI(workflow.build())
-api.run(port=8000)
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+
+    let registry = Arc::new(NodeRegistry::default());
+    let mut builder = WorkflowBuilder::new();
+    builder.add_node("LLMNode", "chat", ValueMap::from([
+        ("provider".into(), Value::String("openai".into())),
+        ("model".into(), Value::String(
+            std::env::var("DEFAULT_LLM_MODEL").expect("DEFAULT_LLM_MODEL in .env").into()
+        )),
+        ("prompt".into(), Value::String("{{input.message}}".into())),
+    ]));
+    let workflow = builder.build(&registry)?;
+
+    let app = NexusApp::new()
+        .preset(Preset::Standard)
+        .handler("/execute", Handler::from_workflow(workflow, registry));
+
+    app.serve("0.0.0.0:3000").await?;
+    Ok(())
+}
 ```
 
 ### 2. Flutter Frontend
+
 ```dart
 // lib/services/workflow_service.dart
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class WorkflowService {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://localhost:3000';
 
   Future<Map<String, dynamic>> executeWorkflow(String message) async {
     final response = await http.post(
