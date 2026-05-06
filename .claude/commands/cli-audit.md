@@ -65,7 +65,19 @@ Independent of the architects (which each see only their own CLI), run the `sees
 
 Drift in `neutral-body`, `frontmatter.priority`, or `frontmatter.scope` HARD BLOCKS sync. Drift in `examples` is expected per-CLI divergence (scrubbed via `scrub_tokens: ["Agent(", "codex_agent(", "@specialist", "subagent_type", "run_in_background"]`).
 
-## Phase 4: Aggregate + report
+## Phase 4: Project-artifact content sweep
+
+Per `rules/cross-cli-artifact-hygiene.md`, workspace artifacts (`workspaces/**/*.md`, `briefs/**/*.md`) MUST stay CLI-neutral — no CC-native delegation syntax (`Agent(subagent_type=...)`, `run_in_background`, `isolation: "worktree"`, `TaskCreate`, `TaskUpdate`, `ExitPlanMode`), no CC tool nouns (`Read tool`, `Write tool`, `Edit tool`, `Bash tool`, `Grep tool`, `Glob tool`), no CC PascalCase hook event names (`SessionStart`, `SessionEnd`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `PreCompact`), and no CLI baseline-file authority leaks (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.claude/(agents|skills|commands)`) in prescriptive prose.
+
+Run the lint:
+
+```bash
+node tools/lint-workspaces.js workspaces/ briefs/
+```
+
+Output is one line per finding: `<file>:<line>: <pattern> — <snippet>`. Exit 1 indicates findings (advisory severity per the rule's Trust Posture Wiring); exit 0 indicates clean. Lines containing `(historical)`, `(historical citation)`, or `<!-- cli-portable-exception -->` are skipped per MUST 5 (qualified-historical mentions are acceptable). Fixtures at `.claude/audit-fixtures/cross-cli-artifact-hygiene/` exercise every flagged pattern (3 flag files) plus 2 clean files.
+
+## Phase 5: Aggregate + report
 
 Combine architect findings + drift-audit result into a single report with severity taxonomy:
 
