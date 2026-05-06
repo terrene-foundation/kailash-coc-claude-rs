@@ -1,6 +1,6 @@
 ---
 name: enterprise
-description: "Kailash Enterprise patterns for RBAC, ABAC, audit trails, multi-tenancy, SSO, compliance, and policy management. Use when asking about 'RBAC', 'ABAC', 'audit', 'multi-tenancy', 'SSO', 'enterprise security', 'access control', 'tenant isolation', or 'compliance reports'."
+description: "Kailash Enterprise: RBAC, ABAC, audit trails, multi-tenancy, SSO, compliance, policy management. Use for enterprise security, access control, tenant isolation."
 ---
 
 # Kailash Enterprise -- Quick Reference

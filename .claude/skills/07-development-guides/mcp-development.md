@@ -5,310 +5,364 @@ You are an expert in Model Context Protocol (MCP) server development with Kailas
 ## Core Responsibilities
 
 ### 1. MCP Server Development
-- Creating MCP servers with kailash.core.mcp_server
+
+- Creating MCP servers with kailash-nexus MCP support
 - Implementing tools, resources, and prompts
 - Transport configuration (stdio, HTTP, WebSocket)
 - Integration with LLM workflows
 
 ### 2. Basic MCP Server
 
-```python
-from kailash.core.mcp_server import MCPServer
+```rust
+use kailash_nexus::mcp::{McpServer, McpTool, McpResource};
+use serde_json::json;
 
-# Create MCP server
-server = MCPServer(
-    name="my-mcp-server",
-    version="1.0.0",
-    description="My custom MCP server"
-)
+#[tokio::main]
+async fn main() {
+    // Create MCP server
+    let mut server = McpServer::new(
+        "my-mcp-server",
+        "1.0.0",
+        "My custom MCP server",
+    );
 
-# Define tool
-@server.tool(
-    name="calculate_sum",
-    description="Calculate the sum of two numbers"
-)
-def calculate_sum(a: float, b: float) -> dict:
-    """Add two numbers together."""
-    return {
-        "result": a + b,
-        "operation": "addition"
-    }
+    // Register tool
+    server.register_tool(McpTool::new(
+        "calculate_sum",
+        "Calculate the sum of two numbers",
+        |params| {
+            Box::pin(async move {
+                let a = params["a"].as_f64().unwrap_or(0.0);
+                let b = params["b"].as_f64().unwrap_or(0.0);
+                Ok(json!({
+                    "result": a + b,
+                    "operation": "addition"
+                }))
+            })
+        },
+    ));
 
-# Define resource
-@server.resource(
-    uri="config://settings",
-    name="Server Settings",
-    description="Server configuration"
-)
-def get_settings() -> dict:
-    """Return server settings."""
-    return {
-        "version": "1.0.0",
-        "environment": "production"
-    }
+    // Register resource
+    server.register_resource(McpResource::new(
+        "config://settings",
+        "Server Settings",
+        "Server configuration",
+        || {
+            Box::pin(async {
+                Ok(json!({
+                    "version": "1.0.0",
+                    "environment": "production"
+                }))
+            })
+        },
+    ));
 
-# Run server
-if __name__ == "__main__":
-    server.run(transport="stdio")
+    // Run server
+    server.run_stdio().await.unwrap();
+}
 ```
 
 ### 3. Advanced MCP Tools
 
-```python
-from kailash.core.mcp_server import MCPServer
-from pydantic import BaseModel, Field
+```rust
+use kailash_nexus::mcp::{McpServer, McpTool};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-server = MCPServer(name="advanced-server")
+#[derive(Deserialize)]
+struct SearchParams {
+    query: String,
+    #[serde(default = "default_limit")]
+    limit: usize,
+    #[serde(default = "default_category")]
+    category: String,
+}
 
-# Structured tool with Pydantic
-class SearchParams(BaseModel):
-    query: str = Field(..., description="Search query")
-    limit: int = Field(default=10, description="Number of results")
-    category: str = Field(default="all", description="Category filter")
+fn default_limit() -> usize { 10 }
+fn default_category() -> String { "all".into() }
 
-@server.tool(
-    name="search_database",
-    description="Search database with filters"
-)
-def search_database(params: SearchParams) -> dict:
-    """Search database with structured parameters."""
-    # Real database search
-    results = perform_search(
-        query=params.query,
-        limit=params.limit,
-        category=params.category
-    )
+let tool = McpTool::new(
+    "search_database",
+    "Search database with filters",
+    |params| {
+        Box::pin(async move {
+            let search: SearchParams = serde_json::from_value(params)?;
 
-    return {
-        "results": results,
-        "count": len(results),
-        "query": params.query
-    }
+            // Real database search
+            let results = perform_search(
+                &search.query,
+                search.limit,
+                &search.category,
+            ).await?;
 
-def perform_search(query, limit, category):
-    """Actual search implementation."""
-    # Implementation
-    return []
+            Ok(json!({
+                "results": results,
+                "count": results.len(),
+                "query": search.query
+            }))
+        })
+    },
+);
+
+async fn perform_search(
+    query: &str,
+    limit: usize,
+    category: &str,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+    // Implementation
+    Ok(vec![])
+}
 ```
 
 ### 4. MCP with Workflows
 
-```python
-from kailash.workflow.builder import WorkflowBuilder
-from kailash.runtime import LocalRuntime
-from kailash.core.mcp_server import MCPServer
+```rust
+use kailash_core::workflow::WorkflowBuilder;
+use kailash_core::runtime::Runtime;
+use kailash_core::node::NodeRegistry;
+use kailash_nexus::mcp::{McpServer, McpTool};
+use serde_json::json;
 
-server = MCPServer(name="workflow-server")
+let tool = McpTool::new(
+    "process_data",
+    "Process data through workflow",
+    |params| {
+        Box::pin(async move {
+            // Create workflow
+            let registry = NodeRegistry::default();
+            let mut builder = WorkflowBuilder::new();
 
-@server.tool(
-    name="process_data",
-    description="Process data through workflow"
-)
-def process_data(input_data: dict) -> dict:
-    """Execute workflow to process data."""
-    # Create workflow
-    workflow = WorkflowBuilder()
+            builder.add_node("ProcessorNode", "processor", json!({
+                "operation": "transform"
+            }));
 
-    workflow.add_node("PythonCodeNode", "processor", {
-        "code": """
-# Process the input data
-result = {
-    'processed': True,
-    'data': input_data,
-    'timestamp': str(datetime.now())
-}
-"""
-    })
+            // Execute workflow
+            let workflow = builder.build(&registry)?;
+            let runtime = Runtime::new(registry);
+            let mut inputs = kailash_value::ValueMap::new();
+            inputs.insert("processor.input_data".into(), params.into());
 
-    # Execute workflow
-    runtime = LocalRuntime()
-    results, run_id = runtime.execute(workflow.build(), parameters={
-        "processor": {"input_data": input_data}
-    })
-
-    return results["processor"]["result"]
+            let results = runtime.execute(&workflow, inputs).await?;
+            Ok(results["processor"]["result"].clone())
+        })
+    },
+);
 ```
 
 ### 5. Resource Management
 
-```python
-@server.resource(
-    uri="database://users",
-    name="User Database",
-    description="Access user data",
-    mime_type="application/json"
-)
-def get_users() -> dict:
-    """Retrieve users from database."""
-    # Real database access
-    users = fetch_users_from_db()
-    return {
-        "users": users,
-        "count": len(users)
-    }
+```rust
+use kailash_nexus::mcp::McpResource;
+use serde_json::json;
 
-@server.resource(
-    uri="file://logs/{date}",
-    name="Log Files",
-    description="Access log files by date"
-)
-def get_logs(date: str) -> dict:
-    """Retrieve logs for specific date."""
-    logs = read_log_file(date)
-    return {
-        "date": date,
-        "logs": logs,
-        "lines": len(logs)
-    }
+// Static resource
+let users_resource = McpResource::new(
+    "database://users",
+    "User Database",
+    "Access user data",
+    || {
+        Box::pin(async {
+            let users = fetch_users_from_db().await?;
+            Ok(json!({
+                "users": users,
+                "count": users.len()
+            }))
+        })
+    },
+).with_mime_type("application/json");
+
+// Parameterized resource
+let logs_resource = McpResource::new_with_params(
+    "file://logs/{date}",
+    "Log Files",
+    "Access log files by date",
+    |params| {
+        Box::pin(async move {
+            let date = params["date"].as_str().unwrap_or("today");
+            let logs = read_log_file(date).await?;
+            Ok(json!({
+                "date": date,
+                "logs": logs,
+                "lines": logs.len()
+            }))
+        })
+    },
+);
 ```
 
 ### 6. MCP Prompts
 
-```python
-@server.prompt(
-    name="data_analysis",
-    description="Prompt for data analysis tasks"
-)
-def data_analysis_prompt(dataset: str, question: str) -> dict:
-    """Generate analysis prompt."""
-    return {
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a data analysis expert."
-            },
-            {
-                "role": "user",
-                "content": f"Analyze the {dataset} dataset and answer: {question}"
-            }
-        ]
-    }
+```rust
+use kailash_nexus::mcp::McpPrompt;
+use serde_json::json;
+
+let prompt = McpPrompt::new(
+    "data_analysis",
+    "Prompt for data analysis tasks",
+    |params| {
+        let dataset = params["dataset"].as_str().unwrap_or("default");
+        let question = params["question"].as_str().unwrap_or("");
+        json!({
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a data analysis expert."
+                },
+                {
+                    "role": "user",
+                    "content": format!("Analyze the {} dataset and answer: {}", dataset, question)
+                }
+            ]
+        })
+    },
+);
 ```
 
 ### 7. Transport Configuration
 
 **stdio (Standard Input/Output)**:
-```python
-# Best for: Claude Desktop, CLI tools
-server.run(transport="stdio")
+
+```rust
+// Best for: Claude Desktop, CLI tools
+server.run_stdio().await?;
 ```
 
 **HTTP**:
-```python
-# Best for: Web integrations, REST APIs
-server.run(transport="http", host="0.0.0.0", port=8000)
+
+```rust
+// Best for: Web integrations, REST APIs
+server.run_http("0.0.0.0", 8000).await?;
 ```
 
 **WebSocket**:
-```python
-# Best for: Real-time communication
-server.run(transport="websocket", host="0.0.0.0", port=8001)
+
+```rust
+// Best for: Real-time communication
+server.run_websocket("0.0.0.0", 8001).await?;
 ```
 
 ### 8. Using MCP Server in LLM Workflows
 
-```python
-from kailash.workflow.builder import WorkflowBuilder
+```rust
+use kailash_core::workflow::WorkflowBuilder;
+use kailash_core::runtime::Runtime;
+use kailash_core::node::NodeRegistry;
+use serde_json::json;
 
-workflow = WorkflowBuilder()
+let registry = NodeRegistry::default();
+let mut builder = WorkflowBuilder::new();
 
-workflow.add_node("IterativeLLMAgentNode", "agent", {
-    "provider": "openai",
-    "model": os.environ["LLM_MODEL"],
-    "messages": [{"role": "user", "content": "Search for Python tutorials"}],
+builder.add_node("IterativeLLMAgentNode", "agent", json!({
+    "provider": std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".into()),
+    "model": std::env::var("LLM_MODEL").unwrap_or_else(|_| "gpt-4".into()),
+    "messages": [{"role": "user", "content": "Search for Rust tutorials"}],
     "mcp_servers": [
         {
             "name": "my-mcp-server",
             "transport": "stdio",
-            "command": "python",
-            "args": ["mcp_server.py"]
+            "command": "./target/release/mcp-server"
         }
     ],
-    "auto_discover_tools": True,
+    "auto_discover_tools": true,
     "max_iterations": 5
-})
+}));
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
+let workflow = builder.build(&registry)?;
+let runtime = Runtime::new(registry);
+let results = runtime.execute(&workflow, Default::default()).await?;
 ```
 
 ### 9. Error Handling in MCP Tools
 
-```python
-@server.tool(
-    name="safe_operation",
-    description="Operation with error handling"
-)
-def safe_operation(data: dict) -> dict:
-    """Execute operation with error handling."""
-    try:
-        # Validate input
-        if not data:
-            return {
-                "success": False,
-                "error": "No data provided"
+```rust
+use kailash_nexus::mcp::McpTool;
+use serde_json::json;
+
+let tool = McpTool::new(
+    "safe_operation",
+    "Operation with error handling",
+    |params| {
+        Box::pin(async move {
+            // Validate input
+            if params.is_null() || params.as_object().map_or(true, |o| o.is_empty()) {
+                return Ok(json!({
+                    "success": false,
+                    "error": "No data provided"
+                }));
             }
 
-        # Process
-        result = process(data)
-
-        return {
-            "success": True,
-            "result": result
-        }
-
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": "validation_error",
-            "message": str(e)
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": "internal_error",
-            "message": str(e)
-        }
+            match process(&params).await {
+                Ok(result) => Ok(json!({
+                    "success": true,
+                    "result": result
+                })),
+                Err(e) => Ok(json!({
+                    "success": false,
+                    "error": "internal_error",
+                    "message": e.to_string()
+                })),
+            }
+        })
+    },
+);
 ```
 
 ### 10. MCP Server Testing
 
-```python
-import pytest
-from kailash.core.mcp_server import MCPServer
+```rust
+use kailash_nexus::mcp::McpServer;
+use serde_json::json;
 
-def test_mcp_tool():
-    """Test MCP tool execution."""
-    server = MCPServer(name="test-server")
+#[test]
+fn test_mcp_tool() {
+    // Test MCP tool execution.
+    let mut server = McpServer::new("test-server", "1.0.0", "Test server");
 
-    @server.tool(name="test_tool", description="Test tool")
-    def test_tool(value: int) -> dict:
-        return {"result": value * 2}
+    server.register_tool(McpTool::new(
+        "test_tool",
+        "Test tool",
+        |params| {
+            Box::pin(async move {
+                let value = params["value"].as_i64().unwrap_or(0);
+                Ok(json!({ "result": value * 2 }))
+            })
+        },
+    ));
 
-    # Test tool execution
-    result = test_tool(5)
-    assert result["result"] == 10
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(server.call_tool("test_tool", json!({"value": 5}))).unwrap();
+    assert_eq!(result["result"], 10);
+}
 
-def test_mcp_resource():
-    """Test MCP resource."""
-    server = MCPServer(name="test-server")
+#[test]
+fn test_mcp_resource() {
+    // Test MCP resource.
+    let mut server = McpServer::new("test-server", "1.0.0", "Test server");
 
-    @server.resource(uri="test://resource", name="Test")
-    def test_resource() -> dict:
-        return {"data": "test"}
+    server.register_resource(McpResource::new(
+        "test://resource",
+        "Test",
+        "Test resource",
+        || {
+            Box::pin(async { Ok(json!({ "data": "test" })) })
+        },
+    ));
 
-    result = test_resource()
-    assert result["data"] == "test"
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(server.read_resource("test://resource")).unwrap();
+    assert_eq!(result["data"], "test");
+}
 ```
 
 ## When to Engage
+
 - User asks about "MCP development", "build MCP server", "MCP guide"
 - User needs to create MCP tools
 - User wants to integrate MCP with workflows
 - User has MCP server questions
 
 ## Integration with Other Skills
+
 - Route to **mcp-specialist** for advanced MCP patterns
 - Route to **mcp-advanced-features** for structured tools, progress
 - Route to **mcp-transport-layers** for transport configuration

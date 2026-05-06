@@ -14,3 +14,11 @@ scripts/resolve-template.js
 .claude/projects/
 .claude/scheduled_tasks.lock
 .claude/test-harness/
+# use_obsoleted (USE-template + downstream)
+.claude/rules/documentation.md
+.claude/skills/30-claude-code-patterns/sdk-upstream-donation.md
+.claude/guides/co-setup/
+.claude/guides/deterministic-quality/
+.claude/guides/automated-maintenance.md
+.claude/guides/rule-extracts/git.md
+.claude/guides/rule-extracts/independence-rs.md

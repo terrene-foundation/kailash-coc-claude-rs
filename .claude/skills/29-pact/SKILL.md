@@ -1,6 +1,6 @@
 ---
 name: pact
-description: "PACT governance framework patterns for D/T/R addressing, knowledge clearance, operating envelopes, 5-step access enforcement, 4-zone gradient verification, GovernanceEngine, PactGovernedAgent, and cross-language bindings. Use when working with kailash.pact or pact binding modules."
+description: "PACT governance: D/T/R addressing, clearance, envelopes, 5-step access, 4-zone gradient, GovernanceEngine, PactGovernedAgent. Use for kailash.pact / bindings."
 ---
 
 # PACT Governance Framework Patterns

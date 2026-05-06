@@ -1,6 +1,6 @@
 ---
 name: deployment-git
-description: "Deployment and Git workflow guides for Kailash Rust applications including Docker multi-stage builds, Kubernetes orchestration, Git workflows, deployment onboarding, cloud deployment, and package releases. Use when asking about 'deployment', 'Docker deployment', 'Kubernetes deployment', 'containerization', 'K8s', 'Git workflow', 'Git branching', 'CI/CD', 'production deployment', 'Docker compose', 'container orchestration', 'deploy command', 'cloud deployment', 'package release', or 'deployment onboarding'."
+description: "Kailash Rust deploy + Git: Docker multi-stage, K8s orchestration, CI/CD, branching, releases. Use for deployment, containerization, Git workflows, production rollouts."
 ---
 
 # Deployment & Git Workflows
