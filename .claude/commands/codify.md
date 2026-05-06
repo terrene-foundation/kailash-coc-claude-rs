@@ -130,8 +130,7 @@ Deploy these agents as a team for codification:
 
 **Knowledge extraction team:**
 
-- **analyst** — Identify core patterns, architectural decisions, and domain knowledge worth capturing
-- **analyst** — Distill requirements into reusable agent instructions
+- **analyst** — Identify core patterns + distill requirements into reusable agent instructions
 - `co-reference` skill — Ensure agents and skills follow COC five-layer architecture (codification IS Layer 5 evolution)
 
 **Creation team:**
@@ -142,7 +141,7 @@ Deploy these agents as a team for codification:
 
 - **cc-architect** — Verify cc-artifacts compliance: descriptions <120 chars, agents <400 lines, commands <150 lines, rules have `paths:` frontmatter, SKILL.md progressive disclosure, no CLAUDE.md duplication
 - **gold-standards-validator** — Terrene naming, licensing accuracy, terminology standards
-- **testing-specialist** — Verify any code examples in skills are testable
+- **testing-specialist** — Verify code examples + probe-coverage on harness changes (`rules/probe-driven-verification.md` MUST-4)
 - **security-reviewer** — Audit agents/skills for prompt injection, insecure patterns, secrets exposure
 
 ### Journal (MUST — phase-complete gate)
