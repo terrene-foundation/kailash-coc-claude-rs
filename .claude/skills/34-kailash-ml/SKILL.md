@@ -1,6 +1,6 @@
 ---
 name: kailash-ml
-description: "Kailash ML 1.0.0 — MANDATORY for ALL ML training/inference/feature/drift/AutoML/RL work. Engine-first km.* surface (train/register/serve/track/diagnose/watch/dashboard/seed/reproduce/resume/lineage/rl_train/engine_info/list_engines/autolog) + 18 engines. Raw sklearn / pytorch / numpy training loops BLOCKED."
+description: "Kailash ML — MANDATORY for ML training/inference/feature/drift/AutoML/RL. Engine-first km.* surface + 18 engines. Raw sklearn/pytorch BLOCKED."
 ---
 
 # Kailash ML 1.0.0 — Classical / Deep Learning / RL Lifecycle

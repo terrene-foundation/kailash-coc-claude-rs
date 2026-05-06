@@ -108,6 +108,93 @@ grep -c '^pub use' crates/kailash/src/lib.rs   # misses items inside pub mod blo
 
 Origin: kailash-py W6 /redteam Round 3 (2026-04-27) — `kailash_ml/__init__.py:627` docstring claimed 41, grep reported 48, AST said 49. Cross-language port: Rust uses `syn::parse_file` or `cargo doc --document-private-items`; the structural-enumeration principle is language-neutral.
 
+### MUST: Rust `pub use` Result-Type Coverage Pinned By Literal-Identifier Wiring Tests
+
+When a Rust crate `pub use`-exports a result type (struct / enum / trait), the per-symbol coverage sweep (`tools/sweep-redteam.py --json`) reports a HIGH coverage gap unless at least one test file binds the type to a `let var: <Type> = ...` declaration. Inline `#[cfg(test)]` tests in the same module that exercise the API surface but never name the type literally are NOT sufficient — the sweep tool greps for `<Type>` as an identifier; `let result = build()` binds nothing the tool can see, so the type's contract is uncovered from the tool's view AND from any future refactor's view.
+
+Coverage MUST be pinned in a dedicated `tests/test_<module>_wiring.rs` file that:
+
+1. Imports the type by name from the crate's public surface (e.g. `use kailash_ml::engine::{DriftReport, FeatureDriftResult};`).
+2. Constructs a value via the canonical public-API entry (e.g. `DriftMonitor::from_reference().check()` returns `DriftReport`).
+3. Binds the value to `let var: <Type> = ...` so the type appears as a literal identifier on the LHS.
+4. Asserts every public field individually (`assert_eq!(var.field_a, ...)`, `assert!(var.field_b.is_finite())`).
+5. For trait wiring, casts a concrete impl to `&dyn TraitName` so the trait surface compiles only if every used method exists (`let backend: &dyn FeatureStoreBackend = &store;`).
+
+```rust
+// DO — wiring test binds the type literally; sweep tool sees it
+use kailash_ml::engine::{DriftMonitor, DriftConfig, DriftReport, FeatureDriftResult};
+
+#[test]
+fn drift_report_full_field_assertions() {
+    let mut monitor = DriftMonitor::from_reference(&data, &names, DriftConfig::default()).unwrap();
+    let report: DriftReport = monitor.check(&current).unwrap();   // ← literal type binding
+    assert!(!report.features.is_empty());
+    assert!(report.overall_drifted);
+    let f0: &FeatureDriftResult = &report.features["f0"];          // ← literal type binding
+    assert_eq!(f0.feature_name, "f0");
+}
+
+// DO NOT — inline test exercises the API but never names the type literally
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn check_works() {
+        let result = DriftMonitor::from_reference(&d, &n, DriftConfig::default())
+            .unwrap()
+            .check(&c)
+            .unwrap();              // ← `result` shadows the type; sweep tool sees nothing
+        assert!(result.overall_drifted);
+    }
+}
+```
+
+**BLOCKED rationalizations:**
+
+- "The inline `#[cfg(test)]` tests already exercise the API; adding a wiring test is duplication"
+- "Field-by-field assertions are brittle; one assertion that the API works is enough"
+- "The type is `pub use`-exported, that proves it's reachable"
+- "If a refactor breaks the type, integration tests will catch it"
+- "The sweep tool is the wrong tool; we shouldn't author tests for its quirks"
+- "I'll add a wiring test if and when the sweep flags the type"
+
+**Why:** A `pub use`-exported type with no literal-identifier binding in any test corpus is structurally indistinguishable from a removed type — the sweep tool reports a HIGH coverage gap because there's no syntactic anchor. The 2026-05-06 sweep flagged 22 HIGH gaps in kailash-ml and bindings precisely because inline tests never bound the result types literally. Wiring tests close two gaps simultaneously: they make the type discoverable to the per-symbol scan, AND they pin every public field's shape so a downstream refactor that drops a field fails one specific assertion (rather than silently passing because no test reads the field). The trait-cast pattern (`&dyn TraitName`) extends the same defense to trait surfaces: removing a trait method breaks the test at compile time.
+
+#### Same-Shard Accessor For Orphaned `pub use` Types
+
+When a wiring test cannot construct or observe a `pub use`-exported type because the type has NO public constructor AND NO public accessor on any owning facade, the disposition per `rules/autonomous-execution.md` Rule 4 is to add the missing accessor IN THE SAME SHARD as the wiring test — typically a one-line `pub fn <field>(&self) -> &<Type> { &self.<field> }` mirroring the existing accessor pattern (e.g. `history()`, `config()`, `feature_names()` on the same struct). Removing the type from `pub use` is also acceptable; leaving it `pub use`-exported but unreachable is BLOCKED.
+
+```rust
+// DO — same-shard accessor closes the unreachability gap
+impl DriftMonitor {
+    pub fn history(&self) -> &[DriftReport] { &self.history }       // existing
+    pub fn config(&self) -> &DriftConfig { &self.config }            // existing
+    pub fn reference_snapshot(&self) -> &DriftSnapshot {             // ← new in same shard
+        &self.reference
+    }
+}
+
+// DO NOT — pub use exposed; no constructor; no accessor; type is structurally orphaned
+pub use drift::{DriftSnapshot, ...};
+pub struct DriftMonitor {
+    reference: DriftSnapshot,    // private field; no accessor; users cannot observe
+}
+```
+
+**Why:** A `pub use`-exported type with no public construction or observation path is the orphan failure mode at the type-export level: downstream consumers see the type in the API surface, build mental models against it, and find no way to reach it at runtime. The same-shard accessor sweep is bounded by `rules/autonomous-execution.md` Rule 4's shard budget (≤500 LOC load-bearing logic, ≤5–10 invariants) — typically a 5-line accessor fits trivially. Origin: 2026-05-06 RT-2 (PR #817) — `DriftSnapshot` was `pub use`-exported but had no public accessor on `DriftMonitor`; same-shard fix added `reference_snapshot()` mirroring the existing `history()` accessor pattern.
+
+Origin: 2026-05-06 RT-1 / RT-2 / RT-3 cycle (PRs #816, #817, #818) — three consecutive `/implement` shards established the wiring-test reference shape after `tools/sweep-redteam.py` flagged 22 HIGH coverage gaps in kailash-ml whose underlying types DID have inline-test exercise but no literal-identifier binding. RT-2 surfaced the orphan-accessor variant. The pattern generalizes to any Rust crate with `pub use` re-exports — kailash-dl-diagnostics, kailash-nexus, kailash-dataflow — and to language-axis siblings via the same literal-identifier scan extended for `js_name = "X"` / `name = "X"` aliases (NAPI / PyO3) noted in `workspaces/binding-parity/journal/0070-GAP-redteam-2026-05-06-coverage-findings.md` §3.
+
+## Trust Posture Wiring (this rule)
+
+- **Severity**: `halt-and-report` (lexical regex against `let result = ` followed by no typed binding cannot ship `block` per `hook-output-discipline.md` MUST-2; structural AST walk is required to upgrade to `block`).
+- **Grace period**: 7 days from 2026-05-06 → 2026-05-13.
+- **Cumulative threshold**: 3× same-rule violations in 30 days → posture drop per `trust-posture.md` §4.
+- **Regression-within-grace**: emergency L5→L4 downgrade per `trust-posture.md` §4.
+- **Receipt requirement**: none (rule fires only on tests/\* paths; no SessionStart ack required).
+- **Detection mechanism**: `tools/sweep-redteam.py --json` HIGH gap on `pub use`-exported type with zero literal-identifier hits; OR `find crates/*/tests/ -name 'test_*_wiring.rs' | xargs grep -L "let .*: <Type>"` returning the file as missing the binding.
+- **First violation**: none recorded yet (rule lands fresh in this codify cycle).
+- **Origin**: 2026-05-06 RT-1/2/3 cycle (PRs #816, #817, #818).
+
 ## Regression Testing
 
 Every bug fix MUST include a regression test BEFORE the fix is merged.
