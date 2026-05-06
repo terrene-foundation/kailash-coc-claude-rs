@@ -9,6 +9,49 @@
  */
 
 const path = require("path");
+const { execFileSync } = require("child_process");
+
+/**
+ * Normalize any GitHub repo URL form to canonical "Org/Repo".
+ *   "git@github.com:Org/Repo.git" → "Org/Repo"
+ *   "https://github.com/Org/Repo.git" → "Org/Repo"
+ *   "https://github.com/Org/Repo" → "Org/Repo"
+ *   "Org/Repo" → "Org/Repo"
+ * Returns null for unrecognized shapes.
+ */
+function normalizeRepoSlug(s) {
+  if (!s || typeof s !== "string") return null;
+  const cleaned = s
+    .trim()
+    .replace(/^git@github\.com:/, "")
+    .replace(/^https?:\/\/github\.com\//, "")
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "");
+  // Must look like Org/Repo (single slash separator, no path traversal).
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+/**
+ * Read `git remote get-url upstream` from cwd, normalize to "Org/Repo".
+ * Returns null if no upstream remote, git unavailable, or unrecognized URL.
+ * Used by detectRepoScopeDriftBash (issue #36) to allow parent-product
+ * writes from hierarchical-fork consumers (rs-axis client deployments,
+ * USE-template-derived projects with documented upstream parents).
+ */
+function readUpstreamRemoteSlug(cwd) {
+  try {
+    const url = execFileSync("git", ["remote", "get-url", "upstream"], {
+      cwd: cwd || process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 500,
+    }).trim();
+    return normalizeRepoSlug(url);
+  } catch {
+    return null;
+  }
+}
 
 // 1. Pre-existing claim without SHA grounding (rules/zero-tolerance.md Rule 1c, 2026-05-01)
 const PRE_EXISTING_CLAIM =
@@ -63,6 +106,19 @@ function detectRepoScopeDriftBash(command, cwd) {
   ) {
     return null;
   }
+  // Issue #36 — hierarchical-fork allowance.
+  // Before the basename heuristic, check whether the target matches the
+  // cwd repo's `upstream` remote. The hierarchical-fork pattern (a
+  // coc-project that documents an upstream parent-product remote) is a
+  // shipped COC pattern; some consumer rules MANDATE filing issues / PRs
+  // against the parent-product. Allowing the upstream-remote match
+  // closes the false-positive class on a structural signal (durable
+  // git remote state on disk), not lexical regex.
+  const targetSlug = normalizeRepoSlug(targetRepo);
+  if (targetSlug) {
+    const upstream = readUpstreamRemoteSlug(cwd);
+    if (upstream && upstream === targetSlug) return null;
+  }
   const cwdBase = path.basename(cwd || process.cwd());
   if (!targetRepo.includes(cwdBase)) {
     // hook-output-discipline.md MUST-2: lexical regex finding emits
@@ -70,7 +126,7 @@ function detectRepoScopeDriftBash(command, cwd) {
     return {
       rule_id: "repo-scope-discipline/MUST-NOT-1",
       severity: "halt-and-report",
-      evidence: `gh --repo ${targetRepo} from cwd basename ${cwdBase}`,
+      evidence: `gh --repo ${targetRepo} from cwd basename ${cwdBase} (no upstream remote match)`,
     };
   }
   return null;

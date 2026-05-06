@@ -29,6 +29,30 @@ description: "A comprehensive specialist for Claude Code architecture who can au
 
 **Why:** Descriptions load into every agent selection decision. Long descriptions waste tokens on every turn.
 
+### 1b. Skill Descriptions Under 200 Characters
+
+The `description:` field in `skills/*/SKILL.md` MUST be ≤200 characters. Failure-mode language only — keyword-dump patterns (`Use when asking about 'X', 'Y', 'Z', 'X with Y', ...` with ≥4 quoted alternates) are BLOCKED. Per `feedback_semantic_activation.md`: CC uses LLM semantic matching, not keyword lookup; long quoted-alternate lists DON'T improve activation, they inflate the listing budget.
+
+```yaml
+# DO — ≤200 chars, failure-mode framing
+description: "Kailash validation: parameter, DataFlow, connection, import, workflow structure, security, codebase-hygiene marker scrubbing."
+
+# DO — ≤200 chars, MANDATORY framing for skills with strong precondition
+description: "Kailash ML — MANDATORY for ML training/inference/feature/drift/AutoML/RL. Engine-first km.* surface + 18 engines. Raw sklearn/pytorch BLOCKED."
+
+# DO NOT — keyword dump pattern (575 chars, defeats semantic activation)
+description: "Validation patterns and compliance checking for Kailash SDK including parameter validation, DataFlow pattern validation... Use when asking about 'validation', 'validate', 'check compliance', 'verify', 'lint', 'code review', 'parameter validation', 'connection validation', 'import validation', 'security validation', 'workflow validation', 'codebase hygiene', 'TODO marker scrub', 'marker cleanup', 'three-layer gate', or 'regex gate'."
+```
+
+**BLOCKED rationalizations:**
+
+- "More keywords help discovery" (no — semantic matching, not keyword lookup)
+- "200 chars is too short for a complex skill" (use the SKILL.md body for depth; description is the activation hook)
+- "Other skills have long descriptions, mine should match" (those are the ones being trimmed)
+- "The cap is arbitrary" (it isn't — total listing budget × 47 skills divides to ~200 chars/entry; longer descriptions get TRUNCATED out of the listing entirely)
+
+**Why:** When ANY skill exceeds the per-entry cap OR the cumulative listing exceeds the budget fraction, CC drops descriptions from the listing — those skills become invisible to semantic activation. 2026-05-06 evidence: 47 of 47 skill descriptions were dropped because the cumulative description bytes exceeded the 1% budget fraction (≈10KB across 47 entries → ~213 chars/entry average; 18 skills exceeded that average and pushed cumulative over). Trimming the worst 18 to ≤200 chars freed ~3.5KB and restored full listing visibility. Same root cause as `agent-reasoning.md` MANDATORY framing: descriptions are the LLM's semantic-match input, not a search engine's keyword index.
+
 ### 2. Skills Follow Progressive Disclosure
 
 SKILL.md MUST answer 80% of routine questions without requiring sub-file reads.

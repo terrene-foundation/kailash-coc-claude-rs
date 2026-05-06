@@ -1,6 +1,6 @@
 ---
 name: architecture-decisions
-description: "Architecture decision guides for Kailash SDK including framework selection (Core SDK vs DataFlow vs Nexus vs Kaizen), runtime selection (Async vs Sync), database selection (PostgreSQL vs SQLite), node selection, and test tier selection. Use when asking about 'which framework', 'choose framework', 'which runtime', 'which database', 'which node', 'architecture decision', 'when to use', 'Core SDK vs DataFlow', 'PostgreSQL vs SQLite', 'AsyncLocalRuntime vs LocalRuntime', or 'test tier selection'."
+description: "Kailash architecture decisions: which framework (Core/DataFlow/Nexus/Kaizen), runtime (Async/Sync), DB (Postgres/SQLite), node, test tier."
 ---
 
 # Kailash Architecture Decisions
