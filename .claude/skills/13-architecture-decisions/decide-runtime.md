@@ -1,262 +1,232 @@
 ---
 name: decide-runtime
-description: "Choose between LocalRuntime and AsyncLocalRuntime based on deployment context. Use when asking 'which runtime', 'LocalRuntime vs Async', 'runtime choice', 'sync vs async', 'runtime selection', or 'choose runtime'."
+description: "Understand the unified Kailash Runtime with async execute() and sync execute_sync() methods. Use when asking 'which runtime', 'async vs sync', 'runtime choice', 'sync vs async', 'runtime selection', or 'choose runtime'."
 ---
 
 # Decision: Runtime Selection
 
-Decision: Runtime Selection guide with patterns, examples, and best practices.
+Guide for choosing between async and sync execution with the unified Kailash Runtime.
 
 > **Skill Metadata**
 > Category: `cross-cutting`
 > Priority: `HIGH`
-> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **Primary Use**: Decision: Runtime Selection
+- **Primary Use**: Choosing async vs sync execution
 - **Category**: cross-cutting
 - **Priority**: HIGH
-- **Trigger Keywords**: which runtime, LocalRuntime vs Async, runtime choice, sync vs async, runtime selection
+- **Trigger Keywords**: which runtime, async vs sync, runtime choice, sync vs async, runtime selection
 
-## Decision Matrix
+## Unified Runtime
 
-### Use LocalRuntime When:
+Kailash Rust has a **single unified `Runtime`** -- there is no `LocalRuntime` vs `AsyncLocalRuntime` split. The same `Runtime` instance provides both async and sync execution.
 
-- CLI applications and scripts
-- Synchronous execution contexts
-- Testing in pytest (without async fixtures)
-- Simple sequential workflows
-- Legacy code integration
+### Async Execution (Primary)
 
-```python
-from kailash.runtime.local import LocalRuntime
+Use in tokio async contexts: axum handlers, async main, integration tests.
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
+```rust
+use kailash_core::{Runtime, RuntimeConfig, NodeRegistry, WorkflowBuilder};
+use kailash_core::value::ValueMap;
+use std::sync::Arc;
+
+let registry = Arc::new(NodeRegistry::default());
+let runtime = Runtime::new(RuntimeConfig::default(), registry.clone());
+
+let mut builder = WorkflowBuilder::new();
+builder.add_node("LLMNode", "llm", ValueMap::new());
+let workflow = builder.build(&registry)?;
+
+// Async execution -- level-based parallelism via tokio::spawn
+let result = runtime.execute(&workflow, ValueMap::new()).await?;
+println!("Run ID: {}", result.run_id);
 ```
 
-### Use AsyncLocalRuntime When:
+### Sync Execution (CLI/Scripts)
 
-- Docker deployments
-- Nexus applications (API + CLI + MCP)
-- High-concurrency scenarios
-- Async execution contexts
-- Production APIs (10-100x faster)
+Use when no tokio runtime exists or in synchronous contexts.
 
-```python
-from kailash.runtime import AsyncLocalRuntime
+```rust
+use kailash_core::{Runtime, RuntimeConfig, NodeRegistry, WorkflowBuilder};
+use kailash_core::value::ValueMap;
+use std::sync::Arc;
 
-runtime = AsyncLocalRuntime()
-results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+let registry = Arc::new(NodeRegistry::default());
+let runtime = Runtime::new(RuntimeConfig::default(), registry.clone());
+
+let mut builder = WorkflowBuilder::new();
+builder.add_node("FileReaderNode", "reader", ValueMap::from([
+    ("file_path".into(), kailash_core::value::Value::String("data.txt".into())),
+]));
+let workflow = builder.build(&registry)?;
+
+// Sync execution -- creates tokio runtime internally if needed
+let result = runtime.execute_sync(&workflow, ValueMap::new())?;
+println!("Run ID: {}", result.run_id);
 ```
-
-### Auto-Detection (Recommended):
-
-```python
-from kailash.runtime import get_runtime
-
-# Automatically selects appropriate runtime based on context
-runtime = get_runtime()  # Defaults to "async"
-runtime = get_runtime("sync")  # Force synchronous
-runtime = get_runtime("async")  # Force asynchronous
-```
-
 
 ## Comparison Table
 
-| Feature | LocalRuntime | AsyncLocalRuntime |
-|---------|--------------|-------------------|
-| **Execution Model** | Synchronous | Asynchronous |
-| **Best For** | CLI, Scripts, Tests | Docker, Nexus, APIs |
-| **Performance** | Standard | 10-100x faster |
-| **Threading** | ThreadPoolExecutor | No threads (async/await) |
-| **Return Value** | `(results, run_id)` | `results` |
-| **Method** | `execute(workflow.build())` | `await execute_workflow_async(workflow.build(), inputs={})` |
-| **Context** | Sync contexts | Async contexts |
+| Feature             | `execute()`                                 | `execute_sync()`                           |
+| ------------------- | ------------------------------------------- | ------------------------------------------ |
+| **Execution Model** | Async (tokio)                               | Sync (blocks current thread)               |
+| **Best For**        | axum handlers, async main, APIs             | CLI tools, scripts, simple tests           |
+| **Performance**     | Level-based parallelism                     | Sequential execution                       |
+| **Context**         | Requires tokio runtime                      | Creates runtime internally if needed       |
+| **Return Type**     | `Result<ExecutionResult, RuntimeError>`     | `Result<ExecutionResult, RuntimeError>`    |
+| **Method**          | `runtime.execute(&workflow, inputs).await?` | `runtime.execute_sync(&workflow, inputs)?` |
 
-## Shared Architecture
+## RuntimeConfig
 
-Both runtimes inherit from BaseRuntime and use shared mixins, ensuring identical behavior:
+Both execution methods share the same configuration:
 
-**BaseRuntime Foundation**:
-- 29 configuration parameters: `debug`, `enable_cycles`, `conditional_execution`, `connection_validation`, `max_iterations`, etc.
-- Execution metadata: Run ID generation, workflow caching, metadata management
-- Common initialization and validation modes (strict, warn, off)
+```rust
+use kailash_core::RuntimeConfig;
 
-**Shared Mixins**:
-- **CycleExecutionMixin**: Cycle execution delegation to CyclicWorkflowExecutor with validation and error wrapping
-- **ValidationMixin**: Workflow structure validation (5 methods)
-  - validate_workflow(): Checks workflow structure, node connections, parameter mappings
-  - _validate_connection_contracts(): Validates connection parameter contracts
-  - _validate_conditional_execution_prerequisites(): Validates conditional execution setup
-  - _validate_switch_results(): Validates switch node results
-  - _validate_conditional_execution_results(): Validates conditional execution results
-- **ConditionalExecutionMixin**: Conditional execution and branching logic with SwitchNode support
-  - Pattern detection and cycle detection
-  - Node skipping and hierarchical execution
-  - Conditional workflow orchestration
+let config = RuntimeConfig {
+    debug: true,
+    max_concurrent_nodes: 20,
+    ..RuntimeConfig::default()
+};
 
-**LocalRuntime-Specific Features**:
-- _generate_enhanced_validation_error(): Enhanced error messages
-- _build_connection_context(): Connection context for errors
-- get_validation_metrics(): Public API for validation metrics
-- reset_validation_metrics(): Public API for metrics reset
+let runtime = Runtime::new(config, registry);
 
-**ParameterHandlingMixin Not Used**:
-LocalRuntime uses WorkflowParameterInjector for enterprise parameter handling instead of ParameterHandlingMixin (architectural boundary for complex workflows).
-
-The shared architecture ensures consistent behavior, with the only differences being execution model and async-specific optimizations.
-
-## AsyncLocalRuntime-Specific Features
-
-AsyncLocalRuntime extends LocalRuntime with async-optimized capabilities:
-
-### Automatic Strategy Selection
-
-AsyncLocalRuntime automatically chooses the optimal execution strategy:
-
-**Pure Async Strategy**:
-- When: All nodes are AsyncNode subclasses
-- Benefit: Maximum concurrency, fastest execution
-- Example: Workflows with AsyncPythonCodeNode, async HTTP calls
-
-**Mixed Strategy**:
-- When: Combination of sync and async nodes
-- Benefit: Balanced performance, wide compatibility
-- Example: Most real-world workflows
-
-**Sync-Only Strategy**:
-- When: All sync nodes
-- Benefit: Compatibility with existing workflows
-- Example: Legacy workflows without async nodes
-
-### Level-Based Parallelism
-
-Executes independent nodes concurrently within dependency levels:
-
-```python
-# Example workflow structure:
-# A (no deps) ─┐
-# B (no deps) ─┼─→ D (deps: A, B, C) ─→ F (deps: D, E)
-# C (no deps) ─┘                    └─→ E (deps: C)
-
-# Execution:
-# Level 0: [A, B, C] → Execute concurrently
-# Level 1: [D, E]    → Execute concurrently
-# Level 2: [F]       → Execute alone
-
-runtime = AsyncLocalRuntime(max_concurrent_nodes=10)
-results = await runtime.execute_workflow_async(workflow.build(), inputs={})
+// Same runtime, choose execution style per call site
+let result_async = runtime.execute(&workflow, inputs.clone()).await?;
+let result_sync = runtime.execute_sync(&workflow, inputs)?;
 ```
 
-### Concurrency Control
+## ExecutionResult
 
-```python
-runtime = AsyncLocalRuntime(
-    max_concurrent_nodes=20,   # Limit concurrent executions
-    thread_pool_size=8,        # Threads for sync nodes
-    enable_analysis=True,      # Enable WorkflowAnalyzer
-    enable_profiling=True      # Track performance metrics
-)
+Both methods return the same result type:
+
+```rust
+pub struct ExecutionResult {
+    pub results: HashMap<String, ValueMap>,  // node_id -> outputs
+    pub run_id: String,
+    pub metadata: ExecutionMetadata,
+}
+
+// Access node results
+let node_output = result.results.get("my_node")
+    .and_then(|m| m.get("result"))
+    .ok_or_else(|| anyhow::anyhow!("missing output"))?;
 ```
 
-### Resource Integration
+## Level-Based Parallelism (Async)
 
-```python
-from kailash.resources import ResourceRegistry
+The async `execute()` method uses level-based parallelism -- independent nodes at the same dependency level run concurrently via `tokio::spawn`:
 
-registry = ResourceRegistry()
-runtime = AsyncLocalRuntime(resource_registry=registry)
+```
+Example workflow DAG:
+  A (no deps) --+
+  B (no deps) --+--> D (deps: A, B, C) --> F (deps: D, E)
+  C (no deps) --+                    +--> E (deps: C)
 
-# Nodes can access: context.resource_registry.get_resource("db")
+Execution levels:
+  Level 0: [A, B, C]  -> Execute concurrently
+  Level 1: [D, E]     -> Execute concurrently
+  Level 2: [F]        -> Execute alone
 ```
 
 ## Common Patterns
 
-### Pattern 1: CLI Script
+### Pattern 1: CLI Tool
 
-```python
-# CLI script - use LocalRuntime
-from kailash.runtime.local import LocalRuntime
+```rust
+use kailash_core::{Runtime, RuntimeConfig, NodeRegistry, WorkflowBuilder};
+use kailash_core::value::ValueMap;
+use std::sync::Arc;
 
-runtime = LocalRuntime(debug=True)
-results, run_id = runtime.execute(workflow.build())
-print(f"Workflow {run_id} completed: {results}")
-```
+fn main() -> anyhow::Result<()> {
+    let registry = Arc::new(NodeRegistry::default());
+    let runtime = Runtime::new(RuntimeConfig { debug: true, ..Default::default() }, registry.clone());
 
-### Pattern 2: Nexus Deployment
+    let mut builder = WorkflowBuilder::new();
+    // ... add nodes ...
+    let workflow = builder.build(&registry)?;
 
-```python
-# Nexus app - use AsyncLocalRuntime (Nexus handles this internally)
-from nexus import Nexus
-from kailash.runtime import AsyncLocalRuntime
-
-app = Nexus(auto_discovery=False)
-runtime = AsyncLocalRuntime()
-
-@app.handler("execute", description="Execute workflow")
-async def execute_workflow() -> dict:
-    results = await runtime.execute_workflow_async(workflow.build(), inputs={})
-    return results
-
-app.start()
-```
-
-### Pattern 3: Testing
-
-```python
-# Testing - typically LocalRuntime
-import pytest
-from kailash.runtime.local import LocalRuntime
-
-def test_workflow():
-    runtime = LocalRuntime()
-    results, run_id = runtime.execute(workflow.build())
-    assert results["node"]["output"] == expected
-```
-
-## Migration Between Runtimes
-
-Both runtimes share the same configuration parameters:
-
-```python
-# Configuration works identically for both
-config = {
-    "debug": True,
-    "enable_cycles": True,
-    "conditional_execution": True,
-    "connection_validation": "strict",  # or "warn" or "off"
-    "content_aware_success_detection": True
+    let result = runtime.execute_sync(&workflow, ValueMap::new())?;
+    println!("Workflow {} completed", result.run_id);
+    Ok(())
 }
-
-# LocalRuntime
-sync_runtime = LocalRuntime(**config)
-
-# AsyncLocalRuntime
-async_runtime = AsyncLocalRuntime(**config)
 ```
+
+### Pattern 2: Axum Handler
+
+```rust
+use kailash_core::{Runtime, RuntimeConfig, NodeRegistry, WorkflowBuilder};
+use kailash_core::value::ValueMap;
+use axum::{Json, extract::State};
+use std::sync::Arc;
+
+async fn execute_workflow(
+    State(runtime): State<Arc<Runtime>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let registry = Arc::new(NodeRegistry::default());
+    let mut builder = WorkflowBuilder::new();
+    // ... add nodes ...
+    let workflow = builder.build(&registry)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let result = runtime.execute(&workflow, ValueMap::new()).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "run_id": result.run_id })))
+}
+```
+
+### Pattern 3: Test
+
+```rust
+#[tokio::test]
+async fn test_workflow_execution() {
+    let registry = Arc::new(NodeRegistry::default());
+    let runtime = Runtime::new(RuntimeConfig::default(), registry.clone());
+
+    let mut builder = WorkflowBuilder::new();
+    builder.add_node("NoOpNode", "noop", ValueMap::new());
+    let workflow = builder.build(&registry).expect("build should succeed");
+
+    let result = runtime.execute(&workflow, ValueMap::new()).await
+        .expect("execution should succeed");
+
+    assert!(!result.run_id.is_empty());
+    assert!(result.results.contains_key("noop"));
+}
+```
+
+## Key Differences from Python SDK
+
+| Aspect            | Python SDK                                                | Rust SDK                                                       |
+| ----------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| **Runtime types** | `LocalRuntime` + `AsyncLocalRuntime`                      | Single unified `Runtime`                                       |
+| **Async method**  | `await runtime.execute_workflow_async(wf, inputs={})`     | `runtime.execute(&wf, inputs).await?`                          |
+| **Sync method**   | `runtime.execute(wf.build())` returns `(results, run_id)` | `runtime.execute_sync(&wf, inputs)?` returns `ExecutionResult` |
+| **Return type**   | Tuple `(results, run_id)`                                 | `ExecutionResult` struct                                       |
+| **Config**        | Constructor kwargs                                        | `RuntimeConfig` struct                                         |
+| **Parallelism**   | ThreadPoolExecutor / asyncio                              | tokio::spawn + level-based DAG                                 |
 
 ## Related Patterns
 
-- **For execution options**: See [`runtime-execution`](#)
-- **For parameter passing**: See [`gold-parameter-passing`](#)
-- **For workflow basics**: See [`workflow-quickstart`](#)
+- **For workflow building**: See CLAUDE.md -- Essential Patterns section
+- **For RuntimeConfig options**: See `crates/kailash-core/src/runtime/`
+- **For node execution**: See `.claude/skills/01-core/`
 
 ## Documentation References
 
 ### Primary Sources
-- [`CLAUDE.md#L111-177`](../../../CLAUDE.md)
 
-### Internal Architecture
+- [`CLAUDE.md`](../../../../CLAUDE.md) -- Runtime section under kailash-core
+- `crates/kailash-core/src/runtime/` -- Runtime implementation
 
 ## Quick Tips
 
-- Default to AsyncLocalRuntime for production deployments (faster, Docker-optimized)
-- Use LocalRuntime for CLI tools and simple scripts
-- Both runtimes share identical configuration and validation logic
-- Migration between runtimes only requires changing import and execution method
+- There is ONE Runtime type -- choose `execute()` or `execute_sync()` per call site
+- Prefer `execute()` (async) for production -- better concurrency via tokio
+- Use `execute_sync()` for CLI tools and scripts where async is unnecessary
+- RuntimeConfig is shared between both execution methods
+- `execute_sync()` creates a tokio runtime internally if none exists
 
-## Keywords for Auto-Trigger
-
-<!-- Trigger Keywords: which runtime, LocalRuntime vs Async, runtime choice, sync vs async, runtime selection -->
+<!-- Trigger Keywords: which runtime, async vs sync, runtime choice, sync vs async, runtime selection, execute vs execute_sync -->

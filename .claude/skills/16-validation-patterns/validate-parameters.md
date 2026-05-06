@@ -1,6 +1,6 @@
 ---
 name: validate-parameters
-description: "Validate node parameters. Use when asking 'validate parameters', 'check node params', or 'parameter validation'."
+description: "Validate node parameters in the Kailash Rust SDK. Use when asking 'validate parameters', 'check node params', or 'parameter validation'."
 ---
 
 # Validate Node Parameters
@@ -8,171 +8,189 @@ description: "Validate node parameters. Use when asking 'validate parameters', '
 > **Skill Metadata**
 > Category: `validation`
 > Priority: `HIGH`
-> SDK Version: `0.9.25+`
 
 ## Parameter Validation
 
-```python
-from kailash.workflow.builder import WorkflowBuilder
+```rust
+use kailash_core::{WorkflowBuilder, NodeRegistry};
+use kailash_core::value::{Value, ValueMap};
+use std::sync::Arc;
 
-workflow = WorkflowBuilder()
+let mut builder = WorkflowBuilder::new();
 
-# Valid: All required parameters
-workflow.add_node("LLMNode", "llm1", {
-    "provider": "openai",
-    "model": os.environ["LLM_MODEL"],
-    "prompt": "Hello"
-})
+// Valid: All required parameters provided via ValueMap
+builder.add_node("LLMNode", "llm1", ValueMap::from([
+    ("provider".into(), Value::String("openai".into())),
+    ("model".into(), Value::String(
+        std::env::var("OPENAI_MODEL").unwrap_or_default().into()
+    )),
+    ("prompt".into(), Value::String("Hello".into())),
+]));
 
-# Invalid: Missing required 'prompt'
-# workflow.add_node("LLMNode", "llm2", {
-#     "provider": "openai",
-#     "model": os.environ["LLM_MODEL"]
-# })  # Error!
-
-# Validate at build time
-workflow.build()  # Raises error if parameters invalid
+// Validate at build time
+let registry = Arc::new(NodeRegistry::default());
+let workflow = builder.build(&registry)?;  // Returns Err if params invalid
 ```
 
-## Validation Methods (Internal)
+## Node Trait Parameter Contract
 
-Both LocalRuntime and AsyncLocalRuntime use ValidationMixin for shared validation logic:
+Each node defines its parameter contract via `input_params()` and `output_params()`:
 
-```python
-# ValidationMixin provides 5 validation methods:
-# 1. validate_workflow() - Validates complete workflow structure
-# 2. _validate_connection_contracts() - Validates connection parameter contracts
-# 3. _validate_conditional_execution_prerequisites() - Validates conditional node setup
-# 4. _validate_switch_results() - Validates SwitchNode output structure
-# 5. _validate_conditional_execution_results() - Validates conditional execution results
-```
+```rust
+use kailash_core::node::{Node, ParamDef, ParamType};
+use kailash_core::value::{Value, ValueMap};
+use kailash_core::{ExecutionContext, NodeError};
+use std::pin::Pin;
+use std::future::Future;
 
-### Runtime Validation
+pub struct MyNode {
+    input_params: Vec<ParamDef>,
+    output_params: Vec<ParamDef>,
+}
 
-```python
-from kailash.runtime.local import LocalRuntime
-
-runtime = LocalRuntime()
-
-# Validation happens at execution time
-try:
-    results, run_id = runtime.execute(workflow.build())
-except WorkflowValidationError as e:
-    print(f"Validation failed: {e}")
-```
-
-## Custom Node Parameter Validation
-
-Define parameter contracts for validation:
-
-```python
-from kailash.nodes.base import Node, NodeParameter
-from typing import Dict, Any
-
-class ValidatedNode(Node):
-    def get_parameters(self) -> Dict[str, NodeParameter]:
-        """Define parameter validation contract."""
-        return {
-            "file_path": NodeParameter(
-                type=str,
-                required=True,
-                description="Path to input file"
-            ),
-            "threshold": NodeParameter(
-                type=int,
-                required=False,
-                default=100,
-                description="Processing threshold"
-            )
+impl MyNode {
+    pub fn new() -> Self {
+        Self {
+            input_params: vec![
+                ParamDef::new("file_path", ParamType::String, true)
+                    .with_description("Path to input file"),
+                ParamDef::new("threshold", ParamType::Integer, false)
+                    .with_description("Processing threshold"),
+            ],
+            output_params: vec![
+                ParamDef::new("result", ParamType::String, false)
+                    .with_description("Processing result"),
+            ],
         }
+    }
+}
 
-    def run(self, **kwargs) -> Dict[str, Any]:
-        # Parameters are pre-validated by runtime
-        file_path = kwargs["file_path"]  # Guaranteed to exist
-        threshold = kwargs.get("threshold", 100)  # Has default
+impl Node for MyNode {
+    fn type_name(&self) -> &str { "MyNode" }
 
-        # Business logic validation
-        if threshold < 0:
-            raise ValueError("threshold must be non-negative")
+    fn input_params(&self) -> &[ParamDef] {
+        &self.input_params
+    }
 
-        return {"result": process(file_path, threshold)}
+    fn output_params(&self) -> &[ParamDef] {
+        &self.output_params
+    }
+
+    fn execute(
+        &self,
+        inputs: ValueMap,
+        _ctx: &ExecutionContext,
+    ) -> Pin<Box<dyn Future<Output = Result<ValueMap, NodeError>> + Send + '_>> {
+        Box::pin(async move {
+            let file_path = inputs.get("file_path")
+                .ok_or(NodeError::MissingInput { name: "file_path".into() })?;
+
+            let threshold = inputs.get("threshold")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(100);
+
+            if threshold < 0 {
+                return Err(NodeError::ExecutionFailed {
+                    message: "threshold must be non-negative".into(),
+                    source: None,
+                });
+            }
+
+            Ok(ValueMap::from([
+                ("result".into(), Value::String("processed".into())),
+            ]))
+        })
+    }
+}
+```
+
+## ValueMap Construction
+
+```rust
+use kailash_core::value::{Value, ValueMap};
+
+// Correct: Using ValueMap::from with tuples
+let params = ValueMap::from([
+    ("file_path".into(), Value::String("data.csv".into())),
+    ("delimiter".into(), Value::String(",".into())),
+    ("has_header".into(), Value::Bool(true)),
+    ("max_rows".into(), Value::Integer(1000)),
+]);
+
+// Correct: Building incrementally
+let mut params = ValueMap::new();
+params.insert("file_path".into(), Value::String("data.csv".into()));
+params.insert("threshold".into(), Value::Integer(100));
 ```
 
 ## Validation Errors
 
 ### Missing Required Parameters
 
-```python
-# Error: Missing 'file_path'
-workflow.add_node("CSVReaderNode", "reader", {
-    "delimiter": ","  # file_path is required!
-})
-# Raises: WorkflowValidationError
+```rust
+// Will fail at execution if "file_path" is required but not provided
+builder.add_node("CSVProcessorNode", "reader", ValueMap::from([
+    ("delimiter".into(), Value::String(",".into())),
+    // Missing "file_path" -- required!
+]));
+// build() may succeed, but execute() will return NodeError::MissingInput
 ```
 
-### Invalid Parameter Types
+### Wrong Value Types
 
-```python
-# Error: Wrong type for 'threshold'
-workflow.add_node("FilterNode", "filter", {
-    "threshold": "100"  # Should be int, not str
-})
-# Raises: WorkflowValidationError
+```rust
+// Wrong: Integer where String expected
+builder.add_node("CSVProcessorNode", "reader", ValueMap::from([
+    ("file_path".into(), Value::Integer(42)),  // Should be Value::String
+]));
 ```
 
-### Unknown Parameters
+### Build-Time vs Execution-Time Validation
 
-```python
-# Error: Unknown parameter 'unknown_param'
-workflow.add_node("CSVReaderNode", "reader", {
-    "file_path": "data.csv",
-    "unknown_param": "value"  # Not defined in node contract
-})
-# Raises: WorkflowValidationError
-```
+```rust
+let registry = Arc::new(NodeRegistry::default());
 
-## Connection Validation
+// Build-time: validates structure (node types, connections, IDs)
+let workflow = builder.build(&registry)?;
 
-ValidationMixin validates connection contracts:
-
-```python
-# Valid: Output type matches input type
-workflow.add_node("CSVReaderNode", "reader", {"file_path": "data.csv"})
-workflow.add_node("DataTransformerNode", "transformer", {})
-workflow.add_connection("reader", "data", "transformer", "input_data")
-
-# Invalid: Type mismatch
-# workflow.add_connection("reader", "metadata", "transformer", "input_data")
-# Raises: WorkflowValidationError (if contracts enforce types)
+// Execution-time: validates parameters and business logic
+let runtime = Runtime::new(RuntimeConfig::default(), registry);
+match runtime.execute(&workflow, ValueMap::new()).await {
+    Ok(result) => { /* success */ }
+    Err(e) => {
+        eprintln!("Execution failed: {}", e);
+        // Could be NodeError::MissingInput, NodeError::ExecutionFailed, etc.
+    }
+}
 ```
 
 ## Common Validation Issues
 
-1. **Missing required parameters** - Provide all required parameters
-2. **Invalid parameter types** - Match parameter types to node contract
-3. **Unknown parameters** - Only use declared parameters
-4. **Invalid parameter values** - Validate business logic constraints
-5. **Connection type mismatches** - Ensure compatible types
+1. **Missing required parameters** -- Provide all required parameters in ValueMap
+2. **Wrong Value variant** -- Match the expected type (String, Integer, Bool, etc.)
+3. **Wrong parameter names** -- Use snake_case, match node's `input_params()` names
+4. **Empty ValueMap** -- Provide at least required parameters
+5. **Env vars not loaded** -- Call `dotenvy::dotenv().ok()` at program entry
 
 ## Related Patterns
 
-- **For parameter passing**: See [`gold-parameter-passing`](#)
-- **For runtime execution**: See [`runtime-execution`](#)
-- **For workflow basics**: See [`workflow-quickstart`](#)
+- **Value types**: See `crates/kailash-value/` -- Value enum definition
+- **Node trait**: See `crates/kailash-core/src/node.rs` -- ParamDef
+- **Workflow building**: See CLAUDE.md -- Essential Patterns
 
 ## Documentation References
 
 ### Primary Sources
 
-### Internal Implementation
-- Provides shared validation logic for LocalRuntime and AsyncLocalRuntime
+- [`CLAUDE.md`](../../../../CLAUDE.md) -- kailash-value and kailash-core sections
+- `crates/kailash-core/src/node.rs` -- Node trait, ParamDef
 
 ## Quick Tips
 
-- Validation happens at `workflow.build()` and `runtime.execute()`
-- Define parameter contracts with `get_parameters()` in custom nodes
-- Use required=True for mandatory parameters
-- Add business logic validation in `run()` method
-- Both LocalRuntime and AsyncLocalRuntime use identical validation logic
+- `builder.build(&registry)?` validates structure; execution validates parameters
+- Use `ParamDef::new(name, ParamType, required)` in custom nodes
+- Always use `Value::String("...".into())` -- not raw strings
+- ValueMap keys are `Arc<str>` -- use `.into()` to convert from `&str`
+- Load env vars early: `dotenvy::dotenv().ok()` at program start
 
-<!-- Trigger Keywords: validate parameters, check node params, parameter validation, node parameters -->
+<!-- Trigger Keywords: validate parameters, check node params, parameter validation, node parameters, ValueMap -->

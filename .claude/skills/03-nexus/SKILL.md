@@ -1,15 +1,11 @@
 ---
 name: nexus
-description: "Kailash Nexus: API+CLI+MCP platform. Use for workflow deploy, sessions, K8s probes, OpenAPI, CSRF, security headers."
+description: "Kailash Nexus - zero-config multi-channel platform for deploying workflows as API + CLI + MCP simultaneously. Use when asking about 'Nexus', 'multi-channel', 'platform deployment', 'API deployment', 'CLI deployment', 'MCP deployment', 'unified sessions', 'workflow deployment', 'production deployment', 'API gateway', 'session management', 'health monitoring', 'enterprise platform', 'plugins', 'event system', or 'workflow registration'."
 ---
 
 # Kailash Nexus - Multi-Channel Platform Framework
 
 Nexus is a zero-config multi-channel platform built on Kailash Core SDK that deploys workflows as API + CLI + MCP simultaneously.
-
-## When to Use
-
-Use Nexus when asking about Nexus, multi-channel, platform deployment, API deployment, CLI deployment, MCP deployment, unified sessions, workflow deployment, production deployment, API gateway, FastAPI alternative, session management, health monitoring, enterprise platform, plugins, event system, or workflow registration. Also covers K8s integration: K8s probes, healthz, readyz, startup probe, `ProbeManager`, `ProbeState`, OpenAPI, `openapi.json`, `OpenApiGenerator`, security headers, CSRF middleware, `CSRFMiddleware`, `SecurityHeadersMiddleware`, middleware presets, `Preset`, and HSTS.
 
 ## Features
 
@@ -21,25 +17,28 @@ Nexus transforms workflows into a complete platform with:
 - **Enterprise Features**: Health monitoring, plugins, event system, comprehensive logging
 - **DataFlow Integration**: Automatic CRUD API generation from database models
 - **Production Ready**: Deployment patterns, monitoring, troubleshooting guides
-- **FastAPI Alternative**: Workflow-based platform without manual route definition
-- **Async-First**: Uses AsyncLocalRuntime by default for optimal performance
+- **Multi-Channel Platform**: Workflow-based platform without manual route definition
+- **Async-First**: Uses kailash.Runtime by default for optimal performance
 
 ## Quick Start
 
 ```python
-from nexus import Nexus
+from kailash.nexus import NexusApp, NexusConfig
 
-# Define workflow
-workflow = create_my_workflow()
+# Create app with custom port (or use defaults: host=0.0.0.0, port=3000)
+app = NexusApp(config=NexusConfig(port=3000))
 
-# Deploy to all channels at once
-app = Nexus()
-app.register("my_workflow", workflow.build())
+# Register handler - deployed to all channels at once
+@app.handler(name="greet", description="Greet a user")
+async def greet(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
+
+# Start the server (no arguments - host/port come from NexusConfig)
 app.start()
 
 # Now available via:
-# - HTTP API: POST http://localhost:8000/api/workflow/{workflow_id}
-# - CLI: nexus run {workflow_id} --input '{"key": "value"}'
+# - HTTP API: POST http://localhost:3000/api/greet
+# - CLI: nexus run greet --name "World"
 # - MCP: Connect via MCP client (Claude Desktop, etc.)
 ```
 
@@ -51,7 +50,7 @@ app.start()
 - **[nexus-installation](nexus-installation.md)** - Installation and setup
 - **[nexus-architecture](nexus-architecture.md)** - Architecture overview
 - **[README](README.md)** - Framework overview
-- **[nexus-comparison](nexus-comparison.md)** - Nexus vs FastAPI/Flask
+- **[nexus-comparison](nexus-comparison.md)** - Nexus vs alternatives
 
 ### Core Concepts
 
@@ -80,16 +79,12 @@ app.start()
 - **[nexus-enterprise-features](nexus-enterprise-features.md)** - Enterprise capabilities
 - **[nexus-troubleshooting](nexus-troubleshooting.md)** - Common issues and solutions
 
-### v1.3.0 Additions
+### Additional Skills
 
 - **[nexus-handler-support](nexus-handler-support.md)** - `@app.handler()` decorator for direct function registration
 - **[nexus-auth-plugin](nexus-auth-plugin.md)** - NexusAuthPlugin unified auth (JWT, RBAC, SSO, rate limiting, tenant, audit)
 - **[golden-patterns-catalog](golden-patterns-catalog.md)** - Top 7 production-validated codegen patterns
 - **[codegen-decision-tree](codegen-decision-tree.md)** - Decision tree, anti-patterns, scaffolding templates
-
-### M1 ML Integration (`nexus.ml`)
-
-The `nexus.ml` module wires kailash-ml dashboards and serving handles onto a Nexus app: `MLDashboard(auth="nexus")` reuses Nexus's validator adapter and contextvars, and `mount_ml_endpoints(nexus, serve_handle)` registers REST + MCP + WebSocket routes in one call. Live on branch `feat/kailash-ml-1.0.0-m1-foundations` (landed in `60081fed`). For ML-specific behavior, use skill **34-kailash-ml** as the authority.
 
 ## Key Concepts
 
@@ -97,7 +92,7 @@ The `nexus.ml` module wires kailash-ml dashboards and serving handles onto a Nex
 
 Nexus eliminates boilerplate:
 
-- **No FastAPI routes** - Automatic API generation from workflows
+- **No manual routes** - Automatic API generation from workflows
 - **No CLI arg parsing** - Automatic CLI creation
 - **No MCP server setup** - Automatic MCP integration
 - **Unified deployment** - One command for all channels
@@ -138,109 +133,149 @@ Use Nexus when you need to:
 - Provide multiple access methods (API/CLI/MCP)
 - Build enterprise platforms quickly
 - Auto-generate CRUD APIs (with DataFlow)
-- Replace FastAPI/Flask with workflow-based platform
+- Build multi-channel platforms quickly
 - Create multi-channel applications
 - Deploy AI agent platforms (with Kaizen)
 
 ## Integration Patterns
 
-### With DataFlow (Auto CRUD API)
+### With DataFlow (Database-Backed Handlers)
 
 ```python
-from nexus import Nexus
-from dataflow import DataFlow
+from kailash.nexus import NexusApp, NexusConfig
+import kailash
 
-# Define models
-db = DataFlow(...)
+# Initialize DataFlow
+df = kailash.DataFlow("postgresql://user:pass@localhost/db")
+
 @db.model
 class User:
     id: str
     name: str
 
-# Auto-generates CRUD endpoints for all models
-app = Nexus()
-for name, wf in db.get_workflows().items():
-    app.register(name, wf)
-app.start()
+# Create Nexus app and register database-backed handlers
+app = NexusApp(config=NexusConfig(port=3000))
 
-# GET  /api/User/list
-# POST /api/User/create
-# GET  /api/User/read/{id}
-# PUT  /api/User/update/{id}
-# DELETE /api/User/delete/{id}
+@app.handler(name="create_user", description="Create a new user")
+async def create_user(name: str) -> dict:
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("CreateUser", "create", {"data": {"name": name}})
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["create"]["result"]
+
+app.start()
 ```
 
 ### With Kaizen (Agent Platform)
 
 ```python
-from nexus import Nexus
-from kaizen.core.base_agent import BaseAgent
+from kailash.nexus import NexusApp
+from kailash.kaizen import BaseAgent
 
-# Deploy agents via all channels
-agent_workflow = create_agent_workflow()
-app = Nexus()
-app.register("agent", agent_workflow.build())
-app.start()
+# Deploy agents via all channels using handlers
+app = NexusApp()
 
-# Agents accessible via API, CLI, and MCP
+@app.handler(name="agent_chat", description="Chat with AI agent")
+async def agent_chat(message: str) -> dict:
+    agent = BaseAgent()
+    result = agent.execute(message)
+    return {"response": result.get("output", "")}
+
+app.start()  # Agents accessible via API, CLI, and MCP
 ```
 
 ### With Core SDK (Custom Workflows)
 
 ```python
-from nexus import Nexus
-from kailash.workflow.builder import WorkflowBuilder
+from kailash.nexus import NexusApp, NexusConfig
+import kailash
 
-# Deploy custom workflows
-app = Nexus()
-app.register("workflow_1", create_workflow_1().build())
-app.register("workflow_2", create_workflow_2().build())
-app.register("workflow_3", create_workflow_3().build())
+app = NexusApp(config=NexusConfig(port=3000))
+
+# Register workflow execution as handlers
+@app.handler(name="process_data", description="Run data processing workflow")
+async def process_data(input_text: str) -> dict:
+    reg = kailash.NodeRegistry()
+    builder = kailash.WorkflowBuilder()
+    builder.add_node("EmbeddedPythonNode", "process", {
+        "code": "result = {'processed': True}",
+        "output_vars": ["result"]
+    })
+    rt = kailash.Runtime(reg)
+    result = rt.execute(builder.build(reg))
+    return result["results"]["process"]["outputs"]
+
 app.start()
 ```
 
 ### Standalone Platform
 
 ```python
-from nexus import Nexus
+from kailash.nexus import NexusApp, NexusConfig, Preset
 
-# Complete platform from workflows
-app = Nexus()
-app.register("workflow_a", workflow_a.build())
-app.register("workflow_b", workflow_b.build())
-app.start()
+# Complete platform with enterprise preset and custom config
+app = NexusApp(
+    config=NexusConfig(host="0.0.0.0", port=3000),
+    preset="enterprise",  # or Preset.enterprise()
+)
+
+# Add middleware
+app.add_cors(origins=["https://app.example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+# Register handlers
+@app.handler(name="status", description="Platform status")
+async def status() -> dict:
+    return app.health_check()
+
+app.start()  # Host/port configured via NexusConfig
 ```
 
 ## Critical Rules
 
-- ✅ Use Nexus instead of FastAPI for workflow platforms
-- ✅ Register workflows, not individual routes
-- ✅ Leverage unified sessions across channels
-- ✅ Enable health monitoring in production
-- ✅ Use plugins for custom behavior
-- ✅ Nexus uses AsyncLocalRuntime by default (correct for Docker)
-- ❌ NEVER mix FastAPI routes with Nexus
-- ❌ NEVER implement manual API/CLI/MCP servers when Nexus can do it
-- ❌ NEVER skip health checks in production
+- Use Nexus for workflow platforms
+- Register workflows, not individual routes
+- Leverage unified sessions across channels
+- Enable health monitoring in production
+- Use plugins for custom behavior
+- Nexus uses kailash.Runtime by default (correct for Docker)
+- NEVER bypass Nexus with raw framework routes
+- NEVER implement manual API/CLI/MCP servers when Nexus can do it
+- NEVER skip health checks in production
 
 ## Deployment Patterns
 
 ### Development
 
 ```python
-app = Nexus()
-app.register("my_workflow", workflow.build())
-app.start()  # Single process, hot reload
+from kailash.nexus import NexusApp
+
+app = NexusApp()  # Defaults: host=0.0.0.0, port=3000
+
+@app.handler(name="hello", description="Hello world")
+async def hello(name: str = "World") -> dict:
+    return {"message": f"Hello, {name}!"}
+
+app.start()
 ```
 
 ### Production (Docker)
 
 ```python
-from nexus import Nexus
+from kailash.nexus import NexusApp, NexusConfig
 
-app = Nexus()
-app.register("my_workflow", workflow.build())
-app.start()  # Uses AsyncLocalRuntime by default (correct for Docker)
+app = NexusApp(
+    config=NexusConfig(host="0.0.0.0", port=3000),
+    preset="enterprise",
+)
+app.add_cors(origins=["https://app.example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
+
+# Register production handlers...
+
+app.start()
 ```
 
 ### With Load Balancer
@@ -257,15 +292,49 @@ docker-compose up --scale nexus=3
 | **Access**    | HTTP | Terminal  | MCP Clients |
 | **Input**     | JSON | Args/JSON | Structured  |
 | **Output**    | JSON | Text/JSON | Structured  |
-| **Sessions**  | ✓    | ✓         | ✓           |
-| **Auth**      | ✓    | ✓         | ✓           |
-| **Streaming** | ✓    | ✓         | ✓           |
+| **Sessions**  | Yes  | Yes       | Yes         |
+| **Auth**      | Yes  | Yes       | Yes         |
+| **Streaming** | Yes  | Yes       | Yes         |
+
+## DataFlowEventBridge (NP-023)
+
+Feature-gated behind `dataflow-bridge`. Bridges DataFlow model change events to the Nexus EventBus, enabling Nexus subscribers (SSE clients, plugin hooks, monitoring) to react to DataFlow writes without direct coupling.
+
+```toml
+kailash-nexus = { version = "...", features = ["dataflow-bridge"] }
+```
+
+### NexusEvent::DataFlowEvent variant
+
+| Field        | Type                | Description                                                      |
+| ------------ | ------------------- | ---------------------------------------------------------------- |
+| `event_type` | `String`            | DataFlow event type (`"model.created"`, `"model.updated"`, etc.) |
+| `model_name` | `String`            | Name of the model that changed                                   |
+| `payload`    | `serde_json::Value` | Event payload as JSON                                            |
+| `timestamp`  | `DateTime<Utc>`     | When the change occurred                                         |
+
+Subscribes to topics: `model.created`, `model.updated`, `model.deleted`, `model.upserted`, `model.bulk_created`.
+
+### Usage
+
+```rust
+use kailash_nexus::Nexus;
+use std::sync::Arc;
+
+// domain_bus is the DomainEventBus from DataFlow
+let mut nexus = Nexus::new(config);
+nexus.bridge_dataflow(domain_bus);
+```
+
+`Nexus::bridge_dataflow(&mut self, domain_bus: Arc<dyn DomainEventBus>) -> &mut Self` registers the bridge as a background service. The bridge converts each `DomainEvent` into a `NexusEvent::DataFlowEvent` and publishes it on the Nexus `EventBus`.
+
+Source: `crates/kailash-nexus/src/bridge.rs`, `crates/kailash-nexus/src/events/mod.rs`
 
 ## Related Skills
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
-- **[02-dataflow](../dataflow/SKILL.md)** - Auto CRUD API generation
-- **[04-kaizen](../kaizen/SKILL.md)** - AI agent deployment
+- **[02-dataflow](../02-dataflow/SKILL.md)** - Auto CRUD API generation
+- **[04-kaizen](../04-kaizen/SKILL.md)** - AI agent deployment
 - **[05-kailash-mcp](../05-kailash-mcp/SKILL.md)** - MCP channel details
 - **[17-gold-standards](../../17-gold-standards/SKILL.md)** - Best practices
 
@@ -275,4 +344,4 @@ For Nexus-specific questions, invoke:
 
 - `nexus-specialist` - Nexus implementation and deployment
 - `release-specialist` - Production deployment patterns
-- `decide-framework` skill - When to use Nexus vs other approaches
+- ``decide-framework` skill` - When to use Nexus vs other approaches

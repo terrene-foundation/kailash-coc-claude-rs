@@ -5,211 +5,303 @@ description: "Generate Kailash unit test template (Tier 1). Use when requesting 
 
 # Unit Test Template (Tier 1)
 
-Fast, isolated unit test template for Kailash SDK components (<1 second execution).
+Fast, isolated unit test template for Kailash Rust SDK components (< 1 second execution).
 
 > **Skill Metadata**
 > Category: `cross-cutting` (code-generation)
 > Priority: `HIGH`
-> SDK Version: `0.9.25+`
-> Related Skills: [`test-3tier-strategy`](../../4-operations/testing/test-3tier-strategy.md), [`template-test-integration`](template-test-integration.md)
+> Related Skills: [`CLAUDE.md`](../../../../CLAUDE.md), [`template-test-integration`](template-test-integration.md), [`template-test-e2e`](template-test-e2e.md)
 > Related Subagents: `testing-specialist` (test strategy), `tdd-implementer` (test-first development)
 
 ## Quick Reference
 
 - **Purpose**: Fast, isolated component testing
-- **Speed**: <1 second per test
-- **Dependencies**: None (mocks allowed for external services)
-- **Location**: `tests/unit/`
-- **Mocking**: ✅ ALLOWED for external services
+- **Speed**: < 1 second per test
+- **Dependencies**: None (mocks allowed for external services in Tier 1 only)
+- **Location**: Inline `#[cfg(test)] mod tests` or `tests/` directory
+- **Mocking**: Allowed in Tier 1 only
+- **Run**: `cargo test --workspace` (or `cargo test -p kailash-core`)
 
 ## Basic Unit Test Template
 
-```python
-"""Unit tests for [Component Name]"""
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+    use kailash_core::value::{Value, ValueMap};
+    use std::sync::Arc;
 
-import pytest
-from kailash.workflow.builder import WorkflowBuilder
-from kailash.runtime.local import LocalRuntime
+    fn test_registry() -> Arc<NodeRegistry> {
+        Arc::new(NodeRegistry::default())
+    }
 
-class Test[ComponentName]:
-    """Unit tests for [component] functionality."""
+    #[test]
+    fn test_workflow_builds_successfully() {
+        let mut builder = WorkflowBuilder::new();
+        builder.add_node("LogNode", "log", ValueMap::from([
+            ("message".into(), Value::String("test".into())),
+        ]));
 
-    def test_basic_functionality(self):
-        """Test basic [component] operation."""
-        # Create simple workflow
-        workflow = WorkflowBuilder()
+        let registry = test_registry();
+        let result = builder.build(&registry);
+        assert!(result.is_ok(), "Workflow should build without errors");
+    }
 
-        workflow.add_node("PythonCodeNode", "test_node", {
-            "code": "result = {'value': 42, 'status': 'success'}"
-        })
+    #[test]
+    fn test_workflow_connection_validation() {
+        let mut builder = WorkflowBuilder::new();
+        builder.add_node("LogNode", "a", ValueMap::new());
+        builder.add_node("LogNode", "b", ValueMap::new());
+        builder.connect("a", "output", "b", "input");
 
-        # Execute
-        runtime = LocalRuntime()
-        results, run_id = runtime.execute(workflow.build())
+        let registry = test_registry();
+        let workflow = builder.build(&registry).expect("build should succeed");
+        assert_eq!(workflow.node_count(), 2);
+    }
 
-        # Assertions
-        assert "test_node" in results
-        assert results["test_node"]["result"]["value"] == 42
-        assert results["test_node"]["result"]["status"] == "success"
+    #[test]
+    fn test_invalid_connection_rejected() {
+        let mut builder = WorkflowBuilder::new();
+        builder.add_node("LogNode", "a", ValueMap::new());
+        // Connect to a node that does not exist
+        builder.connect("a", "output", "nonexistent", "input");
 
-    def test_error_handling(self):
-        """Test error handling in [component]."""
-        workflow = WorkflowBuilder()
+        let registry = test_registry();
+        let result = builder.build(&registry);
+        assert!(result.is_err(), "Should reject connection to missing node");
+    }
 
-        workflow.add_node("PythonCodeNode", "test_error", {
-            "code": """
-if not input_data:
-    result = {'error': 'No data provided', 'status': 'error'}
-else:
-    result = {'status': 'success'}
-"""
-        })
+    #[tokio::test]
+    async fn test_workflow_execution() {
+        let mut builder = WorkflowBuilder::new();
+        builder.add_node("LogNode", "step", ValueMap::from([
+            ("message".into(), Value::String("hello".into())),
+        ]));
 
-        runtime = LocalRuntime()
+        let registry = test_registry();
+        let workflow = builder.build(&registry).expect("build should succeed");
 
-        # Test error case (no input)
-        results, run_id = runtime.execute(workflow.build())
-        assert results["test_error"]["result"]["status"] == "error"
-        assert "error" in results["test_error"]["result"]
+        let runtime = Runtime::new(RuntimeConfig::default(), registry);
+        let result = runtime.execute(&workflow, ValueMap::new()).await;
 
-    def test_edge_cases(self):
-        """Test edge cases and boundary conditions."""
-        workflow = WorkflowBuilder()
-
-        workflow.add_node("PythonCodeNode", "edge_test", {
-            "code": """
-# Test empty list
-if not data:
-    result = {'count': 0, 'empty': True}
-else:
-    result = {'count': len(data), 'empty': False}
-"""
-        })
-
-        runtime = LocalRuntime()
-
-        # Test with empty data
-        results, _ = runtime.execute(workflow.build(), parameters={
-            "edge_test": {"data": []}
-        })
-
-        assert results["edge_test"]["result"]["count"] == 0
-        assert results["edge_test"]["result"]["empty"] is True
+        assert!(result.is_ok(), "Execution should succeed");
+        let exec_result = result.unwrap();
+        assert!(!exec_result.run_id.is_empty());
+        assert!(exec_result.results.contains_key("step"));
+    }
+}
 ```
 
-## Node-Specific Unit Test Template
+## Custom Node Unit Test Template
 
-```python
-"""Unit tests for CustomNode"""
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kailash_core::{Node, NodeError, ExecutionContext};
+    use kailash_core::value::{Value, ValueMap};
 
-import pytest
-from kailash.nodes.base import Node, NodeParameter
+    #[test]
+    fn test_node_type_name() {
+        let node = CustomProcessingNode;
+        assert_eq!(node.type_name(), "CustomProcessingNode");
+    }
 
-class TestCustomNode:
-    """Unit tests for CustomNode."""
+    #[test]
+    fn test_node_declares_required_params() {
+        let node = CustomProcessingNode;
+        let params = node.input_params();
 
-    def test_node_initialization(self):
-        """Test node initializes correctly."""
-        from kailash.nodes.custom import CustomNode
+        let required: Vec<_> = params.iter()
+            .filter(|p| p.required)
+            .map(|p| p.name.as_str())
+            .collect();
 
-        node = CustomNode()
-        assert node is not None
-        assert hasattr(node, 'execute')
+        assert!(required.contains(&"input_data"), "input_data must be required");
+    }
 
-    def test_parameter_declaration(self):
-        """Test node declares parameters correctly."""
-        from kailash.nodes.custom import CustomNode
+    #[test]
+    fn test_node_declares_outputs() {
+        let node = CustomProcessingNode;
+        let outputs = node.output_params();
+        let names: Vec<_> = outputs.iter().map(|p| p.name.as_str()).collect();
+        assert!(names.contains(&"result"));
+        assert!(names.contains(&"status"));
+    }
 
-        node = CustomNode()
-        params = node.get_parameters()
+    #[tokio::test]
+    async fn test_node_executes_with_valid_inputs() {
+        let node = CustomProcessingNode;
+        let ctx = ExecutionContext::default();
 
-        # Verify required parameters are declared
-        assert "required_param" in params
-        assert params["required_param"].required is True
+        let inputs = ValueMap::from([
+            ("input_data".into(), Value::Object(ValueMap::from([
+                ("key".into(), Value::String("value".into())),
+            ]))),
+            ("operation".into(), Value::String("transform".into())),
+        ]);
 
-    def test_node_execution(self):
-        """Test node executes with valid inputs."""
-        from kailash.nodes.custom import CustomNode
+        let result = node.execute(inputs, &ctx).await;
+        assert!(result.is_ok());
 
-        node = CustomNode()
-        result = node.execute(
-            required_param="value",
-            optional_param=123
-        )
+        let outputs = result.unwrap();
+        assert!(outputs.contains_key("result"));
+        assert_eq!(
+            outputs.get("status"),
+            Some(&Value::String("success".into()))
+        );
+    }
 
-        assert result is not None
-        assert "output_field" in result
+    #[tokio::test]
+    async fn test_node_rejects_missing_required_input() {
+        let node = CustomProcessingNode;
+        let ctx = ExecutionContext::default();
 
-    def test_node_validation(self):
-        """Test node validates inputs correctly."""
-        from kailash.nodes.custom import CustomNode
+        // No input_data provided
+        let inputs = ValueMap::from([
+            ("operation".into(), Value::String("transform".into())),
+        ]);
 
-        node = CustomNode()
+        let result = node.execute(inputs, &ctx).await;
+        assert!(result.is_err());
 
-        # Should raise error for invalid input
-        with pytest.raises(ValueError):
-            node.execute(required_param=None)
-```
-
-## Mocking External Services (Allowed in Tier 1)
-
-```python
-from unittest.mock import patch, Mock
-
-class TestWithMocking:
-    """Unit tests with mocked external services."""
-
-    @patch('external_api_client.request')
-    def test_api_integration_mocked(self, mock_request):
-        """Test API integration with mocked response."""
-        # Setup mock
-        mock_request.return_value = {
-            "status": "success",
-            "data": {"value": 100}
+        match result.unwrap_err() {
+            NodeError::MissingInput { name } => {
+                assert_eq!(name, "input_data");
+            }
+            other => panic!("Expected MissingInput, got: {other:?}"),
         }
+    }
 
-        # Test your workflow
-        workflow = WorkflowBuilder()
-        workflow.add_node("PythonCodeNode", "api_handler", {
-            "code": """
-# This would call external_api_client.request in real code
-result = {'processed': True, 'value': 100}
-"""
-        })
+    #[tokio::test]
+    async fn test_node_rejects_unknown_operation() {
+        let node = CustomProcessingNode;
+        let ctx = ExecutionContext::default();
 
-        runtime = LocalRuntime()
-        results, _ = runtime.execute(workflow.build())
+        let inputs = ValueMap::from([
+            ("input_data".into(), Value::String("data".into())),
+            ("operation".into(), Value::String("invalid_op".into())),
+        ]);
 
-        assert results["api_handler"]["result"]["processed"] is True
+        let result = node.execute(inputs, &ctx).await;
+        assert!(result.is_err());
+    }
+}
+```
+
+## Value Type Unit Tests
+
+```rust
+#[cfg(test)]
+mod tests {
+    use kailash_core::value::{Value, ValueMap};
+    use std::sync::Arc;
+
+    #[test]
+    fn test_value_from_primitives() {
+        assert_eq!(Value::from(42_i64), Value::Integer(42));
+        assert_eq!(Value::from(3.14_f64), Value::Float(3.14));
+        assert_eq!(Value::from(true), Value::Bool(true));
+        assert_eq!(Value::from("hello"), Value::String(Arc::from("hello")));
+    }
+
+    #[test]
+    fn test_value_map_construction() {
+        let map = ValueMap::from([
+            ("key".into(), Value::String("value".into())),
+            ("count".into(), Value::Integer(42)),
+        ]);
+
+        assert_eq!(map.len(), 2);
+        assert_eq!(map.get("key"), Some(&Value::String("value".into())));
+        assert_eq!(map.get("count"), Some(&Value::Integer(42)));
+    }
+
+    #[test]
+    fn test_value_null_handling() {
+        let map = ValueMap::from([
+            ("present".into(), Value::String("yes".into())),
+            ("absent".into(), Value::Null),
+        ]);
+
+        assert!(map.get("present").is_some());
+        assert_eq!(map.get("absent"), Some(&Value::Null));
+        assert_eq!(map.get("missing"), None);
+    }
+}
+```
+
+## Mocking External Services (Allowed in Tier 1 Only)
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mock trait for external API client (Tier 1 only -- real services in Tier 2/3).
+    trait ApiClient: Send + Sync {
+        fn fetch(&self, url: &str) -> Result<String, Box<dyn std::error::Error>>;
+    }
+
+    struct MockApiClient {
+        response: String,
+    }
+
+    impl ApiClient for MockApiClient {
+        fn fetch(&self, _url: &str) -> Result<String, Box<dyn std::error::Error>> {
+            Ok(self.response.clone())
+        }
+    }
+
+    #[test]
+    fn test_with_mock_api() {
+        let client = MockApiClient {
+            response: r#"{"status":"ok","value":42}"#.to_string(),
+        };
+
+        let result = client.fetch("https://api.example.com/data");
+        assert!(result.is_ok());
+        assert!(result.unwrap().contains("42"));
+    }
+}
 ```
 
 ## Quick Tips
 
-- 💡 **Fast execution**: Unit tests must complete in <1 second
-- 💡 **Isolation**: No external dependencies (database, APIs, files)
-- 💡 **Mocking allowed**: Mock external services in Tier 1 only
-- 💡 **Focus on logic**: Test individual components, not integration
+- Unit tests must complete in < 1 second
+- No external dependencies (database, APIs, filesystem I/O)
+- Mocking is allowed in Tier 1 only -- use trait objects or test doubles
+- Use `#[tokio::test]` for async tests, `#[test]` for sync
+- Use `assert!`, `assert_eq!`, `assert_ne!` -- `.unwrap()` and `.expect()` are fine in tests
+- Place tests in `#[cfg(test)] mod tests` within the source file for private API testing
+- Place tests in `tests/` directory for public API / integration-style testing
 
 ## Related Patterns
 
 - **Integration tests**: [`template-test-integration`](template-test-integration.md)
 - **E2E tests**: [`template-test-e2e`](template-test-e2e.md)
-- **Testing strategy**: [`test-3tier-strategy`](../../4-operations/testing/test-3tier-strategy.md)
+- **Testing rules**: See `rules/testing.md` for 3-tier strategy
 
 ## When to Escalate to Subagent
 
 Use `testing-specialist` subagent when:
-- Designing comprehensive test strategy
-- Custom test architecture needed
+
+- Designing comprehensive test strategy across crates
+- Custom test infrastructure needed
 - CI/CD integration planning
 
 Use `tdd-implementer` when:
+
 - Implementing test-first development
 - Need complete test coverage plan
 
 ## Documentation References
 
 ### Primary Sources
-- **Testing Specialist**: [`.claude/agents/testing-specialist.md` (lines 146-176)](../../../../.claude/agents/testing-specialist.md#L146-L176)
 
-<!-- Trigger Keywords: unit test template, Tier 1 test, create unit test, test structure, unit test example, unit test boilerplate, pytest unit test, fast test template -->
+- **Testing Rules**: [`rules/testing.md`](../../../../rules/testing.md) -- 3-tier strategy, NO MOCKING in Tiers 2/3
+- **CLAUDE.md**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Test commands (`cargo test --workspace`)
+- **Core Crate Tests**: [`crates/kailash-core/tests/`](../../../../crates/kailash-core/tests/) -- Reference test implementations
+
+<!-- Trigger Keywords: unit test template, Tier 1 test, create unit test, test structure, unit test example, unit test boilerplate, cargo test, fast test template -->

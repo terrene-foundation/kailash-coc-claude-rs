@@ -70,7 +70,7 @@ from contextlib import asynccontextmanager
 from nexus import Nexus
 
 @asynccontextmanager
-async def lifespan(app: Nexus):
+async def lifespan(app):
     # ONE pool for the entire worker
     app.state.pool = await asyncpg.create_pool(
         os.environ["DATABASE_URL"],

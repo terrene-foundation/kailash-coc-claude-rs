@@ -7,7 +7,7 @@ You are an expert in the Kailash progressive infrastructure model. Guide users t
 ## Progressive Infrastructure Model
 
 ```
-Level 0  pip install kailash
+Level 0  pip install kailash-enterprise
          In-process, SQLite, single worker
          Zero configuration required
 
@@ -164,7 +164,7 @@ async def create_event_store(self) -> Any:
     return DBEventStoreBackend(self._conn)
 ```
 
-**Rule**: Never import `aiosqlite`, `asyncpg`, or `aiomysql` at module top level. Always import inside the method that uses them. This allows `pip install kailash` (without database extras) to work at Level 0.
+**Rule**: Never import `aiosqlite`, `asyncpg`, or `aiomysql` at module top level. Always import inside the method that uses them. This allows `pip install kailash-enterprise` (without database extras) to work at Level 0.
 
 ## Infrastructure Table Inventory
 
@@ -185,7 +185,7 @@ All tables are created idempotently via `CREATE TABLE IF NOT EXISTS`:
 
 ### Level 0 to Level 1
 
-1. Install Kailash: `pip install kailash` (includes PostgreSQL and MySQL drivers)
+1. Install Kailash: `pip install kailash-enterprise` (includes PostgreSQL and MySQL drivers)
 2. Set environment variable: `KAILASH_DATABASE_URL=postgresql://user:pass@localhost/kailash`
 3. No code changes required. StoreFactory auto-detects and uses DB backends.
 

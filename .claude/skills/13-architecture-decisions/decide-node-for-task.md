@@ -1,72 +1,203 @@
 ---
 name: decide-node-for-task
-description: "Select appropriate nodes from 110+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
+description: "Select appropriate nodes from 140+ options for specific tasks and use cases. Use when asking 'which node', 'node for task', 'choose node', 'node selection', 'what node', or 'node recommendation'."
 ---
 
 # Decision: Node Selection
 
-Decision: Node Selection guide with patterns, examples, and best practices.
+Guide for choosing the right node from 140+ available node types in the Kailash Rust SDK.
 
 > **Skill Metadata**
 > Category: `cross-cutting`
 > Priority: `CRITICAL`
-> SDK Version: `0.9.25+`
 
 ## Quick Reference
 
-- **Primary Use**: Decision: Node Selection
+- **Primary Use**: Node selection for specific tasks
 - **Category**: cross-cutting
 - **Priority**: CRITICAL
 - **Trigger Keywords**: which node, node for task, choose node, node selection, what node
 
-## Core Pattern
+## Node Selection by Task
 
-```python
-from kailash.workflow.builder import WorkflowBuilder
-from kailash.runtime.local import LocalRuntime
+### AI / LLM Tasks
 
-# Decide Node For Task implementation
-workflow = WorkflowBuilder()
+| Task             | Node                  | Key Config                    |
+| ---------------- | --------------------- | ----------------------------- |
+| Text generation  | `LLMNode`             | `provider`, `model`, `prompt` |
+| Embeddings       | `EmbeddingNode`       | `provider`, `model`, `text`   |
+| Classification   | `ClassificationNode`  | `categories`, `text`          |
+| Vision/images    | `VisionNode`          | `provider`, `image_url`       |
+| Audio            | `AudioNode`           | `provider`, `audio_url`       |
+| Image generation | `ImageGenerationNode` | `provider`, `prompt`          |
+| Text to speech   | `TextToSpeechNode`    | `provider`, `text`            |
 
-# See source documentation for specific node types and parameters
+### HTTP / API Tasks
 
-runtime = LocalRuntime()
-results, run_id = runtime.execute(workflow.build())
+| Task             | Node                 | Key Config                  |
+| ---------------- | -------------------- | --------------------------- |
+| REST API calls   | `HTTPRequestNode`    | `url`, `method`, `headers`  |
+| GraphQL queries  | `GraphQLNode`        | `url`, `query`, `variables` |
+| WebSocket comms  | `WebSocketNode`      | `url`, `message`            |
+| Webhook receiver | `WebhookNode`        | `path`, `method`            |
+| Web scraping     | `WebScrapingNode`    | `url`, `selectors`          |
+| Rate-limited API | `RateLimitedAPINode` | `url`, `rate_limit`         |
+
+### Database Tasks
+
+| Task          | Node                     | Key Config                     |
+| ------------- | ------------------------ | ------------------------------ |
+| SQL queries   | `SQLQueryNode`           | `query`, `connection_string`   |
+| DB connection | `DatabaseConnectionNode` | `connection_string`            |
+| Transactions  | `SQLTransactionNode`     | `queries`                      |
+| DataFlow CRUD | Generated nodes          | Per-model (e.g., `CreateUser`) |
+
+### File Tasks
+
+| Task           | Node               | Key Config                     |
+| -------------- | ------------------ | ------------------------------ |
+| Read files     | `FileReaderNode`   | `file_path`                    |
+| CSV processing | `CSVProcessorNode` | `file_path`, `delimiter`       |
+| Excel reading  | `ExcelReaderNode`  | `file_path` (feature: `excel`) |
+| PDF reading    | `PDFReaderNode`    | `file_path` (feature: `pdf`)   |
+| XML parsing    | `XMLParserNode`    | `file_path`, `operation`       |
+
+### Control Flow
+
+| Task                | Node              | Key Config                |
+| ------------------- | ----------------- | ------------------------- |
+| Conditional routing | `SwitchNode`      | `condition`, `cases`      |
+| Merge branches      | `MergeNode`       | `strategy`                |
+| Loop iteration      | `LoopNode`        | `items`, `max_iterations` |
+| Conditional exec    | `ConditionalNode` | `condition`               |
+| Parallel execution  | `ParallelNode`    | `branches`                |
+| Retry with backoff  | `RetryNode`       | `max_retries`, `backoff`  |
+
+### Data Transform
+
+| Task              | Node                  | Key Config          |
+| ----------------- | --------------------- | ------------------- |
+| JSON transform    | `JSONTransformNode`   | `expression`        |
+| Text transform    | `TextTransformNode`   | `operation`, `text` |
+| Data mapping      | `DataMapperNode`      | `mapping`           |
+| Schema validation | `SchemaValidatorNode` | `schema`            |
+
+### Security
+
+| Task               | Node                    | Key Config                   |
+| ------------------ | ----------------------- | ---------------------------- |
+| JWT auth           | `JWTAuthNode`           | `secret`, `algorithm`        |
+| OAuth2             | `OAuth2Node`            | `client_id`, `client_secret` |
+| API key auth       | `APIKeyAuthNode`        | `api_key`                    |
+| Encryption         | `EncryptionNode`        | `algorithm`, `key`           |
+| Hashing            | `HashingNode`           | `algorithm`                  |
+| Input sanitization | `InputSanitizationNode` | `rules`                      |
+| Data masking       | `DataMaskingNode`       | `fields`, `strategy`         |
+
+### RAG (Retrieval-Augmented Generation)
+
+| Task              | Node                 | Key Config               |
+| ----------------- | -------------------- | ------------------------ |
+| Text splitting    | `TextSplitterNode`   | `chunk_size`, `overlap`  |
+| Embedding storage | `EmbeddingStoreNode` | `store_type`             |
+| Vector search     | `VectorSearchNode`   | `query`, `top_k`         |
+| RAG pipeline      | `RAGPipelineNode`    | `retriever`, `generator` |
+
+## Usage Example
+
+```rust
+use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+use kailash_core::value::{Value, ValueMap};
+use std::sync::Arc;
+
+let mut builder = WorkflowBuilder::new();
+
+// Read CSV data
+builder.add_node("CSVProcessorNode", "reader", ValueMap::from([
+    ("file_path".into(), Value::String("data.csv".into())),
+]));
+
+// Transform with JSON expression
+builder.add_node("JSONTransformNode", "transform", ValueMap::from([
+    ("expression".into(), Value::String("@.name".into())),
+]));
+
+// Connect reader output to transform input
+builder.connect("reader", "data", "transform", "data");
+
+let registry = Arc::new(NodeRegistry::default());
+let workflow = builder.build(&registry)?;
+
+let runtime = Runtime::new(RuntimeConfig::default(), registry);
+let result = runtime.execute(&workflow, ValueMap::new()).await?;
 ```
 
+## Decision Flow
 
-## Common Use Cases
+```
+What task are you doing?
+  |-- LLM/AI tasks -> LLMNode, EmbeddingNode, ClassificationNode
+  |-- Database operations -> DataFlow generated nodes (CreateX, ReadX, etc.)
+  |-- HTTP API calls -> HTTPRequestNode, GraphQLNode
+  |-- File reading -> FileReaderNode, CSVProcessorNode, XMLParserNode
+  |-- Conditional routing -> SwitchNode, ConditionalNode
+  |-- Data transformation -> JSONTransformNode, DataMapperNode
+  |-- Security -> EncryptionNode, JWTAuthNode, InputSanitizationNode
+  |-- RAG pipeline -> TextSplitterNode, VectorSearchNode, RAGPipelineNode
+  |-- Not sure? -> Check CLAUDE.md node categories table
+```
 
-- **Decide-Node-For-Task Core Functionality**: Primary operations and common patterns
-- **Integration Patterns**: Connect with other nodes, workflows, external systems
-- **Error Handling**: Robust error handling with retries, fallbacks, and logging
-- **Performance**: Optimization techniques, caching, batch operations, async execution
-- **Production Use**: Enterprise-grade patterns with monitoring, security, and reliability
+## Custom Nodes
+
+When no built-in node fits, create a custom node:
+
+```rust
+use kailash_macros::kailash_node;
+use kailash_core::node::{NodeExecute, NodeError};
+use kailash_core::value::ValueMap;
+use kailash_core::ExecutionContext;
+use async_trait::async_trait;
+
+#[kailash_node(description = "My custom transform", category = "transform")]
+pub struct MyTransformNode {
+    #[input(required)]
+    data: Value,
+    #[output]
+    result: Value,
+}
+
+#[async_trait]
+impl NodeExecute for MyTransformNode {
+    async fn execute(&self, inputs: ValueMap, _ctx: &ExecutionContext) -> Result<ValueMap, NodeError> {
+        let data = inputs.get("data")
+            .ok_or(NodeError::MissingInput { name: "data".into() })?;
+        // ... transform logic ...
+        Ok(ValueMap::from([("result".into(), data.clone())]))
+    }
+}
+```
 
 ## Related Patterns
 
-- **For fundamentals**: See [`workflow-quickstart`](#)
-- **For connections**: See [`connection-patterns`](#)
-- **For parameters**: See [`param-passing-quick`](#)
-
-## When to Escalate to Subagent
-
-Use specialized subagents when:
-- Complex implementation needed
-- Production deployment required
-- Deep analysis necessary
-- Enterprise patterns needed
+- **Node categories**: See CLAUDE.md -- kailash-nodes section
+- **Custom nodes**: See `.claude/skills/01-core/`
+- **DataFlow generated nodes**: See `.claude/skills/02-dataflow/`
+- **Node registry**: See `crates/kailash-nodes/src/lib.rs`
 
 ## Documentation References
 
 ### Primary Sources
 
+- [`CLAUDE.md`](../../../../CLAUDE.md) -- kailash-nodes section with full category table
+- `crates/kailash-nodes/` -- Node implementations
+- `crates/kailash-core/src/node.rs` -- Node trait definition
+
 ## Quick Tips
 
-- 💡 **Tip 1**: Always follow Decision: Node Selection best practices
-- 💡 **Tip 2**: Test patterns incrementally
-- 💡 **Tip 3**: Reference documentation for details
+- Node names always end with `Node` suffix (e.g., `CSVProcessorNode`)
+- All 140+ nodes use the same `Node` trait interface
+- DataFlow generates 11 nodes per model automatically
+- Feature-gated nodes (excel, pdf, wasm) need Cargo feature flags enabled
+- Use `NodeRegistry::default()` to get all registered nodes
 
-## Keywords for Auto-Trigger
-
-<!-- Trigger Keywords: which node, node for task, choose node, node selection, what node -->
+<!-- Trigger Keywords: which node, node for task, choose node, node selection, what node, node recommendation -->

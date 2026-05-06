@@ -1,110 +1,198 @@
 ---
-skill: nexus-essential-patterns
-description: Essential code patterns for Nexus setup, registration, DataFlow integration, middleware, and configuration
-priority: HIGH
-tags: [nexus, patterns, setup, handler, dataflow, middleware, configuration]
+name: nexus-essential-patterns
+description: "Essential patterns: middleware, routers, plugins, event bus on low-level Nexus. NexusApp convenience methods."
 ---
 
-# Nexus Essential Patterns
+# Nexus Essential Patterns (kailash-rs)
 
-Quick-reference for the most common Nexus operations using shared API.
+Quick-reference code patterns for common Nexus operations across both layers.
 
-## Basic Setup
+## Basic Setup (NexusApp)
 
-```
-app = Nexus()
-app.register("workflow_name", workflow.build())  # ALWAYS .build()
+```python
+from kailash.nexus import NexusApp, NexusConfig
+
+app = NexusApp(config=NexusConfig(port=3000))
+
+@app.handler("greet", description="Greet a user")
+async def greet(name: str) -> dict:
+    return {"message": f"Hello, {name}!"}
+
 app.start()
 ```
 
 ## Handler Registration
 
-### Imperative (Shared API)
+### Decorator (NexusApp)
 
-```
-app = Nexus()
-app.handler("process", process_func)
-app.start()
-```
-
-### Decorator (Language-Specific)
-
-Decorator-style handler registration is available in most SDKs. The exact syntax varies. See language-specific variant for decorator patterns.
-
-**Why use handlers?**
-
-- Bypasses sandbox restrictions on code nodes
-- No import blocking (use any library)
-- Automatic parameter derivation from function signature
-- Multi-channel deployment (API/CLI/MCP) from single function
-
-## DataFlow Integration (CRITICAL)
-
-```
-app = Nexus(auto_discovery=False)  # CRITICAL: prevents startup blocking
+```python
+@app.handler("process", description="Process data")
+async def process(data: str, mode: str = "default") -> dict:
+    return {"result": data, "mode": mode}
 ```
 
-**WARNING**: Without `auto_discovery=False`, Nexus blocks on startup when DataFlow is present.
+### Imperative (NexusApp)
 
-## Middleware & Plugin API
+```python
+async def analyze(text: str) -> dict:
+    return {"length": len(text)}
 
-These APIs are shared across all SDKs:
-
-```
-# Add middleware
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
-
-# Include existing routers
-app.include_router(legacy_router, prefix="/legacy")
-
-# Add plugins (NexusPlugin protocol)
-app.add_plugin(auth_plugin)
+app.register("analyze", analyze)
+app.register_handler("analyze_v2", analyze)
 ```
 
-## Presets
+### Low-Level (Nexus)
 
-```
-app = Nexus(preset="saas")
-app = Nexus(preset="enterprise")
-```
+```python
+from kailash.nexus import Nexus
 
-Presets apply one-line middleware stacks for common deployment profiles.
-
-## Configuration Quick Reference
-
-| Use Case          | Config                                             |
-| ----------------- | -------------------------------------------------- |
-| **With DataFlow** | `Nexus(auto_discovery=False)`                      |
-| **Standalone**    | `Nexus()`                                          |
-| **With Preset**   | `Nexus(preset="saas")`                             |
-| **Custom Ports**  | `Nexus(api_port=8000, mcp_port=3001)`              |
-| **Full Features** | `Nexus(auto_discovery=False)` + `add_plugin(auth)` |
-
-## Connection Pattern (WorkflowBuilder)
-
-```
-# CORRECT: Explicit connections with dot notation
-workflow.add_connection("prepare", "result.filters", "search", "filter")
-
-# WRONG: Template syntax not supported
-# "filter": "${prepare.result}"
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.handler("greet", greet_func)
+nexus.register("process", process_func)
 ```
 
-## Health Check
+## Custom Endpoints (NexusApp)
 
+```python
+@app.endpoint("/api/v1/users/{user_id}", methods=["GET"])
+async def get_user(user_id: str):
+    return {"user_id": user_id}
+
+@app.endpoint("/api/v1/search", methods=["GET", "POST"])
+async def search(q: str = "", limit: int = 10):
+    return {"query": q, "limit": limit}
 ```
-health = app.health_check()
+
+## CORS and Rate Limiting (NexusApp)
+
+```python
+app.add_cors(origins=["https://example.com"])
+app.add_rate_limit(max_requests=100, window_secs=60)
 ```
 
-```bash
-curl http://localhost:8000/health
+## Middleware (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus, NexusConfig, MiddlewareConfig
+
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.set_middleware(MiddlewareConfig(...))
 ```
 
-## Key Rules
+## Router Inclusion (Low-Level Nexus)
 
-1. **Always call `.build()`** before registering workflows
-2. **`auto_discovery=False`** when integrating with DataFlow
-3. **Explicit connections** -- NOT template syntax `${...}`
-4. **Test all three channels** (API, CLI, MCP) during development
+```python
+from kailash.nexus import Nexus, NexusRouter
 
-See language-specific variant for decorator syntax, sandbox configuration, input mapping patterns, and complete code examples.
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.include_router(legacy_router)
+```
+
+## Plugin System (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus, NexusAuthPlugin, JwtConfig
+import os
+
+nexus = Nexus(config=NexusConfig(port=3000))
+
+auth = NexusAuthPlugin.basic_auth(
+    jwt=JwtConfig(secret=os.environ["JWT_SECRET"]),
+)
+nexus.add_plugin(auth)
+```
+
+## Event Bus (Low-Level Nexus)
+
+```python
+from kailash.nexus import Nexus
+
+nexus = Nexus(config=NexusConfig(port=3000))
+
+# Get event bus
+bus = nexus.event_bus()
+
+# Subscribe to events
+nexus.subscribe("workflow.complete", on_complete_callback)
+nexus.on("error", on_error_callback)
+```
+
+## Preset System
+
+```python
+from kailash.nexus import NexusApp, Nexus, NexusConfig, Preset
+
+# Via NexusApp
+app = NexusApp(config=NexusConfig(port=3000), preset="enterprise")
+
+# Via low-level Nexus
+nexus = Nexus(preset=Preset.saas())
+```
+
+## Workflow Registration (Low-Level Nexus)
+
+```python
+import kailash
+from kailash.nexus import Nexus, NexusConfig
+
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("EmbeddedPythonNode", "process", {
+    "code": "result = {'status': 'ok'}",
+    "output_vars": ["result"],
+})
+
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.register_workflow("process", builder.build(reg))
+```
+
+## Introspection
+
+```python
+# NexusApp
+print(app.get_endpoints())
+print(app.get_registered_handlers())
+print(app.health_check())
+
+# Nexus (low-level)
+print(nexus.workflow_count())
+print(nexus.list_workflows())
+print(nexus.handler_count())
+print(nexus.get_registered_handlers())
+print(nexus.plugin_count())
+print(nexus.plugin_names())
+```
+
+## Layer Quick Reference
+
+| Feature                 | NexusApp | Nexus (Low-Level) |
+| ----------------------- | -------- | ----------------- |
+| `@handler()` decorator  | Yes      | No                |
+| `@endpoint()` decorator | Yes      | No                |
+| `add_cors()`            | Yes      | No                |
+| `add_rate_limit()`      | Yes      | No                |
+| `set_middleware()`      | No       | Yes               |
+| `include_router()`      | No       | Yes               |
+| `add_plugin()`          | No       | Yes               |
+| `event_bus()`           | No       | Yes               |
+| `subscribe()` / `on()`  | No       | Yes               |
+| `register_workflow()`   | No       | Yes               |
+| Introspection counts    | Limited  | Full              |
+
+## Key Differences from kailash-py
+
+| Aspect       | kailash-py                                | kailash-rs                                         |
+| ------------ | ----------------------------------------- | -------------------------------------------------- |
+| Entry point  | `from nexus import Nexus`                 | `from kailash.nexus import NexusApp` (recommended) |
+| Two layers   | Single `Nexus` class                      | `NexusApp` (high-level) + `Nexus` (low-level)      |
+| Middleware   | `app.add_middleware(CORSMiddleware, ...)` | `nexus.set_middleware(MiddlewareConfig(...))`      |
+| Plugin       | `app.add_plugin(auth)`                    | `nexus.add_plugin(auth)`                           |
+| CORS         | `Nexus(cors_origins=[...])` constructor   | `app.add_cors(origins=[...])` method               |
+| Default port | 8000                                      | 3000                                               |
+
+## Related Skills
+
+- [nexus-comparison](nexus-comparison.md) - When to use NexusApp vs Nexus
+- [nexus-handler-support](nexus-handler-support.md) - Handler patterns
+- [nexus-config-options](nexus-config-options.md) - Configuration reference
+- [nexus-security-best-practices](nexus-security-best-practices.md) - Auth patterns
