@@ -61,4 +61,6 @@ When a skill repeatedly produces substitution decisions, the skill text itself i
 
 **Why:** It removes the audit trail that allows the next reader to know the mandated step didn't run.
 
+**Distinct from**: `rules/time-pressure-discipline.md` — that rule blocks procedure drops triggered by **user pressure framings** ("speed up", "deadline looming"); this rule blocks procedure drops triggered by the **agent's own cost calculus** ("the expensive step needs a trigger we don't have"). Different triggers, overlapping defense. Both halves required: the agent can rationalize a substitution either way.
+
 Origin: 2026-05-04 — `/sweep` reported 0 CRIT/HIGH after substituting cite-check (~1s) for the mandated Sweep 5 protocol (~10–30 min). User: "what did you check on sweep command?" — exposing that `0 HIGH, 0 MED, 0 LOW` cite-check was relabeled as Sweep 5 result. The cheap tool answered a different question; the agent shipped the answer as if it were the question. See guide for full post-mortem and tool-backing pattern.
