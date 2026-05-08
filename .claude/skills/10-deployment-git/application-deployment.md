@@ -454,9 +454,9 @@ Encoded knowledge of cloud CLIs is stale within months. Always web-search for th
 
 The YAML frontmatter is what `/deploy` reads. The prose body is what the human reads when something breaks at 2 AM. Both are required.
 
-### 4. Reusing a stale deployment-ops-specialist agent
+### 4. Reusing a stale release-specialist agent configuration
 
-If the project has an old deployment-specialist agent referencing EC2/promote.sh/docker-compose, that agent is stale. Update it to match the new `deployment-config.md` BEFORE running `/deploy` — otherwise the agent's mental model contradicts the config.
+If the project's `release-specialist` agent references EC2/promote.sh/docker-compose (a stale config from older template versions), that configuration is stale. Update it to match the new `deployment-config.md` BEFORE running `/deploy` — otherwise the agent's mental model contradicts the config.
 
 ## See Also
 
