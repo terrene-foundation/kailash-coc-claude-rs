@@ -40,7 +40,7 @@ Frontend integration patterns for:
 
 ### General Frontend
 
-- **[frontend-developer](frontend-developer.md)** - Frontend development guide
+- **[frontend-patterns](frontend-patterns.md)** - General frontend development patterns
   - Architecture patterns
   - API integration
   - Authentication
