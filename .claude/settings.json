@@ -22,6 +22,25 @@
       "Bash(rm:.claude/learning/violations*)",
       "Bash(mv:.claude/learning/posture*)",
       "Bash(mv:.claude/learning/violations*)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(cp:*)",
+      "Bash(git:*)",
+      "Bash(node:*)",
+      "Bash(yq:*)",
+      "Bash(jq:*)",
+      "Bash(md5:*)",
+      "Bash(rm:.claude/test-harness/*)",
+      "Bash(rm -rf .claude/test-harness*)",
+      "Edit(/Users/esperie/repos/loom/kailash-*/**)",
+      "Write(/Users/esperie/repos/loom/kailash-*/**)",
+      "Read(/Users/esperie/repos/loom/kailash-*/**)",
+      "Edit(/Users/esperie/repos/loom/.claude/**)",
+      "Write(/Users/esperie/repos/loom/.claude/**)",
+      "Edit(/Users/esperie/repos/kailash-*/**)",
+      "Write(/Users/esperie/repos/kailash-*/**)",
+      "Read(/Users/esperie/repos/kailash-*/**)"
     ]
   },
   "hooks": {
