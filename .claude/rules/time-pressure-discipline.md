@@ -1,7 +1,22 @@
 ---
-priority: 0
-scope: baseline
+priority: 10
+scope: path-scoped
+paths:
+  - "**/workspaces/**"
+  - "**/.claude/commands/**"
+  - "**/.claude/agents/**"
+  - "**/.session-notes"
+  - "**/journal/**"
 ---
+
+<!-- Demoted from baseline to path-scoped 2026-05-09 (loom v2.28.x flagged-item
+resolution): CLI baseline emit was BLOCKED at 60-KB cap with this rule
+contributing 8.5 KB abridged. Hook-layer enforcement (`detectTimePressureShortcut`
+on UserPromptSubmit + Stop) remains unchanged — that is the load-bearing
+structural defense at the user-input + agent-response boundary. The path-scoped
+emission still loads the rule when the agent reads any session-execution surface
+(commands, agents, workspaces, .session-notes) per
+`feedback_paths_frontmatter_loading.md`'s sticky session injection. -->
 
 # Time-Pressure Discipline — Parallelize, Never Shortcut
 
