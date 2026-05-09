@@ -44,6 +44,7 @@ For each finding, either:
 - Update a skill's SKILL.md or sub-files
 - Update an agent's knowledge section
 - Skip (not worth codifying — explain why)
+- **Re-validate deferred items** (per `rules/value-prioritization.md` MUST-3): inherited items lacking a value-anchor MUST surface "lacks value-anchor — current value?" rather than re-list on faith. Items ≥2 sessions stale → "still wanted?" gate. Silent inheritance across `/clear` is BLOCKED.
 
 After processing, write `.claude/learning/learning-codified.json` to record what was analyzed:
 
