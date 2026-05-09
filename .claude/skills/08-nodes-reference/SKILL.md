@@ -66,7 +66,6 @@ workflow.add_connection("node1", "result", "node2", "input_data")
 
 - **[01-core-sdk](../../01-core-sdk/SKILL.md)** - Core workflow patterns
 - **[06-cheatsheets](../cheatsheets/SKILL.md)** - Node usage patterns
-- **[07-development-guides](../development-guides/SKILL.md)** - Custom node development
 - **[02-dataflow](../../02-dataflow/SKILL.md)** - Auto-generated database nodes
 
 ## Support
