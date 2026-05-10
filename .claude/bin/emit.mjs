@@ -207,6 +207,18 @@ export function stripSlotMarkers(raw) {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Rule frontmatter strip (CDX-1: per-rule frontmatter blocks repeated in body)
+// ────────────────────────────────────────────────────────────────
+// Source rules carry a leading frontmatter block declaring `priority:`
+// and `scope:` (validator-14 enforces the pair). The block is metadata
+// for the emitter — Codex/Gemini consume the rendered baseline as
+// instruction prose, so the `---\npriority: 0\nscope: baseline\n---`
+// block must not survive into the emitted body.
+export function stripRuleFrontmatter(raw) {
+  return raw.replace(/^---\n[\s\S]*?\n---\n?/, "");
+}
+
+// ────────────────────────────────────────────────────────────────
 // Overlay application (per variant-authoring.md Rule 1)
 // ────────────────────────────────────────────────────────────────
 // applyOverlay is imported from ./lib/slot-parser.mjs — shared with
@@ -397,7 +409,8 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
 
   for (const rule of crit) {
     const { composed, warnings } = composeRule(rule, cli, lang);
-    const abridged = abridgeV6(composed);
+    const fmStripped = stripRuleFrontmatter(composed);
+    const abridged = abridgeV6(fmStripped);
     const cleaned = stripSlotMarkers(abridged);
     const bytes = Buffer.byteLength(cleaned, "utf8");
 
@@ -434,11 +447,21 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
       budget: budgets.get(rule) || null,
       budget_status: budgetStatus,
     });
-    chunks.push(`\n# ${rule}\n\n${cleaned}`);
+    // CDX-3: drop the redundant `# <filename>.md` H1 prefix — each rule's
+    // own H1 (e.g. `# Zero-Tolerance Rules`) is more descriptive and the
+    // `---` inter-rule separator below provides structural boundary.
+    // CDX-1 fix: stripRuleFrontmatter() above prevents the `---\npriority:`
+    // block from showing up where the file-name H1 used to live.
+    chunks.push(cleaned);
     if (warnings.length) allWarnings.push({ rule, warnings });
   }
 
-  const emission = chunks.join("\n---\n");
+  // CDX-2: append a closing `---` so the document ends with a clean
+  // structural terminator rather than the trailing prose of the last
+  // rule. `chunks.join` only places separators *between* chunks; without
+  // this the final byte lands inside Rule 6a's "Why" paragraph and the
+  // file looks truncated to a Codex/Gemini reader.
+  const emission = chunks.join("\n---\n\n").replace(/\n+$/, "") + "\n\n---\n";
   const emissionBytes = Buffer.byteLength(emission, "utf8");
 
   // v6 caps — load from sync-manifest.yaml (single source of truth). The
