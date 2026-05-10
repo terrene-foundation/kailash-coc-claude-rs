@@ -77,7 +77,7 @@ Fixture: `.claude/fixtures/validator-13/` (migrated from `workspaces/` in Phase 
 ## AGENTS.md Size Cap
 
 - Codex native default: **32,768 bytes** (`PROJECT_DOC_MAX_BYTES` in `codex-rs/core/src/config/mod.rs`)
-- Loom wrapper override: `-c project_doc_max_bytes=65536` (2× default — verified legal, no documented hard ceiling above this)
+- Operator invocation override: `-c project_doc_max_bytes=65536` (2× default — verified legal, no documented hard ceiling above this; passed at `codex` launch by the operator. Was originally planned for inclusion in loom-emitted bash wrappers; wrappers deferred per journal/0006-DECISION-wrapper-emission-disposition-strip.md.)
 - Emitted size: **~53,620 B** steady-state post-F4 (9 CRIT rules). WARN tier between 32,768 and 61,440; BLOCK above.
 
 ## Hook Path Resolution
