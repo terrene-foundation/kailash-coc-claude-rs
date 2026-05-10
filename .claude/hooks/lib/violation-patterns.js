@@ -702,6 +702,91 @@ function detectGhIssueCloseAsNotPlanned(command) {
   };
 }
 
+/**
+ * detectStateFileMutation — three-layer Bash mutation detector for protected
+ * state-file paths.
+ *
+ * Layer 1: redirect / heredoc / tee / sed -i / jq -i (excluding fd-redirects
+ *          like `2>&1` and /dev/null sinks).
+ * Layer 2: file-mutating utilities (cp, mv, dd, rsync, install, truncate, ln,
+ *          chmod, chown, touch).
+ * Layer 3: interpreter -c / -e / -m bodies (python, node, ruby, perl, bash, sh)
+ *          that reference the protected path.
+ *
+ * Single-line scope: each layer matches within ONE line of the command —
+ * a `>` on line 1 followed by a protected path on line 4 is NOT one redirect.
+ * Without single-line scope, an unrelated redirect on one line plus a
+ * protected-path mention on a later line would fire a false-positive.
+ *
+ * Generic over `pathRx` so consumers can supply their own protected-path
+ * regex (trust-posture state, deploy state, project-specific state). Returns
+ * `{ layer, kind }` on hit, or `null` if no mutation detected.
+ *
+ * Pairs with `rules/state-file-write-guard.md` § "Bash-Layer Mutation
+ * Coverage — Beyond Redirects" and the trust-posture state-file protection
+ * in `validate-bash-command.js`.
+ */
+function detectStateFileMutation(command, pathRx) {
+  if (!command || !pathRx) return null;
+  const lines = command.split("\n");
+  for (const line of lines) {
+    // Layer 1: redirect / heredoc / tee / sed -i / jq -i — but NOT 2>&1 fd-redirect or /dev/null sink
+    // Output redirect to protected path
+    if (/(?:^|[^&\d2])>\s*[^|\n]*?/.test(line)) {
+      const redirectMatch = line.match(/(?:^|[^&\d2])>>?\s*([^\s|;&]+)/);
+      if (redirectMatch && pathRx.test(redirectMatch[1])) {
+        return { layer: 1, kind: "redirect" };
+      }
+    }
+    // Heredoc to protected path: `cat > path << EOF` or `>>path<<EOF`
+    if (/<<[-~]?\s*['"]?[A-Za-z_]/.test(line)) {
+      // Heredoc body itself is delivered later; the line that opens it
+      // typically has the redirect target. Match `> <protected>` on this line.
+      const m = line.match(/>\s*([^\s|;&<]+)/);
+      if (m && pathRx.test(m[1])) {
+        return { layer: 1, kind: "heredoc" };
+      }
+    }
+    // tee
+    if (/\btee\b\s+/.test(line)) {
+      const m = line.match(/\btee\b\s+(?:-[a-zA-Z]+\s+)*([^\s|;&]+)/);
+      if (m && pathRx.test(m[1])) {
+        return { layer: 1, kind: "tee" };
+      }
+    }
+    // sed -i / jq -i in-place editing
+    if (/\b(?:sed|jq)\b\s+[^|\n]*-i\b/.test(line)) {
+      if (pathRx.test(line)) return { layer: 1, kind: "in-place-edit" };
+    }
+
+    // Layer 2: file-mutating utilities
+    const layer2Verbs =
+      /\b(?:cp|mv|dd|rsync|install|truncate|ln|chmod|chown|touch)\b\s+/;
+    if (layer2Verbs.test(line) && pathRx.test(line)) {
+      const verbMatch = line.match(layer2Verbs);
+      return {
+        layer: 2,
+        kind: verbMatch ? verbMatch[0].trim() : "file-mutation-util",
+      };
+    }
+
+    // Layer 3: interpreter -c / -e / -m bodies (e.g. python -c "...", node -e "...")
+    // Includes combined short-flag forms like `-uc`, `-uec`
+    const interpreterBody =
+      /\b(?:python3?|node|nodejs|ruby|perl|bash|sh|zsh)\b\s+[^|\n]*-[a-zA-Z]*[cem][a-zA-Z]*\b\s+["'][^"']*["']/;
+    if (interpreterBody.test(line) && pathRx.test(line)) {
+      const interpMatch = line.match(
+        /\b(python3?|node|nodejs|ruby|perl|bash|sh|zsh)\b/,
+      );
+      return {
+        layer: 3,
+        kind: interpMatch ? `${interpMatch[1]} -c/-e/-m` : "interpreter-body",
+      };
+    }
+  }
+  return null;
+}
+
 module.exports = {
   detectPreExistingNoSha,
   detectRepoScopeDriftText,
@@ -717,4 +802,5 @@ module.exports = {
   detectDeferralWithoutValueAnchor,
   detectDeferredItemPickupWithoutRevalidation,
   detectGhIssueCloseAsNotPlanned,
+  detectStateFileMutation,
 };
