@@ -1,3 +1,8 @@
+---
+name: project
+description: "Project Skills (rs variant): cross-cutting patterns spanning Rust crates and PyO3/Magnus/napi-rs bindings. See enterprise-infra-bindings.md and l3-binding-parity.md."
+---
+
 # Project Skills
 
 Cross-cutting project patterns that span multiple crates or binding languages.

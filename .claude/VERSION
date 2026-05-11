@@ -9,7 +9,7 @@
     "repo": "esperie-enterprise/loom",
     "version": "2.29.4",
     "build_version": "2.29.4",
-    "loom_sha": "b50f869",
+    "loom_sha": "06a0c4a",
     "source_commit": "b50f869",
     "source_path": "/Users/esperie/repos/loom",
     "sdk_packages": {
@@ -19,7 +19,7 @@
       "kailash-pact": "0.1.0"
     },
     "template_version": "2.29.4",
-    "synced_at": "2026-05-10T18:00:39Z"
+    "synced_at": "2026-05-11T00:12:37Z"
   },
   "changelog": [
     {
