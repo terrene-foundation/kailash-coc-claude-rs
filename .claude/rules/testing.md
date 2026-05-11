@@ -19,7 +19,7 @@ See `.claude/guides/rule-extracts/testing.md` for full evidence, the kailash-ml 
 <!-- slot:neutral-body -->
 
 
-This variant serves the kailash-coc-claude-rs USE template — for **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python.
+This variant serves the rs USE templates — for **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python.
 
 ## Test-Once Protocol (Implementation Mode)
 
