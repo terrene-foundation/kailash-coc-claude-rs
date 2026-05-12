@@ -108,5 +108,5 @@ CSV, TSV, JSON, and JSONL use stdlib only -- no extra dependencies.
 
 ## Source Code
 
-- `packages/kailash-dataflow/src/dataflow/nodes/file_source.py` -- FileSourceNode
-- `packages/kailash-dataflow/tests/unit/test_file_source_node.py` -- Unit tests
+- the dataflow package (src/dataflow/nodes/file_source.py) -- FileSourceNode
+- the dataflow package (tests/unit/test_file_source_node.py) -- Unit tests

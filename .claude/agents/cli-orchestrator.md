@@ -82,7 +82,7 @@ The audit runs against `parity_enforcement.cross_cli_drift_audit` config at `.cl
 
 ## Full Documentation
 
-- `workspaces/multi-cli-coc/02-plans/07-loom-multi-cli-spec-v6.md` §6.2 + §4.4 + §5 — authoritative spec
+- (loom-internal reference) §6.2 + §4.4 + §5 — authoritative spec
 - `.claude/sync-manifest.yaml` → `cli_variants` + `parity_enforcement` — emission configuration (Phase E1)
 - `.claude/rules/cross-cli-parity.md` — parity contract source of truth
 - `.claude/rules/variant-authoring.md` — overlay authoring rules

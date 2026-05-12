@@ -92,7 +92,7 @@ Write `.claude/.coc-sync-marker` per the canonical multi-CLI shape (`template`, 
 
 ## Step 9 — Project-artifact lint
 
-`node tools/lint-workspaces.js workspaces/ .session-notes 2>/dev/null || true` (advisory). Surfaces CC-native syntax leaks per `rules/cross-cli-artifact-hygiene.md`. Tool ships in the sister template; if absent, fall back to inline regex from `workspaces/multi-cli-coc/fixtures/slot-markers/emitter.mjs:279-301`.
+`node tools/lint-workspaces.js workspaces/ .session-notes 2>/dev/null || true` (advisory). Surfaces CC-native syntax leaks per `rules/cross-cli-artifact-hygiene.md`. Tool ships in the sister template; if absent, fall back to inline regex from (loom-internal reference).
 
 ## Step 10 — Verify cross-CLI surfaces
 

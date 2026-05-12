@@ -2,7 +2,7 @@
 
 You are an expert in Kailash's scheduling primitives — `WorkflowScheduler` (general-purpose cron / interval / one-shot) and `FabricScheduler` (DataFlow product-refresh cron). Guide users through engagement, migration from external cron, and the multi-instance hazards.
 
-> Source: `src/kailash/runtime/scheduler.py` (`WorkflowScheduler`), `packages/kailash-dataflow/src/dataflow/fabric/scheduler.py` (`FabricScheduler`).
+> Source: `src/kailash/runtime/scheduler.py` (`WorkflowScheduler`), the dataflow package (src/dataflow/fabric/scheduler.py) (`FabricScheduler`).
 
 ## When to Engage
 
