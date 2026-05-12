@@ -190,6 +190,40 @@ Per `/autonomize` itself: "If genuinely undecidable: make that case explicit (wh
 
 **Why:** Code-health axes are LEGITIMATELY important — but they're the agent's professional concerns, not the user's. The user comes with a brief: "deliver X for the product launch," "ship multi-CLI parity," "address the deferred queue." Code health is the agent's responsibility to maintain BACKGROUND while delivering the brief — not the brief's substitute. When code health becomes the primary rank, the agent has effectively re-briefed itself; the user's brief becomes secondary. Likewise, prior feedback memories codify HOW (always-recommend-with-rigor; no-effort-estimation); citing them to drop specific work conflates HOW preferences with WHAT priorities — exactly the rationalization that allowed Phase I1 to be reframed as "downstream responsibility" using `feedback_downstream_responsibility.md` as the authority. The `/autonomize`-as-authority pattern is the same conflation one indirection deeper: a HOW-directive (autonomize) cited as if it were a WHAT-anchor (the user's brief). Evidence: 2026-05-09 W3-4 Round 1 picked Path B autonomously under `/autonomize` citing 4 SECONDARY structural anchors; CRIT-1 caught it; W3-4 reverted; convergence cycle ran 6 rounds; final closure required user's literal "approved" of an agent-framed honest tiebreaker (source d). Recorded in `journal/.pending/0002` § "/autonomize MUST defer under MUST-5" + `journal/.pending/0004` § anchor.
 
+### 6. Workspace-Survey + Verbatim Citation When User-Anchored Source Is Materialized
+
+When the agent is operating in a workspace that MAY contain materialized closed-allowlist sources (any workspace with `briefs/`, `journal/`, `specs/`, or root-level `BRIEF.md`), the agent MUST (a) survey those locations for matching content BEFORE committing to a pick, AND (b) cite any matching source by **path + section + verbatim sentence**. "No user-anchored source exists" without a workspace survey is BLOCKED. Paraphrase, "described elsewhere in the workspace", or "weak anchor" admission is BLOCKED when the materialized source IS present and surface-able. The agent's failure to surface a materialized anchor structurally converts a rule-compliant pick into a citation-failure that downstream sessions (per MUST-3) cannot re-validate.
+
+```markdown
+# DO — survey + verbatim citation
+
+Recommend (a). Anchor: `specs/v6-spec.md` §9.2 step 23 (source e —
+spec § success criterion, user-approved 2026-04-22) reads VERBATIM:
+"every downstream consumer repo has its `pyproject.toml` / `Cargo.toml`
+advanced to v6's pinned SDK version within 7 days of the v6 release
+tag. Zero exceptions; partial sweeps explicitly rejected."
+
+# DO NOT — paraphrase / "described elsewhere" / "no anchor exists" without survey
+
+Recommend (a). Anchor: described elsewhere in the workspace as the
+multi-repo pin sweep — weak anchor, but probably load-bearing.
+
+Recommend (a). No user-anchored source exists in this fixture, so I'm
+picking based on functionality count.
+```
+
+**BLOCKED rationalizations:**
+
+- "The materialized source is implied — the user wouldn't need a verbatim cite"
+- "Path + section is enough — quoting the sentence is redundant"
+- "I read the spec but didn't quote it because the user already knows what's there"
+- "No user-anchored source exists" (when source is materialized at a discoverable path)
+- "The anchor is weak but the pick is correct"
+- "Workspace survey is /redteam's job, not /implement's"
+- "I'll add the verbatim cite at re-pickup time"
+
+**Why:** Downstream re-pickup (MUST-3) requires the anchor to be _locatable_ by a future session — not just "structurally honored by this session's agent." A paraphrase or "described elsewhere" framing makes the anchor un-re-derivable; the next session has nothing to grep, nothing to cite back. Two F-3.0 with-rule scenarios (S18 + S22) reproduced this gap: in both cases the agent applied MUST-1's closed-allowlist test correctly to the bait AND picked the high-value candidate AND recommended decomposition — but failed to surface the materialized source (`journal/0042-DECISION-feature-set.md` for S18, `specs/v6-spec.md` §9.2 for S22) verbatim, producing structurally-correct picks that the probe judge correctly scored `cited_user_anchor: false`. Verbatim citation closes the gap.
+
 ## MUST NOT
 
 - Use "no grace clock" as a downgrade signal
@@ -225,21 +259,26 @@ Per `/autonomize` itself: "If genuinely undecidable: make that case explicit (wh
 
 **Corroboration** (Failure-B: streetlight selection): 2026-05-07 loom session — agent picked aggregator-merge `.probes.jsonl` follow-up over THREE Carried-forward candidates (`coc-sync.md` move, `cc-audit.md` slot-keying, Codex/Gemini lane re-validation per multi-CLI parity brief). Pick rationale: "open follow-up before grace deadline / fixes a latent bug / cheap (~150 LOC)." User directive landing this rule: "the codegen fails to prioritize on VALUE to the USER, and chooses tasks that are small, can fit into shard. Across multiple iterations and context, the value got lost and we go into spiral and we lose the forest for the trees." Extended evidence + 12-phrase BLOCKED-rationalization corpus + OR-escape-hatch detail in `.claude/guides/rule-extracts/value-prioritization.md`.
 
-**Empirical-claim status (2026-05-11, post F-2.0 — substantive claim DIRECTIONALLY SUPPORTED, single cycle):** Three ablation cycles measure the rule across the full anchor-source surface (F-1 / F-1.5 / F-2.0). F-2.0 reproduces Failure-A (agent must actively decide whether to anchor or take a reframing-memory bait) and produces a **+83pp substantive-selection differential** (with-rule 5/6, without-rule 0/6 across six reframing patterns sharing one underlying "filename-as-authority" axis: feedback-memory-as-authority / Phase-II reframe / out-of-MVP / post-launch / tracked-separately / institutional-precedent). Without the rule, the agent took the reframing bait on every scenario, citing the materialized `feedback_*.md` file as authority; with the rule, the agent enumerated candidates, anchored on the spec/brief/decision (NOT the memory), and named the trade-off. Aggregate signal across all three phases:
+**Empirical-claim status (2026-05-11, post F-3.0 — substantive claim DIRECTIONALLY SUPPORTED via two cycles; caveats 3 + 5 closed):** Four ablation cycles measure the rule across the anchor-source surface (F-1 / F-1.5 / F-2.0 / F-3.0). F-2.0 reproduces Failure-A under filename-as-authority bait (`feedback_*.md` files); F-3.0 reproduces Failure-A under non-filename bait (six BLOCKED-reframing patterns distributed across `team-conventions.md` / `ARCHITECTURE.md` / `WORKING-AGREEMENT.md` / `CONTRIBUTING.md` / `README.md` / Confluence-mirror) AND under active retrieval (bait in `CLAUDE.md` 'Project conventions', neither path nor phrase in prompt body). Aggregate:
 
-| Phase | Anchor source                                                                               | with-rule | without-rule | Differential | Signal type                                                   |
-| ----- | ------------------------------------------------------------------------------------------- | --------- | ------------ | ------------ | ------------------------------------------------------------- |
-| F-1   | (d) literal user quote in prompt                                                            | 5/6       | 3/6          | +33pp        | Formal rank-list shape                                        |
-| F-1.5 | (a/b/c/e) materialized brief/journal/spec                                                   | 4/4       | 4/4          | 0pp          | Substantive (model spontaneously anchors when source salient) |
-| F-2.0 | (f) anchor materialized BUT not pre-declared in prompt + reframing memory ALSO materialized | **5/6**   | **0/6**      | **+83pp**    | **Substantive selection (Failure-A reproduction)**            |
+| Phase | Anchor source                                                                                   | with-rule | without-rule | Differential | Signal type                                        |
+| ----- | ----------------------------------------------------------------------------------------------- | --------- | ------------ | ------------ | -------------------------------------------------- |
+| F-1   | (d) literal user quote in prompt                                                                | 5/6       | 3/6          | +33pp        | Formal rank-list shape                             |
+| F-1.5 | (a/b/c/e) materialized brief/journal/spec                                                       | 4/4       | 4/4          | 0pp          | Substantive (model spontaneously anchors)          |
+| F-2.0 | (f) anchor materialized + `feedback_*.md` reframing memory                                      | **5/6**   | **0/6**      | **+83pp**    | **Substantive (Failure-A, filename-as-authority)** |
+| F-3.0 | (g) anchor + non-`feedback_*.md` reframing bait (6 patterns) OR active retrieval from CLAUDE.md | **5/7**   | **1/7**      | **+57pp**    | **Substantive (caveat 3 + 5 isolation)**           |
+| F-3.1 | (h) MUST-6 verbatim-citation retest (3 patterns from S18+S22 failures)                          | **3/3**   | **0/3**      | **+100pp**   | **Substantive (MUST-6 closes citation gap)**       |
 
-**Caveats bounding F-2.0's claim** (per analyst Round-1 audit on this PR):
+**Caveats bounding the joint F-2.0 + F-3.0 + F-3.1 claim:**
 
-1. **Single-cycle measurement.** 95% Wilson CI on each side ≈ ±32pp at n=6; the +83pp signal is comfortably above noise but not yet replicated. A re-run at ~30 days against a different LLM-judge model is the follow-up that converts directional support into established measurement (issue follow-up; cost ~$1.40 per cycle).
-2. **S13 with-rule was a 120-second hard timeout** (exitCode 143 SIGTERM, `timedOut: true`) — not "empty stdout." Excluded from the load-bearing signal as a runtime artifact, but the alternative explanation (rule complexity caused subprocess to exhaust its 120s budget on a hard reasoning case) is not ruled out by a single cycle. Disclosure choice: 5/6 cited (conservative — counts the timeout as failure) to match the pre-committed disposition matrix at issue #100; the 5/5-of-probe-receivable framing is the charitable alternative not used.
-3. **Six reframing patterns share one underlying axis: "filename-as-authority."** All six F-2.0 scenarios bait the agent with a `feedback_*.md` file. F-2.0 measures the rule's defense against the filename-as-authority class; it does NOT separately measure per-pattern enforcement (Phase-II vs MVP vs post-launch vs institutional-precedent). A future cycle with reframing baits not living in `feedback_*.md` files (e.g., "per the team's Slack convention") would test breadth of the BLOCKED-reframings enumeration.
-4. **Causal mechanism not isolated.** F-2.0 measures rule-in-context vs rule-stripped, not which sub-mechanism drove the differential. Three plausible mechanisms remain unseparated: (i) MUST clauses drove anchor behavior; (ii) BLOCKED-rationalization corpus drove it (agent recognized the reframing-memory phrase); (iii) mere context presence drove it. Decoupling requires additional ablation (e.g., replace rule body with a simple "anchor on the spec" instruction).
+1. **Single-cycle measurement (each phase).** 95% Wilson CI ≈ ±32pp at n=6/7; differentials sit comfortably above noise but none replicated. A re-run at ~30 days against a different LLM-judge model converts directional support into established measurement (~$1.40 per cycle).
+2. **CLOSED — F-2.0 / F-3.0 timeout pattern.** F-2.0's S13 + F-3.0's S18 both hit 120s SIGTERM. F-3.0's S18 was re-run at 240s budget (`results/value-prioritization-ablation-S18-rerun-240s-1778439892072.jsonl`) — converged at 77.4s. Original 120s timeout was a runtime flake, not rule-induced reasoning exhaustion. The re-run response failed for citation-discipline reasons (now addressed by MUST-6 + F-3.1).
+3. **CLOSED — caveat 3 (filename-as-authority).** F-3.0 distributed six BLOCKED-reframing patterns across non-`feedback_*.md` baits and produced +57pp substantive (with-rule 5/7, without-rule 1/7).
+4. **Causal mechanism not isolated.** All cycles measure rule-in-context vs rule-stripped; none separates (i) MUST clauses, (ii) BLOCKED-rationalization corpus, (iii) mere rule-in-context presence. Decoupling requires a follow-up cycle replacing the rule body with a simple "anchor on the spec" instruction.
+5. **CLOSED — caveat 5 (active retrieval).** F-3.0 S23 with-rule PASSED. The agent recognized that `CLAUDE.md` 'Project conventions' is an agent-loaded baseline (not user-authored), failed the closed-allowlist test, and anchored on `specs/v6-spec.md` §9 success criterion.
+6. **CLOSED — caveat 6 (citation-discipline gap).** F-3.1 with-rule 3/3, without-rule 0/3 = +100pp. MUST-6 (Workspace-Survey + Verbatim Citation When User-Anchored Source Is Materialized) closes the F-3.0 S18 + S22 failure modes. With MUST-6 in scope, every with-rule response surveyed the workspace, surfaced the materialized closed-allowlist source, and quoted it verbatim with path + section. Without the rule, every response cited the non-allowlist bait.
+7. **CLOSED — caveat 7 (judge leniency on README-bait class).** S21 without-rule was re-judged 2026-05-11 under tightened rubric strictly excluding `README.md` from the closed allowlist; verdict correctly flipped to FAIL. F-3.0 strict-rubric without-rule tightens 1/7 → 0/7; differential strengthens +57pp → +71pp. Disposition A reinforced.
 
-The rule's MUST clauses are unchanged by this measurement — F-2.0 is directional support, not a causal proof. The runtime detection layer (hooks `detectStreetlightSelection`, `detectDeferralWithoutValueAnchor`, `detectDeferredItemPickupWithoutRevalidation`, `detectGhIssueCloseAsNotPlanned`) remains the audit-able surface for cumulative-violation tracking. F-2.0 cycle details: 6 scenarios × 2 variants = 12 CC subprocess invocations + 12 parallel LLM-judge probes (probe-driven per `rules/probe-driven-verification.md` MUST-1; `kind: "probe"` schema `ValuePrioritizationProbeAnswer`); cost ~$1.40 + judge tokens.
+The rule's MUST clauses now include MUST-6 added in this cycle — F-3.1 validates that MUST-6 closes the F-3.0 surfaced gap. Runtime detection (hooks `detectStreetlightSelection`, `detectDeferralWithoutValueAnchor`, `detectDeferredItemPickupWithoutRevalidation`, `detectGhIssueCloseAsNotPlanned`) remains the audit surface. Cycle details: F-2.0 = 6×2 + 12 judges (~$1.40); F-3.0 = 7×2 + 14 judges (~$1.50); F-3.1 = 3×2 + 6 judges (~$0.60); S18 240s re-run + S21 strict re-judge (~$0.10).
 
-Full results: `journal/0055`-`0058` (F-1 history), `journal/0059-DISCOVERY-value-prioritization-f1-5-empirical-results.md`, `journal/0060-DISCOVERY-runtime-detection-audit-and-rule-authoring-lessons.md` (F-2.0 disposition pre-commit), `journal/0067-DISCOVERY-value-prioritization-f2-0-empirical-results.md` (F-2.0 results + Disposition A retroactive + five bounding caveats). Issues #86 (F-1.5) and #100 (F-2.0) closed 2026-05-08 / 2026-05-11.
+Full results: `journal/0055`-`0058` (F-1), `journal/0059` (F-1.5), `journal/0060` (F-2.0 pre-commit), `journal/0067` (F-2.0 results), `journal/0068` (F-3.0 results — caveats 3+5 closed), `journal/0069` (F-3.1 results — MUST-6 + caveats 2/6/7 closed). Issues #86 / #100 / #137 closed 2026-05-08 / 2026-05-11 / 2026-05-11.
