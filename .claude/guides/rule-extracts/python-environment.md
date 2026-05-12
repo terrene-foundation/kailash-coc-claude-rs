@@ -116,7 +116,7 @@ Origin: `workspaces/arbor-upstream-fixes/.session-notes` (2026-04-12)
 
 ```toml
 # DO — sub-packages own their test deps
-# the pact package directory pyproject.toml:
+# the pact package's pyproject.toml:
 [project.optional-dependencies]
 test = ["hypothesis>=6.98"]
 

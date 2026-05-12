@@ -185,7 +185,7 @@ When prompting an agent with worktree isolation, the orchestrator MUST reference
 
 ```python
 # DO — relative paths resolve to the worktree's cwd
-Agent(isolation="worktree", prompt="Edit the ml package directory src/kailash_ml/trainable.py...")
+Agent(isolation="worktree", prompt="Edit the ml package's src/kailash_ml/trainable.py...")
 # DO NOT — absolute paths bypass worktree isolation
 Agent(isolation="worktree", prompt="Edit /absolute/path/to/main-checkout/packages/...")
 ```

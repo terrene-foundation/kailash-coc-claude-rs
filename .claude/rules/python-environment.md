@@ -111,7 +111,7 @@ A dev dependency declared by a sub-package (`packages/*/pyproject.toml`) MUST NO
 
 ```toml
 # DO — sub-packages own their test deps
-# the pact package directory pyproject.toml:
+# the pact package's pyproject.toml:
 [project.optional-dependencies]
 test = ["hypothesis>=6.98"]
 # root pyproject.toml [dev]: (no hypothesis entry)
