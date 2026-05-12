@@ -159,6 +159,11 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-end.js\""
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/coc-telemetry-autocommit.js\"",
+            "timeout": 30
           }
         ]
       }
