@@ -190,7 +190,7 @@ for pkg_dir in packages/*/; do
 done
 
 # DO NOT — defer the check to /release
-# (Wave 4 PR #632 modified the mcp package directory src/.../auth/{providers,oauth}.py
+# (Wave 4 PR #632 modified the mcp package's src/.../auth/{providers,oauth}.py
 #  but mcp pyproject stayed at 0.2.9. Caught only at /release-time enumeration,
 #  required a separate fix-PR #634 to bump mcp 0.2.9 → 0.2.10. Net cost:
 #  one extra PR, one extra CI cycle, one extra admin merge, ~15min of pacing.)
