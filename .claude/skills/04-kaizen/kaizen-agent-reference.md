@@ -22,4 +22,4 @@ When this guidance is insufficient, consult:
 
 - `.claude/skills/04-kaizen/` - Complete Kaizen skills directory
 - `.claude/skills/04-kaizen/kaizen-advanced-patterns.md` - Advanced patterns
-- `packages/kailash-kaizen/examples/` - Working examples
+- the kaizen package (examples/) - Working examples

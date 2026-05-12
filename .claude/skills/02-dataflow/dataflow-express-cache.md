@@ -106,6 +106,6 @@ class MyCustomCache:
 
 ## Source Code
 
-- `packages/kailash-dataflow/src/dataflow/features/express.py` -- Cache integration in Express API
-- `packages/kailash-dataflow/src/dataflow/cache/invalidation.py` -- CacheBackendProtocol
-- `packages/kailash-dataflow/tests/unit/test_express_cache_wiring.py` -- Cache wiring tests
+- the dataflow package (src/dataflow/features/express.py) -- Cache integration in Express API
+- the dataflow package (src/dataflow/cache/invalidation.py) -- CacheBackendProtocol
+- the dataflow package (tests/unit/test_express_cache_wiring.py) -- Cache wiring tests

@@ -145,6 +145,6 @@ See `skills/02-dataflow/dataflow-ml-integration.md` for the full converter table
 ## Cross-References
 
 - `skills/02-dataflow/dataflow-ml-integration.md` -- FeatureStore + DataFlow integration details
-- `packages/kailash-ml/src/kailash_ml/engines/` -- Engine implementations
-- `packages/kailash-ml/src/kailash_ml/interop.py` -- Polars converters
+- the ml package (src/kailash_ml/engines/) -- Engine implementations
+- the ml package (src/kailash_ml/interop.py) -- Polars converters
 - `rules/infrastructure-sql.md` -- SQL safety patterns used by FeatureStore/ModelRegistry

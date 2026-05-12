@@ -151,5 +151,5 @@ At `db.initialize()`, the engine runs DFS cycle detection across all derived mod
 
 ## Source Code
 
-- `packages/kailash-dataflow/src/dataflow/features/derived.py` -- DerivedModelEngine, scheduler, cycle detection
-- `packages/kailash-dataflow/tests/unit/test_derived_model.py` -- Unit tests
+- the dataflow package (src/dataflow/features/derived.py) -- DerivedModelEngine, scheduler, cycle detection
+- the dataflow package (tests/unit/test_derived_model.py) -- Unit tests

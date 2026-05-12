@@ -77,5 +77,5 @@ health = await db.health_check()
 
 ## Source Code
 
-- `packages/kailash-dataflow/src/dataflow/core/engine.py` -- Read replica init (TSG-105)
-- `packages/kailash-dataflow/src/dataflow/features/express.py` -- `use_primary` parameter on reads
+- the dataflow package (src/dataflow/core/engine.py) -- Read replica init (TSG-105)
+- the dataflow package (src/dataflow/features/express.py) -- `use_primary` parameter on reads

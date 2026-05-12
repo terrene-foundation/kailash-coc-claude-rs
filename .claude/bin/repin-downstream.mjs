@@ -269,7 +269,7 @@ function commitBody(rw) {
     `Before: template='${rw.oldTemplate}' template_repo='${rw.oldRepo}'`,
     `After:  template='${rw.newTemplate}' template_repo='${rw.newRepo}'`,
     "",
-    "See loom migration plan (workspaces/multi-cli-coc/02-plans) Phase I1.",
+    "See loom migration plan ((loom-internal reference)) Phase I1.",
   ].join("\n");
 }
 

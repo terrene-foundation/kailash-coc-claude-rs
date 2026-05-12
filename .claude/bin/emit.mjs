@@ -595,7 +595,7 @@ export function validateSlotRoundTrip(cli, lang = null) {
 // fixture expectations. When bijection holds, write policies.json and
 // flip POLICIES_POPULATED=true in server.js.
 export function validateMcpBijectionAgainstFixtures() {
-  // Fixture moved from workspaces/multi-cli-coc/fixtures/ (gitignored)
+  // Fixture moved from (loom-internal reference) (gitignored)
   // to .claude/fixtures/ (committed) on 2026-04-22 so emit.mjs works
   // from a fresh clone. USE-template repos vendor the fixture when
   // they vendor .claude/bin/.

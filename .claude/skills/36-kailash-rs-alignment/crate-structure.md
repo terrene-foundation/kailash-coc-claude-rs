@@ -3,7 +3,7 @@
 ## Workspace Layout (~46 crates)
 
 ```
-kailash-rs/
+<workspace-root>/
 ├── crates/
 │   ├── kailash-core/          ← Node system, workflow builder, runtime, EventBus, AuditLog
 │   ├── kailash-dataflow/      ← Database ORM, models, CRUD, query engine, classification
