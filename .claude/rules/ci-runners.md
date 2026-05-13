@@ -81,7 +81,7 @@ When `Format` (or any early short-circuiting gate) transitions from red to green
 
 ### 4. Runner Auto-Update Disconnect Recovery
 
-If `gh api repos/<org>/<repo>/actions/runners` returns 0 runners while the runner's stdout log tails show `Connected to GitHub` and `Listening for Jobs`, the runner auto-updated mid-session and its in-flight job is orphaned — the old worker process holds the job in GitHub's state machine but cannot report completion. The session MUST restart the runner service AND trigger a fresh run via an empty commit.
+If `gh api repos/esperie-enterprise/kailash-rs/actions/runners` returns 0 runners while the runner's stdout log tails show `Connected to GitHub` and `Listening for Jobs`, the runner auto-updated mid-session and its in-flight job is orphaned — the old worker process holds the job in GitHub's state machine but cannot report completion. The session MUST restart the runner service AND trigger a fresh run via an empty commit.
 
 ```bash
 # DO — re-register the runner and trigger a fresh run
@@ -145,7 +145,7 @@ gh api orgs/esperie-enterprise/actions/runners \
   --jq '.runners[] | {name, busy, status}'
 
 # Step 2: cross-reference with the stuck run's jobs
-gh api repos/<org>/<repo>/actions/runs/<run-id>/jobs \
+gh api repos/esperie-enterprise/kailash-rs/actions/runs/<run-id>/jobs \
   --jq '.jobs[] | {name, status, started_at, runner_name}'
 
 # Step 3: cancel the stuck run to free the runner slot
