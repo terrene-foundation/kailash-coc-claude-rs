@@ -1,3 +1,8 @@
+---
+name: core-sdk
+description: "Kailash Core SDK (Rust) — workspace crate map (value/core/nodes/macros/plugin), 139+ nodes, WorkflowBuilder, AuditLog, EventBus. Use for crate navigation + node patterns."
+---
+
 # Kailash Workspace Crate Reference
 
 Quick reference for all crates in the workspace. For full API docs, read the crate source or run `cargo doc --workspace --no-deps`.

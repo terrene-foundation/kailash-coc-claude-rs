@@ -1,3 +1,8 @@
+---
+name: gsf-cap
+description: "GSF CAP features (Rust v3.3) — audit chain, domain event bus, enterprise middleware, data classification, field validation, query telemetry across kailash-core/nexus/dataflow."
+---
+
 # GSF CAP Features
 
 Eight governance, security, and framework capabilities implemented across four crates in the v3.3 workspace.
