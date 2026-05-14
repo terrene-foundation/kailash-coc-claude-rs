@@ -1,3 +1,8 @@
+---
+name: dataflow
+description: "Kailash DataFlow (Rust) — MANDATORY for DB/CRUD/bulk/migrations via sqlx + ModelDefinition. Raw SQL BLOCKED."
+---
+
 # DataFlow Skills Index
 
 Skills for `kailash-dataflow` -- the database framework built on kailash-core and sqlx.

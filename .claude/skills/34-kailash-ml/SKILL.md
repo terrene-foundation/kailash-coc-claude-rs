@@ -1,3 +1,8 @@
+---
+name: kailash-ml
+description: "Kailash ML (Rust) — MANDATORY for ML training/inference/drift via kailash-ml crate. Raw linfa/burn use BLOCKED."
+---
+
 # kailash-ml — Classical ML Framework (Rust)
 
 20-crate workspace providing scikit-learn-equivalent algorithms with Rust performance. 90+ estimator types, 62 EstimatorRegistry entries, TransformerRegistry, rayon parallelism. All crates proprietary (`publish = false`).

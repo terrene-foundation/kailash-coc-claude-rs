@@ -1,3 +1,8 @@
+---
+name: l3-autonomy
+description: "L3 agent autonomy primitives (Rust) — envelope tracking, context scoping, messaging, agent factory, plan DAG, enforcement pipeline. For governed multi-agent systems."
+---
+
 # 31-l3-autonomy: L3 Agent Autonomy Primitives
 
 Feature flags: `l3-core` (sync types, WASM-compatible), `l3` (full runtime, requires tokio)

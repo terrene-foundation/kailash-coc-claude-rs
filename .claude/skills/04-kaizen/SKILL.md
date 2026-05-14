@@ -1,3 +1,8 @@
+---
+name: kaizen
+description: "Kailash Kaizen (Rust) — MANDATORY for AI agents/signatures/RAG via kailash-kaizen crate. Custom LLM agents BLOCKED."
+---
+
 # Kaizen Skills
 
 AI agent framework for building intelligent agents with kailash-enterprise.

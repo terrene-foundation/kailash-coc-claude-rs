@@ -1,3 +1,8 @@
+---
+name: kaizen-agents
+description: "kaizen-agents crate (Rust) — LLM-driven orchestration: decomposer, designer, composer, monitor, recomposer, delegation. SDK/orchestration boundary, governed by kailash-pact."
+---
+
 # 32-kaizen-agents: LLM-Powered Agent Orchestration
 
 Crate location: `crates/kaizen-agents/`
