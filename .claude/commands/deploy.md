@@ -7,7 +7,9 @@ description: "Deploy application code to production. Onboard / execute / check m
 
 For applications that ship code to running environments (containers, edge functions, VMs, k8s, mobile stores). Driven by `deploy/deployment-config.md`.
 
-**NOT to be confused with `/release`** — `/release` publishes packages to artifact registries (PyPI, crates.io, npm). `/deploy` ships running code. If your repo's `deploy/deployment-config.md` declares `type: sdk`, this command redirects to `/release`.
+**Relationship to `/release`** (USE application repos): `/release` is the **sixth COC phase** — the authorization gate confirming readiness (redteam convergence + codify complete + tests + security review + deployment-config readiness). `/deploy` is the **mechanism** that ships the application to its target environment AFTER `/release` authorizes. Sequence: `/redteam` → `/codify` → `/release` (authorize) → `/deploy` (ship).
+
+**Different meaning on BUILD/SDK repos**: on a BUILD repo (`deploy/deployment-config.md::type: sdk`), `/release` is the **SDK publishing command** — bumps versions, tags, publishes to PyPI / crates.io / npm. `/deploy` is not applicable on SDK repos; if invoked, this command redirects to `/release`.
 
 ## Mode Detection
 
