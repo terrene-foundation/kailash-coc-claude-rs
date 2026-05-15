@@ -12,13 +12,11 @@ paths:
 
 # Sync Completeness — Enumerate Every Template, Verify Every Landing
 
+See `.claude/guides/rule-extracts/sync-completeness.md` for full incident detail, JSON-dialect examples, verifying-command samples, and the v6.2 headroom-floor BLOCK condition design context.
+
 <!-- slot:neutral-body -->
 
-`/sync` and `/sync-to-build` are loom's outbound paths to USE templates and BUILD repos. They distribute COC artifacts across an N-template fanout. When the fanout count is held in human memory rather than enumerated mechanically from `sync-manifest.yaml`, templates silently miss cycles — and the failure is invisible until a downstream consumer reports a stale rule weeks later.
-
-This rule binds every `/sync*` invocation to enumerate ALL declared templates from the manifest, verify each landed at the bumped version, AND emit a per-template verification table. It also pins a uniform VERSION schema across all templates so currency comparison is a one-liner, not a dialect-translation exercise.
-
-Pairs with `artifact-flow.md` (sync as the only outbound path), `testing.md` MUST "Verified Numerical Claims In Session Notes" (extends the principle from test counts to template counts), and `coc-sync-landing.md` (downstream BUILD-side discipline once artifacts arrive).
+`/sync` and `/sync-to-build` are loom's outbound paths to USE templates and BUILD repos. When the fanout count is held in human memory rather than enumerated from `sync-manifest.yaml`, templates silently miss cycles. This rule binds every `/sync*` invocation to enumerate ALL declared templates from the manifest, verify each landed at the bumped version + above the per-CLI `headroom_floor_pct`, AND emit a per-template verification table. Pairs with `artifact-flow.md`, `testing.md` MUST "Verified Numerical Claims", and `coc-sync-landing.md`.
 
 ## MUST Rules
 
@@ -54,29 +52,24 @@ done
 - "If I miss one, the next /sync catches it"
 - "The downstream consumer will pull when they need to"
 
-**Why:** Hand-typed counts decay silently. The 2026-05-06 session-notes claim "all 4 USE templates at 2.19.0 and pushed" was wrong on TWO counts: there are FIVE templates after prism's retirement (claude-py + unified py + claude-rs + unified rs + claude-rb), AND `/sync rb` was not invoked in the 2.19.0 cycle so claude-rb landed at 2.18.0. Both errors trace to the same root cause: the count was carried from prior session memory, not derived from the manifest at sync time. The manifest is the single source of truth precisely so this mode-of-failure is mechanical to prevent — `yq -r '.sync_targets[].templates[].repo'` is the structural defense; "I remember which templates need the sync" is not. Origin: 2026-05-06 — kailash-coc-claude-rb missed the 2.19.0 sync; not surfaced until the user asked "only rs has this issue? what about the py?" during follow-up review.
+**Why:** Hand-typed counts decay silently. `yq -r '.sync_targets[].templates[].repo'` is the structural defense; "I remember which templates need the sync" is not. See guide § "Rule 1 — full incident detail" for the 2026-05-06 incident (5 templates, rb at 2.18.0 vs claimed-4-at-2.19.0).
 
 ### 2. Every `/sync*` MUST Emit A Per-Template Verification Table
 
-After distribution, `/sync` MUST emit a verification table to the user with one row per enumerated template, columns: `template`, `pre_sync_version`, `post_sync_version`, `loom_sha`, `synced_at`, `landed` (✓ / ✗). Templates whose `post_sync_version` does not match the loom-side version being distributed MUST appear as ✗ AND BLOCK the sync from completing. Single-template completion claims ("kailash-coc-claude-py at 2.20.0 ✓") without the full table are BLOCKED.
+After distribution, `/sync` MUST emit a verification table to the user with one row per enumerated template, columns: `template`, `pre_sync_version`, `post_sync_version`, `loom_sha`, `synced_at`, `headroom_pct` (per cli×lang baseline emission, taken from `emit-report-<cli>.json::headroom_pct`), `landed` (✓ / ✗). Templates whose `post_sync_version` does not match the loom-side version OR whose `headroom_pct` is below the per-CLI `headroom_floor_pct` (per `sync-manifest.yaml::cli_variants.context/root.md.<cli>.headroom_floor_pct`) MUST appear as ✗ AND BLOCK the sync from completing. Single-template completion claims ("kailash-coc-claude-py at 2.20.0 ✓") without the full table are BLOCKED.
 
 ```text
 # DO — full verification table emitted by /sync
-| template                    | pre  | post | loom_sha | synced_at            | ✓ |
-| --------------------------- | ---- | ---- | -------- | -------------------- | - |
-| kailash-coc-claude-py       | 2.19 | 2.20 | b4d2933  | 2026-05-06T14:22:00Z | ✓ |
-| kailash-coc-py (unified)    | 2.19 | 2.20 | b4d2933  | 2026-05-06T14:22:01Z | ✓ |
+| template                | pre  | post | loom_sha | synced_at            | hr% (codex/gemini) | ✓ |
+| ----------------------- | ---- | ---- | -------- | -------------------- | ------------------ | - |
+| kailash-coc-claude-py   | 2.19 | 2.20 | b4d2933  | 2026-05-06T14:22:00Z | 16.93 / 16.87      | ✓ |
+| kailash-coc-claude-rb   | 2.18 | 2.18 | b4d2933  | (skipped)            | n/a                | ✗ |
+| kailash-coc-rs          | 2.21 | 2.21 | def4567  | (emit-blocked)       | 9.81 / 9.85        | ✗ |
+ERROR: ✗ rows halt sync — version-stale (rb) OR headroom-floor breach (rs, v6.2 Shard 2 — see workspaces/multi-cli-coc/02-plans/08-loom-v6.2-headroom-validator.md).
 
-# DO — blocking ✗ row halts sync; user adjudicates
-| kailash-coc-claude-rb       | 2.18 | 2.18 | b4d2933  | (skipped)            | ✗ |
-ERROR: 1 template did not advance to 2.20.0 — sync BLOCKED.
-
-# DO NOT — single-line completion claim
+# DO NOT — single-line completion claim, OR table missing landed/hr% column
 ✓ /sync py complete (kailash-coc-claude-py at 2.20.0)
-
-# DO NOT — table missing the "landed" column
-| template | pre  | post |
-| ...      | 2.19 | 2.20 |
+| template | pre | post |
 ```
 
 **BLOCKED rationalizations:**
@@ -95,37 +88,10 @@ ERROR: 1 template did not advance to 2.20.0 — sync BLOCKED.
 Every USE template's `.claude/VERSION` MUST conform to a single canonical schema. The required `upstream` fields are: `name`, `type`, `version`, `synced_at`, `loom_sha`, `template_version`, `sdk_packages`. The field `upstream.version` MUST be present AND MUST match the loom version being distributed. Schema dialects (`upstream.build_version` only, `upstream.template_version` only, `upstream.version` lagging behind `upstream.template_version`) are BLOCKED.
 
 ```json
-// DO — canonical schema, every field populated, version is current
-{
-  "version": "3.10.0",
-  "type": "coc-use-template",
-  "upstream": {
-    "name": "loom",
-    "type": "coc-source",
-    "version": "2.20.0",
-    "loom_sha": "abc1234",
-    "synced_at": "2026-05-06T14:22:00Z",
-    "template_version": "2.20.0",
-    "sdk_packages": { "kailash": "2.13.4", "...": "..." }
-  }
-}
-
-// DO NOT — `upstream.version` lags `template_version` (rb 2.18.0 dialect)
-{
-  "upstream": {
-    "version": "2.17.0",        // stale
-    "template_version": "2.18.0" // current
-  }
-}
-
-// DO NOT — `upstream.version` field missing entirely (rs dialect pre-2.20)
-{
-  "upstream": {
-    "build_version": "2.19.0",
-    "template_version": "2.19.0"
-    // (no `version` field — `jq '.upstream.version'` returns null)
-  }
-}
+// DO — canonical schema: upstream.version present, matches loom version, all required fields populated.
+// DO NOT — rb 2.18.0 dialect: upstream.version lags template_version.
+// DO NOT — rs pre-2.20 dialect: upstream.version field absent; jq returns null.
+// See guide § "Rule 3 — full JSON-dialect examples" for the three concrete shapes.
 ```
 
 **BLOCKED rationalizations:**
@@ -143,20 +109,13 @@ Every USE template's `.claude/VERSION` MUST conform to a single canonical schema
 Numerical claims in `.session-notes`, journal entries, or PR descriptions about template counts, sync currency, or "all N templates at version X" MUST be produced by a verifying command at the moment of writing. Hand-typed counts and recall-based claims are BLOCKED. Extends `testing.md` MUST "Verified Numerical Claims In Session Notes" from test counts to sync-fanout counts.
 
 ```bash
-# DO — verifying command emits the count + currency
+# DO — verifying command emits the count + currency (see guide § "Rule 4 — verifying-command fanout sample")
 $ for t in $(yq -r '.sync_targets[].templates[].repo' .claude/sync-manifest.yaml); do
-    v=$(jq -r '.upstream.version // .upstream.build_version // "?"' "../$t/.claude/VERSION")
-    echo "$t: $v"
+    v=$(jq -r '.upstream.version // .upstream.build_version // "?"' "../$t/.claude/VERSION"); echo "$t: $v"
   done
-kailash-coc-claude-py: 2.20.0
-kailash-coc-py: 2.20.0
-kailash-coc-claude-rs: 2.20.0
-kailash-coc-rs: 2.20.0
-kailash-coc-claude-rb: 2.20.0
 # → session notes line: "5/5 USE templates at 2.20.0 (verified 2026-05-06)"
 
-# DO NOT — hand-typed count
-"all 4 USE templates at 2.19.0 and pushed"
+# DO NOT — hand-typed count: "all 4 USE templates at 2.19.0 and pushed"
 # (manifest declares 5 post-prism-retirement; rb actually at 2.18.0)
 ```
 
@@ -191,15 +150,31 @@ kailash-coc-claude-rb: 2.20.0
 
 ## Trust Posture Wiring
 
-- **Severity:** `halt-and-report` for Rule 1, 2, 4 violations (the agent surfaces and the user adjudicates). Rule 3 is structural — VERSION schema mismatch detected at sync-completion time MUST emit `block` with the structural-signal `evidence: "schema mismatch: <field path missing>"` (per `hook-output-discipline.md` MUST-2, this IS a structural signal — a missing JSON field, not a regex match).
-- **Grace period:** 7 days from rule landing. During grace, `/sync` emits the verification table but does NOT block on schema mismatch (Rule 3) — gives existing rs-family templates one cycle to migrate to canonical schema.
-- **Regression-within-grace:** any new `/sync*` invocation OR any `sync-manifest.yaml` edit that adds a template without simultaneously adding the canonical-schema VERSION field requirement triggers emergency downgrade L5 → L4 per `trust-posture.md` MUST Rule 4.
-- **Receipt requirement:** SessionStart MUST require `[ack: sync-completeness]` in the agent's first response IF the most recent journal entry references `/sync*` invocation AND `posture.json::pending_verification` includes this rule_id (set by `/codify` at land-time, cleared after grace expires).
-- **Detection mechanism:** `cc-architect` mechanical sweep at `/codify` validation:
-  1. `grep -rn 'TEMPLATES\|templates' .claude/commands/sync*.md` — every `/sync*` command body MUST cite `yq` against the manifest before iterating.
-  2. AST sweep on `sync.md` and `sync-to-build.md` — every distribution loop MUST be preceded by a manifest-enumeration step.
-  3. JSON schema sweep on `.claude/VERSION` across all USE templates after each `/sync` — `upstream.version` field present AND value matches loom version.
+### Rules 1, 2 (version-stale ✗ row), 4 — enumeration + table + count discipline
 
-Origin: 2026-05-06 — user follow-up review revealed (a) kailash-coc-claude-rb missed the 2.19.0 sync entirely (one cycle stale); (b) the 2026-05-06 session-notes claim "all 4 USE templates at 2.19.0" was wrong on enumeration (5 templates post-prism) AND on currency (rb at 2.18.0); (c) VERSION schema diverged in three dialects across py / rs / rb families. Pre-rule, every defense was implicit in `commands/sync.md` Gate 2 prose and `sync-manifest.yaml` declarations; nothing forced the enumeration to be mechanical at invocation time, and nothing forced post-sync verification beyond `git push` exit code. Rule lifts the implicit invariants into explicit MUST clauses and pins them with Trust Posture Wiring so regression triggers downgrade.
+- **Severity:** `halt-and-report` (agent surfaces, user adjudicates).
+- **Grace period:** 7 days from rule landing (2026-05-06 → 2026-05-13, expired).
+- **Regression-within-grace:** any new `/sync*` invocation OR any `sync-manifest.yaml` edit that adds a template without canonical-schema VERSION field triggers emergency downgrade L5 → L4 per `trust-posture.md` MUST Rule 4.
+- **Receipt:** SessionStart requires `[ack: sync-completeness]` if prior journal references `/sync*` AND `posture.json::pending_verification` includes this rule_id.
+- **Detection:** `cc-architect` mechanical sweep at `/codify`: (1) `grep -rn 'yq\|templates\[\]\.repo' .claude/commands/sync*.md` — every `/sync*` command body MUST enumerate from manifest; (2) AST sweep on `sync.md` / `sync-to-build.md` — every distribution loop MUST be preceded by manifest-enumeration.
+
+### Rule 3 — VERSION schema mismatch (structural)
+
+- **Severity:** `block` — structural signal (missing JSON field, not regex). Per `hook-output-discipline.md` MUST-2, structural signals MAY carry block severity. Evidence: `"schema mismatch: <field path missing>"`.
+- **Grace period:** 7 days from rule landing (expired); rs-family templates given one cycle to migrate.
+- **Regression-within-grace:** any `/sync rs` invocation post-grace that writes a non-canonical schema → emergency downgrade.
+- **Detection:** JSON-schema sweep on `.claude/VERSION` across every USE template post-sync — `upstream.version` field present AND value matches loom version.
+
+### Rule 2 (headroom-floor ✗ row) — v6.2 BLOCK condition
+
+The v6.2 plan (`workspaces/multi-cli-coc/02-plans/08-loom-v6.2-headroom-validator.md`) Shards 1+2 (merged PR #218, commit `75352dd`, 2026-05-15) added a `headroom_pct` column to Rule 2's verification table AND wired the per-CLI `headroom_floor_pct` as a BLOCK condition. F5 binds that structural defense to the Trust Posture system.
+
+- **Severity:** `block` — structural signal (`emit.mjs --strict-headroom` returns non-zero on breach; the exit code IS the signal, not a regex match). Per `hook-output-discipline.md` MUST-2, the structural exit is the correct carrier of `block` severity.
+- **Grace period:** 7 days from PR #218 merge (2026-05-15 → 2026-05-22). During grace, the validator emits structured `headroom_floor_violations[]`; `coc-sync.md`'s `node …/emit.mjs … --strict-headroom` invocations (Shard 2 wiring) propagate non-zero exit unconditionally for py/rs. Grace applies to operators running `emit.mjs` directly OUTSIDE `/sync`. The opt-in→opt-out flip itself (cycle-2 work) is deferred per `value-prioritization.md` MUST-2 with value-anchor "plan §5.1 invariant 5 — ships after one /sync observation cycle confirming no false-positive blocks."
+- **Regression-within-grace:** any of (a) /sync invocation that drops `--strict-headroom` from the `node …/emit.mjs --all --lang <py|rs> --strict-headroom` invocation in `coc-sync.md`'s baseline-emission step OR removes the emit invocation entirely (grep-stable on the invocation pattern, not the section number); (b) `sync-manifest.yaml` edit that adds a CLI variant OR lowers an existing `cli_variants.context/root.md.<cli>.headroom_floor_pct` value below 10 (Risk-0004 baseline) such that the current rs-lane state would ship; (c) `emit.mjs` patch that silently downgrades `validateAggregateHeadroom()` exit code OR a `coc-sync.md` invocation patched to discard the non-zero exit via `|| true`, `if`-branch, pipeline-without-`pipefail`, or `set +e` guard; (d) agent prose citing any `coc-sync.md`-listed BLOCKED-rationalization ("Drop --strict-headroom to unblock this sync") to bypass the validator — triggers emergency downgrade per `trust-posture.md` MUST Rule 4 (cumulative-window regression class).
+- **Receipt:** SessionStart MUST require `[ack: sync-completeness]` in the agent's first response IF the most recent journal entry references `/sync*` invocation AND any cli×lang headroom falls under the two-tier near-breach band: `headroom_pct < 13%` (3% above floor — covers ~2 cycles of routine emission drift, advisory band) emits the receipt as a soft signal; `headroom_pct < 11%` (1% above floor — hard near-breach) MUST emit the receipt as halt-and-report. The wider 13% band matches the routine-CRIT-rule emission swing (~500–800 B ≈ ~1% of 61,440 B cap) so the receipt fires BEFORE the breach is reached, not after.
+- **Detection:** (1) Structural — `emit.mjs --strict-headroom` non-zero exit (already wired Shard 1, `.claude/bin/emit.mjs::validateAggregateHeadroom`); (2) Wiring — `coc-sync.md`'s baseline-emission step passes the flag for every py/rs invocation (already wired Shard 2); (3) `/codify` mechanical sweep — any session transcript citing `/sync*` MUST show the `--strict-headroom` flag in the recorded invocation AND record `headroom_pct` for every cli×lang combo emitted; missing either is a HIGH finding for the `/codify` reviewer; (4) advisory hook detection of prose rationalizations is intentionally NOT added — would re-introduce the false-positive class `hook-output-discipline.md` MUST-2 blocks, and the structural exit is already authoritative. **Consequence:** prose-level rationalizations do NOT contribute to `trust-posture.md` MUST Rule 4 cumulative-window math; the structural exit code (mechanism 1) is the authoritative defense and fires BEFORE the prose rationalization can take effect. Adding an advisory hook here is BLOCKED. (5) Manifest-axis sweep at `/codify` — `yq '.cli_variants."context/root.md".codex.headroom_floor_pct, .cli_variants."context/root.md".gemini.headroom_floor_pct' .claude/sync-manifest.yaml` returns `>= 10` for both CLIs; any value below the Risk-0004 baseline is a CRIT finding. (5b) Exit-code-swallow sweep at `/codify` — `grep -nE 'emit\.mjs[^|;]*--strict-headroom[^|]*(\|\||if |&& :|2>/dev/null$|set \+e)' .claude/agents/management/coc-sync.md` returns 0 hits; any chained exit-discard around the `--strict-headroom` invocation is a HIGH finding.
+
+Origin: 2026-05-06 (Rules 1–4) — see guide § "Origin — full prose" for the rb-missed-sync + schema-drift incident. v6.2 extension 2026-05-15 — F5 cc-architect R1 LOW from `journal/0073` closes the Trust Posture Wiring gap on the new headroom-floor BLOCK condition.
 
 <!-- /slot:neutral-body -->
