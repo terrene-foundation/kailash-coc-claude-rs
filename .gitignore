@@ -12,6 +12,7 @@ eggs/
 .eggs/
 lib/
 !.claude/hooks/lib/
+!.claude/bin/lib/
 lib64/
 parts/
 sdist/
