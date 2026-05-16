@@ -23,6 +23,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 // Symlink-safe write. Node's fs.writeFileSync follows symlinks by
 // default, so a TOCTOU attacker can plant a symlink between mkdirSync
@@ -449,7 +450,7 @@ export function validateAggregateHeadroom({ cli, lang, emissionBytes, blockCap, 
       headroom_floor_bytes: headroomFloorBytes,
       under_by_bytes: emissionBytes - headroomFloorBytes,
       remediation:
-        "v6.2 Risk-0004 floor breach: per (loom-internal reference)" +
+        "v6.2 Risk-0004 floor breach: per workspaces/multi-cli-coc/02-plans/" +
         "08-loom-v6.2-headroom-validator.md, demote a CRIT rule to path-scoped " +
         "(per v6 §A.2 + the v2.13.0/v2.19.0/v6.2-Shard-3 precedent), tighten a " +
         "per-rule budget, or trim emission. block_cap raise (option b) is BLOCKED " +
@@ -709,7 +710,7 @@ export function validateSlotRoundTrip(cli, lang = null) {
 // fixture expectations. When bijection holds, write policies.json and
 // flip POLICIES_POPULATED=true in server.js.
 export function validateMcpBijectionAgainstFixtures() {
-  // Fixture moved from (loom-internal reference) (gitignored)
+  // Fixture moved from workspaces/multi-cli-coc/fixtures/ (gitignored)
   // to .claude/fixtures/ (committed) on 2026-04-22 so emit.mjs works
   // from a fresh clone. USE-template repos vendor the fixture when
   // they vendor .claude/bin/.
@@ -879,6 +880,50 @@ export function validateTierCompleteness() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// Validator 16 — strict-YAML manifest gate (loom 2026-05-16, journal
+// 0080). emit.mjs parses sync-manifest.yaml with regex (no YAML dep, by
+// design — loadManifestConfig). That parser is YAML-SYNTAX-BLIND: a
+// structurally-broken manifest still lets `emit --dry-run` exit 0,
+// while every strict-YAML consumer (verify-overlays.sh, yq, downstream
+// /sync) fails repo-wide. PR #246 shipped exactly this — a list scalar
+// with an embedded ": " — and it passed the emit gate. This validator
+// closes the hole: a strict YAML parse (python3 yaml.safe_load shell-
+// out, so emit.mjs stays Node-dependency-free) MUST succeed or emit
+// hard-fails. Runs BEFORE Validator 15 in main() — V15's regex section
+// parse is only trustworthy on a syntactically valid manifest.
+export function validateManifestYaml() {
+  const manifestPath = path.join(REPO, ".claude", "sync-manifest.yaml");
+  const r = spawnSync(
+    "python3",
+    [
+      "-c",
+      "import sys,yaml\ntry:\n yaml.safe_load(open(sys.argv[1]))\nexcept yaml.YAMLError as e:\n sys.stderr.write(str(e))\n sys.exit(1)",
+      manifestPath,
+    ],
+    { encoding: "utf8" },
+  );
+  if (r.error && r.error.code === "ENOENT") {
+    // python3 absent — degrade to a clear advisory, do NOT silently pass.
+    return {
+      pass: false,
+      failures: [
+        "python3 not found — cannot strict-YAML-validate the manifest. " +
+          "Install python3 (PyYAML) OR validate manually before emit.",
+      ],
+    };
+  }
+  if (r.status !== 0) {
+    return {
+      pass: false,
+      failures: [
+        `sync-manifest.yaml is not valid YAML: ${(r.stderr || "").trim().slice(0, 400)}`,
+      ],
+    };
+  }
+  return { pass: true, failures: [] };
+}
+
+// ────────────────────────────────────────────────────────────────
 // POLICIES writeback to .codex-mcp-guard/
 // ────────────────────────────────────────────────────────────────
 // Runs extract-policies on .claude/hooks/. Writes TWO files (CDX-5 fix,
@@ -1042,6 +1087,20 @@ function main() {
     overallPass = false;
     process.stderr.write(
       `VALIDATOR 14 FAIL (rule-authoring.md Rule 7):\n${v14.failures.map((l) => "  " + l).join("\n")}\n`,
+    );
+    process.exit(1);
+  }
+
+  // Validator 16 — strict-YAML manifest gate (journal 0080). MUST run
+  // BEFORE V15: V15's regex section parse is only meaningful on a
+  // syntactically valid manifest. PR #246's broken manifest passed the
+  // YAML-blind regex parser; this gate makes that impossible.
+  const v16 = validateManifestYaml();
+  console.log(`[validator-16] manifest-yaml: ${v16.pass ? "PASS" : "FAIL"}`);
+  if (!v16.pass) {
+    overallPass = false;
+    process.stderr.write(
+      `VALIDATOR 16 FAIL (sync-manifest.yaml strict-YAML, journal 0080):\n${v16.failures.map((l) => "  " + l).join("\n")}\n`,
     );
     process.exit(1);
   }
