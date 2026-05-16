@@ -8,6 +8,7 @@
  * never auto-downgrade purely on a regex hit. Behavioral signals belong to /redteam.
  */
 
+const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
@@ -51,6 +52,85 @@ function readUpstreamRemoteSlug(cwd) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve the git repo root from cwd. Structural (git toplevel), 500ms
+ * cap — same posture as readUpstreamRemoteSlug.
+ */
+function repoRoot(cwd) {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: cwd || process.cwd(),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 500,
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Bounds stale-receipt reuse across sessions: an authorizing journal
+// receipt only clears a cross-repo write if written within this window
+// (repo-scope-discipline.md User-Authorized Exception condition 5 —
+// scoped to ONE action; a days-old receipt MUST NOT authorize).
+const CROSS_REPO_RECEIPT_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Structural in-scope signal for repo-scope-discipline.md
+ * § User-Authorized Exception condition 4: a cross-repo write PRECEDED
+ * by an authorizing journal receipt is in-scope by definition. The
+ * receipt is a journal entry containing the greppable marker line
+ * `cross-repo-authorized: <owner/repo>` for the exact target slug,
+ * written recently (within the window). Durable on-disk signal — same
+ * structural class as readUpstreamRemoteSlug's git-remote allowance,
+ * NOT lexical agent prose. Scans repo-root journal/ + workspace
+ * journals (incl. .pending), mtime-bounded, content-marker matched.
+ */
+function hasCrossRepoAuthorizationReceipt(targetSlug, cwd) {
+  if (!targetSlug) return false;
+  const root = repoRoot(cwd);
+  if (!root) return false;
+  const marker = `cross-repo-authorized: ${targetSlug}`;
+  const now = Date.now();
+  const dirs = [path.join(root, "journal")];
+  try {
+    const wsRoot = path.join(root, "workspaces");
+    for (const e of fs.readdirSync(wsRoot, { withFileTypes: true })) {
+      if (
+        e.isDirectory() &&
+        e.name !== "instructions" &&
+        !e.name.startsWith("_")
+      ) {
+        dirs.push(path.join(wsRoot, e.name, "journal"));
+        dirs.push(path.join(wsRoot, e.name, "journal", ".pending"));
+      }
+    }
+  } catch {
+    /* no workspaces/ — repo-root journal/ only */
+  }
+  for (const d of dirs) {
+    let entries;
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const f of entries) {
+      if (!f.isFile() || !f.name.endsWith(".md")) continue;
+      const fp = path.join(d, f.name);
+      try {
+        if (now - fs.statSync(fp).mtimeMs > CROSS_REPO_RECEIPT_WINDOW_MS) {
+          continue; // stale — bounds cross-session reuse
+        }
+        if (fs.readFileSync(fp, "utf8").includes(marker)) return true;
+      } catch {
+        continue;
+      }
+    }
+  }
+  return false;
 }
 
 // 1. Pre-existing claim without SHA grounding (rules/zero-tolerance.md Rule 1c, 2026-05-01)
@@ -118,6 +198,14 @@ function detectRepoScopeDriftBash(command, cwd) {
   if (targetSlug) {
     const upstream = readUpstreamRemoteSlug(cwd);
     if (upstream && upstream === targetSlug) return null;
+    // repo-scope-discipline.md § User-Authorized Exception condition 4:
+    // a cross-repo write PRECEDED by an authorizing journal receipt is
+    // in-scope by definition. Structural durable-on-disk signal (journal
+    // marker `cross-repo-authorized: <slug>`), not lexical prose —
+    // mirrors the upstream-remote allowance above. Closes the journal
+    // 0077/0078 gap where a properly-authorized action still tripped
+    // the trust-posture L1 critical downgrade.
+    if (hasCrossRepoAuthorizationReceipt(targetSlug, cwd)) return null;
   }
   const cwdBase = path.basename(cwd || process.cwd());
   if (!targetRepo.includes(cwdBase)) {
@@ -791,6 +879,7 @@ module.exports = {
   detectPreExistingNoSha,
   detectRepoScopeDriftText,
   detectRepoScopeDriftBash,
+  hasCrossRepoAuthorizationReceipt,
   detectWorktreeDrift,
   detectCommitClaim,
   detectSweepSubstitution,

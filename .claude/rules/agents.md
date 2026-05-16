@@ -179,6 +179,23 @@ Agent(prompt: "implement feature X...")
 
 **Why:** Cargo holds an exclusive filesystem lock on `target/`. Worktrees give each agent its own `target/`. See `skills/30-claude-code-patterns/worktree-orchestration.md` for the full 5-layer protocol — worktree isolation is necessary but not sufficient.
 
+## MUST: Worktree-Isolate Parallel Agents That Edit Shared Source; Concurrent Readers Read Committed HEAD
+
+The clause above generalizes beyond compilation: ANY background/parallel agent that EDITS shared repo source (`sync-manifest.yaml`, rules, `bin/`, config) MUST be worktree-isolated, even if it never compiles. Any concurrent agent that READS that source MUST read the committed HEAD (`git show HEAD:<path>`), never the working tree.
+
+```
+# DO — shared-source editor isolated; concurrent reader reads committed HEAD
+Agent(isolation: "worktree", prompt: "edit sync-manifest.yaml ...")
+Agent(prompt: "catch-up: read source via `git show HEAD:.claude/bin/emit.mjs`")
+# DO NOT — non-isolated editor + working-tree reader, same checkout
+Agent(prompt: "edit sync-manifest.yaml ...")
+Agent(prompt: "catch-up: copy .claude/bin/emit.mjs")
+```
+
+**BLOCKED rationalizations:** "It's not a compiling agent, the worktree rule doesn't apply" / "The edit is quick, a collision is unlikely" / "Both agents are careful" / "I'll serialize them in my head".
+
+**Why:** A non-isolated editor's mid-edit WIP (e.g. a transiently-broken manifest) is visible in the shared checkout to every concurrent reader; a reader that copies the working tree mid-edit ships the broken state. Reading committed HEAD is the structural isolation when the editor was not worktree-isolated. See guide for the 2026-05-16 #243-vs-catch-up post-mortem.
+
 ## MUST: Worktree Prompts Use Relative Paths Only
 
 When prompting an agent with worktree isolation, the orchestrator MUST reference files via paths RELATIVE to the repo root — never absolute paths starting with `/Users/` or `/home/`.
@@ -372,6 +389,20 @@ Agent(isolation="worktree", prompt="""...
 Agent(isolation="worktree", prompt="bump package to 0.13.0, CHANGELOG, __version__")  # owner
 Agent(isolation="worktree", prompt="""...feature work...
 COORDINATION NOTE: parallel agent is bumping; MUST NOT edit pyproject.toml / __version__ / CHANGELOG.""")
+```
+
+### Example 10 — Shared-Source Editor Isolated; Concurrent Reader Reads Committed HEAD
+
+```python
+# DO — a background agent that EDITS shared source is worktree-isolated
+Agent(isolation="worktree", prompt="Edit sync-manifest.yaml: add consumer_overlays ...")
+# DO — a concurrent agent that READS that source reads committed HEAD
+Agent(prompt="""Catch-up sync. Read loom source via `git show HEAD:.claude/bin/emit.mjs`
+(committed HEAD), NOT the working tree — a parallel agent may be mid-edit.""")
+
+# DO NOT — non-isolated editor + working-tree reader, same checkout
+Agent(prompt="Edit sync-manifest.yaml ...")          # mid-edit WIP visible to all
+Agent(prompt="Catch-up: copy .claude/bin/emit.mjs")  # may copy broken mid-edit state
 ```
 
 <!-- /slot:examples -->
