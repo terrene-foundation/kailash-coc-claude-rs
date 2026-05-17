@@ -12,11 +12,20 @@ paths:
 <!-- slot:neutral-body -->
 
 
-Self-hosted CI runner hygiene for kailash-rs (macOS self-hosted runners, `esperie-enterprise/kailash-rs` repo). Language-agnostic MUSTs apply to every project using GitHub Actions self-hosted runners; §6 and §7 below capture kailash-rs-specific dispatcher-state remediation with concrete runner hostnames and `launchctl` invocations.
+Self-hosted CI runner hygiene for kailash-rs (macOS self-hosted runners, `<org>/<repo>` repo). Language-agnostic MUSTs apply to every project using GitHub Actions self-hosted runners; §6 and §7 below capture kailash-rs-specific dispatcher-state remediation with runner hostnames and `launchctl` invocations.
 
 For recovery protocols, service-management commands, and step-by-step troubleshooting, see `skills/10-deployment-git/ci-runner-troubleshooting.md`.
 
 ## MUST Rules
+
+> **Operator-local values.** This runbook uses generic placeholders
+> (`<org>/<repo>`, `<runner-host>`, `<runner-service-label>`). Operator-specific
+> concrete values for THIS deployment live in
+> `.claude/variants/rs/rules/ci-runners.operator.local.md` (gitignored, never
+> synced — issue #260). Its schema and how to populate it are documented in the
+> committed `.claude/variants/rs/rules/ci-runners.operator.local.example.md`.
+> When executing a protocol below, substitute the placeholders with the values
+> from your operator-local file.
 
 ### 1. Every Toolchain-Consuming Job Includes A Toolchain Setup Step
 
@@ -81,7 +90,7 @@ When `Format` (or any early short-circuiting gate) transitions from red to green
 
 ### 4. Runner Auto-Update Disconnect Recovery
 
-If `gh api repos/esperie-enterprise/kailash-rs/actions/runners` returns 0 runners while the runner's stdout log tails show `Connected to GitHub` and `Listening for Jobs`, the runner auto-updated mid-session and its in-flight job is orphaned — the old worker process holds the job in GitHub's state machine but cannot report completion. The session MUST restart the runner service AND trigger a fresh run via an empty commit.
+If `gh api repos/<org>/<repo>/actions/runners` returns 0 runners while the runner's stdout log tails show `Connected to GitHub` and `Listening for Jobs`, the runner auto-updated mid-session and its in-flight job is orphaned — the old worker process holds the job in GitHub's state machine but cannot report completion. The session MUST restart the runner service AND trigger a fresh run via an empty commit.
 
 ```bash
 # DO — re-register the runner and trigger a fresh run
@@ -136,16 +145,16 @@ on:
 
 ### 6. Zombie-Job Cancellation Protocol
 
-When a job on a self-hosted runner (e.g. `Jacks-Mac-Studio`, `Esperies-Mini`, `esperie-mac`) remains `in_progress` for >2× its normal completion time, it is a zombie — the runner process is stuck (network drop, hung test, maturin/poetry lock) or the worker crashed without reporting to the dispatcher. From the dispatcher's perspective the runner slot stays `busy: true`, blocking every subsequent job queued for that runner's label.
+When a job on a self-hosted runner (e.g. `<runner-host-1>`, `<runner-host-2>`, `<runner-host-3>`) remains `in_progress` for >2× its normal completion time, it is a zombie — the runner process is stuck (network drop, hung test, maturin/poetry lock) or the worker crashed without reporting to the dispatcher. From the dispatcher's perspective the runner slot stays `busy: true`, blocking every subsequent job queued for that runner's label.
 
 ```bash
 # DO — diagnose then cancel, kickstart if the worker itself is wedged
 # Step 1: enumerate runner state to identify the zombie
-gh api orgs/esperie-enterprise/actions/runners \
+gh api orgs/<org>/actions/runners \
   --jq '.runners[] | {name, busy, status}'
 
 # Step 2: cross-reference with the stuck run's jobs
-gh api repos/esperie-enterprise/kailash-rs/actions/runs/<run-id>/jobs \
+gh api repos/<org>/<repo>/actions/runs/<run-id>/jobs \
   --jq '.jobs[] | {name, status, started_at, runner_name}'
 
 # Step 3: cancel the stuck run to free the runner slot
@@ -154,9 +163,9 @@ gh run cancel <run-id>
 # Step 4: if cancel is not acknowledged within 2 minutes, the runner
 # process itself is deadlocked — kickstart the service agent:
 # macOS:
-launchctl kickstart -k "gui/$UID/actions.runner.esperie-enterprise-kailash-rs.<runner-name>"
+launchctl kickstart -k "gui/$UID/<runner-service-label>.<runner-name>"
 # Linux (systemd):
-sudo systemctl restart actions.runner.esperie-enterprise-kailash-rs.<runner-name>.service
+sudo systemctl restart <runner-service-label>.<runner-name>.service
 
 # DO NOT — wait for the zombie to time out on its own
 # The default job timeout is 6 hours; the queue stays blocked the entire time.
@@ -172,7 +181,7 @@ sudo systemctl restart actions.runner.esperie-enterprise-kailash-rs.<runner-name
 
 **Why:** A zombie job holds the runner's dispatcher-side `busy` flag indefinitely. Every queued job assigned to that runner's label waits behind the zombie until either the 6-hour timeout fires or the job is explicitly cancelled. `gh run cancel` frees the slot immediately; if the runner worker is also deadlocked at the OS level (hung test, lock contention, FFI build lock), `launchctl kickstart -k` / `systemctl restart` respawns the agent. Pushing a new commit does NOT help — the new run queues behind the zombie in the same runner's job list.
 
-Origin: kailash-rs 2026-04-20 — `Jacks-Mac-Studio` had a phantom "Integration Tests" job from 4h 40m prior blocking the entire PR queue; `gh run cancel` cleared it in <10 seconds.
+Origin: kailash-rs 2026-04-20 — `<runner-host-1>` had a phantom "Integration Tests" job from 4h 40m prior blocking the entire PR queue; `gh run cancel` cleared it in <10 seconds.
 
 ### 7. Idle-But-Not-Accepting Runner Protocol — De-Register, Don't Restart
 
@@ -183,7 +192,7 @@ This is DISTINCT from §6 (zombie-job): a zombie has `busy: true` + a specific `
 ```bash
 # DO — de-register the idle-not-accepting runner
 # Step 1: confirm the diagnosis — idle + online + queue depth > 0
-gh api orgs/esperie-enterprise/actions/runners \
+gh api orgs/<org>/actions/runners \
   --jq '.runners[] | {name, busy, status, labels: [.labels[].name]}'
 # If exactly one runner shows busy=false + status=online AND a PR has
 # jobs QUEUED for minutes, you have an idle-not-accepting runner.
@@ -193,9 +202,9 @@ gh pr view <PR-NUM> --json statusCheckRollup \
   --jq '[.statusCheckRollup[] | select(.conclusion == null or .conclusion == "")] | length'
 
 # Step 3: de-register the idle runner — ID is from step 1's response
-RUNNER_ID=$(gh api orgs/esperie-enterprise/actions/runners \
+RUNNER_ID=$(gh api orgs/<org>/actions/runners \
   --jq '.runners[] | select(.name == "<runner-name>") | .id')
-gh api -X DELETE orgs/esperie-enterprise/actions/runners/$RUNNER_ID
+gh api -X DELETE orgs/<org>/actions/runners/$RUNNER_ID
 
 # Step 4: verify — queued jobs should start dispatching to the remaining
 # runners within 30-60 seconds
@@ -254,7 +263,7 @@ jobs:
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'workflow_dispatch' &&
        github.event.inputs.target == 'publish-ruby-gem')
-    runs-on: esperie-linux-arm
+    runs-on: <runner-label-arm>
     steps:
       - uses: actions/checkout@v4
       - name: Install Docker (runner base image is minimal)
@@ -276,7 +285,7 @@ on:
     tags: ["v*"]
 jobs:
   publish-ruby-gem:
-    runs-on: esperie-linux-arm
+    runs-on: <runner-label-arm>
     steps:
       - uses: actions/checkout@v4
       - run: bundle exec rake build
@@ -293,11 +302,11 @@ jobs:
 - "CI already builds on every PR, that's the dry-run"
 - "The rescue-workflow pattern covers this"
 
-**Why:** Tag-gated jobs on a self-hosted or GitHub-hosted-larger runner interact with the runner's image, PATH, installed Docker state, `gh` CLI availability, and `contents: write` permission. None of these are exercised on PR CI (which runs on different workflows, different runners, different permissions). The v3.20.3 / v3.20.4 / v3.20.5 release chain shipped three distinct tag-time bugs in succession — missing Docker on `esperie-linux-arm`, missing `gh` CLI on the same runner, missing `contents: write` on the rescue workflow — because the `release.yml` tag-push path was the first time each surface was exercised. A `workflow_dispatch` dry-run path that builds + conditionally uploads to a release on a non-tag ref turns tag-time into a re-run of a known-green dispatch run. The dispatch proxy IS the Layer 2 prevention plan; the rescue-workflow pattern (commits 2026-04-22, PRs #551 / #552) is Layer 3 recovery, not Layer 2 prevention.
+**Why:** Tag-gated jobs on a self-hosted or GitHub-hosted-larger runner interact with the runner's image, PATH, installed Docker state, `gh` CLI availability, and `contents: write` permission. None of these are exercised on PR CI (which runs on different workflows, different runners, different permissions). The v3.20.3 / v3.20.4 / v3.20.5 release chain shipped three distinct tag-time bugs in succession — missing Docker on `<runner-label-arm>`, missing `gh` CLI on the same runner, missing `contents: write` on the rescue workflow — because the `release.yml` tag-push path was the first time each surface was exercised. A `workflow_dispatch` dry-run path that builds + conditionally uploads to a release on a non-tag ref turns tag-time into a re-run of a known-green dispatch run. The dispatch proxy IS the Layer 2 prevention plan; the rescue-workflow pattern (commits 2026-04-22, PRs #551 / #552) is Layer 3 recovery, not Layer 2 prevention.
 
 **Enforcement grep:** For every workflow with a `tags:` trigger, assert a `workflow_dispatch:` trigger is declared in the same `on:` block, AND every job gated by `startsWith(github.ref, 'refs/tags/v')` has a sibling `github.event_name == 'workflow_dispatch'` branch that exercises the build steps. Mechanical — the rule is grep-auditable per release-cycle codify pass.
 
-Origin: kailash-rs 2026-04-22 — PR #543 (v3.20.4, rustls-webpki + Docker install-if-missing on `esperie-linux-arm`), PR #545 (v3.20.5, `gh` install-if-missing), PR #551 + #552 (rescue workflow + contents:write follow-up). Three tag-time bugs in three consecutive releases; dispatch-proxy rule codifies Layer 2 of the prevention plan per the session notes' "still unbuilt" observation. Applies to every tag-gated job: `publish-ruby-gem`, `publish-pypi-wheels`, `publish-crates`, and any future release surface.
+Origin: kailash-rs 2026-04-22 — PR #543 (v3.20.4, rustls-webpki + Docker install-if-missing on `<runner-label-arm>`), PR #545 (v3.20.5, `gh` install-if-missing), PR #551 + #552 (rescue workflow + contents:write follow-up). Three tag-time bugs in three consecutive releases; dispatch-proxy rule codifies Layer 2 of the prevention plan per the session notes' "still unbuilt" observation. Applies to every tag-gated job: `publish-ruby-gem`, `publish-pypi-wheels`, `publish-crates`, and any future release surface.
 
 ### 9. Binding-CI `paths-ignore` Covers ALL Doc-Only Surfaces
 
@@ -426,7 +435,7 @@ for f in .github/workflows/rust.yml .github/workflows/python.yml \
 done
 ```
 
-Origin: 2026-04-22 kailash-rs session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min Mac Studio + bindings).
+Origin: 2026-04-22 kailash-rs session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min `<runner-host>` + bindings).
 
 ## MUST NOT Rules
 

@@ -149,7 +149,7 @@ Origin for "MUST: Worktree-Isolate Parallel Agents That Edit Shared Source; Conc
 
 During a long session resolving template drift, three agents ran against the SAME loom checkout (not worktree-isolated):
 
-- a background agent resolving issue #243 (RRPS variant boundary) that EDITED `.claude/sync-manifest.yaml`, and
+- a background agent resolving issue #243 (consumer variant boundary) that EDITED `.claude/sync-manifest.yaml`, and
 - two `/sync` catch-up agents (py, then rs) that READ loom source (`emit.mjs`, rules) to copy genuine-lag files into USE templates.
 
 The #243 agent's mid-edit WIP left `sync-manifest.yaml` with a transient YAML syntax error (a list scalar with an embedded `: `). The py catch-up agent, reading the shared working tree, flagged "the manifest is broken repo-wide" — correct, but it was another workstream's in-flight WIP, not a real defect at HEAD. The rs catch-up agent hit the same confusion. Net: ~2 agents' analysis cycles spent reconciling a transient state that did not exist at committed HEAD.

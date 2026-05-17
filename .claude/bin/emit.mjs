@@ -971,7 +971,7 @@ export function wireMcpPolicies(outDir) {
   const auditJson = {
     version: 1,
     generated_at: new Date().toISOString(),
-    source_dir: hooksDir,
+    source_dir: path.relative(REPO, hooksDir),
     shape_summary: {
       A: filteredPredicates.filter((p) => p.shape === "A").length,
       B: filteredPredicates.filter((p) => p.shape === "B").length,

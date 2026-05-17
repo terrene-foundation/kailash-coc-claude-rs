@@ -72,5 +72,5 @@ Keys starting with `_` are reserved for config (e.g., `_config`).
 
 ## Source Code
 
-- the dataflow package (src/dataflow/validation/dsl.py) -- Parser
-- the dataflow package (tests/unit/test_validation_dsl.py) -- Unit tests
+- `packages/kailash-dataflow/src/dataflow/validation/dsl.py` -- Parser
+- `packages/kailash-dataflow/tests/unit/test_validation_dsl.py` -- Unit tests

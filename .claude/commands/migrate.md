@@ -97,7 +97,7 @@ For pre-fix sister templates the following idempotent guards substitute the miss
 [ -f .claude/sync-manifest.yaml ] || cp "$LOOM_PATH/.claude/sync-manifest.yaml" .claude/sync-manifest.yaml
 ```
 
-`$LOOM_PATH` resolves to wherever loom is checked out locally (typically `~/repos/loom`). When both files land via the sister, the `||` branches are skipped and `$LOOM_PATH` is unused. If `$LOOM_PATH` is required AND unset, surface a clear error before invoking Step 6.
+`$LOOM_PATH` is **superseded** by the shared resolver: loom's checkout is now the `loom` logical key in `bin/lib/loom-links.mjs` (canonical NAME→location binding per `cross-repo.md` MUST-1) — prefer `resolveRepo("loom").value` over a positional `~/repos/loom` assumption. `$LOOM_PATH` remains a back-compat fallback when the resolver config is absent; do not break it. When both files land via the sister, the `||` branches are skipped and neither is used. If the loom path is required AND neither the resolver nor `$LOOM_PATH` yields it, surface a clear error before invoking Step 6 (an undeclared `loom` linkage is an explicit not-found, not a positional guess).
 
 ## Step 5 — CLAUDE.md 3-way reconciliation
 
@@ -159,7 +159,7 @@ Emit: "Trust posture is per-CLI. `posture show` works on Claude Code today; Code
 
 ## Step 12 — Commit + PR
 
-Stage explicit paths (per `coc-sync-landing.md` Rule 2 — `git add -A` BLOCKED). **Namespace tmp files per repo** to prevent concurrent /migrate sessions overwriting each other's commit messages (verified failure mode 2026-05-13 — hana + rr-coe migrations running in parallel: hana's commit shipped with rr-coe's message body):
+Stage explicit paths (per `coc-sync-landing.md` Rule 2 — `git add -A` BLOCKED). **Namespace tmp files per repo** to prevent concurrent /migrate sessions overwriting each other's commit messages (verified failure mode 2026-05-13 — two consumer migrations running in parallel: one consumer's commit shipped with the other's message body):
 
 ```bash
 # DO — per-repo tmp namespacing OR mktemp; never shared /tmp/migrate-msg.txt

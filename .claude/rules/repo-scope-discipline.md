@@ -41,4 +41,6 @@ The agent never self-authorizes. But the user owns the operating envelope (`rule
 
 NONE the agent may invoke on its own judgment (see § User-Authorized Exception for the only user-initiated path). Descriptive sibling mentions are OK when informational, not prescriptive. The rule does NOT apply at orchestration roots (`~/repos/`, `loom/`) where cross-repo coordination IS the purpose (`/sync`, `/sync-to-build`, `/inspect`, `/repos`).
 
-Origin: 2026-05-03 (kailash-rs cross-repo surfacing); amended 2026-05-16 (User-Authorized Exception added after an rr-coe session over-blocked a user-authorized filing). Full post-mortem in extract.
+Note: at the orchestration root, cross-repo targets are enumerated _explicitly_ via `bin/lib/loom-links.mjs::resolveRepo` / `resolveAll` (per `cross-repo.md` MUST-1) — there is no positional discovery of sibling repos. Explicit enumeration reinforces this in-repo-scope boundary: a session can only reach a repo that the operator declared a linkage for; the orchestration-root carve-out above (`:42`) is unchanged — it lifts the scope boundary for the _operation_, never the resolver requirement.
+
+Origin: 2026-05-03 (kailash-rs cross-repo surfacing); amended 2026-05-16 (User-Authorized Exception added after a downstream-consumer session over-blocked a user-authorized filing). Full post-mortem in extract.

@@ -8,7 +8,6 @@ paths:
 
 # Framework-First: Use the Highest Abstraction Layer
 
-
 <!-- slot:neutral-body -->
 
 
@@ -19,7 +18,7 @@ Default to Engines. Drop to Primitives only when Engines can't express the behav
 ## Four-Layer Hierarchy
 
 ```
-Entrypoints  ->  Applications (aegis, aether), CLI (cli-rs), others (kz-engage)
+Entrypoints  ->  Applications (app-a, app-b), CLI (cli-app), others (app-c)
 Engines      ->  DataFlowEngine, NexusEngine, DelegateEngine/SupervisorAgent, GovernanceEngine
 Primitives   ->  DataFlow, Nexus, BaseAgent, Signature, envelopes, FeatureStore
 Specs        ->  CARE, EATP, CO, COC, PACT (standards/protocols/methodology)
@@ -27,14 +26,14 @@ Specs        ->  CARE, EATP, CO, COC, PACT (standards/protocols/methodology)
 
 Specs define -> Primitives implement building blocks -> Engines compose into opinionated frameworks -> Entrypoints are products users interact with.
 
-| Framework    | Raw (never) — Python/Ruby anti-patterns       | Primitives (binding-exposed)                        | Engine (default)                                                        | Entrypoints              |
-| ------------ | --------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------ |
-| **DataFlow** | `psycopg`, `sqlalchemy.text`, raw SQL strings | `DataFlow`, `@db.model`, `db.express`, nodes        | `DataFlowEngine.builder()` (validation, classification, query tracking) | aegis, aether, kz-engage |
-| **Nexus**    | Raw HTTP frameworks, manual route handlers    | `Nexus()`, handlers, channels                       | `NexusEngine` (middleware stack, auth, K8s)                             | aegis, aether            |
-| **Kaizen**   | `openai`, `anthropic` SDK calls               | `BaseAgent`, `Signature`                            | `DelegateEngine`, `SupervisorAgent`                                     | kaizen-cli-rs            |
-| **PACT**     | Manual policy strings                         | Envelopes, D/T/R addressing                         | `GovernanceEngine` (thread-safe, fail-closed)                           | aegis                    |
-| **ML**       | `sklearn`, `numpy`, `pandas` directly         | `FeatureStore`, `ModelRegistry`, `TrainingPipeline` | `AutoMLEngine`, `InferenceServer` (ONNX, drift, caching)                | aegis, aether            |
-| **Align**    | `transformers`, `peft`, `trl` directly        | `AlignmentConfig`, `AlignmentPipeline`              | `align.train()`, `align.deploy()` (GGUF, Ollama, vLLM)                  | —                        |
+| Framework    | Raw (never) — Python/Ruby anti-patterns       | Primitives (binding-exposed)                        | Engine (default)                                                        | Entrypoints         |
+| ------------ | --------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- | ------------------- |
+| **DataFlow** | `psycopg`, `sqlalchemy.text`, raw SQL strings | `DataFlow`, `@db.model`, `db.express`, nodes        | `DataFlowEngine.builder()` (validation, classification, query tracking) | app-a, app-b, app-c |
+| **Nexus**    | Raw HTTP frameworks, manual route handlers    | `Nexus()`, handlers, channels                       | `NexusEngine` (middleware stack, auth, K8s)                             | app-a, app-b        |
+| **Kaizen**   | `openai`, `anthropic` SDK calls               | `BaseAgent`, `Signature`                            | `DelegateEngine`, `SupervisorAgent`                                     | cli-app             |
+| **PACT**     | Manual policy strings                         | Envelopes, D/T/R addressing                         | `GovernanceEngine` (thread-safe, fail-closed)                           | app-a               |
+| **ML**       | `sklearn`, `numpy`, `pandas` directly         | `FeatureStore`, `ModelRegistry`, `TrainingPipeline` | `AutoMLEngine`, `InferenceServer` (ONNX, drift, caching)                | app-a, app-b        |
+| **Align**    | `transformers`, `peft`, `trl` directly        | `AlignmentConfig`, `AlignmentPipeline`              | `align.train()`, `align.deploy()` (GGUF, Ollama, vLLM)                  | —                   |
 
 The bindings give Python a Pythonic API that maps onto the Rust runtime under the hood. Your code is Python; the kailash-rs runtime executes underneath. You never write Rust. For canonical API paths in your project, consult the relevant framework specialist (dataflow-specialist, nexus-specialist, kaizen-specialist, mcp-specialist, pact-specialist, ml-specialist) — this rule intentionally avoids listing specific paths to prevent drift.
 

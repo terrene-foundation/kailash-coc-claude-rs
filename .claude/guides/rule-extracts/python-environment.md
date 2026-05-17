@@ -67,12 +67,12 @@ pytest tests/                     # same — whose pytest?
 ```bash
 # DO — one-time setup
 uv pip install \
-  -e packages/<sub-pkg-a> \
-  -e packages/<sub-pkg-b> \
-  -e packages/<sub-pkg-c>
+  -e packages/kailash-dataflow \
+  -e packages/kailash-nexus \
+  -e packages/kailash-kaizen
 
 # DO NOT — PYTHONPATH prefix workaround
-PYTHONPATH=<sub-pkg-a>/src:<sub-pkg-b>/src \
+PYTHONPATH=packages/kailash-dataflow/src:packages/kailash-nexus/src \
   .venv/bin/python -m pytest tests/
 ```
 
@@ -90,9 +90,9 @@ PYTHONPATH=<sub-pkg-a>/src:<sub-pkg-b>/src \
 ```toml
 # DO — editable path entry in root pyproject.toml
 [tool.uv.sources]
-<sub-pkg-a> = { path = "packages/<sub-pkg-a>", editable = true }
-<sub-pkg-b> = { path = "packages/<sub-pkg-b>", editable = true }
-<sub-pkg-c> = { path = "packages/<sub-pkg-c>", editable = true }
+kailash-dataflow = { path = "packages/kailash-dataflow", editable = true }
+kailash-nexus = { path = "packages/kailash-nexus", editable = true }
+kailash-kaizen = { path = "packages/kailash-kaizen", editable = true }
 
 # DO NOT — PyPI version pin on a sub-package you're editing locally
 [project]
@@ -116,7 +116,7 @@ Origin: `workspaces/arbor-upstream-fixes/.session-notes` (2026-04-12)
 
 ```toml
 # DO — sub-packages own their test deps
-# the pact package's pyproject.toml:
+# packages/kailash-pact/pyproject.toml:
 [project.optional-dependencies]
 test = ["hypothesis>=6.98"]
 

@@ -2,7 +2,7 @@
  * Slot parser + overlay composition — shared across emit.mjs and compose.mjs.
  *
  * Canonical implementation of spec v6 §3.1. Moved here from the gitignored
- * (loom-internal reference) PoC to remove
+ * workspaces/multi-cli-coc/fixtures/slot-markers/emitter.mjs PoC to remove
  * the "PoC emitter.mjs import" trap and the duplication between emit.mjs
  * (Phase E4) and compose.mjs (Phase F2).
  *

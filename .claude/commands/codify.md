@@ -117,17 +117,16 @@ For each NEW rule authored in this codify cycle (grandfathered rules pre-dating 
 
 The trust-posture rule itself is the only grandfather exception. Every other rule authored from this point forward MUST include the wiring section.
 
-### 7. Create upstream proposal (BUILD repos) / 8. Upstream to atelier (loom only)
+### 7. Create upstream proposal (routed by repo class)
 
-Follow the proposal protocol in `guides/co-setup/09-proposal-protocol.md`. Key rules:
+Detect repo class; route to matching Step in `guides/co-setup/09-proposal-protocol.md`. Four-row mutually-exclusive precedence per `rules/artifact-flow.md` § "Issue Routing By Change Type" — first matching signal wins. Manifests emit `origin: build | use-template | loom` explicitly; append-not-overwrite per `rules/artifact-flow.md`.
 
-- **BUILD repos** (kailash-py, kailash-rs): Create/append proposal at `.claude/.proposals/latest.yaml` for loom/ review. **Append, never overwrite** unprocessed proposals. See `rules/artifact-flow.md`.
-- **loom/**: Propose CC/CO-tier artifacts upstream to atelier/ using the same append-not-overwrite protocol.
-- **Downstream project repos**: SKIP. Changes stay local.
+1. **loom** (`loom` in git remote AND `.claude/sync-manifest.yaml` exists) → Step 8 (loom→atelier; CC/CO-tier).
+2. **USE-template** (`kailash-coc-*` in git remote OR `.claude/VERSION::type == "coc-template"`) → Step 7b (USE-template→loom; COC-artifact only; mechanical wrong-lane glob-check enforced per Step 7b).
+3. **BUILD** (`kailash-py`/`kailash-rs`/`kailash-prism` in git remote OR `pyproject.toml`/`Cargo.toml::name` is exact `kailash` or sub-package) → Step 7a (BUILD→loom; SDK code; cross-SDK-FIRST).
+4. **Downstream** (`.claude/VERSION::type == "coc-project"`, NOT `coc-template`) → SKIP; artifacts stay local.
 
 ## Agent Teams
-
-Deploy these agents as a team for codification:
 
 **Knowledge extraction team:**
 

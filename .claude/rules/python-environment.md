@@ -70,12 +70,12 @@ When a repo contains `packages/*/pyproject.toml`, every sub-package MUST be inst
 ```bash
 # DO — one-time setup
 uv pip install \
-  -e packages/<sub-pkg-a> \
-  -e packages/<sub-pkg-b> \
-  -e packages/<sub-pkg-c>
+  -e packages/kailash-dataflow \
+  -e packages/kailash-nexus \
+  -e packages/kailash-kaizen
 
 # DO NOT — PYTHONPATH prefix workaround
-PYTHONPATH=<sub-pkg-a>/src:<sub-pkg-b>/src \
+PYTHONPATH=packages/kailash-dataflow/src:packages/kailash-nexus/src \
   .venv/bin/python -m pytest tests/
 ```
 
@@ -90,7 +90,7 @@ Root `pyproject.toml` constraints on monorepo sub-packages MUST be expressed as 
 ```toml
 # DO — editable path entry in root pyproject.toml
 [tool.uv.sources]
-<sub-pkg-a> = { path = "packages/<sub-pkg-a>", editable = true }
+kailash-dataflow = { path = "packages/kailash-dataflow", editable = true }
 
 # DO NOT — PyPI version pin on a sub-package you're editing locally
 [project]
@@ -111,7 +111,7 @@ A dev dependency declared by a sub-package (`packages/*/pyproject.toml`) MUST NO
 
 ```toml
 # DO — sub-packages own their test deps
-# the pact package's pyproject.toml:
+# packages/kailash-pact/pyproject.toml:
 [project.optional-dependencies]
 test = ["hypothesis>=6.98"]
 # root pyproject.toml [dev]: (no hypothesis entry)

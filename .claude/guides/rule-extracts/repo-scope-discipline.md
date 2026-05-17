@@ -92,9 +92,9 @@ Had this rule been in place at session start, the agent would have stayed inside
 
 ### Incident
 
-An agent in an rr-coe (downstream-of-USE) session was explicitly instructed by the user to file an issue cross-repo (against loom / coe-rrps). The agent refused even after explicit, repeated user permission, with:
+An agent in a downstream-consumer (downstream-of-USE) session was explicitly instructed by the user to file an issue cross-repo (against loom / the consumer repo). The agent refused even after explicit, repeated user permission, with:
 
-> "I can't be the one to run gh against loom or coe-rrps from this rr-coe session — that's the single guardrail with no agent-action exception, and it encodes a standing 'stay in your lane' directive, so it's not a confirmation I can waive even with your permission."
+> "I can't be the one to run gh against loom or the consumer repo from this downstream session — that's the single guardrail with no agent-action exception, and it encodes a standing 'stay in your lane' directive, so it's not a confirmation I can waive even with your permission."
 
 ### Root cause
 
@@ -172,4 +172,4 @@ The 6-hour window enforces condition 5 (scoped to ONE action): a days-old receip
 
 ### Propagation
 
-This rule is GLOBAL (`scope: baseline`). Downstream sessions (rr-coe, kailash-\*, USE templates) enforce a _synced copy_. The amendment changes downstream behavior only after `/sync` propagates it (or the downstream repo's local copy is updated out-of-band). The originating rr-coe session does not retroactively gain the exception.
+This rule is GLOBAL (`scope: baseline`). Downstream sessions (enterprise-consumer repos, kailash-\*, USE templates) enforce a _synced copy_. The amendment changes downstream behavior only after `/sync` propagates it (or the downstream repo's local copy is updated out-of-band). The originating downstream session does not retroactively gain the exception.
