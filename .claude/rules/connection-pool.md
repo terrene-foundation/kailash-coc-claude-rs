@@ -13,13 +13,12 @@ paths:
 
 <!-- slot:neutral-body -->
 
-> **Scope**: Application code MUST go through DataFlow (`@db.model`, `db.express`) which manages pools for you — see `framework-first.md` § Work-Domain Binding. These rules are for SDK-level pool tuning and for advanced consumers who own the pool lifecycle.
 
 ### 1. Never Use Default Pool Size in Production
 
 Set `DATAFLOW_MAX_CONNECTIONS` env var. Default (25/worker) exhausts PostgreSQL on small instances.
 
-**Why:** The default 25 connections/worker times 4 workers = 100 connections, exceeding `max_connections` on t2.micro (87) and causing immediate connection refusal at scale.
+**Why:** The Rust connection pool pre-allocates all slots at startup; the default 25/worker saturates a t2.micro's 87-connection limit and causes immediate connection-refused errors under load.
 
 **Formula**: `pool_size = postgres_max_connections / num_workers * 0.7`
 
@@ -32,10 +31,12 @@ Set `DATAFLOW_MAX_CONNECTIONS` env var. Default (25/worker) exhausts PostgreSQL 
 
 ```python
 # ❌ relies on default pool size
-df = DataFlow("postgresql://...")
+import kailash
+df = kailash.DataFlow("postgresql://...")
 
 # ✅ explicit pool size from environment
-df = DataFlow(
+import os, kailash
+df = kailash.DataFlow(
     os.environ["DATABASE_URL"],
     max_connections=int(os.environ.get("DATAFLOW_MAX_CONNECTIONS", "10"))
 )
@@ -45,13 +46,17 @@ df = DataFlow(
 
 Creates N+1 connection usage, rapidly exhausting pool.
 
-**Why:** Every HTTP request holds a connection for auth lookup before the handler even runs, so under load the pool is exhausted by middleware alone and no handler can acquire a connection.
+**Why:** Each middleware DB query checks out a connection from the Rust pool for every inbound request, turning the pool into a per-request bottleneck that triggers cascading timeouts under traffic spikes.
 
 ```python
-# ❌ DB query on EVERY request
+# ❌ DB query on EVERY request (Rust SDK API)
 class AuthMiddleware:
     async def __call__(self, request):
-        user = await runtime.execute_async(read_user_workflow.build(registry), ...)
+        reg = kailash.NodeRegistry()
+        builder = kailash.WorkflowBuilder()
+        builder.add_node("ReadUser", "read", {"filter": {"token": token}})
+        rt = kailash.Runtime(reg)
+        result = rt.execute(builder.build(reg))  # Pool checkout per request!
 
 # ✅ JWT claims, no DB hit
 class AuthMiddleware:
@@ -67,7 +72,7 @@ _session_cache = TTLCache(maxsize=1000, ttl=300)
 
 Use lightweight `SELECT 1` with dedicated connection, never a full DataFlow workflow.
 
-**Why:** Load balancer health checks fire every 5-30 seconds per instance — if they use application pool connections, they compete with real requests and can trigger false "unhealthy" cascades.
+**Why:** Health-check workflows compete with application queries for the same Rust pool slots, so a pool-exhaustion incident makes health checks fail too, causing the orchestrator to restart a healthy-but-busy service.
 
 ### 4. Verify Pool Math at Deployment
 
@@ -77,32 +82,30 @@ DATAFLOW_MAX_CONNECTIONS × num_workers ≤ postgres_max_connections × 0.7
 
 The 0.7 reserves 30% for admin, migrations, monitoring.
 
-**Why:** If pool math exceeds PostgreSQL's `max_connections`, deploys succeed but the application fails under load when the last worker tries to open a connection — a time-bomb that only detonates in production.
-
-**Example**: 150 max_connections, 4 workers → `DATAFLOW_MAX_CONNECTIONS = 25` → `25 × 4 = 100 ≤ 105` PASS
+**Why:** Exceeding the 0.7 threshold leaves no headroom for migrations or admin queries, which then fail with "too many connections" during routine maintenance windows.
 
 ### 5. Connection Timeout Must Be Set
 
-Without timeout, requests queue indefinitely when pool exhausted → cascading failures.
+Without timeout, requests queue indefinitely when pool exhausted, leading to cascading failures.
 
-**Why:** An indefinite wait turns a temporary pool exhaustion into a permanent hang — all worker threads block, the health check fails, and the load balancer takes the instance offline.
+**Why:** The Rust pool's default wait is unbounded, so a single slow query can back up the entire async task queue until the process is OOM-killed.
 
 ### 6. Async Workers Must Share Pool
 
 Application-level singleton. MUST NOT create new pool per request or per route handler.
 
-**Why:** A new pool per request means every request opens fresh connections (bypassing pooling entirely), and those pools are never closed, leaking connections until PostgreSQL refuses all new ones.
+**Why:** Each new Rust pool opens its own set of TCP connections and spawns background reaper tasks; per-request creation leaks file descriptors and memory until the OS kills the process.
 
 ```python
 # ❌ new pool per request
 @app.post("/users")
 async def create_user():
-    df = DataFlow(os.environ["DATABASE_URL"])  # New pool!
+    df = kailash.DataFlow(os.environ["DATABASE_URL"])  # New pool!
 
 # ✅ application-level singleton via lifespan
 @asynccontextmanager
 async def lifespan(app):
-    app.state.df = DataFlow(os.environ["DATABASE_URL"], ...)
+    app.state.df = kailash.DataFlow(os.environ["DATABASE_URL"], ...)
     yield
     await app.state.df.close()
 ```
@@ -110,8 +113,8 @@ async def lifespan(app):
 ## MUST NOT
 
 - No unbounded connection creation in loops — use pool or batch queries
-  **Why:** A loop creating one connection per iteration can open thousands of connections in seconds, exhausting PostgreSQL and crashing all other applications sharing the database.
+  **Why:** Each loop iteration allocates a new Rust-side connection handle that is not reclaimed until the loop completes, exhausting both pool slots and OS file descriptors.
 - No pool size from user input (API params, form fields)
-  **Why:** A malicious request setting `pool_size=100000` triggers mass connection creation, instantly exhausting database resources and causing a denial-of-service.
+  **Why:** An attacker-controlled pool size can trivially DoS the database by requesting thousands of connections in a single request.
 
 <!-- /slot:neutral-body -->

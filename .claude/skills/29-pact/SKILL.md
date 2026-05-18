@@ -1,72 +1,85 @@
 ---
-name: 29-pact
-description: "PACT governance — D/T/R, envelopes, clearance, governed agents, verification gradient."
+name: pact
+description: "PACT governance (Rust) — D/T/R addressing, clearance, envelopes, 5-step access, 4-zone gradient."
 ---
 
-# PACT Governance Skills
+# PACT Governance Framework Patterns
 
-Quick reference for PACT organizational governance patterns.
+Principled Architecture for Constrained Trust (PACT) -- organizational governance for AI agents. D/T/R addressing, knowledge clearance, operating envelopes, access enforcement, and verification gradient.
 
-## When to Use
+**Python module**: `kailash.pact` (backed by Rust implementation, source-available BSL 1.1)
+**Depends on**: `kailash.governance` + `kailash.eatp` (governance engine and EATP protocol)
+**Tests**: 1,396+ (governance 565 + eatp 58 + pact 58 + Python 109 + bridge enforcement 10)
+**PyO3**: `from kailash import PactGovernanceEngine, PactAddress, PactDimensionName, PactVacancyDesignation, PactBridgeApprovalStatus`
 
-Use PACT when asking about governance, D/T/R, operating envelope, knowledge clearance, verification gradient, `GovernanceEngine`, `PactGovernedAgent`, access enforcement, organizational governance, PACT, governed agent, clearance, bridges, KSP, monotonic tightening, MCP governance, `McpGovernanceEnforcer`, `McpGovernanceMiddleware`, `McpAuditTrail`, `McpToolPolicy`, MCP tool policy, default-deny MCP, or governed MCP tools.
+## Reference Documentation
 
-## Install
+### Core Concepts
 
-```bash
-pip install kailash-pact          # Governance framework
-pip install kailash>=2.0.0        # Core SDK with trust subsystem
-pip install kailash-kaizen>=2.0.0 # For governed Kaizen agents
-```
+- **[pact-quick-start](pact-quick-start.md)** -- Define org, grant clearance, check access, verify action
+- **[pact-dtr-addressing](pact-dtr-addressing.md)** -- D/T/R address grammar, parsing, ancestors, LCA
+- **[pact-access-algorithm](pact-access-algorithm.md)** -- 5-step fail-closed algorithm with containment sub-paths (3a-3e)
+- **[pact-envelope-model](pact-envelope-model.md)** -- 3-layer envelope model, intersection rules, posture defaults
 
-## Skill Files
+### API and Integration
 
-| Skill                                                     | Use When                                                                                              |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [pact-quickstart](pact-quickstart.md)                     | Getting started, first GovernanceEngine                                                               |
-| [pact-governance-engine](pact-governance-engine.md)       | Engine API, verify_action, compute_envelope                                                           |
-| [pact-dtr-addressing](pact-dtr-addressing.md)             | D/T/R grammar, Address parsing                                                                        |
-| [pact-envelopes](pact-envelopes.md)                       | Three-layer model, monotonic tightening                                                               |
-| [pact-access-enforcement](pact-access-enforcement.md)     | 5-step algorithm, clearance, bridges, KSPs                                                            |
-| [pact-governed-agents](pact-governed-agents.md)           | PactGovernedAgent, @governed_tool                                                                     |
-| [pact-kaizen-integration](pact-kaizen-integration.md)     | Wrapping Kaizen agents with governance                                                                |
-| [pact-mcp-governance](pact-mcp-governance.md)             | MCP tool governance: enforce, audit, middleware                                                       |
-| [pact-enforcement-modes](pact-enforcement-modes.md)       | ENFORCE/SHADOW/DISABLED modes, HELD verdict handling, envelope adapter                                |
-| [pact-conformance-features](pact-conformance-features.md) | N1-N6: KnowledgeFilter, EnvelopeCache, PlanSuspension, AuditTiers, ObservationSink, cross-SDK vectors |
+- **[pact-engine-api](pact-engine-api.md)** -- GovernanceEngine decision/query/mutation APIs, DelegationBuilder, PactGovernedAgent
+- **[pact-kaizen-integration](pact-kaizen-integration.md)** -- PACT + Kaizen bridging pattern, EATP type convergence
+- **[pact-mcp-bridge](pact-mcp-bridge.md)** -- MCP tool governance (`mcp` feature), 6-step evaluation, NaN protection
 
-## Key Types
+### Bindings and Patterns
 
-```python
-from pact.governance import GovernanceEngine, GovernanceVerdict
-from kailash.trust.pact.config import (
-    ConstraintEnvelopeConfig, OrgDefinition,
-    TrustPostureLevel, VerificationLevel,
-    ConfidentialityLevel,
-)
-from kailash.trust.pact.agent import PactGovernedAgent
-from kailash.trust.pact.audit import AuditChain
+- **[pact-python-binding](pact-python-binding.md)** -- PyO3 binding (21 types), address serde format, build/test
+- **[governance-patterns](governance-patterns.md)** -- Governance integration patterns
 
-# MCP governance
-from pact.mcp import (
-    McpGovernanceEnforcer, McpGovernanceMiddleware, McpAuditTrail,
-    McpToolPolicy, McpGovernanceConfig, McpActionContext,
-)
-```
+## 16 User Flows
 
-## TrustPostureLevel (Decision 007)
+| #   | Flow                | Entry Point                                     | Key Invariant                                      |
+| --- | ------------------- | ----------------------------------------------- | -------------------------------------------------- |
+| 1   | Compile org         | `GovernanceEngine::new(org_def)`                | Grammar: D/T must be followed by R                 |
+| 2   | Access check        | `engine.check_access(role_id, item, posture)`   | 5-step fail-closed algorithm                       |
+| 3   | Posture ceiling     | Implicit in step 2                              | `effective = min(clearance, posture_ceiling)`      |
+| 4   | Action verification | `engine.verify_action(addr, action, ctx)`       | 4-zone gradient, worst-zone wins                   |
+| 5   | NEVER_DELEGATED     | Implicit in flow 4                              | 7 actions always HELD                              |
+| 6   | Bridge access       | Step 3e in flow 2                               | Bilateral vs unilateral directionality             |
+| 7   | Bridge approval     | `engine.request_bridge()` / `approve_bridge()`  | LCA approver, Pending->Approved gate               |
+| 8   | Frozen context      | `engine.get_context(addr, posture)`             | No `&mut self`, no Deserialize                     |
+| 9   | Python integration  | `from kailash import PactGovernanceEngine`      | 25+ types, thread-safe                             |
+| 10  | Role discovery      | `engine.list_roles()` / `get_node_by_role_id()` | All roles (not just heads), v3.4.1                 |
+| 11  | Address resolution  | `engine.resolve_role_id("D1-R1")`               | Resolves D/T/R address OR config ID, v3.4.1        |
+| 12  | Vacancy designation | `engine.set_vacancy_designation()`              | Acting occupant, 24h expiry, fail-closed           |
+| 13  | Auto-suspension     | `RoleConfig::auto_suspend_on_vacancy`           | BFS cascade, opt-in per-role                       |
+| 14  | LCA computation     | `Address::lowest_common_ancestor(a, b)`         | O(depth), grammar-validated                        |
+| 15  | Dimension scoping   | `DelegationRecord::dimension_scope`             | BTreeSet<DimensionName>, subset tightening         |
+| 16  | Nested departments  | `DepartmentConfig::departments` (v3.6.1)        | Recursive D-R-D-R, `compile_department()` recurses |
 
-Five canonical posture levels with autonomy gradient:
+See the PACT governance flows documentation for detailed storyboards.
 
-| Canonical  | Autonomy | Ceiling      | Old Name (alias)   |
-| ---------- | -------- | ------------ | ------------------ |
-| PSEUDO     | 1        | PUBLIC       | PSEUDO_AGENT       |
-| TOOL       | 2        | RESTRICTED   | _(new, no old)_    |
-| SUPERVISED | 3        | CONFIDENTIAL | SHARED_PLANNING    |
-| DELEGATING | 4        | SECRET       | CONTINUOUS_INSIGHT |
-| AUTONOMOUS | 5        | TOP_SECRET   | DELEGATED          |
+## 4-Zone Gradient
 
-Old names work as enum aliases (`TrustPostureLevel.PSEUDO_AGENT` resolves to `PSEUDO`). String deserialization of old values is handled by `_missing_()`.
+| Zone         | `allowed()` | When                                     |
+| ------------ | ----------- | ---------------------------------------- |
+| AutoApproved | true        | Action within all limits                 |
+| Flagged      | true        | Action >= 80% of a limit                 |
+| Held         | false       | NEVER_DELEGATED action or unknown action |
+| Blocked      | false       | Action exceeds hard limit                |
 
-## Rules
+Worst zone across all 5 dimensions wins.
 
-See `.claude/rules/pact-governance.md` for security invariants.
+## Store Backends
+
+| Backend                    | Feature  | Use Case                                      |
+| -------------------------- | -------- | --------------------------------------------- |
+| `MemoryEnvelopeStore` etc. | default  | In-process, bounded (10K FIFO), tests         |
+| `SqlitePactStore`          | `sqlite` | Persistent, auto-migration, file or in-memory |
+
+## Security Invariants
+
+- GovernanceContext: Serialize only (NO Deserialize -- anti-forgery)
+- FiniteF64: Rejects NaN/Inf at construction
+- `evaluate_financial`: checks `is_finite()` for transaction_amount AND daily_total
+- NEVER_DELEGATED_ACTIONS: 7 actions always HELD regardless of envelope
+- Default-deny: unregistered tools blocked, step 4 denies, missing envelopes block
+- Bounded stores: MAX_STORE_SIZE = 10,000 with FIFO eviction
+- Address: MAX_SEGMENTS = 100 (DoS prevention)
+- MCP bridge: default-deny, clearance-gated, financial-limited, NaN-protected

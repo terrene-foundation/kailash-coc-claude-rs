@@ -1,140 +1,227 @@
 ---
 name: error-nexus-blocking
-description: "Fix Nexus blocking and slow startup issues with DataFlow integration. Use when encountering 'Nexus blocking', 'Nexus slow startup', 'Nexus hangs', 'DataFlow Nexus integration slow', or startup delays."
+description: "Fix Nexus blocking, slow startup, and async runtime issues with axum/tower integration. Use when encountering 'Nexus blocking', 'Nexus slow startup', 'Nexus hangs', 'axum handler blocking', or startup delays."
 ---
 
 # Error: Nexus Blocking / Slow Startup
 
-Fix Nexus blocking and 5-30 second startup delays when integrating with DataFlow.
+Fix Nexus (axum + tower) blocking issues including handler blocking, slow startup with DataFlow integration, and async runtime conflicts in the Kailash Rust SDK.
 
 > **Skill Metadata**
 > Category: `cross-cutting` (error-resolution)
 > Priority: `HIGH` (Critical integration issue)
-> SDK Version: `0.9.0+` (Nexus + DataFlow)
-> Related Skills: [`dataflow-quickstart`](../../02-dataflow/dataflow-quickstart.md), [`nexus-quickstart`](../../03-nexus/nexus-quickstart.md)
-> Related Subagents: `nexus-specialist` (integration debugging), `dataflow-specialist`
+> Related Skills: [`nexus-quickstart`](../../03-nexus/nexus-quickstart.md), [`dataflow-quickstart`](../../02-dataflow/dataflow-quickstart.md)
 
 ## The Problem
 
 **Symptoms**:
 
-- Nexus startup hangs or blocks indefinitely
-- 5-10 second delay per DataFlow model
-- Server never starts
-- Blocking during initialization
+- Nexus server hangs or blocks on startup
+- axum handlers never respond (request times out)
+- Slow startup when registering DataFlow models
+- `tokio` runtime panics (nested runtime creation)
 
-**Root Cause**: Configuration conflict between Nexus auto-discovery and DataFlow model registration
+**Root Causes**:
+
+1. **Blocking in async context**: Calling `execute_sync()` inside an async axum handler
+2. **Nested tokio runtime**: Creating a new tokio runtime inside an existing one
+3. **DataFlow initialization blocking**: Synchronous database operations during async startup
 
 ## Quick Fix
 
-### ❌ WRONG: Default Configuration (Blocks)
+### :x: WRONG: Blocking Call in Async Handler
 
-```python
-from nexus import Nexus
-from dataflow import DataFlow
+```rust
+use axum::{Json, extract::State};
+use kailash_core::{Runtime, Workflow};
+use kailash_value::ValueMap;
 
-# This will BLOCK or take 10-30 seconds!
-app = Nexus()  # auto_discovery=True by default
-db = DataFlow()  # Registers models with workflows
+async fn handle_request(
+    State(runtime): State<Runtime>,
+    State(workflow): State<Workflow>,
+) -> Json<serde_json::Value> {
+    // WRONG: execute_sync() creates a new tokio runtime internally
+    // Inside an async handler, this will PANIC or DEADLOCK
+    let result = runtime.execute_sync(&workflow, ValueMap::new());
+    //                   ^^^^^^^^^^^^ BLOCKS the async runtime!
 
-@db.model
-class User:
-    name: str
-
-app.start()  # ✗ HANGS or very slow
+    Json(serde_json::json!({"status": "ok"}))
+}
 ```
 
-### ✅ FIX: Critical Settings (<2s Startup)
+### :white_check_mark: FIX: Use Async execute() in Async Handlers
 
-```python
-from nexus import Nexus
-from dataflow import DataFlow
-from kailash.workflow.builder import WorkflowBuilder
+```rust
+use axum::{Json, extract::State};
+use kailash_core::{Runtime, Workflow};
+use kailash_value::ValueMap;
+use std::sync::Arc;
 
-# Step 1: Create Nexus FIRST with auto_discovery=False
-app = Nexus(
-    auto_discovery=False  # CRITICAL: Prevents blocking
-)
+#[derive(Clone)]
+struct AppState {
+    runtime: Arc<Runtime>,
+    workflow: Arc<Workflow>,
+}
 
-# Step 2: Create DataFlow (defaults work correctly)
-db = DataFlow(
-    "postgresql://user:pass@localhost/db",
-    auto_migrate=True,  # Default - works in Docker/async
-)
+async fn handle_request(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
+    // CORRECT: Use async execute() -- works with the existing tokio runtime
+    let result = state.runtime
+        .execute(&state.workflow, ValueMap::new())
+        .await
+        .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
 
-# Step 3: Define models (now instant!)
-@db.model
-class User:
-    name: str
-    email: str
+    Ok(Json(serde_json::json!({
+        "run_id": result.run_id,
+        "status": "completed"
+    })))
+}
+```
 
-# Step 4: Register workflows manually
-workflow = WorkflowBuilder()
-workflow.add_node("UserCreateNode", "create", {
-    "name": "Alice",
-    "email": "alice@example.com"
-})
+### :x: WRONG: Blocking DataFlow Init in Async Context
 
-app.register("create_user", workflow.build())
+```rust
+// This will block if called inside an async main or axum startup
+fn setup_dataflow() -> DataFlowConnection {
+    // Synchronous database connection inside async context -- BLOCKS
+    DataFlowConnection::connect_sync("postgres://user:pass@localhost/db")
+}
+```
 
-# Fast startup: <2 seconds!
-app.start()
+### :white_check_mark: FIX: Use Async Initialization
+
+```rust
+async fn setup_dataflow() -> DataFlowConnection {
+    // Use async connection inside async context
+    DataFlowConnection::connect("postgres://user:pass@localhost/db")
+        .await
+        .expect("DATABASE_URL must be valid")
+}
 ```
 
 ## Why This Happens
 
-1. `auto_discovery=True` → Nexus scans Python files
-2. Importing DataFlow models → Triggers workflow execution
-3. Each model registration → Runs `LocalRuntime.execute()` synchronously
-4. Creates blocking loop → Prevents server startup
+1. **`execute_sync()`** creates a new tokio runtime internally via `tokio::runtime::Runtime::new()`
+2. tokio does **not** allow nested runtimes -- calling `Runtime::new()` inside an existing runtime panics
+3. Even if it did not panic, synchronous blocking inside an async task starves the executor of worker threads
+4. axum handlers run on the tokio runtime -- all code in handlers must be async or use `tokio::task::spawn_blocking()`
 
-## What You Keep
+## When to Use execute() vs execute_sync()
 
-With `auto_discovery=False` + DataFlow defaults:
+| Context                       | Method                                | Why                     |
+| ----------------------------- | ------------------------------------- | ----------------------- |
+| **axum/Nexus handlers**       | `runtime.execute(&wf, inputs).await?` | Already inside tokio    |
+| **CLI tools**                 | `runtime.execute_sync(&wf, inputs)?`  | No tokio runtime exists |
+| **#[tokio::main]**            | `runtime.execute(&wf, inputs).await?` | Already inside tokio    |
+| **Tests with #[tokio::test]** | `runtime.execute(&wf, inputs).await?` | Already inside tokio    |
+| **Blocking thread**           | `runtime.execute_sync(&wf, inputs)?`  | Inside `spawn_blocking` |
 
-- All CRUD operations (11 nodes per model)
-- Connection pooling, caching, metrics
-- All Nexus channels (API, CLI, MCP)
-- Automatic schema migration
-- Fast startup
+## Complete Nexus Example (axum)
 
-## What You Lose
+```rust
+use axum::{Router, Json, extract::State, routing::post};
+use kailash_core::{WorkflowBuilder, Runtime, RuntimeConfig, NodeRegistry};
+use kailash_value::{Value, ValueMap};
+use std::sync::Arc;
 
-With `auto_discovery=False`:
+#[derive(Clone)]
+struct AppState {
+    runtime: Arc<Runtime>,
+    workflow: Arc<kailash_core::Workflow>,
+}
 
-- Auto-discovery of workflows (must register manually with `app.register()`)
+async fn execute_workflow(
+    State(state): State<AppState>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
+    let inputs = ValueMap::from([
+        ("data".into(), Value::from(payload)),
+    ]);
+
+    let result = state.runtime
+        .execute(&state.workflow, inputs)
+        .await
+        .map_err(|e| {
+            eprintln!("Workflow execution failed: {e}");
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(serde_json::json!({
+        "run_id": result.run_id,
+        "results": format!("{:?}", result.results),
+    })))
+}
+
+#[tokio::main]
+async fn main() {
+    let registry = Arc::new(NodeRegistry::default());
+
+    let mut builder = WorkflowBuilder::new();
+    builder.add_node("JSONTransformNode", "transform", ValueMap::from([
+        ("expression".into(), Value::String("@".into())),
+    ]));
+
+    let workflow = Arc::new(
+        builder.build(&registry)
+            .expect("workflow build must succeed")
+    );
+
+    let runtime = Arc::new(
+        Runtime::new(RuntimeConfig::default(), registry)
+    );
+
+    let state = AppState { runtime, workflow };
+
+    let app = Router::new()
+        .route("/execute", post(execute_workflow))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+        .await
+        .expect("failed to bind");
+
+    println!("Nexus listening on :3000");
+    axum::serve(listener, app).await.expect("server failed");
+}
+```
+
+## If You Must Run Blocking Code in a Handler
+
+Use `tokio::task::spawn_blocking()` to move blocking work off the async runtime:
+
+```rust
+async fn handle_blocking_work(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
+    let runtime = state.runtime.clone();
+    let workflow = state.workflow.clone();
+
+    // Move blocking work to a dedicated thread pool
+    let result = tokio::task::spawn_blocking(move || {
+        runtime.execute_sync(&workflow, ValueMap::new())
+    })
+    .await
+    .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({"run_id": result.run_id})))
+}
+```
 
 ## Related Patterns
 
-- **Nexus basics**: [`nexus-quickstart`](../../03-nexus/nexus-quickstart.md)
-- **DataFlow basics**: [`dataflow-quickstart`](../../02-dataflow/dataflow-quickstart.md)
-- **Integration guide**: [`dataflow-nexus-integration`](../integrations/dataflow-nexus-integration.md)
-
-## When to Escalate to Subagent
-
-Use `nexus-specialist` subagent when:
-
-- Still experiencing blocking after fix
-- Need full-feature configuration guidance
-- Complex multi-framework integration
-- Production deployment planning
-
-## Documentation References
-
-### Primary Sources
-
-- **Nexus Specialist**: [`.claude/agents/frameworks/nexus-specialist.md` (lines 320-386)](../../../../.claude/agents/frameworks/nexus-specialist.md#L320-L386)
-- **DataFlow Specialist**: [`.claude/agents/frameworks/dataflow-specialist.md` (lines 13-25)](../../../../.claude/agents/frameworks/dataflow-specialist.md#L13-L25)
-- **Integration Guide**: [`.claude/skills/03-nexus/nexus-dataflow-integration.md`](../../skills/03-nexus/nexus-dataflow-integration.md)
-
-### Related Documentation
-
+- **Nexus framework**: See `crates/kailash-nexus/` for handler patterns and middleware
+- **Runtime**: See `crates/kailash-core/src/runtime.rs` for `execute()` vs `execute_sync()`
+- **DataFlow integration**: See `crates/kailash-dataflow/` for async database patterns
+- **axum docs**: [axum.rs](https://docs.rs/axum/latest/) for handler patterns
 
 ## Quick Tips
 
-- 💡 **Critical setting**: `auto_discovery=False` when using DataFlow with Nexus
-- 💡 **Order matters**: Create Nexus FIRST, then DataFlow
-- 💡 **Manual registration**: Register workflows explicitly with `app.register()`
-- 💡 **DataFlow**: `auto_migrate=True` (default) works correctly in Docker/async
+- :bulb: **Never `execute_sync()` in async**: Use `.execute().await` inside any async context
+- :bulb: **Check your context**: If you are inside `#[tokio::main]`, `async fn`, or axum handler, use async
+- :bulb: **spawn_blocking escape hatch**: For truly blocking operations, use `tokio::task::spawn_blocking()`
+- :bulb: **Arc for sharing**: Wrap `Runtime` and `Workflow` in `Arc` for axum `State`
+- :bulb: **DataFlow async**: Use async connection methods during server startup
 
-<!-- Trigger Keywords: Nexus blocking, Nexus slow startup, Nexus hangs, DataFlow Nexus integration slow, startup delay, Nexus initialization slow, blocking on startup, slow Nexus, integration blocking -->
+<!-- Trigger Keywords: Nexus blocking, Nexus slow startup, Nexus hangs, axum handler blocking, execute_sync in async, nested runtime, startup delay, tokio panic, blocking in async, spawn_blocking -->

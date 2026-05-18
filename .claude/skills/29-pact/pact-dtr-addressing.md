@@ -13,13 +13,58 @@ Every entity in PACT has a globally unique positional address encoding both cont
 
 ```
 Valid:    D1-R1                     # Dept 1, headed by Role 1
+Valid:    D1-R1-R2                  # Dept-level role (reports to head)
 Valid:    D1-R1-T1-R1               # Team 1 under Dept 1
-Valid:    D1-R1-D2-R1-T1-R1         # Team in sub-department
+Valid:    D1-R1-D1-R1               # Nested sub-department head (v3.6.1)
+Valid:    D1-R1-D1-R1-D1-R1         # 3-level nested dept head (v3.6.1)
+Valid:    D1-R1-D1-R1-T1-R1         # Team inside nested sub-dept (v3.6.1)
+Valid:    D1-R1-D2-R1-T1-R1         # Team in 2nd sub-department
 Valid:    R1                        # Standalone role
 
 Invalid:  D1                        # D without R -> GrammarError
 Invalid:  D1-T1-R1                  # D followed by T, not R -> GrammarError
 Invalid:  D1-R1-T1                  # Ends with T, no R -> GrammarError
+```
+
+### Nested Departments (v3.6.1)
+
+Sub-departments attach under their parent department head's address. The grammar recurses naturally: each D-R pair can contain further D-R pairs.
+
+```
+Engineering (D1)
+├── CTO (D1-R1)                         # dept head
+├── Platform Eng (D1-R1-R2)             # dept-level role
+├── Backend (D1-R1-D1)                  # nested sub-dept
+│   ├── Backend Lead (D1-R1-D1-R1)      # sub-dept head
+│   ├── Backend Dev (D1-R1-D1-R1-R2)    # sub-dept role
+│   └── Database (D1-R1-D1-R1-D1)       # 3rd-level dept
+│       ├── DB Lead (D1-R1-D1-R1-D1-R1) # 3rd-level head
+│       └── DB Dev (D1-R1-D1-R1-D1-R1-R2)
+└── Frontend (D1-R1-D2)                 # 2nd sub-dept
+    ├── Frontend Lead (D1-R1-D2-R1)
+    └── UI Dev (D1-R1-D2-R1-R2)
+```
+
+In Rust, use `DepartmentConfig::departments` for nesting:
+
+```rust
+DepartmentConfig {
+    id: "engineering".to_string(),
+    name: "Engineering".to_string(),
+    head_role_id: "cto".to_string(),
+    teams: vec![],
+    roles: vec![/* cto, platform_eng */],
+    departments: vec![  // nested sub-departments
+        DepartmentConfig {
+            id: "backend".to_string(),
+            name: "Backend".to_string(),
+            head_role_id: "backend_lead".to_string(),
+            teams: vec![],
+            roles: vec![/* backend_lead, backend_dev */],
+            departments: vec![/* database sub-dept */],
+        },
+    ],
+}
 ```
 
 ## NodeType Enum
