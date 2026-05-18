@@ -1,26 +1,31 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-05-17T11:39:21Z
+timestamp: 2026-05-18T11:00:00Z
 source: loom/.claude
-loom_sha: 951eaea
+loom_sha: 0266594
+loom_commit: 0266594
 loom_version: 2.31.0
-template_version: 2.22.11
+template_version: 2.22.12
+upstream_version: 2.31.0
 variant: rs
+template_type: cc-only-legacy
 clis: ["claude"]
+distributor: .claude/bin/sync-tier-aware.mjs
+tier_subscriptions: ["cc", "co", "coc"]
 stats:
-  updated: 145
-  created: 79
-  unchanged: 568
-  excluded: 633          # manifest exclude + use_exclude + onboarding-tier filter
-  composed: 8            # slot-keyed rs variants composed via compose.mjs
-  legacy_overlay: 90     # legacy full-file rs variants copied as-is
-  variant_only: 159      # rs-specific files from variant_only.rs
-  purged: 1              # obsoleted: + use_obsoleted: union
-  preserved: 4           # CLAUDE.md, pyproject.toml, Gemfile, README.md
-  baselines_emitted:     # CC-only template: no AGENTS.md/GEMINI.md at target
-    cc: 0                # CLAUDE.md preserved, not emitted
+  copied: 922              # canonical sync-tier-aware.mjs (NOT ad-hoc bash)
+  purged: 0                # obsoleted: + use_obsoleted: paths already absent from prior 951eaea sync
+  skipped:
+    loom_local: 2
+    exclude: 770
+    use_exclude: 31
+    no_tier_match: 35
+  composed: 0              # NO rs overlay for any delta file (all delta = global co/coc tier)
+  preserved: 1             # CLAUDE.md (template-owned, not overwritten — Step 7)
+  baselines_emitted:       # CC-only template: no AGENTS.md/GEMINI.md at target
+    cc: 0                  # CLAUDE.md preserved, not emitted
     codex: 0
     gemini: 0
-  baseline_emission_bytes:   # emit.mjs --all --lang rs (run for headroom signal only)
+  baseline_emission_bytes:   # emit.mjs --all --lang rs (run for headroom signal only — CC-only does not consume)
     block_cap_bytes: 61440
     warn_cap_bytes:  32768
     headroom_floor_pct: 10
@@ -38,14 +43,22 @@ stats:
       headroom_bytes: 7618
       headroom_pct: 12.40
       receipt_band: advisory
-  cli_artifacts:        # CC-only template: no .codex/ or .gemini/ trees
+  cli_artifacts:           # CC-only template: no .codex/ or .gemini/ trees
     codex: null
     gemini: null
   mcp_guard:
     policies_populated: false
     predicates_extracted: 0
+self_referential_codify:
+  landed: true
+  path: .claude/rules/self-referential-codify.md
+  tier: co
+  scope: path-scoped
+  priority: 10
+  paths_frontmatter_present: true
+  codify_gate_directive_present: true   # commands/codify.md § "Self-referential gate (MANDATORY, posture-independent)"
 sdk_packages:
-  kailash-rs_workspace: 4.2.1   # from /Users/esperie/repos/loom/kailash-rs/Cargo.toml workspace.package.version
+  kailash-rs_workspace: 4.2.1   # from /Users/esperie/repos/loom/kailash-rs/Cargo.toml workspace.package.version (unchanged this cycle)
   pyproject_pin: "kailash-enterprise>=4.0.0"   # template-owned; unchanged
   gemfile_pin: "kailash >= 0.2.0"               # template-owned; unchanged
 overlay_verify:
@@ -61,6 +74,7 @@ integrity:
   claude_scripts_leak: false
   use_exclude_leak: false
   onboarding_tier_leak: false
+disclosure_scan: exit_0
 provenance:
-  pr_drivers: ["#270", "#271", "#273"]
-  cycle_note: "Full /sync rs catch-up post /sync py v2.22.x cycle; PRs #271 + #273 universal manifest fixes (NOT py-specific)"
+  pr_drivers: ["#284", "#285", "#286"]
+  cycle_note: "loom delta sync 951eaea → 0266594 — F4 self-referential-codify rule + tier-classification + path-scoped demotion. Distributed via canonical sync-tier-aware.mjs; emit.mjs --all --lang rs strict-headroom DEFAULT (NOT bypassed) exit 0. [ack: sync-completeness]."

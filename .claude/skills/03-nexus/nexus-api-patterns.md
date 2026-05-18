@@ -1,150 +1,127 @@
 ---
-name: nexus-api-patterns
-description: "REST API patterns using NexusApp: custom endpoints, handler-based routes, request/response format."
+skill: nexus-api-patterns
+description: REST API usage patterns, endpoints, requests, and responses for Nexus workflows
+priority: HIGH
+tags: [nexus, api, rest, http, endpoints]
 ---
 
-# Nexus API Patterns (kailash-rs)
+# Nexus API Patterns
 
-REST API patterns using NexusApp handlers and custom endpoints.
+## Auto-Generated Endpoints
 
-## Handler-Based Routes (Multi-Channel)
-
-Every handler registered via `@app.handler()` gets an automatic API endpoint:
-
-```python
-from kailash.nexus import NexusApp, NexusConfig
-
-app = NexusApp(config=NexusConfig(port=3000))
-
-@app.handler("greet", description="Greet a user")
-async def greet(name: str, greeting: str = "Hello") -> dict:
-    return {"message": f"{greeting}, {name}!"}
-
-app.start()
-```
+Every registered workflow gets these endpoints automatically:
 
 ```bash
-# Auto-generated endpoint
-curl -X POST http://localhost:3000/api/greet \
-  -H "Content-Type: application/json" \
-  -d '{"name": "World", "greeting": "Hi"}'
+POST /workflows/{workflow_name}/execute   # Execute workflow
+GET  /workflows/{workflow_name}/schema    # Get input/output schema
+GET  /workflows                           # List all workflows
+GET  /health                              # Health check
 ```
 
-Handlers are also exposed on CLI and MCP channels simultaneously.
+No additional configuration needed -- `app.register("name", workflow.build())` creates all of these.
 
-## Custom Endpoints (HTTP-Only)
+## Custom Endpoints
 
-Use `@app.endpoint()` for HTTP-specific routes that do not need CLI/MCP:
+Nexus supports registering API-only endpoints with path parameters, query parameters, and per-endpoint rate limiting. The exact API for custom endpoints (decorator vs imperative, method signatures) varies by SDK.
 
-```python
-@app.endpoint("/api/v1/users/{user_id}", methods=["GET"])
-async def get_user(user_id: str):
-    return {"user_id": user_id, "name": "Example User"}
-
-@app.endpoint("/api/v1/search", methods=["GET", "POST"])
-async def search(q: str = "", limit: int = 10):
-    return {"query": q, "limit": limit, "results": []}
-
-@app.endpoint("/api/v1/items/{item_id}", methods=["GET", "PUT", "DELETE"])
-async def manage_item(item_id: str):
-    return {"item_id": item_id}
-```
-
-Features: path parameters, query parameters with type coercion, multiple HTTP methods per endpoint.
-
-## Built-In Endpoints
-
-```bash
-# Health check
-curl http://localhost:3000/health
-
-# List endpoints
-curl http://localhost:3000/api/endpoints
-```
+See language-specific variant for custom endpoint registration syntax.
 
 ## Request / Response Format
 
 ```json
-// Handler request
-{"name": "World", "greeting": "Hi"}
+// Request
+{"inputs": {"param1": "value1"}, "session_id": "optional"}
 
-// Handler response (returned directly)
-{"message": "Hi, World!"}
-```
+// Success response
+{"success": true, "result": {...}, "workflow_id": "wf-12345", "execution_time": 1.23}
 
-## CORS Configuration
-
-```python
-app = NexusApp(config=NexusConfig(port=3000))
-app.add_cors(origins=["https://example.com"])
-```
-
-## Rate Limiting
-
-```python
-app.add_rate_limit(max_requests=100, window_secs=60)
+// Error response
+{"success": false, "error": {"type": "ValidationError", "message": "..."}}
 ```
 
 ## Authentication
 
 ```bash
-curl -X POST http://localhost:3000/api/secure-handler \
+curl -X POST http://localhost:8000/workflows/secure-workflow/execute \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"data": "value"}'
+  -d '{"inputs": {"data": "value"}}'
 ```
 
-See [nexus-security-best-practices](nexus-security-best-practices.md) for NexusAuthPlugin setup.
+Authentication is configured via the plugin system: `app.add_plugin(auth_plugin)`. See [nexus-auth-plugin](nexus-auth-plugin.md).
 
-## Inspection
+## Session Management
 
-```python
-# List all registered endpoints
-endpoints = app.get_endpoints()
-print(endpoints)
+```bash
+# Start session
+curl -X POST http://localhost:8000/workflows/process/execute \
+  -H "X-Session-ID: session-123" -d '{"inputs": {"step": 1}}'
 
-# List registered handlers
-handlers = app.get_registered_handlers()
-print(handlers)
+# Continue same session
+curl -X POST http://localhost:8000/workflows/process/execute \
+  -H "X-Session-ID: session-123" -d '{"inputs": {"step": 2}}'
+```
 
-# Health check
-health = app.health_check()
-print(health)
+## Error Status Codes
+
+| Code | Meaning             |
+| ---- | ------------------- |
+| 200  | Success             |
+| 400  | Invalid input       |
+| 401  | Unauthorized        |
+| 404  | Workflow not found  |
+| 429  | Rate limit exceeded |
+| 500  | Execution failed    |
+| 503  | Server overloaded   |
+
+## Health & Metrics
+
+```bash
+curl http://localhost:8000/health
+# {"status": "healthy", "version": "...", "uptime": 3600, "workflows": 5}
+```
+
+Metrics endpoint availability and format depend on monitoring configuration.
+
+## API Versioning
+
+```
+app = Nexus(api_prefix="/api/v1")
+# Endpoints: POST /api/v1/workflows/{name}/execute
+```
+
+## Batch Operations
+
+Multiple workflows can be executed in a single request:
+
+```bash
+curl -X POST http://localhost:8000/workflows/batch \
+  -d '{"workflows": [{"name": "wf1", "inputs": {...}}, {"name": "wf2", "inputs": {...}}]}'
 ```
 
 ## Testing API Endpoints
 
-```python
-import requests
+Test the auto-generated endpoints with standard HTTP clients:
 
-class TestNexusAPI:
-    base_url = "http://localhost:3000"
+```bash
+# Test execution
+curl -X POST http://localhost:8000/workflows/test-workflow/execute \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": {"param": "value"}}'
 
-    def test_handler_execution(self):
-        response = requests.post(
-            f"{self.base_url}/api/greet",
-            json={"name": "World"},
-        )
-        assert response.status_code == 200
-        assert "message" in response.json()
+# Test 404
+curl -X POST http://localhost:8000/workflows/nonexistent/execute
 
-    def test_health_check(self):
-        response = requests.get(f"{self.base_url}/health")
-        assert response.status_code == 200
+# Test health
+curl http://localhost:8000/health
 ```
 
-## Key Differences from kailash-py
+## Key Takeaways
 
-| Aspect                    | kailash-py                  | kailash-rs                                             |
-| ------------------------- | --------------------------- | ------------------------------------------------------ |
-| Handler endpoint path     | `/workflows/{name}/execute` | `/api/{name}`                                          |
-| Custom endpoint decorator | `@app.endpoint()` on Nexus  | `@app.endpoint()` on NexusApp                          |
-| Default port              | 8000                        | 3000                                                   |
-| CORS                      | `Nexus(cors_origins=[...])` | `app.add_cors(origins=[...])`                          |
-| Rate limit                | `Nexus(rate_limit=1000)`    | `app.add_rate_limit(max_requests=100, window_secs=60)` |
+- Every registered workflow gets REST endpoints automatically
+- Standard request/response JSON format across all SDKs
+- Session management via `X-Session-ID` header
+- API versioning via `api_prefix` constructor parameter
+- Custom endpoint registration is language-specific (see variant)
 
-## Related Skills
-
-- [nexus-multi-channel](nexus-multi-channel.md) - All channels overview
-- [nexus-handler-support](nexus-handler-support.md) - Handler patterns
-- [nexus-security-best-practices](nexus-security-best-practices.md) - Auth and security
+See language-specific variant for custom endpoint syntax, SSE streaming, client libraries, CORS configuration, and rate limiting details.

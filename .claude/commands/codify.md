@@ -99,7 +99,7 @@ Ensure user-facing documentation reflects new capabilities. Verify README.md, do
 
 ### 6. Red team the agents and skills
 
-Validate that generated agents and skills are correct, complete, and secure. **cc-architect** verifies cc-artifacts compliance (descriptions under 120 chars, agents under 400 lines, commands under 150 lines, rules path-scoped, SKILL.md progressive disclosure).
+Validate that generated agents and skills are correct, complete, and secure. **cc-architect** verifies cc-artifacts compliance (descriptions under 120 chars, agents under 400 lines, commands under 150 lines, rules path-scoped, SKILL.md progressive disclosure). **Self-referential gate (MANDATORY, posture-independent):** before drafting convergence, match every file the proposal touches against `rules/self-referential-codify.md` Rule 2's allowlist; ANY match → the multi-agent redteam-with-tests round (that rule's Rule 1: reviewer + security-reviewer + structural-validator, parallel) is MANDATORY regardless of trust posture. Run this check from here — `self-referential-codify.md` is `scope: path-scoped` and may not be in context at framing time; this always-loaded command body is the structural guarantee the gate is evaluated before convergence is decided.
 
 ### 6b. Trust Posture Wiring (MANDATORY for new rules — ENFORCED)
 
@@ -119,7 +119,7 @@ The trust-posture rule itself is the only grandfather exception. Every other rul
 
 ### 7. Create upstream proposal (routed by repo class)
 
-Detect repo class; route to matching Step in `guides/co-setup/09-proposal-protocol.md`. Four-row mutually-exclusive precedence per `rules/artifact-flow.md` § "Issue Routing By Change Type" — first matching signal wins. Manifests emit `origin: build | use-template | loom` explicitly; append-not-overwrite per `rules/artifact-flow.md`.
+Detect repo class (four-row mutually-exclusive precedence per `rules/artifact-flow.md` § "Issue Routing By Change Type" — first matching signal wins). USE-template origination schema (Step 7b) is self-contained in the synced skill `skills/30-claude-code-patterns/sync-flow.md` § "USE-Template Proposal Schema (Step 7b)" — use that in USE-template context; `guides/co-setup/09-proposal-protocol.md` carries the same schema plus full rationale but is loom-only (`use_excluded`) and MUST NOT be relied on as the schema authority where it is absent. Manifests emit `origin: build | use-template | loom` explicitly; append-not-overwrite per `rules/artifact-flow.md`.
 
 1. **loom** (`loom` in git remote AND `.claude/sync-manifest.yaml` exists) → Step 8 (loom→atelier; CC/CO-tier).
 2. **USE-template** (`kailash-coc-*` in git remote OR `.claude/VERSION::type == "coc-template"`) → Step 7b (USE-template→loom; COC-artifact only; mechanical wrong-lane glob-check enforced per Step 7b).

@@ -1,46 +1,46 @@
 ---
-name: nexus-mcp-channel
-description: "MCP channel configuration and AI agent tool exposure via Nexus handlers."
+skill: nexus-mcp-channel
+description: MCP (Model Context Protocol) tool exposure and AI agent integration patterns
+priority: HIGH
+tags: [nexus, mcp, ai-agents, tool-discovery, integration]
 ---
 
-# Nexus MCP Channel (kailash-rs)
+# Nexus MCP Channel
 
-AI agent integration via Model Context Protocol (MCP). Handlers registered with Nexus automatically become discoverable MCP tools.
+AI agent integration via Model Context Protocol (MCP).
 
-## Basic MCP Integration
+## What is MCP?
 
-```python
-from kailash.nexus import NexusApp, NexusConfig
+MCP (Model Context Protocol) exposes workflows as discoverable tools for AI agents like Claude, ChatGPT, and custom agents. Nexus runs an MCP server alongside the API server -- any registered workflow becomes an MCP tool automatically.
 
-# MCP is enabled by default
-app = NexusApp(config=NexusConfig(port=3000))
+## Basic Setup
 
-@app.handler("github_lookup", description="Look up GitHub user information by username")
-async def github_lookup(username: str) -> dict:
-    import httpx
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"https://api.github.com/users/{username}")
-        return resp.json()
+```
+app = Nexus(mcp_port=3001)
+
+# Workflows automatically become MCP tools
+app.register("github-lookup", workflow.build())
 
 app.start()
-# MCP tools are now discoverable by AI agents
+# AI agents can now discover "github-lookup" on localhost:3001
 ```
 
 ## Tool Discovery
 
-Handlers are automatically exposed as MCP tools with schema derived from function signatures:
+MCP clients discover tools automatically. Each registered workflow appears with its name and schema:
 
 ```json
 {
   "tools": [
     {
-      "name": "github_lookup",
-      "description": "Look up GitHub user information by username",
+      "name": "github-lookup",
+      "description": "Look up GitHub user information",
       "input_schema": {
         "type": "object",
         "properties": {
           "username": {
-            "type": "string"
+            "type": "string",
+            "description": "GitHub username"
           }
         },
         "required": ["username"]
@@ -50,98 +50,57 @@ Handlers are automatically exposed as MCP tools with schema derived from functio
 }
 ```
 
-## MCP Channel Control
+## Tool Metadata
 
-Enable or disable MCP via `NexusConfig`:
+Add metadata to workflows for better AI discovery and understanding. Metadata includes tool name, description, parameter descriptions, and return type documentation.
 
-```python
-# MCP enabled (default)
-config = NexusConfig(enable_mcp=True)
-
-# MCP disabled
-config = NexusConfig(enable_mcp=False)
-
-# MCP only (no CLI)
-config = NexusConfig(enable_api=True, enable_cli=False, enable_mcp=True)
-```
-
-## Rich Tool Descriptions
-
-Add detailed descriptions and use `HandlerParam` for explicit parameter metadata:
-
-```python
-from kailash.nexus import NexusApp, HandlerParam
-
-app = NexusApp()
-
-@app.handler("search_docs", description="Search documentation by keyword", params=[
-    HandlerParam(name="query", param_type="string", required=True, description="Search query string"),
-    HandlerParam(name="limit", param_type="integer", required=False, description="Maximum results to return"),
-    HandlerParam(name="category", param_type="string", required=False, description="Filter by category"),
-])
-async def search_docs(query: str, limit: int = 10, category: str = None) -> dict:
-    return {"query": query, "limit": limit, "results": []}
-```
-
-This produces richer MCP tool schemas that help AI agents understand parameter purpose and constraints.
+The exact API for adding metadata varies by SDK (WorkflowBuilder metadata methods, handler descriptions, etc.). See language-specific variant for metadata API.
 
 ## MCP Client Usage
 
-```python
-# Example: connecting to Nexus MCP server from a client
-import mcp_client
-
-client = mcp_client.connect("http://localhost:3000")
-
-# Discover available tools
-tools = client.list_tools()
-print(f"Available tools: {[t['name'] for t in tools]}")
-
-# Execute tool
-result = client.call_tool("github_lookup", {"username": "octocat"})
-print(result)
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "github-lookup",
+    "arguments": { "username": "octocat" }
+  }
+}
 ```
 
-## Structured Output for AI Agents
+## MCP Port Configuration
 
-Design handler outputs for easy AI consumption:
-
-```python
-@app.handler("analyze_repo", description="Analyze a GitHub repository")
-async def analyze_repo(owner: str, repo: str) -> dict:
-    return {
-        "repository": f"{owner}/{repo}",
-        "summary": "Repository analysis results",
-        "metrics": {
-            "stars": 1000,
-            "forks": 200,
-            "open_issues": 42,
-        },
-        "metadata": {
-            "analyzed_at": "2026-04-07T00:00:00Z",
-            "source": "github_api",
-        },
-    }
+```
+app = Nexus(mcp_port=3001)
 ```
 
-## Key Differences from kailash-py
+The MCP server starts alongside the API server. Default port is 3001.
 
-| Aspect             | kailash-py                     | kailash-rs                               |
-| ------------------ | ------------------------------ | ---------------------------------------- |
-| MCP port           | Separate `mcp_port=3001`       | Unified port via `NexusConfig(port=...)` |
-| MCP enable/disable | Implicit (port-based)          | Explicit `enable_mcp=True/False`         |
-| Tool metadata      | `workflow.add_metadata({...})` | `HandlerParam` + handler `description`   |
+## MCP Transport
+
+Nexus MCP supports bidirectional communication via `receive_message()` for custom MCP transports.
 
 ## Best Practices
 
-1. Add `description` to every handler -- AI agents rely on it for tool selection
-2. Use explicit `HandlerParam` for complex parameters
-3. Return structured dictionaries with clear field names
-4. Include metadata in responses (timestamps, sources) for agent context
-5. Use descriptive handler names -- they become MCP tool names
+1. **Add rich descriptions** -- AI agents rely on descriptions to understand when and how to use tools
+2. **Use clear parameter names** -- descriptive names help AI agents construct correct calls
+3. **Structure outputs** -- return well-structured data (dicts/maps) for easy AI parsing
+4. **Include metadata** -- descriptions, parameter docs, and return type docs improve tool discovery
+5. **Handle errors gracefully** -- return structured error information rather than raw exceptions
+6. **Provide examples** -- include usage examples in descriptions where applicable
+
+## Key Takeaways
+
+- Workflows automatically become MCP tools on registration
+- AI agents discover and execute tools via the MCP protocol
+- MCP server runs on a separate port (default 3001) alongside the API server
+- Tool metadata improves AI agent integration quality
+- Same workflow is accessible via API, CLI, and MCP simultaneously
+
+See language-specific variant for metadata API, MCP configuration options, and structured output examples.
 
 ## Related Skills
 
-- [nexus-multi-channel](nexus-multi-channel.md) - All channels overview
-- [nexus-handler-support](nexus-handler-support.md) - Handler and HandlerParam patterns
-- [nexus-config-options](nexus-config-options.md) - Channel configuration
+- [nexus-multi-channel](nexus-multi-channel.md) - MCP, API, CLI overview
+- [nexus-api-patterns](nexus-api-patterns.md) - REST API usage
+- [nexus-enterprise-features](nexus-enterprise-features.md) - Auth for MCP
