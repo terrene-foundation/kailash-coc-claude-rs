@@ -1,6 +1,6 @@
 ---
 name: kailash-installation
-description: "Install and setup Kailash SDK with pip, poetry, or virtual environments. Use when asking 'install kailash', 'setup SDK', 'pip install', 'poetry add kailash', 'requirements.txt', 'installation guide', 'setup environment', 'verify installation', 'docker setup', or 'getting started'."
+description: "Install and setup Kailash SDK with pip, poetry, or virtual environments. Use when asking 'install kailash', 'setup SDK', 'pip install', 'poetry add kailash-enterprise', 'requirements.txt', 'installation guide', 'setup environment', 'verify installation', 'docker setup', or 'getting started'."
 ---
 
 # Kailash SDK Installation & Setup
@@ -14,9 +14,9 @@ Complete guide for installing the Kailash SDK using pip, poetry, virtual environ
 
 ## Quick Reference
 
-- **Basic Install**: `pip install kailash`
-- **Poetry**: `poetry add kailash`
-- **With All Dependencies**: `pip install kailash`
+- **Basic Install**: `pip install kailash-enterprise`
+- **Poetry**: `poetry add kailash-enterprise`
+- **With All Dependencies**: `pip install kailash-enterprise`
 - **Python Requirement**: 3.8+
 - **Verify**: Import `WorkflowBuilder` and `LocalRuntime`
 
@@ -24,7 +24,7 @@ Complete guide for installing the Kailash SDK using pip, poetry, virtual environ
 
 ```bash
 # Install Kailash SDK
-pip install kailash
+pip install kailash-enterprise
 
 # Verify installation
 python -c "from kailash.workflow.builder import WorkflowBuilder; print('✅ Kailash installed successfully!')"
@@ -44,25 +44,25 @@ python -c "from kailash.workflow.builder import WorkflowBuilder; print('✅ Kail
 
 ```bash
 # Install latest version
-pip install kailash
+pip install kailash-enterprise
 
 # Install specific version
-pip install kailash==0.9.25
+pip install kailash-enterprise==0.9.25
 
 # All standard dependencies are included in the base install
-pip install kailash
+pip install kailash-enterprise
 ```
 
 ### Option 2: Poetry Installation (Recommended)
 
 ```bash
 # Add to existing project
-poetry add kailash
+poetry add kailash-enterprise
 
 # Or create new project
 poetry new my-kailash-project
 cd my-kailash-project
-poetry add kailash
+poetry add kailash-enterprise
 poetry shell
 ```
 
@@ -75,14 +75,14 @@ source kailash-env/bin/activate  # Linux/Mac
 # kailash-env\Scripts\activate  # Windows
 
 # Install in virtual environment
-pip install kailash
+pip install kailash-enterprise
 ```
 
 ### Option 4: Requirements.txt
 
 ```bash
 # Add to requirements.txt
-echo "kailash>=0.9.25" >> requirements.txt
+echo "kailash-enterprise>=0.9.25" >> requirements.txt
 
 # Install from requirements
 pip install -r requirements.txt
@@ -92,11 +92,11 @@ pip install -r requirements.txt
 
 | Installation Method | Use Case                             | Command                                     |
 | ------------------- | ------------------------------------ | ------------------------------------------- |
-| **Basic pip**       | Quick start, simple projects         | `pip install kailash`                       |
-| **Poetry**          | Team projects, dependency management | `poetry add kailash`                        |
-| **Virtual env**     | Isolated development                 | `python -m venv env && pip install kailash` |
+| **Basic pip**       | Quick start, simple projects         | `pip install kailash-enterprise`                       |
+| **Poetry**          | Team projects, dependency management | `poetry add kailash-enterprise`                        |
+| **Virtual env**     | Isolated development                 | `python -m venv env && pip install kailash-enterprise` |
 | **Docker**          | Production, infrastructure           | `docker-compose up -d`                      |
-| **Full install**    | All standard dependencies            | `pip install kailash`                       |
+| **Full install**    | All standard dependencies            | `pip install kailash-enterprise`                       |
 
 ## Common Mistakes
 
@@ -105,7 +105,7 @@ pip install -r requirements.txt
 ```bash
 # Wrong - Python 3.7 or earlier
 python --version  # Python 3.7.x (unsupported)
-pip install kailash  # May fail
+pip install kailash-enterprise  # May fail
 ```
 
 ### ✅ Fix: Use Python 3.8+
@@ -113,14 +113,14 @@ pip install kailash  # May fail
 ```bash
 # Correct - Python 3.8 or later
 python3.8 --version  # Python 3.8.x or higher
-python3.8 -m pip install kailash
+python3.8 -m pip install kailash-enterprise
 ```
 
 ### ❌ Mistake 2: ImportError After Installation
 
 ```bash
 # Wrong - Installing in one environment, running in another
-pip install kailash  # System Python
+pip install kailash-enterprise  # System Python
 python my_script.py  # Different Python interpreter
 ```
 
@@ -144,7 +144,7 @@ from kailash.nodes.ai import LLMAgentNode  # ImportError: No module named 'opena
 
 ```bash
 # Correct - Reinstall (all standard dependencies included)
-pip install kailash
+pip install kailash-enterprise
 ```
 
 ## Verification Test
@@ -200,7 +200,7 @@ Use `release-specialist` subagent when:
 | Issue                                    | Cause                           | Solution                                                |
 | ---------------------------------------- | ------------------------------- | ------------------------------------------------------- |
 | `ImportError: No module named 'kailash'` | Wrong Python environment        | Verify: `pip list \| grep kailash`, reinstall if needed |
-| `ModuleNotFoundError: pydantic`          | Missing dependencies            | Reinstall: `pip install kailash`                        |
+| `ModuleNotFoundError: pydantic`          | Missing dependencies            | Reinstall: `pip install kailash-enterprise`                        |
 | `Python version incompatible`            | Python < 3.8                    | Upgrade to Python 3.8+                                  |
 | Docker services not starting             | Port conflicts or Docker issues | Run: `docker-compose down -v && docker-compose up -d`   |
 
@@ -208,7 +208,7 @@ Use `release-specialist` subagent when:
 
 - 💡 **Use virtual environments**: Isolate project dependencies to avoid conflicts
 - 💡 **Check Python version first**: Ensure Python 3.8+ before installation
-- 💡 **All standard deps included**: `pip install kailash` includes trust, database, monitoring, and more
+- 💡 **All standard deps included**: `pip install kailash-enterprise` includes trust, database, monitoring, and more
 - 💡 **Verify installation immediately**: Run test workflow to confirm setup
 - 💡 **Use poetry for teams**: Better dependency management and reproducibility
 
@@ -220,4 +220,4 @@ Use `release-specialist` subagent when:
 
 ## Keywords for Auto-Trigger
 
-<!-- Trigger Keywords: install kailash, setup SDK, pip install, poetry add kailash, requirements.txt, installation guide, setup environment, verify installation, docker setup, getting started, kailash setup, how to install, SDK installation -->
+<!-- Trigger Keywords: install kailash, setup SDK, pip install, poetry add kailash-enterprise, requirements.txt, installation guide, setup environment, verify installation, docker setup, getting started, kailash setup, how to install, SDK installation -->

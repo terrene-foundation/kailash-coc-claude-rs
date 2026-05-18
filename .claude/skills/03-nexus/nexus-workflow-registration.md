@@ -1,110 +1,128 @@
-# Nexus Workflow Registration
+---
+name: nexus-workflow-registration
+description: "Registration patterns for handlers and workflows in kailash-rs Nexus."
+---
 
-Register workflows for multi-channel deployment (API + CLI + MCP) via a single call.
+# Nexus Workflow Registration (kailash-rs)
+
+Register handlers and workflows for multi-channel deployment (API + CLI + MCP) via a single call.
 
 ## Registration Methods
 
-| Method                    | Use Case                    | Shared API |
-| ------------------------- | --------------------------- | ---------- |
-| `app.register(name, wf)`  | WorkflowBuilder workflows   | Yes        |
-| `app.handler(name, func)` | Functions (imperative form) | Yes        |
-| Handler decorator         | Functions (decorator form)  | Varies     |
+| Method                                 | Layer    | Use Case                          |
+| -------------------------------------- | -------- | --------------------------------- |
+| `@app.handler("name")`                 | NexusApp | Python functions (preferred)      |
+| `app.register("name", func)`           | NexusApp | Imperative handler registration   |
+| `app.register_handler("name", func)`   | NexusApp | Explicit handler registration     |
+| `nexus.handler("name", func)`          | Nexus    | Low-level handler registration    |
+| `nexus.register("name", func)`         | Nexus    | Low-level imperative registration |
+| `nexus.register_handler("name", func)` | Nexus    | Low-level explicit registration   |
+| `nexus.register_workflow("name", wf)`  | Nexus    | Built workflow objects            |
 
-## Workflow Registration (Shared API)
+## Handler Registration (Preferred -- NexusApp)
 
-```
-app = Nexus()
+```python
+from kailash.nexus import NexusApp
 
-# Build workflow using Core SDK WorkflowBuilder
-workflow = build_my_workflow()  # language-specific construction
+app = NexusApp()
 
-# Register — name first, built workflow second
-app.register("data-fetcher", workflow.build())
+# Decorator pattern
+@app.handler("greet", description="Greet a user")
+async def greet(name: str, greeting: str = "Hello") -> dict:
+    return {"message": f"{greeting}, {name}!"}
 
-# Internally creates:
-#   API  -> POST /workflows/data-fetcher/execute
-#   CLI  -> nexus execute data-fetcher
-#   MCP  -> tool workflow_data-fetcher
-```
+@app.handler("search_users")
+async def search_users(query: str, limit: int = 10) -> dict:
+    from my_app.services import UserService
+    return {"users": await UserService().search(query, limit)}
 
-## Handler Registration (Shared API -- Imperative)
-
-```
-app = Nexus()
-app.handler("process_order", process_order_func)
 app.start()
 ```
 
-The imperative `handler(name, func)` form works identically across all SDKs.
+Benefits: full Python access (no sandbox), auto parameter derivation from signature, async/sync support, IDE support, docstrings as descriptions.
 
-Decorator-style handler registration is also available but the exact signature varies by language. See language-specific variant for decorator syntax, description parameters, and tags.
+### Imperative Registration (NexusApp)
 
-## Critical Rules
+```python
+async def process_order(order_id: str, priority: str = "normal") -> dict:
+    return {"processed": order_id, "priority": priority}
 
-```
-# MUST call .build()
-app.register("name", workflow.build())   # correct
-app.register("name", workflow)           # WRONG — fails
-
-# MUST use name-first parameter order
-app.register(name, workflow.build())     # correct
-app.register(workflow.build(), name)     # WRONG — reversed
+app.register("process_order", process_order)
+# or
+app.register_handler("process_order", process_order)
 ```
 
-## Auto-Discovery
+## Low-Level Registration (Nexus)
 
-Nexus can auto-discover workflows from the file system. Patterns vary by SDK.
+```python
+from kailash.nexus import Nexus, NexusConfig
 
-```
-app = Nexus(auto_discovery=True)   # default in some SDKs
-app = Nexus(auto_discovery=False)  # recommended with DataFlow
-```
+nexus = Nexus(config=NexusConfig(port=3000))
 
-**CRITICAL**: Use `auto_discovery=False` when integrating with DataFlow to prevent startup blocking.
-
-## Dynamic Registration
-
-### Configuration-Driven
-
-Workflows can be registered from configuration files (YAML, JSON) by reading config, building workflows programmatically, and calling `app.register()` for each.
-
-### Runtime Discovery
-
-Modules can be loaded at runtime and their exported workflows registered via `app.register()`.
-
-See language-specific variant for dynamic registration code examples.
-
-## Versioning
-
-Use versioned names for production deployments:
-
-```
-app.register("data-api:v1.0.0", workflow_v1.build())
-app.register("data-api:v2.0.0", workflow_v2.build())
-app.register("data-api:latest", workflow_v2.build())
-app.register("data-api", workflow_v2.build())  # default = latest
+# Handler registration
+nexus.handler("greet", greet_func)
+nexus.register("process", process_func)
+nexus.register_handler("analyze", analyze_func)
 ```
 
-## Quick Reference
+## Workflow Registration (Nexus)
 
-**Registration flow**: a single `app.register()` or `app.handler()` call exposes the workflow on all channels automatically. No ChannelManager needed.
+For registering built workflow objects from WorkflowBuilder:
 
-**Common fixes**:
+```python
+import kailash
+from kailash.nexus import Nexus, NexusConfig
 
-- Workflow not found -> ensure `.build()` is called
-- Auto-discovery blocks with DataFlow -> use `auto_discovery=False`
-- Parameters reversed -> name first, workflow second
+reg = kailash.NodeRegistry()
+builder = kailash.WorkflowBuilder()
+builder.add_node("EmbeddedPythonNode", "fetch", {
+    "code": "result = {'status': 'ok'}",
+    "output_vars": ["result"],
+})
 
-**Best practices**:
+nexus = Nexus(config=NexusConfig(port=3000))
+nexus.register_workflow("data-fetcher", builder.build(reg))
+nexus.start()
 
-1. Use handlers for simple operations, WorkflowBuilder for complex multi-node workflows
-2. Always call `.build()` before registration
-3. Use `auto_discovery=False` when integrating with DataFlow
-4. Use versioned names (`name:v1.0.0`) for production deployments
+# Internally creates:
+#   API  -> POST /api/data-fetcher
+#   CLI  -> nexus run data-fetcher
+#   MCP  -> tool data-fetcher
+```
+
+## Introspection
+
+```python
+# NexusApp
+print(app.get_registered_handlers())
+print(app.get_endpoints())
+print(app.health_check())
+
+# Nexus (low-level)
+print(nexus.workflow_count())
+print(nexus.list_workflows())
+print(nexus.handler_count())
+print(nexus.get_registered_handlers())
+```
+
+## Key Differences from kailash-py
+
+| Aspect                | kailash-py                               | kailash-rs                                                       |
+| --------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| Preferred method      | `@app.handler()` on `Nexus`              | `@app.handler()` on `NexusApp`                                   |
+| Workflow registration | `app.register("name", workflow.build())` | `nexus.register_workflow("name", workflow)` on low-level `Nexus` |
+| Auto-discovery        | `Nexus(auto_discovery=True/False)`       | Not applicable                                                   |
+| Import                | `from nexus import Nexus`                | `from kailash.nexus import NexusApp`                             |
+
+## Best Practices
+
+1. Prefer `@app.handler()` on `NexusApp` for most cases
+2. Use low-level `Nexus` only when you need workflow objects, middleware, or plugins
+3. Use descriptive handler names -- they become API paths, CLI commands, and MCP tools
+4. Add `description` parameter for MCP tool discovery
 
 ## Related Skills
 
-- [nexus-handler-support](nexus-handler-support.md) - Handler patterns
-- [nexus-dataflow-integration](nexus-dataflow-integration.md) - DataFlow workflow registration
-- [nexus-production-deployment](nexus-production-deployment.md) - Production deployment patterns
-- [nexus-troubleshooting](nexus-troubleshooting.md) - Fix registration issues
+- [nexus-handler-support](nexus-handler-support.md) - Handler parameter patterns
+- [nexus-comparison](nexus-comparison.md) - Nexus vs NexusApp
+- [nexus-essential-patterns](nexus-essential-patterns.md) - Middleware, routers, plugins
