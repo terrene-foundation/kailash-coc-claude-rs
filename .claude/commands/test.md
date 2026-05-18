@@ -2,25 +2,18 @@
 
 ## Purpose
 
-Testing patterns for the Kailash Rust workspace. See `rules/build-speed.md` for speed rules.
+Load the testing strategies skill for 3-tier testing with Real infrastructure recommended policy enforcement in Tier 2-3.
 
-## Speed-First Test Commands
+## Step 0: Detect Project Testing Stack
 
-```bash
-# Fast: test only what you changed (seconds)
-cargo nextest run -p kailash-governance
+Before loading test patterns, check what the project uses:
 
-# Fast: all lib+integration tests, no doc-tests (2-5 min)
-cargo t
+- Look at `requirements.txt`, `pyproject.toml`, `setup.py` for `pytest`, `unittest`
+- Look at `package.json` for `jest`, `vitest`, `mocha`, `playwright`
+- Look at `pubspec.yaml` for `flutter_test`, `integration_test`
+- Look for existing test directories (`tests/`, `test/`, `__tests__/`, `spec/`)
 
-# Full: nextest workspace (5-10 min)
-cargo ntw
-
-# Slow: doc-tests only — CI or explicit (15-20 min)
-cargo td
-```
-
-**Default to `cargo nextest run -p <crate>`. Never `cargo test --workspace` locally.**
+Adapt examples to the project's testing framework. The 3-tier strategy and Real infrastructure recommended policy apply universally regardless of framework.
 
 ## Quick Reference
 
@@ -28,13 +21,13 @@ cargo td
 | ------------- | ------------------------------------------- |
 | `/test`       | Load testing patterns and tier strategy     |
 | `/test tier1` | Show unit test patterns (mocking allowed)   |
-| `/test tier2` | Show integration test patterns (NO MOCKING) |
-| `/test tier3` | Show E2E test patterns (NO MOCKING)         |
+| `/test tier2` | Show integration test patterns (Real infrastructure recommended) |
+| `/test tier3` | Show E2E test patterns (Real infrastructure recommended)         |
 
 ## What You Get
 
 - 3-tier testing strategy
-- NO MOCKING enforcement (Tier 2-3)
+- Real infrastructure recommended enforcement (Tier 2-3)
 - Real infrastructure patterns
 - Coverage requirements
 
@@ -46,71 +39,50 @@ cargo td
 | Tier 2 | Integration | **PROHIBITED** | Component interactions |
 | Tier 3 | E2E         | **PROHIBITED** | Full user journeys     |
 
-## Quick Pattern — Rust Tests
-
-```rust
-// Tier 1: Unit test (mocking allowed)
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_value_conversion() {
-        let v = Value::from("hello");
-        assert_eq!(v.as_str(), Some("hello"));
-    }
-}
-```
-
-```rust
-// Tier 2: Integration test — real database (NO MOCKING)
-#[tokio::test]
-async fn test_user_creation() {
-    let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    sqlx::query("INSERT INTO users (name) VALUES (?)")
-        .bind("test")
-        .execute(&pool).await.unwrap();
-
-    let row = sqlx::query("SELECT name FROM users WHERE name = ?")
-        .bind("test")
-        .fetch_one(&pool).await.unwrap();
-    assert_eq!(row.get::<String, _>("name"), "test");
-}
-```
-
-### If Project Uses Kailash Python Bindings
+## Quick Pattern
 
 ```python
-# Python binding test — real Rust runtime (NO MOCKING)
-import kailash
+# Tier 2: Real database (example with pytest)
+@pytest.fixture
+def db():
+    """Use real infrastructure, not mocks."""
+    conn = sqlite3.connect(":memory:")
+    yield conn
+    conn.close()
 
-def test_workflow_execution():
-    reg = kailash.NodeRegistry()
-    builder = kailash.WorkflowBuilder()
-    builder.add_node("EchoNode", "echo", {"message": "hello"})
-    wf = builder.build(reg)
-    rt = kailash.Runtime(reg)
-    result = rt.execute(wf)
-    assert result["results"]["echo"] is not None
+def test_user_creation(db):
+    # Real infrastructure recommended - real database operations
+    db.execute("INSERT INTO users (name) VALUES (?)", ("test",))
+    result = db.execute("SELECT * FROM users WHERE name = ?", ("test",)).fetchone()
+    assert result is not None
 ```
 
-## Critical Rule - NO MOCKING in Tier 2-3
-
-```rust
-// PROHIBITED in integration/e2e tests
-// No mockall, no mock structs for real services
-// No fake database connections
-// No simulated API responses
-```
+### If Project Uses Kailash DataFlow
 
 ```python
-# PROHIBITED in integration/e2e tests (Python bindings)
-@patch('module.function')    # BLOCKED
-MagicMock()                  # BLOCKED
-unittest.mock                # BLOCKED
-mocker.patch()               # BLOCKED
+@pytest.fixture
+def db():
+    db = DataFlow("sqlite:///:memory:")
+    yield db
+    db.close()
+
+def test_user_creation(db):
+    result = db.execute(CreateUser(name="test"))
+    assert result.id is not None
+```
+
+## Critical Rule - Real infrastructure recommended in Tier 2-3
+
+```python
+# PROHIBITED in integration/e2e tests (any framework)
+@patch('module.function')
+MagicMock()
+unittest.mock
+from mock import Mock
+mocker.patch()
+jest.mock()
+jest.spyOn()
+vi.mock()
 ```
 
 ## Agent Teams

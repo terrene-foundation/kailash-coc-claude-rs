@@ -1,131 +1,215 @@
 ---
 name: deployment-git
-description: "Kailash Rust deployment + Git — Docker, K8s, CI/CD, releases. Manual deploy steps BLOCKED."
+description: "Kailash deployment + Git — PyPI publish, CI/CD, wheels, version bumps, multi-package."
 ---
 
-# Deployment & Git Workflows
+# SDK Release & Git Workflows
 
-Deployment patterns and Git workflows for the Kailash Rust SDK.
+Comprehensive guides for releasing the Kailash Python SDK to PyPI, managing CI/CD pipelines, deploying documentation, and Git workflow best practices.
 
 ## Overview
 
-Production deployment patterns for:
+SDK release and development infrastructure patterns for:
 
-- Docker multi-stage builds (Rust → minimal runtime image)
-- Kubernetes orchestration
+- PyPI package publishing (TestPyPI + production)
+- CI/CD pipelines (GitHub Actions)
+- Multi-platform wheel building
+- Documentation deployment
 - Git workflows and branching strategies
-- CI/CD with cargo and self-hosted runners
-- Environment management
+- Multi-package version coordination
 
 ## Reference Documentation
 
 ### Deployment Lifecycle
 
-- **[deployment-onboarding](deployment-onboarding.md)** - Deployment onboarding process
-  - Codebase analysis
+- **[deployment-onboarding](deployment-onboarding.md)** - SDK release onboarding process
+  - Codebase analysis (packages, build system, CI, docs)
   - Structured questions for human architect
-  - Research current best practices
+  - Research current PyPI/CI best practices
   - Create deployment-config.md
+
+- **[release-runbook](release-runbook.md)** - SDK release runbook (detailed procedures)
+  - Version locations for all packages (pyproject.toml + **init**.py)
+  - SDK dependency pin rules
+  - Version consistency verification commands
+  - Pre-release, build, publish, post-release step-by-step procedures
 
 - **[deployment-packages](deployment-packages.md)** - Package release workflow
   - PyPI and GitHub release process
+  - Multi-package coordination and publish order
   - Version bumping and changelog
   - CI-triggered releases
+  - TestPyPI validation
   - Rollback procedures
 
-- **[deployment-cloud](deployment-cloud.md)** - Cloud deployment principles
-  - CLI SSO authentication (AWS, Azure, GCP)
-  - Managed vs self-hosted decisions
-  - Right-sizing and cost optimization
-  - SSL, monitoring, security baseline
+- **[deployment-ci](deployment-ci.md)** - CI/CD infrastructure
+  - GitHub Actions workflows for Python packages
+  - Multi-platform wheel building
+  - Test matrix (Python versions x OS)
+  - Tag-triggered publishing pipeline
+  - Documentation deployment (ReadTheDocs, GitHub Pages)
+  - Self-hosted runner management
 
-### Docker Deployment
+- **[python-version-bump](python-version-bump.md)** - Python minor-version bump playbook
+  - When to declare a new CPython release (3.X stable + ≥1 patch)
+  - 3-step recipe: pyproject classifiers → CI matrices → `uv pip install --dry-run --python 3.X` verification
+  - Concrete file list for all 10 packages and 4 CI matrix files
+  - Common gotcha: stale literal version assertions in test fixtures (durable cross-surface contract pattern)
+  - ML stack wheel-lag guidance (torch / transformers / accelerate)
 
-- **[deployment-docker-quick](deployment-docker-quick.md)** - Docker multi-stage builds for Rust binaries
-- **[deployment-patterns](deployment-patterns.md)** - Docker Compose, K8s manifests, health checks
+- **[multi-package-release-wave](multi-package-release-wave.md)** - Atomic 7-package release coordination
+  - Reverse dep-graph publish order (`kailash → dataflow → nexus → kaizen → pact → align → ml`)
+  - Per-package version owner + sole CHANGELOG owner rules (parallel-worktree safe)
+  - Pre-flight build + twine + TestPyPI dry-run for every package in the wave
+  - Version consistency verification across 14 version locations
+  - Rollback decision tree (mid-wave failure handling)
+  - kailash-ml 1.0.0 M1 atomic wave (2026-04-23, 7 packages, 227 tests)
 
-### Kubernetes Deployment
+### Docker
 
-- **[deployment-kubernetes-quick](deployment-kubernetes-quick.md)** - K8s deployment manifests and scaling
+- **[deployment-docker-quick](deployment-docker-quick.md)** - Docker deployment patterns
+  - Dockerfile setup for Kailash apps
+  - Docker Compose configurations
+  - Multi-stage builds
+  - Health checks
+
+### Kubernetes
+
+- **[deployment-kubernetes-quick](deployment-kubernetes-quick.md)** - Kubernetes deployment patterns
+  - Deployment manifests
+  - Service configuration
+  - Scaling strategies
 
 ### Git Workflow
 
-- **[git-workflow-quick](git-workflow-quick.md)** - Branch strategy and commit conventions
-- **[git-release-patterns](git-release-patterns.md)** - Pre-commit validation, release procedures, cargo publish
+- **[git-workflow-quick](git-workflow-quick.md)** - Git workflow best practices
+  - Branching strategies
+  - Commit conventions
+  - Pull request workflow
+  - Code review process
+  - Release management
+  - Hotfix procedures
 
-### Version Bumps
+### GitHub Management
 
-- **[rust-version-bump](rust-version-bump.md)** - Canonical procedure for raising rustc MSRV or adding/dropping a CPython target in the PyO3 wheel matrix. Cross-SDK counterpart to kailash-py's `python-version-bump`.
+- **[github-management-patterns](github-management-patterns.md)** - GitHub project and issue management
+  - Issue templates (User Story, Bug, Technical Task)
+  - Story points and estimation
+  - Project board organization
+  - Label system
 
 ### Project Management
 
-- **[github-management-patterns](github-management-patterns.md)** - GitHub issues, PRs, project boards
-- **[project-management](project-management.md)** - Dual-tracking system (GitHub + local todos)
-- **[todo-github-sync](todo-github-sync.md)** - Todo/GitHub sync patterns
+- **[project-management](project-management.md)** - Project management architecture
+  - Dual-tracking system overview
+  - GitHub Issues vs Local Todos
+  - Agent coordination flow
+  - Sprint management
 
-## Docker Quick Reference
+- **[todo-github-sync](todo-github-sync.md)** - Todo ↔ GitHub issues sync patterns
+  - Naming conventions (Story X format)
+  - Workflow for creating, starting, completing stories
+  - Sub-issue management
+  - Label system
+  - Periodic sync checklists
+  - Agent coordination (todo-manager ↔ gh-manager)
 
-### Multi-Stage Rust Dockerfile
+## SDK Release Patterns
 
-```dockerfile
-FROM rust:1.82-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y pkg-config libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-COPY . .
-RUN cargo build --release --bin my-service
+### Release Flow
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates libssl3 curl \
-    && rm -rf /var/lib/apt/lists/*
-RUN useradd -r -s /bin/false appuser
-USER appuser
-COPY --from=builder /app/target/release/my-service /usr/local/bin/
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost:3000/health || exit 1
-CMD ["my-service"]
+```
+Version bump + CHANGELOG → Build wheels → TestPyPI → Verify → PyPI → GitHub Release → Deploy Docs
 ```
 
-## Pre-Commit Quality Pipeline
+### CI-Triggered Release (Preferred)
 
-```bash
-cargo fmt --all --check && \
-cargo clippy --workspace -- -D warnings && \
-cargo test --workspace && \
-cargo audit
+```
+git tag v1.2.3 → push tag → CI builds wheels → CI tests → CI publishes TestPyPI → CI publishes PyPI → CI creates GitHub Release
+```
+
+### Multi-Package Release Order
+
+```
+kailash (core)
+  ↓
+kailash-dataflow (depends on core)
+kailash-nexus (depends on core)
+kailash-kaizen (depends on core)
+```
+
+## Git Workflow Patterns
+
+### Branch Strategy
+
+```
+main (production)
+  ↓
+develop (integration)
+  ↓
+feature/* (new features)
+hotfix/* (urgent fixes)
+release/* (release prep)
+```
+
+### Commit Conventions
+
+```
+feat: Add user authentication workflow
+fix: Resolve async runtime threading issue
+docs: Update DataFlow integration guide
+test: Add cycle workflow test cases
+chore: Bump version to 0.9.25
 ```
 
 ## Critical Rules
 
-### Docker
+### SDK Release
 
-- Use multi-stage builds (final image ~50MB)
-- Rust binaries cold-start in ~10ms
-- Unified Runtime (no sync/async split)
-- Implement health checks via Nexus `/health`
-- Use secrets for sensitive data
-- NEVER commit secrets to images
-- NEVER run as root user
+- Run full test suite before any release
+- TestPyPI validation required for major/minor releases
+- Wheel-only publishing for proprietary code
+- Version consistency across all sub-packages
+- Publish in dependency order (core first)
+- Security review before every publish
+- NEVER commit PyPI tokens to source
+- NEVER publish with failing CI
 
 ### Git
 
-- Use conventional commits: `feat(core): description`
-- Pre-commit validation is MANDATORY
-- Security review before EVERY commit
+- Use feature branches for development
+- Write descriptive commit messages
+- Squash commits before merging
+- Use pull requests for code review
+- Tag releases semantically
 - NEVER commit directly to main
 - NEVER force push to shared branches
+- NEVER commit sensitive data
+
+## When to Use This Skill
+
+Use this skill when you need to:
+
+- Run SDK release onboarding for a new project
+- Release packages to PyPI or GitHub
+- Set up or debug CI/CD pipelines
+- Configure GitHub Actions workflows
+- Build multi-platform wheels
+- Deploy documentation
+- Coordinate multi-package releases
+- Establish Git workflows
+- Manage test matrices
 
 ## Related Skills
 
-- **[03-nexus](../03-nexus/)** - Nexus API server deployment
-- **[02-dataflow](../02-dataflow/)** - DataFlow database configuration
-- **[01-core](../01-core/)** - Runtime execution patterns
-- **[26-gold-standards](../26-gold-standards/)** - Standards and best practices
+- **[03-nexus](../03-nexus/SKILL.md)** - Application deployment (end-user)
+- **[02-dataflow](../02-dataflow/SKILL.md)** - Database operations
+- **[01-core-sdk](../01-core-sdk/SKILL.md)** - Runtime selection
+- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Release best practices
 
 ## Support
 
-For deployment help, invoke:
+For SDK release help, invoke:
 
-- `release-specialist` - Deployment onboarding, package/cloud releases, Docker, K8s, CI runners
-- `release-specialist` - Git workflows, cargo publish, CI pipeline
-- `nexus-specialist` - Nexus server configuration
+- `release-specialist` - Release onboarding, PyPI publishing, CI management
+- `release-specialist` - Git workflows, releases, version management

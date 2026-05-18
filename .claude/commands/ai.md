@@ -8,8 +8,8 @@ Load the Kaizen skill for production-ready AI agent implementation with signatur
 
 Before loading Kaizen patterns, check that this project uses Kailash Kaizen:
 
-- Python: Look for `kailash-enterprise` in `requirements.txt`, `pyproject.toml`, `setup.py`; `import kailash` in source files
-- Ruby: Look for `kailash` in `Gemfile` or `*.gemspec`; `require "kailash"` / `Kailash::Kaizen` in source files
+- Look for `kailash-kaizen` or `kaizen` in `requirements.txt`, `pyproject.toml`
+- Look for `from kaizen` / `import kaizen` in source files
 
 If not found, inform the user: "This project doesn't appear to use Kailash Kaizen. These patterns may not apply. Continue anyway?"
 
@@ -24,7 +24,7 @@ If not found, inform the user: "This project doesn't appear to use Kailash Kaize
 
 ## What You Get
 
-- Unified Agent API
+- Unified Agent API (v1.0.0)
 - Signature-based programming
 - Multi-agent coordination
 - BaseAgent architecture
@@ -32,31 +32,21 @@ If not found, inform the user: "This project doesn't appear to use Kailash Kaize
 
 ## Quick Pattern
 
-**Python** (`import kailash`):
-
 ```python
-import os, kailash
+import os
+from kaizen.api import Agent
 
-config = kailash.AgentConfig(model=os.environ["KAIZEN_MODEL"], max_iterations=10)
-agent = kailash.Agent(config)
-llm = kailash.LlmClient(provider="openai", api_key=os.environ["OPENAI_API_KEY"])
-tracker = kailash.CostTracker()
-tool = kailash.ToolDef(name="search", description="Search the web")
-tool_reg = kailash.ToolRegistry()
-```
+# 2-line quickstart — model from .env, NEVER hardcoded
+agent = Agent(model=os.environ["KAIZEN_MODEL"])
+result = await agent.run("What is IRP?")
 
-**Ruby** (`require "kailash"`):
-
-```ruby
-require "kailash"
-
-config = Kailash::Kaizen::AgentConfig.new
-config.model = ENV.fetch("KAIZEN_MODEL")
-client = Kailash::Kaizen::LlmClient.new("openai")
-agent = Kailash::Kaizen::Agent.new(config, client)
-tracker = Kailash::Kaizen::CostTracker.new
-tools = Kailash::Kaizen::ToolRegistry.new
-tool = Kailash::Kaizen::ToolDef.new("search", "Search the web")
+# Autonomous mode with memory
+agent = Agent(
+    model=os.environ["KAIZEN_MODEL"],
+    execution_mode="autonomous",  # TAOD loop
+    memory="session",
+    tool_access="constrained",
+)
 ```
 
 ## Key Concepts
@@ -74,7 +64,7 @@ tool = Kailash::Kaizen::ToolDef.new("search", "Search the web")
 When working with Kaizen, deploy:
 
 - **kaizen-specialist** — Signatures, multi-agent coordination, BaseAgent architecture
-- **testing-specialist** — Agent testing patterns (NO MOCKING)
+- **testing-specialist** — Agent testing patterns (Real infrastructure recommended)
 
 ## Related Commands
 

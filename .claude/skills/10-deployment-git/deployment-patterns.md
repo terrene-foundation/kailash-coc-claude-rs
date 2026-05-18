@@ -1,127 +1,77 @@
 ---
 name: deployment-patterns
-description: "Docker and Kubernetes deployment patterns for Rust applications. Use for 'Docker Compose', 'Kubernetes deployment', 'container orchestration', 'health checks', or 'secrets management'."
+description: "Docker and Kubernetes deployment patterns for containerized applications. Use for 'Docker Compose', 'Kubernetes deployment', 'container orchestration', 'health checks', or 'secrets management'."
 ---
 
 # Deployment Patterns
-
-> **Skill Metadata**
-> Category: `deployment`
-> Priority: `HIGH`
-> Technologies: Docker, Docker Compose, Kubernetes
 
 ## Docker Compose Service Architecture
 
 ```yaml
 services:
-  # Kailash Nexus API Service
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.backend
+      target: ${BUILD_TARGET:-production}
     container_name: ${PROJECT_NAME}_backend
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-production}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - JWT_SECRET=${JWT_SECRET}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - RUNTIME_TYPE=async
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    volumes:
-      - backend_logs:/var/log/app
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    ports: ["${BACKEND_PORT:-8000}:8000"]
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app_frontend
-      - app_backend
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [app_frontend, app_backend]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          cpus: "4"
-          memory: 2G
-        reservations:
-          cpus: "1"
-          memory: 512M
+        limits: { cpus: "4", memory: 8G }
+        reservations: { cpus: "2", memory: 4G }
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 40s
 
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: ${PROJECT_NAME}_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-    # SECURITY: Remove port mapping in production — only expose via app_backend network
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
-    networks:
-      - app_backend
+    networks: [app_backend]
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 4G
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: ${PROJECT_NAME}_redis
-    # SECURITY: Remove port mapping in production — only expose via app_backend network
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
+    volumes: [redis_data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - app_backend
+    networks: [app_backend]
     restart: unless-stopped
     command: >
-      redis-server
-      --appendonly yes
-      --appendfsync everysec
-      --maxmemory 1gb
-      --maxmemory-policy allkeys-lru
-      --requirepass ${REDIS_PASSWORD}
+      redis-server --appendonly yes --maxmemory 1gb
+      --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
 
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-  backend_logs:
-    driver: local
 
 networks:
   app_frontend:
-    driver: bridge
   app_backend:
-    driver: bridge
     internal: true
 ```
 
@@ -129,261 +79,225 @@ networks:
 
 ```bash
 # ==============================================================================
-# APPLICATION ENVIRONMENT
+# APPLICATION
 # ==============================================================================
-
 ENVIRONMENT=production
+DEBUG=false
+BUILD_TARGET=production
 
 # ==============================================================================
-# DATABASE CONFIGURATION (PostgreSQL)
+# DATABASE (PostgreSQL)
 # ==============================================================================
-
 POSTGRES_DB=app_db
 POSTGRES_USER=app_user
-POSTGRES_PASSWORD=               # REQUIRED — generate with: openssl rand -hex 16
+POSTGRES_PASSWORD=change_this_to_secure_password
 POSTGRES_PORT=5432
+DATABASE_POOL_SIZE=20
+DATABASE_MAX_OVERFLOW=40
+DATABASE_POOL_TIMEOUT=30
 
 # ==============================================================================
-# REDIS CONFIGURATION
+# REDIS
 # ==============================================================================
-
-REDIS_PASSWORD=               # REQUIRED — generate with: openssl rand -hex 16
+REDIS_PASSWORD=change_this_to_secure_redis_password
 REDIS_PORT=6379
+REDIS_EXPIRE_SECONDS=7200
+REDIS_MAX_CONNECTIONS=50
 
 # ==============================================================================
-# AUTHENTICATION AND SECURITY
+# AUTHENTICATION
 # ==============================================================================
-
 # Generate with: openssl rand -hex 32
-JWT_SECRET=                    # REQUIRED — generate with: openssl rand -hex 32
+JWT_SECRET_KEY=change_this_to_a_secure_random_key_minimum_32_characters
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=480
 
 # ==============================================================================
-# AI/LLM CONFIGURATION
+# CORS / FRONTEND
 # ==============================================================================
-
-OPENAI_API_KEY=                # REQUIRED — your OpenAI API key
-DEFAULT_LLM_MODEL=             # Set to your preferred model (e.g. gpt-4o, claude-sonnet-4-20250514)
-
-# ==============================================================================
-# CORS AND FRONTEND
-# ==============================================================================
-
 CORS_ORIGINS=http://localhost:3000,https://app.yourdomain.com
+FRONTEND_URL=https://app.yourdomain.com
 
 # ==============================================================================
-# SERVICE PORTS
+# PORTS
 # ==============================================================================
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
 
-BACKEND_PORT=3000
-
-# ==============================================================================
-# SECURITY NOTES
-# ==============================================================================
-# 1. NEVER commit .env files to version control
-# 2. Generate secrets with: openssl rand -hex 32
-# 3. Use secrets management tools (Vault, AWS Secrets Manager)
-# 4. Rotate secrets regularly
+# SECURITY: Never commit .env. Use secrets manager in production. Rotate regularly.
 ```
 
-## Secret Generation Commands
+## Secret Generation
 
 ```bash
-# JWT Secret Key (32 bytes = 64 hex characters)
-openssl rand -hex 32
-
-# Database Password (16 bytes = 32 hex characters)
-openssl rand -hex 16
-
-# Redis Password (16 bytes = 32 hex characters)
-openssl rand -hex 16
+openssl rand -hex 32   # JWT secret (64 hex chars)
+openssl rand -hex 16   # Database/Redis passwords
+openssl rand -base64 24  # Strong alphanumeric (24 chars)
 ```
 
-## Kubernetes Deployment
-
-### Backend Deployment
+## Kubernetes Backend Deployment
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  labels:
-    app: backend
 spec:
   replicas: 3
-  selector:
-    matchLabels:
-      app: backend
+  selector: { matchLabels: { app: backend } }
   template:
-    metadata:
-      labels:
-        app: backend
+    metadata: { labels: { app: backend } }
     spec:
       containers:
         - name: backend
-          image: your-registry/kailash-service:latest
-          ports:
-            - containerPort: 3000
+          image: your-registry/backend:latest
+          ports: [{ containerPort: 8000 }]
           env:
             - name: DATABASE_URL
               valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: database-url
-            - name: JWT_SECRET
+                { secretKeyRef: { name: app-secrets, key: database-url } }
+            - name: JWT_SECRET_KEY
               valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: jwt-secret
-            - name: RUNTIME_TYPE
-              value: "async"
-          envFrom:
-            - configMapRef:
-                name: app-config
+                { secretKeyRef: { name: app-secrets, key: jwt-secret } }
+          envFrom: [{ configMapRef: { name: app-config } }]
           resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 1000m
-              memory: 512Mi
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { cpu: 2000m, memory: 4Gi }
           livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 3
+            httpGet: { path: /ready, port: 8000 }
+            initialDelaySeconds: 10
             periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
-metadata:
-  name: backend-service
+metadata: { name: backend-service }
 spec:
-  selector:
-    app: backend
-  ports:
-    - protocol: TCP
-      port: 3000
-      targetPort: 3000
+  selector: { app: backend }
+  ports: [{ protocol: TCP, port: 8000, targetPort: 8000 }]
   type: ClusterIP
 ```
 
-### Horizontal Pod Autoscaler
+## PostgreSQL StatefulSet
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: postgres }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                { secretKeyRef: { name: app-secrets, key: postgres-password } }
+          volumeMounts:
+            [{ name: postgres-storage, mountPath: /var/lib/postgresql/data }]
+          resources:
+            requests: { cpu: 500m, memory: 2Gi }
+            limits: { cpu: 2000m, memory: 4Gi }
+  volumeClaimTemplates:
+    - metadata: { name: postgres-storage }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 50Gi } }
+```
+
+## HPA
 
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
-metadata:
-  name: backend-hpa
+metadata: { name: backend-hpa }
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: backend
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: backend }
   minReplicas: 3
   maxReplicas: 10
   metrics:
     - type: Resource
       resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
+        { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+    - type: Resource
+      resource:
+        { name: memory, target: { type: Utilization, averageUtilization: 80 } }
 ```
 
-## Health Check Patterns
+## ConfigMap and Secrets
 
-### Application Health Endpoints (Rust/axum)
-
-```rust
-use axum::{Json, routing::get, Router};
-use serde_json::json;
-
-async fn health_check() -> Json<serde_json::Value> {
-    Json(json!({"status": "healthy"}))
-}
-
-async fn readiness_check(
-    pool: axum::extract::Extension<sqlx::PgPool>,
-) -> Result<Json<serde_json::Value>, axum::http::StatusCode> {
-    sqlx::query("SELECT 1")
-        .execute(pool.as_ref())
-        .await
-        .map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
-
-    Ok(Json(json!({"status": "ready"})))
-}
-
-// Register in Nexus or raw axum router
-let router = Router::new()
-    .route("/health", get(health_check))
-    .route("/ready", get(readiness_check));
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: app-config }
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: app-secrets }
+type: Opaque
+# Prefer: kubectl create secret generic app-secrets --from-literal=database-url="..." --from-literal=jwt-secret="..."
 ```
 
-## Common Deployment Workflows
+## Health Check Endpoints
 
-### Initial Setup (Docker Compose)
+```python
+from nexus import Nexus
+from nexus.http import JSONResponse, status
+
+app = Nexus()
+
+@app.get("/health", status_code=status.HTTP_200_OK)
+async def health_check():
+    return {"status": "healthy"}
+
+@app.get("/ready", status_code=status.HTTP_200_OK)
+async def readiness_check():
+    try:
+        await db.execute("SELECT 1")
+        await redis.ping()
+        return {"status": "ready"}
+    except Exception:
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"status": "not ready"})
+```
+
+## Deployment Workflows
 
 ```bash
-# 1. Copy environment template
+# Docker Compose setup
 cp .env.example .env
+sed -i "s/change_this_jwt/$(openssl rand -hex 32)/" .env
+docker-compose up -d && docker-compose ps
 
-# 2. Generate secure secrets
-JWT_SECRET=$(openssl rand -hex 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-REDIS_PASSWORD=$(openssl rand -hex 16)
-
-# 3. Update .env file with generated secrets
-# 4. Start services
-docker-compose up -d
-
-# 5. Check service health
-docker-compose ps
-curl http://localhost:3000/health
-```
-
-### Production Deployment (Kubernetes)
-
-```bash
-# 1. Create namespace
+# Kubernetes deployment
 kubectl create namespace production
-
-# 2. Create secrets (use generated values — NEVER hardcode credentials)
 kubectl create secret generic app-secrets \
-  --from-literal=database-url="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-  --from-literal=jwt-secret="$(openssl rand -hex 32)" \
-  --namespace=production
-
-# 3. Apply deployments
+  --from-literal=database-url="postgresql://..." \
+  --from-literal=jwt-secret="$(openssl rand -hex 32)" -n production
 kubectl apply -f k8s/ -n production
 
-# 4. Verify
-kubectl get pods -n production
+# Rolling update (zero downtime)
+kubectl set image deployment/backend backend=your-registry/backend:v2.0.0 -n production
+kubectl rollout status deployment/backend -n production
+kubectl rollout undo deployment/backend -n production  # Rollback
 ```
 
-## Troubleshooting Commands
+## Troubleshooting
 
 ```bash
-# Check logs
-docker-compose logs -f backend
-kubectl logs -f deployment/backend -n production
-
-# Check health
-docker-compose ps
-kubectl get pods -n production
-
-# Verify environment variables
-docker-compose exec backend env | grep DATABASE_URL
-
-# Check resource usage
-docker stats
+docker-compose logs -f backend                           # Container logs
+kubectl logs -f deployment/backend -n production         # K8s logs
+docker-compose exec backend env | grep DATABASE_URL      # Verify env vars
+docker stats                                             # Resource usage
 kubectl top pods -n production
 ```
-
-<!-- Trigger Keywords: Docker Compose, Kubernetes deployment, container orchestration, health checks, secrets management, docker deployment, k8s deployment, environment variables, docker secrets, kubernetes secrets -->

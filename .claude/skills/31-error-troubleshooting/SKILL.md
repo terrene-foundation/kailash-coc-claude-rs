@@ -1,316 +1,179 @@
 ---
 name: error-troubleshooting
-description: "Kailash Rust errors — Nexus hangs, connection, runtime, cycles, validation, template syntax."
+description: "Kailash errors — Nexus hangs, connection, runtime, cycles, missing .build(), validation."
 ---
 
-# Kailash Rust SDK Error Troubleshooting
+# Kailash Error Troubleshooting
 
-Comprehensive troubleshooting guides for common Kailash Rust SDK errors and issues.
+Common error patterns and solutions for Kailash SDK.
 
-## Overview
+## When to Use
 
-Common error patterns and solutions for:
+Use when encountering errors, debugging issues, or asking about error, troubleshooting, debugging, not working, hangs, timeout, validation error, connection error, runtime error, cycle not converging, missing build, or template syntax. Covers Nexus blocking issues, connection parameter errors, runtime execution errors, cycle convergence problems, missing `.build()` calls, parameter validation errors, and DataFlow template syntax errors.
 
-- Nexus (axum) blocking and async runtime issues
-- Connection parameter errors (`BuildError::InvalidConnection`)
-- Runtime execution failures (`RuntimeError`)
-- Cycle detection (`BuildError::CycleDetected`)
-- Missing `.build(&registry)?` calls (compile-time errors)
-- Parameter validation errors (`NodeError::MissingInput`, `NodeError::InvalidInput`)
-- DataFlow type mismatches
-
-## Key Difference from Dynamic Languages
-
-In Rust, many errors are caught at **compile time** rather than runtime:
-
-| Error Category            | Dynamic Language         | Rust                                  |
-| ------------------------- | ------------------------ | ------------------------------------- |
-| Missing `.build()`        | Runtime `TypeError`      | **Compile error**: type mismatch      |
-| Wrong method name         | Runtime `AttributeError` | **Compile error**: method not found   |
-| Wrong arg count           | Runtime `TypeError`      | **Compile error**: argument count     |
-| Builder reuse after build | Silent bug               | **Compile error**: use of moved value |
-
-Runtime errors that remain are returned via `Result<T, E>` and must be handled with `?` or `match`.
-
-## Error Type Hierarchy
-
-```text
-RuntimeError
-  |-- BuildFailed { source: BuildError }
-  |     |-- UnknownNodeType { type_name }
-  |     |-- DuplicateNodeId { node_id }
-  |     |-- InvalidConnection { source_node, source_output, target_node, target_input, reason }
-  |     |-- CycleDetected { nodes }
-  |     |-- DisconnectedGraph { components }
-  |     |-- NodeCreationFailed { node_id, type_name, source: NodeError }
-  |     |-- EmptyWorkflow
-  |-- NodeFailed { node_id, source: NodeError }
-  |     |-- MissingInput { name }
-  |     |-- InvalidInput { name, expected, got }
-  |     |-- ExecutionFailed { message, source }
-  |     |-- Timeout { duration }
-  |     |-- ResourceLimit { resource, limit }
-  |     |-- Internal { message }
-  |-- Timeout { duration }
-  |-- Cancelled
-  |-- Internal { message }
-```
-
-## Reference Documentation
+## Sub-File Index
 
 ### Critical Errors
 
-#### Missing .build() Call (Compile-Time)
-
-- **[error-missing-build](error-missing-build.md)** - Forgot to call `.build(&registry)?`
-  - **Symptom**: Compile error: expected `&Workflow`, found `WorkflowBuilder`
-  - **Cause**: Passing builder directly to `runtime.execute()`
-  - **Solution**: Always call `builder.build(&registry)?` before execution
-  - **Pattern**: `let workflow = builder.build(&registry)?;`
-
-#### Nexus Blocking (Async Runtime)
-
-- **[error-nexus-blocking](error-nexus-blocking.md)** - Nexus/axum handler blocks
-  - **Symptom**: axum handler hangs, tokio panic, request timeout
-  - **Cause**: Using `execute_sync()` inside an async handler
-  - **Solution**: Use `runtime.execute(&workflow, inputs).await?` in async contexts
-  - **Prevention**: Never call sync methods inside async functions
+- **[error-nexus-blocking](error-nexus-blocking.md)** - Nexus hangs or blocks
+  - Symptom: API hangs forever | Cause: LocalRuntime in Docker/FastAPI | Fix: Use AsyncLocalRuntime
+- **[error-missing-build](error-missing-build.md)** - Forgot `.build()`
+  - Symptom: `TypeError: execute() expects Workflow, got WorkflowBuilder` | Fix: `runtime.execute(workflow.build())`
 
 ### Connection & Parameter Errors
 
-#### Connection Parameter Errors
-
+- **[error-connection-exhaustion](error-connection-exhaustion.md)** - Database connection exhaustion
+  - Symptom: "too many connections" | Fix: Use `external_pool` parameter, set `max_pool_size = DB max / worker count`
 - **[error-connection-params](error-connection-params.md)** - Invalid connections
-  - **Symptom**: `BuildError::InvalidConnection` at build time
-  - **Cause**: Wrong 4-parameter order in `builder.connect()`
-  - **Solution**: Use `builder.connect("source", "output", "target", "input")`
-  - **Common mistake**: Swapping source_output and target positions
+  - Symptom: Node gets wrong data | Fix: Use 4-param format `(source_id, source_param, target_id, target_param)`
+- **[error-parameter-validation](error-parameter-validation.md)** - Invalid node parameters
+  - Symptom: `ValidationError: Missing required parameter` | Fix: Check node docs for required params
 
-#### Parameter Validation Errors
-
-- **[error-parameter-validation](error-parameter-validation.md)** - Missing required inputs
-  - **Symptom**: `NodeError::MissingInput` or `NodeError::InvalidInput` at runtime
-  - **Cause**: Missing or wrong-typed node parameters
-  - **Solution**: Provide via config ValueMap, connections, or runtime inputs
-  - **3 methods**: Config, connections, runtime inputs
-
-### Runtime Errors
-
-#### Runtime Execution Errors
+### Runtime & Cycle Errors
 
 - **[error-runtime-execution](error-runtime-execution.md)** - Runtime failures
-  - **Symptom**: `RuntimeError::NodeFailed`, `RuntimeError::Timeout`
-  - **Cause**: Node failures, timeouts, wrong runtime usage
-  - **Solutions**: Check error chain, configure timeouts, use correct async/sync method
-  - **Debug**: Match on `RuntimeError` variants, walk `.source()` chain
-
-### Cyclic Workflow Errors
-
-#### Cycle Detection Errors
-
-- **[error-cycle-convergence](error-cycle-convergence.md)** - Cycle issues
-  - **Symptom**: `BuildError::CycleDetected` or infinite loop at runtime
-  - **Cause**: Cycles without `enable_cycles(true)`, no convergence condition
-  - **Solution**: Enable cycles explicitly, use LoopNode with max_iterations
-  - **Pattern**: `builder.enable_cycles(true)` before `.build()`
+  - Check logs, validate inputs, test nodes individually, add LoggerNode for visibility
+- **[error-cycle-convergence](error-cycle-convergence.md)** - Cycles don't converge
+  - Symptom: Infinite loop / max iterations exceeded | Fix: Add `cycle_complete` convergence check
 
 ### DataFlow Errors
 
-#### DataFlow Type Errors
+- **[error-dataflow-template-syntax](error-dataflow-template-syntax.md)** - Template string errors
+  - Symptom: `SyntaxError` in template strings | Fix: Use `{{variable}}` syntax
 
-- **[error-dataflow-template-syntax](error-dataflow-template-syntax.md)** - Type mismatches
-  - **Symptom**: `NodeError::InvalidInput` on DataFlow-generated nodes
-  - **Cause**: Wrong `Value` variant for model field type
-  - **Solution**: Match Value types to model field types (i64 -> Value::Integer, etc.)
-  - **Pattern**: Use connections for dynamic values between nodes
+### Kaizen Provider Errors
+
+- **[error-kaizen-provider-config](error-kaizen-provider-config.md)** - Provider configuration issues
+  - Azure 400 "messages must contain 'json'" | Use `json_prompt_suffix()` or set `response_format`
+  - "Missing required parameter: response_format.type" | Don't put `api_version` in `response_format`
+  - DeprecationWarning about `provider_config` | Migrate to `response_format` field
+  - Azure env var deprecation warnings | Switch to canonical names (`AZURE_ENDPOINT`, `AZURE_API_KEY`)
 
 ## Quick Error Reference
 
-### Error by Symptom
+| Symptom                                            | Error Type            | Quick Fix                                       |
+| -------------------------------------------------- | --------------------- | ----------------------------------------------- |
+| API hangs forever                                  | Nexus blocking        | Use `AsyncLocalRuntime`                         |
+| `TypeError: expects Workflow`                      | Missing `.build()`    | Add `.build()` call                             |
+| Node gets wrong data                               | Connection params     | Check 4-parameter format                        |
+| `ValidationError`                                  | Parameter validation  | Check required params                           |
+| Infinite loop                                      | Cycle convergence     | Add convergence condition                       |
+| Template `SyntaxError`                             | DataFlow template     | Use `{{variable}}` syntax                       |
+| Runtime fails                                      | Runtime execution     | Check logs, validate inputs                     |
+| "too many connections"                             | Connection exhaustion | Use `external_pool` injection                   |
+| Azure 400 "messages must contain 'json'"           | Kaizen provider       | Use `json_prompt_suffix()` or `response_format` |
+| "Missing required parameter: response_format.type" | Kaizen provider       | Don't put `api_version` in `response_format`    |
+| DeprecationWarning about `provider_config`         | Kaizen provider       | Migrate to `response_format` field              |
 
-| Symptom                              | Error Type                      | Quick Fix                                  |
-| ------------------------------------ | ------------------------------- | ------------------------------------------ |
-| **Compile: expected &Workflow**      | Missing `.build()`              | Add `builder.build(&registry)?`            |
-| **axum handler hangs**               | Nexus blocking                  | Use `execute().await` not `execute_sync()` |
-| **"invalid connection from..."**     | `BuildError::InvalidConnection` | Check 4-parameter order                    |
-| **"unknown node type"**              | `BuildError::UnknownNodeType`   | Register node in `NodeRegistry`            |
-| **"missing required input"**         | `NodeError::MissingInput`       | Provide via config, connection, or inputs  |
-| **"invalid input...expected...got"** | `NodeError::InvalidInput`       | Match Value variant to expected type       |
-| **"cycle detected"**                 | `BuildError::CycleDetected`     | Add `builder.enable_cycles(true)`          |
-| **"timed out after..."**             | `RuntimeError::Timeout`         | Increase `RuntimeConfig::timeout`          |
-| **"use of moved value"**             | Ownership (compile)             | Don't use builder after `.build()`         |
+## Error Prevention Checklist
 
-### Error Prevention Checklist
+- Called `.build()` on WorkflowBuilder?
+- Using `AsyncLocalRuntime` for Docker/FastAPI?
+- All connections use 4 parameters?
+- All required node parameters provided?
+- Cyclic workflows have convergence checks?
+- Template strings use `{{variable}}` syntax?
+- Using `external_pool` in multi-worker deployments?
+- Structured output in `response_format` (not `provider_config`)?
+- Azure using canonical env vars (`AZURE_ENDPOINT`, `AZURE_API_KEY`)?
+- `structured_output_mode="explicit"` for new agents?
 
-**Before Building Workflow**:
+## Static Analysis False Positives
 
-- [ ] Called `.build(&registry)?` on WorkflowBuilder?
-- [ ] Used `?` to propagate the `BuildError`?
-- [ ] All `connect()` calls use 4 parameters in correct order?
-- [ ] All required node parameters provided in config ValueMap?
-- [ ] Cyclic workflows have `enable_cycles(true)` set?
-- [ ] All node types registered in `NodeRegistry`?
+### CodeQL: `__getattr__` Lazy Loading
 
-**Before Executing Workflow**:
+**Symptom:** CodeQL reports "Explicit export is not defined" (`py/undefined-export`)
+for names in `__all__` resolved by a module-level `__getattr__` function.
 
-- [ ] Using `execute().await?` in async contexts (axum, tokio::main)?
-- [ ] Using `execute_sync()` only in sync contexts (CLI, scripts)?
-- [ ] `RuntimeConfig::timeout` set appropriately?
-- [ ] Error result handled with `?` or `match`?
+**Fix:** Add a `TYPE_CHECKING`-guarded import for the reported name:
 
-## Common Error Patterns
+```python
+from typing import TYPE_CHECKING
 
-### 1. Missing .build() (Compile-Time)
+if TYPE_CHECKING:
+    from mypackage.submodule import LazyName as LazyName  # explicit re-export
 
-```rust
-// :x: WRONG (compile error)
-let mut builder = WorkflowBuilder::new();
-builder.add_node("EchoNode", "echo", ValueMap::new());
-let result = runtime.execute(&builder, ValueMap::new()).await?;
+def __getattr__(name: str):
+    if name == "LazyName":
+        from mypackage.submodule import LazyName
+        return LazyName
+    raise AttributeError(...)
 
-// :white_check_mark: CORRECT
-let mut builder = WorkflowBuilder::new();
-builder.add_node("EchoNode", "echo", ValueMap::new());
-let workflow = builder.build(&registry)?;
-let result = runtime.execute(&workflow, ValueMap::new()).await?;
+__all__ = ["LazyName"]  # CodeQL now sees the TYPE_CHECKING import
 ```
 
-### 2. Nexus Blocking (Async/Sync Mismatch)
+The `as LazyName` re-export syntax prevents "unused import" warnings from other linters.
 
-```rust
-// :x: WRONG (panics or deadlocks in async handler)
-async fn handle(State(rt): State<Arc<Runtime>>) -> impl IntoResponse {
-    let result = rt.execute_sync(&workflow, inputs);  // Blocks async runtime!
-}
+### CodeQL: Empty Except Clauses
 
-// :white_check_mark: CORRECT (async in async)
-async fn handle(State(rt): State<Arc<Runtime>>) -> impl IntoResponse {
-    let result = rt.execute(&workflow, inputs).await?;
-}
+**Fix:** Add a comment explaining intent. CodeQL accepts `except: pass` with an inline comment:
+
+```python
+except ValueError:
+    pass  # Callback already unregistered; silently ignore duplicate removal
+
+except asyncio.CancelledError:
+    pass  # Expected: we just cancelled this task above
 ```
 
-### 3. Connection Parameter Order
+### CodeQL: Overly Complex `__del__`
 
-```rust
-// :x: WRONG (swapped parameters)
-builder.connect("node1", "node2", "result", "input");
+**Fix:** Use the `_warnings=warnings` default parameter pattern and minimize branching:
 
-// :white_check_mark: CORRECT (source, output, target, input)
-builder.connect("node1", "result", "node2", "input");
+```python
+def __del__(self, _warnings=warnings) -> None:
+    if not getattr(self, "_closed", True):
+        _warnings.warn("Resource was not closed.", ResourceWarning, stacklevel=1)
 ```
 
-### 4. Cycle Detection
+Avoids conditional `import warnings` inside `__del__` that CodeQL flags as complex.
+The default parameter captures the module at definition time, surviving interpreter shutdown.
 
-```rust
-// :x: WRONG (cycle without enable_cycles)
-builder.connect("a", "out", "b", "in");
-builder.connect("b", "out", "a", "in");  // Cycle!
-let wf = builder.build(&registry)?;  // BuildError::CycleDetected
+## Git Hook Traps
 
-// :white_check_mark: CORRECT (enable cycles explicitly)
-builder.enable_cycles(true);
-builder.connect("a", "out", "b", "in");
-builder.connect("b", "out", "a", "in");
-let wf = builder.build(&registry)?;  // OK
+### Pre-Commit Auto-Stash Phantom Failure
+
+**Symptom:** `git commit` fails with "stash pop" errors or silently
+drops staged changes, even though running `pre-commit run --all-files`
+directly passes every hook.
+
+**Root cause:** Pre-commit's auto-stash feature stashes unstaged
+changes before running hooks, then pops after. When a hook modifies
+the working tree (e.g., a formatter), the pop conflicts with the
+hook's changes, causing the commit to abort or lose staged hunks.
+
+**Workaround:** Bypass the hooks directory for this commit only:
+
+```bash
+git -c core.hooksPath=/dev/null commit -m "fix(scope): description"
 ```
 
-### 5. DataFlow Type Mismatch
+**Mandatory follow-up:** Document the bypass in the commit body AND
+file a todo against the pre-commit configuration. See
+`rules/git.md` "Pre-Commit Hook Workarounds" for the full rule.
+Silent `--no-verify` retries are BLOCKED.
 
-```rust
-// :x: WRONG (String where Integer expected)
-builder.add_node("OrderCreateNode", "create", ValueMap::from([
-    ("customer_id".into(), Value::String("42".into())),
-]));
+**Frequency:** Recurring across sessions; the stash
+interaction is non-deterministic and depends on which files have
+unstaged changes at commit time.
 
-// :white_check_mark: CORRECT (matching Value variant)
-builder.add_node("OrderCreateNode", "create", ValueMap::from([
-    ("customer_id".into(), Value::Integer(42)),
-]));
-```
+## Debugging Tips
 
-## Debugging Strategies
-
-### Step 1: Check Error Type
-
-- **Compile error?** Fix the Rust code -- type system is guiding you
-- **`BuildError`?** Fix workflow construction (nodes, connections, types)
-- **`RuntimeError`?** Fix execution (inputs, timeouts, node logic)
-- **`NodeError`?** Fix individual node configuration or inputs
-
-### Step 2: Walk the Error Chain
-
-```rust
-use std::error::Error;
-
-if let Err(e) = runtime.execute(&workflow, inputs).await {
-    eprintln!("Error: {e}");
-    let mut source = e.source();
-    while let Some(cause) = source {
-        eprintln!("  Caused by: {cause}");
-        source = cause.source();
-    }
-}
-```
-
-### Step 3: Test Components
-
-- Build and execute a minimal workflow with one node
-- Add nodes incrementally to isolate the failing one
-- Inspect `result.results.get("node_id")` for output structure
-
-### Step 4: Check Source Code
-
-- Error types: `crates/kailash-core/src/error.rs`
-- Workflow builder: `crates/kailash-core/src/workflow.rs`
-- Runtime: `crates/kailash-core/src/runtime.rs`
-- Node implementations: `crates/kailash-nodes/src/`
-- CLAUDE.md for essential patterns
-
-## CRITICAL Debugging Tips
-
-1. **ALWAYS** call `.build(&registry)?` on WorkflowBuilder before execution
-2. **NEVER** use `execute_sync()` inside async contexts (axum handlers, tokio::main)
-3. **ALWAYS** handle `Result` values with `?` or explicit error matching
-4. **NEVER** ignore `BuildError` -- it means your workflow graph is invalid
-5. **ALWAYS** verify connection parameter order: source, output, target, input
+1. **Always** check `.build()` was called
+2. **Never** ignore connection validation errors
+3. **Always** verify absolute imports when seeing import errors
+4. **Never** assume mock tests found real issues -- use real infrastructure
 
 ## Related Skills
 
-- **[01-core](../../01-core/)** - Core SDK patterns
-- **[02-dataflow](../../02-dataflow/)** - DataFlow specifics
-- **[03-nexus](../../03-nexus/)** - Nexus/axum specifics
-- **[13-testing-strategies](../../13-testing-strategies/)** - Testing patterns
-- **[15-code-templates](../../15-code-templates/)** - Working code templates
-
-## CI Debugging Patterns
-
-### Documentation job fails (`-D warnings`)
-
-CI runs `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude kailash-ruby --exclude kailash-python --no-deps`. Intradoc links like `[TypeName]` fail unless the type is in scope — use fully qualified: `[crate::module::TypeName]`.
-
-### Test job fails (doc-tests)
-
-CI runs `cargo test --workspace` which includes doc-tests. Common failures:
-
-- **Non-exhaustive match**: New enum variant added but doc example match not updated (e.g., `CallerEvent::ToolCallDelta`)
-- **Result API change**: Constructor changed to return `Result` but doc example doesn't use `?` (e.g., `WorkerAgent::new()`)
-- **Signature change**: Args added/removed but doc example uses old count (e.g., `SupervisorAgent::new()` now 4 args)
-
-### Cargo Deny fails
-
-Usually corrupt advisory DB cache on self-hosted runner (panics on `RUSTSEC-0000-0000.md`). Fix: re-run the job via `gh run rerun <run-id> --job <job-id>`.
-
-### CI traps
-
-- `cargo check --workspace` fails on magnus 0.8.2 — always `--exclude kailash-ruby` (#247)
-- kailash-python rustdoc ICE on numpy ToPyArray — excluded from CI doc build
-- nightly fmt required (`cargo +nightly fmt`) — stable fmt produces different output
+- **[16-validation-patterns](../16-validation-patterns/SKILL.md)** - Validation patterns
+- **[17-gold-standards](../17-gold-standards/SKILL.md)** - Best practices to avoid errors
+- **[01-core-sdk](../01-core-sdk/SKILL.md)** - Core patterns
+- **[02-dataflow](../02-dataflow/SKILL.md)** - DataFlow specifics
+- **[03-nexus](../03-nexus/SKILL.md)** - Nexus specifics
 
 ## Support
 
-For error troubleshooting, consult:
-
-- `build-fix` agent - Fix Rust compilation errors with minimal changes
-- `dataflow-specialist` - DataFlow-specific patterns
-- `nexus-specialist` - Nexus/axum integration debugging
+- `pattern-expert` - Pattern validation
+- `gold-standards-validator` - Check compliance
 - `testing-specialist` - Test debugging

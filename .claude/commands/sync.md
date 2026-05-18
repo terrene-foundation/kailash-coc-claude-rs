@@ -1,164 +1,102 @@
 ---
-description: "Pull and merge latest COC artifacts from upstream template into this repo"
+description: "Review BUILD repo changes (Gate 1) + distribute to templates with variant overlays (Gate 2)"
 ---
 
-Pull the latest CO/COC artifacts from the upstream template and merge them into this repo, preserving project-specific artifacts.
+Sync CO/COC artifacts. Behavior depends on repo type (from `.claude/VERSION`).
 
-**Usage**: `/sync`
+Detailed protocol: `skills/30-claude-code-patterns/sync-flow.md` (loaded by sync-reviewer + coc-sync agents).
 
-## Context
+**Usage**: `/sync [target]`
 
-This repo inherits its `.claude/` directory from a USE template (recorded in `.claude/.coc-sync-marker`; auto-detected at first run per § 1 below). The template is updated when the loom/ source runs `/sync`. This command pulls those updates into your repo.
+- At loom/ (coc-source): `target` = `py`, `rs`, `rb`, `base`, or `all`. If omitted, ask.
+- At downstream projects (coc-project): no target needed.
 
-```
-loom/ (source) → USE template → THIS REPO
-                                     ↑ you are here
-```
+## Step 0: Detect Repo Type
 
-## BUILD vs USE Repo Distinction
+Read `.claude/VERSION` → `type` field:
 
-- **BUILD repos** (kailash-py, kailash-rs, kailash-prism): artifacts live in canonical locations (`agents/frameworks/`, `skills/01-core-sdk/`, `rules/*.md`). `/codify` writes to canonical locations AND creates `.claude/.proposals/latest.yaml` for upstream flow to loom/. No `agents/project/` or `skills/project/`.
-- **Downstream USE repos** (consumer projects): `/codify` writes project-specific artifacts to `.claude/agents/project/` and `.claude/skills/project/`; stays local.
+- `coc-source` → Gate 1 + Gate 2 (below)
+- `coc-project` → Downstream Sync (delegate to `skills/30-claude-code-patterns/sync-flow.md` § Downstream Sync)
+- `coc-use-template` / `coc-build` → **MUST verify** the repo is the actual template/BUILD repo before routing to loom. Check `basename $(pwd)` + `git remote get-url origin` (normalize SSH `git@host:owner/repo.git` → `owner/repo`) against known repos: `kailash-coc-claude-{py,rs,rb,prism}`, `kailash-{py,rs,prism}`. If match → "receives artifacts from loom/, run `/sync` at loom/". If no match → treat as `coc-project` and auto-correct VERSION in-place (type → `coc-project`, upstream → `{template, template_repo, template_version, synced_at, sdk_packages}` per `.claude/hooks/lib/version-utils.js::correctTemplateDerivedVersion`), then Downstream Sync.
+- Missing → ask user what type this repo is
 
-The "Project-specific" preservation rule below applies only to downstream USE repos. In a BUILD repo every artifact is canonical and subject to merge-review.
+## Two Gates (coc-source — loom/ only)
 
-## Merge Semantics
+**loom is the central splitter, not an author.** loom does NOT originate artifact changes — it ingests proposals from TWO upstream streams (BUILD repos for SDK code; USE-template repos for COC-artifact improvements per `guides/co-setup/09-proposal-protocol.md` Step 7b), splits global vs variant at Gate 1, then dual-distributes: `/sync-to-build` pushes canonical back to BUILD repos, `/sync` distributes to USE templates (which downstream repos pull via their own `/sync`).
 
-This is a **merge**, not an overwrite. Three categories of files:
+This command has two sequential gates. Gate 1 runs automatically if unreviewed changes exist. Detailed protocol for each gate is in `skills/30-claude-code-patterns/sync-flow.md` § Gate 1 / § Gate 2 — the agents below load that skill at delegation time.
 
-| Category                              | Examples                                          | Behavior                      |
-| ------------------------------------- | ------------------------------------------------- | ----------------------------- |
-| **Shared artifacts**                  | agents/analyst.md, rules/security.md              | **Updated** from template     |
-| **Project-specific** (USE repos only) | agents/project/\*, skills/project/\*, workspaces/ | **Preserved** — never touched |
-| **Per-repo data**                     | learning/\*, .proposals/                          | **Preserved** — never touched |
+### Gate 1: Review + Scrub (inbound — TWO proposal streams)
 
-**Rule**: If a file exists in BOTH the template and this repo, the template version wins (it's the upstream source). If a file exists ONLY in this repo, it's preserved. If a file exists ONLY in the template, it's added.
+Scans inbound artifact changes not yet upstreamed to loom/. Two streams:
 
-## Process
+- **BUILD stream** (kailash-py / kailash-rs): SDK-code-originated proposals. Gate 1 records/flags whether the proposal considered cross-SDK (advisory alignment note — see step 8; NOT a hard block).
+- **USE-template stream** (`kailash-coc-*`): COC-artifact-improvement proposals from USE-template `/codify` origination per `guides/co-setup/09-proposal-protocol.md` Step 7b.
 
-### 1. Detect upstream template
+**Disclosure-scrub on intake (MUST, runs first):** before classifying any change, run `node .claude/bin/scan-synced-disclosure.mjs --root <inbound-repo-path>` against the candidate artifact files AND have a human scrub the `.proposals/latest.yaml` body per `upstream-issue-hygiene.md` Rule 2 (`.proposals/` is `isNeverSynced`, so `--root` won't reach it — the human gate covers the body). Non-zero exit or any finding = HALT until genericized + relocated (#255/#260 pattern). This is symmetric with the Gate-2 synced-disclosure preflight.
 
-Check `.claude/.coc-sync-marker` for the template. If missing, auto-detect:
+**Trigger**: Runs automatically when `/sync` detects unreviewed changes. Also runs if the user explicitly says "review" (e.g., `/sync py review`).
 
-1. **Multi-CLI consumers** (any of `AGENTS.md`, `GEMINI.md` present at repo root):
-   - `pyproject.toml` has `kailash-enterprise` → `kailash-coc-rs`
-   - `pyproject.toml` has `kailash` dependency → `kailash-coc-py`
-2. **Legacy CC-only consumers** (only `CLAUDE.md` at repo root):
-   - `pyproject.toml` has `kailash-enterprise` → `kailash-coc-claude-rs`
-   - `Gemfile` has `kailash` gem → `kailash-coc-claude-rb` (Ruby projects; legacy mappings to `kailash-coc-claude-rs` predated the rb USE template — see issue #140)
-   - `pyproject.toml` has `kailash` dependency → `kailash-coc-claude-py`
+**Process summary** (full protocol in skill):
 
-If detection is ambiguous (e.g., the consumer migrated CC-only → multi-CLI without updating the marker), set `KAILASH_COC_TEMPLATE_PATH` or write the correct template name to `.claude/.coc-sync-marker` before re-running.
+1. Read `sync-manifest.yaml` for tier membership + variant mappings; `repos.{target}.build` gives the BUILD logical NAME — resolve its on-disk path via `bin/lib/loom-links.mjs::resolveRepo("build.{target}")` (canonical NAME→location binding, `cross-repo.md` MUST-1), never a positional `../{build}` guess.
+2. Read SDK version from BUILD repo's `pyproject.toml` (py) / `Cargo.toml` (rs) — report in review header.
+3. Compute expected state (loom + variant overlay), diff BUILD repo's `.claude/` against it.
+4. Check `.claude/.proposals/latest.yaml` status (`pending_review` / `reviewed` / `distributed`); for `reviewed`, re-review only entries appended after `reviewed_date`.
+5. For each NEW or MODIFIED file, classify (sync-reviewer agent: global vs variant vs skip).
+6. Place files: global → `.claude/{type}/{file}`, variant → `.claude/variants/{lang}/{type}/{file}`, skip → leave in BUILD only.
+7. Mark proposal as reviewed.
 
-### 2. Locate template
+**Skip when**: No diff between BUILD and expected state, or user says "distribute only" / "skip review".
 
-Resolution order (canonical, v2.9.1+) — **GitHub-backed cache wins by default**, local clones are offline-only fallback:
+### Gate 2: Distribute (outbound — loom/ → templates)
 
-1. **`KAILASH_COC_TEMPLATE_PATH` env var** — explicit developer escape hatch. Use this when iterating on un-pushed local template changes. MUST point at a directory containing `.claude/`.
-2. **Cache** at `~/.cache/kailash-coc/<template>/`. Auto-update via `git -C <cache> fetch --depth 1 origin main && git -C <cache> reset --hard origin/main` on every sync.
-3. **Shallow clone** to cache if no cache exists: `git clone --depth 1 --single-branch --branch main https://github.com/terrene-foundation/<TEMPLATE>.git ~/.cache/kailash-coc/<TEMPLATE>/` where `<TEMPLATE>` is the value resolved in § 1 (e.g., `kailash-coc-rs` for multi-CLI, `kailash-coc-claude-rs` for legacy CC-only).
-4. **Offline fallback only** — local sibling resolved via `bin/lib/loom-links.mjs` (`use-template.<key>` logical key — canonical NAME→location binding per `cross-repo.md` MUST-1, subsumes `$LOOM_PATH` under the `loom` / `use-template.*` keys), NOT a positional `../{template}/` / `~/repos/loom/{template}/` guess. Used ONLY when steps 2-3 all fail (network unreachable). No declared linkage → explicit not-found, not a positional fallback. Emit `freshness NOT guaranteed` notice. (`$LOOM_PATH` is superseded by the resolver; a back-compat read still works if set, but the resolver is canonical.)
+Merges loom/ source + variant overlays into USE template repos. This is a **merge** — templates may have legitimate local content.
 
-If a local sibling is detected during online resolution but NOT used, emit one-line stderr notice: "Found local clone at X but using GitHub-backed cache for freshness. Set KAILASH_COC_TEMPLATE_PATH=X to use the local clone instead."
+**Synced-disclosure gate (MUST, runs first):** before any emit step, Gate 2 runs `node .claude/bin/scan-synced-disclosure.mjs --check`; a non-zero exit is BLOCK-level — /sync HALTs and surfaces the redacted report until a human genericizes + relocates the disclosure to the operator-local companion (per #255/#260). Full protocol: skill § Gate 2 step 0.
 
-**Why the change**: pre-v2.9.1 the local sibling was step 1, silently shadowing the auto-updating cache forever and forcing users to `git pull` two repos before every downstream sync.
+**Process summary** (full protocol in skill):
 
-### 2.5. Read obsoleted-paths manifest from the resolved template
+1. Read manifest for tiers, variants, exclusions (`exclude:`, `use_exclude:`).
+2. Inventory template state.
+3. Compute expected state for the target — read `repos.<target>.tier_subscriptions` (REQUIRED in v2.21.0+; missing = manifest defect, halt sync), emit only files matched by subscribed tier patterns. Apply `use_exclude:` (BUILD-only paths). MUST include tier-independent runtime infra: `.claude/hooks/**`, `.claude/bin/**`, `.claude/.coc-obsoleted`. Apply variant overlay from `variants/{repos.<target>.variant}/`. Top-level files declared in `variant_only:`.
+4. Per-file merge decisions: UNCHANGED skip, NEW add, MODIFIED flag if template has USE-specific adaptations, TEMPLATE-ONLY preserve.
+5. Present merge plan (no bulk "Apply all").
+6. Apply approved changes.
+7. Update `.coc-sync-marker` with timestamp + file list.
+8. Update `.claude/VERSION` — `upstream.build_version`, `upstream.sdk_packages` from BUILD `pyproject.toml`/`Cargo.toml`.
+9. Update SDK dependency pins in target's `pyproject.toml` / `Cargo.toml` — MANDATORY.
+10. Install updated dependencies — `uv sync` (py) / `cargo check` (rs) — MANDATORY.
+11. Verify hooks — every entry in `settings.json` has a script on disk.
+12. Mark BUILD proposal as `distributed` with `distributed_date`.
 
-Read `<resolved-template>/.claude/.coc-obsoleted` (slim purpose-built file emitted by coc-sync). Each non-comment, non-blank line is a repo-relative path; trailing slash means directory. If the file is missing, the template predates v2.9.1 — log one-line warning, skip the purge, proceed.
+**Multi-CLI scaffold (Step 4.6 in coc-sync)**: for multi-CLI USE templates (`template_type: multi-cli`), Gate 2 emits the symlinks and conditional manifest declared under `sync-manifest.yaml::multi_cli_overlays.<template_type>.symlinks` + `manifest_distribute`. Closes the `/migrate` Step-4a inline-workaround gap (#184). Cc-only-legacy templates are unaffected.
 
-### 2.6. Purge obsoleted paths in this consumer (MUST, before merge)
+**Pre-commit gate**: run `tools/verify-overlays.sh <target>` from loom — MUST report `Failing: 0` (slot-keyed-aware since v2.21.1). Any CRIT-2 / drift / deployed-missing row blocks the cycle.
 
-For each entry in `.coc-obsoleted`, recursively delete the matching path. This is the ONLY mechanism by which downstream consumers purge stale orphan directories from former COC layouts (`scripts/hooks/`, `.claude/scripts/`, `scripts/resolve-template.js`). Skipping it leaves `require("./lib/...")` resolving against the wrong sibling and ships hooks that fail at every CC session start with `MODULE_NOT_FOUND`.
-
-### 3. Check SDK version compatibility
-
-Read this project's SDK version from `pyproject.toml` (look for `kailash-enterprise`) or `Gemfile` (look for `kailash` gem) or `Cargo.toml` (look for `kailash` dependency). Read the template's VERSION file for the `build_version`.
-
-Report both in the sync header:
-
-```
-Project SDK: kailash-enterprise==1.0.0 (from pyproject.toml)
-Template COC: 1.0.0 (from template .claude/VERSION)
-```
-
-If the template artifacts were codified from a newer SDK version than the project uses, warn:
+**Report shape**:
 
 ```
-⚠ Template artifacts may reference SDK features newer than your installed version.
-  Consider upgrading your SDK dependency.
+## Sync Report: loom/ → kailash-coc-claude-py/
+Gate 1: 3 reviewed (1 global, 1 variant-py, 1 skipped), SDK 2.2.1
+Gate 2: 12 updated, 2 added, 1 flagged, 482 unchanged, 3 preserved
+SDK pins: kailash 2.2.1→2.3.0, kailash-dataflow 1.2.1→1.3.0
+Dependencies: uv sync ✓ | Hooks: 11/11 | VERSION: 1.0.0→1.1.0
 ```
 
-This is informational — sync proceeds regardless.
+## Exclusions
 
-### 4. Compare freshness
+Never synced: `learning/`, `.proposals/`, `variants/`, `settings.local.json`, `CLAUDE.md`, `.env`, `.git/`. `sync-manifest.yaml` is excluded from cc-only-legacy templates AND from BUILD repos, but **emitted to multi-CLI USE templates** when `multi_cli_overlays.<template_type>.manifest_distribute: true` (the emitter at the project repo reads it at `/migrate` time). Full list: `skills/30-claude-code-patterns/sync-flow.md` § Exclusions.
 
-Compare `.coc-sync-marker` timestamps. If already fresh: "Already up to date."
+## Delegate
 
-### 5. Pull and merge
+- **Gate 1** → **sync-reviewer** agent
+- **Gate 2** → **coc-sync** agent (MUST read target content before writing; no bulk overwrites)
+- **Downstream** → no delegation (in-place per skill protocol)
 
-**Updated from template** (shared artifacts):
+## Examples
 
-- `agents/**/*.md` (except `agents/project/`)
-- `commands/*.md`
-- `rules/*.md`
-- `skills/**/*` (except `skills/project/`)
-- `guides/**/*`
-
-**Added from template** (new files not yet in this repo):
-
-- Any file in the template not present locally
-
-**Preserved** (never modified by sync):
-
-- `agents/project/**` and `skills/project/**` — project-specific (USE repos only; BUILD repos do not have these directories)
-- `learning/**` — per-repo learning data
-- `.proposals/**` — review artifacts
-- `settings.local.json` — per-repo settings
-- `workspaces/**` — project workspaces
-- `CLAUDE.md` (at repo root) — project-specific directives
-- Any file/directory not present in the template
-
-**Scripts** (updated from template):
-
-- `.claude/hooks/*.js` — updated
-- `.claude/hooks/lib/*.js` — updated
-
-### 6. Verify integrity
-
-- Every hook in `settings.json` has a corresponding script
-- Every `require("./lib/...")` has a matching lib file
-
-### 7. Update tracking
-
-- Write `.claude/.coc-sync-marker` with timestamp and template source
-- If `.claude/VERSION` exists, update `upstream.version` to match the template's VERSION version (so future session-start checks report correctly)
-
-### 8. Report
-
-```
-## Sync Complete: <TEMPLATE> → this repo
-
-Updated: {N} shared artifacts
-Added: {N} new artifacts from template
-Preserved: {N} project-specific files untouched
-Scripts: {N} hooks updated
-
-Your artifacts are current with the template.
-```
-
-## Pushing Changes Upstream
-
-BUILD repos and downstream USE repos behave differently when `/codify` runs:
-
-- **BUILD repos** (kailash-py, kailash-rs, kailash-prism): `/codify` writes to canonical locations (`agents/frameworks/`, `skills/NN-name/`, `rules/*.md`) AND appends entries to `.claude/.proposals/latest.yaml` for upstream flow to loom/. Then open loom/ and run `/sync rs` — Gate 1 classifies each change (global vs variant), Gate 2 distributes to USE templates.
-- **Downstream USE repos** (consumer projects): `/codify` writes to `.claude/agents/project/` and `.claude/skills/project/` and stays LOCAL. No `.proposals/latest.yaml` is created; no upstream flow. These artifacts are preserved across `/sync` runs by the "Project-specific" rule above.
-- **COC-artifact improvements** (method/rules/skills/agents/COC-tooling) MAY be proposed at the USE-template repo (`kailash-coc-*`); loom Gate-1 ingests this stream symmetrically with the BUILD stream, and either origin is disclosure-scrubbed on intake. This is the authoritative target flow per `guides/co-setup/09-proposal-protocol.md` Step 7b.
-
-**Never** edit the template directly. All shared artifact changes flow through loom/.
-
-## When to Run
-
-- Session-start reports "COC artifacts are stale"
-- After upstream releases new patterns
-- Before starting a new feature (ensure latest)
+- `/sync py` — loom/: review kailash-py changes, merge to coc-claude-py + coc-py
+- `/sync rs` — loom/: review kailash-rs changes, merge to coc-claude-rs + coc-rs
+- `/sync rb` — loom/: distribute to coc-claude-rb (no BUILD)
+- `/sync` — downstream project: pull latest from USE template

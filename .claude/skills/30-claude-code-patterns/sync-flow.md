@@ -78,7 +78,33 @@ Pull latest artifacts from the USE template repo. No target needed — reads tem
 
 ## Gate 1: Review + Scrub (inbound — TWO proposal streams; loom does not originate)
 
-loom is the central splitter/distributor — it never authors an artifact change itself. Gate 1 ingests proposals from TWO upstream streams: the **BUILD stream** (kailash-py / kailash-rs — SDK-code proposals; cross-SDK considered first by the BUILD repo, Gate 1 records/flags it as an advisory alignment note per step 8, NOT a hard block) and the **USE-template stream** (`kailash-coc-*` — COC-artifact-improvement proposals from USE-template `/codify` origination per `guides/co-setup/09-proposal-protocol.md` Step 7b). Delegated to **sync-reviewer** agent. Runs automatically when `/sync` detects unreviewed changes; also runs on explicit `/sync py review`.
+loom is the central splitter/distributor — it never authors an artifact change itself. Gate 1 ingests proposals from TWO upstream streams: the **BUILD stream** (kailash-py / kailash-rs — SDK-code proposals; cross-SDK considered first by the BUILD repo, Gate 1 records/flags it as an advisory alignment note per step 8, NOT a hard block) and the **USE-template stream** (`kailash-coc-*` — COC-artifact-improvement proposals from USE-template `/codify` origination; the originator schema is the **USE-Template Proposal Schema (Step 7b)** subsection below — self-contained here so it travels to USE templates; `guides/co-setup/09-proposal-protocol.md` Step 7b carries the same schema plus full rationale but is loom-only and MUST NOT be cited as the schema authority in USE-template context). Delegated to **sync-reviewer** agent. Runs automatically when `/sync` detects unreviewed changes; also runs on explicit `/sync py review`.
+
+### USE-Template Proposal Schema (Step 7b — originator contract, self-contained)
+
+This is the field-shape contract a USE-template `/codify` session emits to `.claude/.proposals/latest.yaml`. It is reproduced here (not only in the loom-only `guides/co-setup/` guide) because USE templates do not receive `guides/co-setup/**` (`sync-manifest.yaml::use_excluded`); a USE-template session MUST be able to resolve the schema from a synced artifact.
+
+**Detect USE-template class:** git remote matches a USE-template slug (`sync-manifest.yaml::sync_targets[].templates[].repo`) OR `.claude/VERSION::type == "coc-template"`.
+
+**Mechanical wrong-lane defense (MUST, before writing the manifest):** glob-check every candidate change-path against the disallowed set `src/**`, `packages/**`, `pyproject.toml`, `Cargo.toml`. All disallowed → HALT ("wrong-lane — refile against BUILD repo issue queue"); mixed → skip-with-warning (in-scope proceed, disallowed excluded + warned); all in-scope → proceed.
+
+```yaml
+source_repo: kailash-coc-claude-py # or -claude-rs / -claude-rb / kailash-coc-py / -rs
+origin: use-template # explicit class discriminator
+codify_date: YYYY-MM-DD
+codify_session: "type(scope): description of work"
+template_version: "X.Y.Z" # .claude/VERSION::upstream.template_version
+coc_version: "X.Y.Z" # .claude/VERSION::upstream.version
+changes:
+  - file: .claude/rules/some-rule.md
+    action: created | modified
+    suggested_tier: cc | co | coc | coc-py | coc-rs
+    reason: "Why this artifact was created/changed"
+    diff_lines: "+N -N"
+status: pending_review
+```
+
+**Schema asymmetry vs BUILD (intentional):** USE-template manifests **OMIT** `sdk_version` / `sdk_packages` — the originator is artifact-only, not SDK code. Lifecycle is the standard three-state (`pending_review` → `reviewed` → `distributed`); append-not-overwrite per `rules/artifact-flow.md` § "Proposal Lifecycle".
 
 ### Process
 

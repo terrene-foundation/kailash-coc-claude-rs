@@ -1,73 +1,67 @@
 ---
-name: nexus-quickstart
-description: "Zero-config NexusApp setup and basic handler/workflow registration. Start here for all Nexus applications."
+skill: nexus-quickstart
+description: Zero-config Nexus() setup and basic workflow registration. Start here for all Nexus applications.
+priority: CRITICAL
+tags: [nexus, quickstart, zero-config, setup]
 ---
 
-# Nexus Quickstart (kailash-rs)
+# Nexus Quickstart
 
 Zero-configuration platform deployment. Get running in 30 seconds.
 
 ## Instant Start
 
-```python
-from kailash.nexus import NexusApp
+```
+from nexus import Nexus
 
-app = NexusApp()
+app = Nexus()
 app.start()
 ```
 
-That gives you:
+That creates:
 
-- API Server on `http://localhost:3000`
-- Health Check at `http://localhost:3000/health`
-- MCP Server for AI agent integration
+- API Server on `http://localhost:8000`
+- Health Check at `http://localhost:8000/health`
+- MCP Server on port 3001
 
-## Add Your First Handler (Recommended)
+## Register a Workflow
 
-```python
-from kailash.nexus import NexusApp
+```
+app = Nexus()
 
-app = NexusApp()
+# Build a workflow using the Core SDK WorkflowBuilder
+workflow = create_workflow()  # language-specific — see variant
 
-@app.handler("greet", description="Greet a user")
-async def greet(name: str, greeting: str = "Hello") -> dict:
-    return {"message": f"{greeting}, {name}!"}
+# Register once, available on all channels
+app.register("fetch-data", workflow.build())  # MUST call .build()
 
 app.start()
 ```
 
-## Register a Workflow (Low-Level Nexus)
+## Register a Handler
 
-```python
-from kailash.nexus import Nexus, NexusConfig
-import kailash
+For simple operations, register a function directly instead of building a workflow:
 
-reg = kailash.NodeRegistry()
-builder = kailash.WorkflowBuilder()
-builder.add_node("EmbeddedPythonNode", "fetch", {
-    "code": "result = {'status': 'ok'}",
-    "output_vars": ["result"],
-})
-
-nexus = Nexus(config=NexusConfig(port=3000))
-nexus.register_workflow("fetch-data", builder.build(reg))
-nexus.start()
 ```
+app = Nexus()
+app.handler("greet", greet_function)
+app.start()
+```
+
+Decorator-style handler registration is also available in most SDKs. See language-specific variant for decorator syntax and signature details.
 
 ## Test All Three Channels
 
 **API (HTTP)**:
 
 ```bash
-curl -X POST http://localhost:3000/api/greet \
-  -H "Content-Type: application/json" \
-  -d '{"name": "World"}'
+curl -X POST http://localhost:8000/workflows/fetch-data/execute
 ```
 
 **CLI**:
 
 ```bash
-nexus run greet --name World
+nexus run fetch-data
 ```
 
 **MCP** (for AI agents):
@@ -75,53 +69,58 @@ nexus run greet --name World
 ```json
 {
   "method": "tools/call",
-  "params": { "name": "greet", "arguments": { "name": "World" } }
+  "params": { "name": "fetch-data", "arguments": {} }
 }
 ```
 
-## Custom Port Configuration
+## Critical Rules
 
-```python
-from kailash.nexus import NexusApp, NexusConfig
+### Always Call .build()
 
-app = NexusApp(config=NexusConfig(port=8080))
-app.start()
+```
+# CORRECT
+app.register("workflow-name", workflow.build())
+
+# WRONG — will fail
+app.register("workflow-name", workflow)
+```
+
+### Correct Parameter Order
+
+```
+# CORRECT — name first, workflow second
+app.register("name", workflow.build())
+
+# WRONG — reversed
+app.register(workflow.build(), "name")
 ```
 
 ## Common Issues
 
-### Import Errors
-
-```bash
-pip install kailash-enterprise  # kailash-rs bundles Nexus
-```
-
 ### Port Conflicts
 
-```python
-app = NexusApp(config=NexusConfig(port=8001))
+```
+app = Nexus(api_port=8001, mcp_port=3002)
 ```
 
-## Key Differences from kailash-py
+### Workflow Not Found
 
-| Aspect                | kailash-py                               | kailash-rs                                                       |
-| --------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
-| Recommended entry     | `from nexus import Nexus`                | `from kailash.nexus import NexusApp`                             |
-| Import path           | `nexus` (standalone package)             | `kailash.nexus` (bundled)                                        |
-| Default port          | 8000                                     | 3000                                                             |
-| Low-level access      | Same `Nexus` class                       | `Nexus` (Rust binding), `NexusApp` (Python wrapper)              |
-| Workflow registration | `app.register("name", workflow.build())` | `nexus.register_workflow("name", workflow)` on low-level `Nexus` |
+Ensure `.build()` is called before passing the workflow to `register()`.
 
 ## Next Steps
 
-- Add handlers: See [nexus-handler-support](nexus-handler-support.md)
-- Compare Nexus vs NexusApp: See [nexus-comparison](nexus-comparison.md)
-- Use multiple channels: See [nexus-multi-channel](nexus-multi-channel.md)
-- Add authentication: See [nexus-security-best-practices](nexus-security-best-practices.md)
+- Register handlers: See [nexus-handler-support](nexus-handler-support.md)
+- Registration patterns: See [nexus-workflow-registration](nexus-workflow-registration.md)
+- Multiple channels: See [nexus-multi-channel](nexus-multi-channel.md)
+- DataFlow integration: See [nexus-dataflow-integration](nexus-dataflow-integration.md)
+- Authentication: See [nexus-auth-plugin](nexus-auth-plugin.md)
 
 ## Key Takeaways
 
-- Use `NexusApp` for most cases -- it provides decorators and convenience methods
-- Use low-level `Nexus` for middleware, routers, plugins, and event bus
+- Zero configuration: `Nexus()` and go
+- Always call `.build()` before registration
 - Single registration creates API + CLI + MCP
-- Default host is `0.0.0.0`, default port is `3000`
+- Default ports: 8000 (API), 3001 (MCP)
+- Decorator patterns and route-style endpoints available (see language-specific variant)
+
+See language-specific variant for complete code examples with imports, node types, and decorator patterns.

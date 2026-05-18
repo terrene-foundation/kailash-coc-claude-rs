@@ -76,6 +76,36 @@ edit loom/.claude/rules/foo.md directly "to save a round-trip"
 
 **Why:** A distributor that also originates has no upstream audit trail — the BUILD-repo or USE-template `/codify` proposal provenance is the only record of why an artifact changed; a loom-originated edit is unattributable and un-reviewable at Gate-1.
 
+### Co-Owner-Directed Origination (narrow, receipt-gated exception)
+
+loom MAY originate a COC-tooling artifact change directly WHEN the change is directed by a co-owner in-session AND a journal `DECISION` entry recording the directive lands BEFORE the edit. The journal entry IS the upstream audit trail the splitter rule otherwise requires. ALL THREE conditions MUST hold; missing any one → the change is an unattributable loom origination and is BLOCKED:
+
+1. **Verbatim directive** — the co-owner's instruction is quoted verbatim in the journal `DECISION` entry (not paraphrased, not inferred from assent).
+2. **Receipt-before-edit** — the journal entry is written and committed-or-staged BEFORE the first artifact edit; the entry is the provenance, not a post-hoc rationalization.
+3. **COC-tooling scope only** — the artifact is COC tooling (a command / skill / agent / rule / `.claude/bin` validator under loom's own surface). CC/CO methodology changes still route to `atelier/` via `/sync-to-coc`; SDK code still routes to a BUILD repo. This exception does NOT widen those lanes.
+
+```
+# DO — co-owner directs a /wrapup change in-session; journal DECISION
+# entry (verbatim directive) lands first, THEN the edit
+journal/00NN-DECISION-...md  (verbatim co-owner quote)  →  edit .claude/commands/wrapup.md
+
+# DO NOT — loom edits a rule citing "the co-owner would want this"
+# (no in-session directive, no verbatim quote, no receipt-first journal)
+edit loom/.claude/rules/foo.md  "co-owner implied it last week"
+```
+
+**BLOCKED rationalizations:**
+
+- "The co-owner approved the general direction, a verbatim quote is pedantic"
+- "I'll write the journal entry after the edit, same thing"
+- "It's CC methodology but close enough to COC tooling"
+- "Re-routing a co-owner's direct in-session directive through the USE-template lane is just process"
+- "Standing prior approval covers this new origination"
+
+**Why:** Without the verbatim + receipt-first + scope conditions, "co-owner directed it" becomes a rubber-stamp that reopens the unattributable-origination failure mode the splitter rule closes. The three conditions keep the carve-out narrow: a real in-session directive with a durable, greppable provenance receipt is auditable at Gate-1 exactly as a `/codify` proposal is; anything weaker is not. CC/CO scope is fenced because methodology drift from `atelier/` is a different, wider failure mode this exception MUST NOT touch.
+
+Origin: 2026-05-18 — co-owner-directed `/wrapup` forest-ledger codification; 6-entry precedent chain journal/0085, 0088, 0089–0094 each asserted this exception per-journal before it was named here. Receipt: journal/0095.
+
 ## BUILD Repo Rules
 
 - `/codify` writes to BUILD repo's `.claude/` for immediate local use + creates `.claude/.proposals/latest.yaml`
