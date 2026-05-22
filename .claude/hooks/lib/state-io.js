@@ -14,6 +14,7 @@ const { resolveStateDir, ensureStateDir } = require("./state-resolver");
 const POSTURE_FILE = "posture.json";
 const POSTURE_BAK = "posture.json.bak";
 const VIOLATIONS_FILE = "violations.jsonl";
+const COORDINATION_LOG_FILE = "coordination-log.jsonl";
 const MAX_LINE_BYTES = 2048; // mitigates CRIT atomicity (POSIX append < PIPE_BUF=4096)
 
 const L1 = "L1_PSEUDO_AGENT";
@@ -116,6 +117,24 @@ function writePosture(cwd, posture) {
 }
 
 /**
+ * Strip the absolute-home prefix from a repo path so the `repo` field
+ * records only the repo basename (e.g. `loom`, not `/Users/<login>/repos/loom`).
+ * M9.1 R3 Sec-R3-S-01: absolute paths under `/Users/<login>/` and `/home/<login>/`
+ * are PII (operator username leak) per `security.md` § "No secrets in logs"
+ * + `user-flow-validation.md` MUST-6. Per `zero-tolerance.md` Rule 1a
+ * scanner-surface symmetry, the row was leaked regardless of when it
+ * entered; this strip applies at the write boundary going forward.
+ */
+function _stripRepoPath(p) {
+  if (typeof p !== "string" || !p) return "unknown";
+  // Trailing-slash basename: works for `/Users/x/repos/loom`,
+  // `/home/x/repos/loom`, `/repos/loom`, `C:\\Users\\x\\repos\\loom`,
+  // and relative paths alike.
+  const idx = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return idx >= 0 ? p.slice(idx + 1) || "unknown" : p;
+}
+
+/**
  * Append a violation. Single-line JSON, ≤2KB, atomic O_APPEND (mitigates HIGH-6 race).
  */
 function appendViolation(cwd, partial) {
@@ -126,7 +145,7 @@ function appendViolation(cwd, partial) {
     id: newId("vio"),
     timestamp: new Date().toISOString(),
     session_id: process.env.CLAUDE_SESSION_ID || "unknown",
-    repo: cwd || process.cwd(),
+    repo: _stripRepoPath(cwd || process.cwd()),
     ...partial,
   };
 
@@ -169,12 +188,41 @@ function readRecentViolations(cwd, { sinceTs, limit = 1000 } = {}) {
   return out.reverse();
 }
 
+/**
+ * Resolve the canonical on-disk path of the multi-operator coordination
+ * log for `repoDir`. The log lives at:
+ *
+ *   <repoDir>/.claude/learning/coordination-log.jsonl
+ *
+ * Consumers (the filesystem transport in `transport-filesystem.js`, the
+ * sessionstart hook, the /claim command, future audit tooling) MUST
+ * route through this helper rather than hardcoding the path. Centralising
+ * the binding keeps the storage layout in one place — the same
+ * single-source-of-truth discipline `resolveStateDir` provides for
+ * posture / violations state.
+ *
+ * @param {string} repoDir - absolute path to the repo root
+ * @returns {string} absolute path to the coordination log file
+ */
+function resolveLogPath(repoDir) {
+  const dir = resolveStateDir(repoDir);
+  return path.join(dir, COORDINATION_LOG_FILE);
+}
+
 module.exports = {
   readPosture,
   writePosture,
   appendViolation,
   readRecentViolations,
   failClosedPosture,
+  resolveLogPath,
+  // M9.1 R4 Sec-R4-S-01 — exported so `coc-append.js::appendStamped` and
+  // `learning-utils.js::logObservation` can route their `repo`/`cwd`
+  // field through the same single-source-of-truth strip helper per
+  // `security.md` § Multi-Site Kwarg Plumbing (one helper, every caller
+  // routes through it; siblings cannot drift).
+  stripRepoPath: _stripRepoPath,
   VALID_POSTURES,
   MAX_LINE_BYTES,
+  COORDINATION_LOG_FILE,
 };

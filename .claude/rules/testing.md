@@ -18,225 +18,160 @@ See `.claude/guides/rule-extracts/testing.md` for full evidence, the kailash-ml 
 
 <!-- slot:neutral-body -->
 
-
-This variant serves the rs USE templates — for **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python.
-
 ## Test-Once Protocol (Implementation Mode)
 
-During `/implement`, tests run ONCE per code change, not once per phase.
+During `/implement`, tests run ONCE per code change, not once per phase. Full suite per todo, pre-commit Tier 1 safety net, CI full matrix as final gate. Re-run only on commit-hash mismatch, infra change, or specific test suspected wrong.
 
-**Why:** Running the full test suite in every phase wastes 2-5 minutes per cycle, compounding to significant delays across a multi-phase session.
+**Why:** Running full suite every phase wastes 2-5 minutes per cycle.
 
-1. `/implement` runs full suite ONCE per todo, writes `.test-results` to workspace
-2. Pre-commit runs Tier 1 unit tests as fast safety net
-3. CI runs the full matrix as final gate
+## Probe-Driven Verification (MUST)
 
-**Re-run during /implement only when:** commit hash mismatch, infrastructure change, or specific test suspected wrong.
+Semantic verification of assistant output (recommendations, refusals, compliance, response quality) MUST be probe-driven per `rules/probe-driven-verification.md`. Regex/keyword/substring matching against semantic claims is BLOCKED. Structural assertions (file existence, exit code, fixture-marker presence) keep regex per `probe-driven-verification.md` Rule 3.
 
-## Audit Mode Rules (Red Team / /redteam)
+See `skills/12-testing-strategies/probe-driven-verification.md` for the operational runbook.
 
-When auditing test coverage, the rules invert: do NOT trust prior round outputs. Re-derive everything.
+## Audit Mode (/redteam)
 
-### MUST: Re-derive coverage from scratch each audit round
+In audit mode, MUST (1) re-derive coverage from scratch via `pytest --collect-only -q tests/` (NOT `cat .test-results` — BLOCKED); (2) for every NEW module, grep test directory for import — empty = HIGH; (3) for every spec § Security Threats subsection, grep `test_<threat>` — missing = HIGH.
 
-```bash
-# DO: re-derive
-pytest --collect-only -q tests/
+**Why:** Prior `.test-results` may claim "5950 tests pass" true for OLD code while new modules ship with zero coverage. Documented threats without tests are unmitigated claims. See `skills/spec-compliance/SKILL.md` for full protocol.
 
-# DO NOT: trust the file
-cat .test-results  # BLOCKED in audit mode
+## Regression Testing
+
+Every bug fix MUST include a regression test BEFORE merge. Place in `tests/regression/test_issue_*.py` with `@pytest.mark.regression`. NEVER deleted.
+
+**Why:** Without it, same bug re-appears in future refactor, undetected until a user reports.
+
+### MUST: Behavioral Regression Tests Over Source-Grep
+
+Call the function; assert raise/return. Grepping source for literal substrings is BLOCKED as sole assertion.
+
+```python
+# DO — behavioral
+@pytest.mark.regression
+def test_null_byte_rejected():
+    with pytest.raises(ValueError, match="null byte"):
+        decode_userinfo_or_raise(urlparse("mysql://u:%00x@h/d"))
+
+# DO NOT — source-grep pins implementation
+assert "\\x00" in open("src/…/connection.py").read()  # breaks on refactor
 ```
 
-**Why:** A previous round may have written `.test-results` claiming "5950 tests pass" — true, but those tests covered the OLD code, while new spec modules have zero tests. Without re-derivation, the audit certifies test counts that don't correspond to the new functionality.
+**Why:** Source-grep breaks when logic moves to a shared helper (the right refactor). Behavioral tests survive refactors and module moves.
 
-### MUST: Verify NEW modules have NEW tests
+### MUST: Verified Numerical Claims In Session Notes
 
-For every new Python module a spec creates, grep the test directory for an import of that module. Zero importing tests = HIGH finding regardless of "tests pass".
+Numerical claims (test counts, file counts, coverage) in session notes MUST be produced by a verifying command at the moment of writing. Hand-typed is BLOCKED.
 
 ```bash
-# DO
-grep -rln "from my_app.wrapper_base\|import wrapper_base" tests/
-# Empty → HIGH: new module has zero test coverage
+# DO     pytest tests/regression/ --collect-only -q 2>&1 | grep -c '::'
+# DO NOT hand-recalled round numbers
 ```
 
-**Why:** Counting passing tests at the suite level lets new functionality ship with zero coverage as long as legacy tests still pass. Per-module test verification catches this.
-
-### MUST: Verify security mitigations have tests
-
-For every § Security Threats subsection in any spec, grep for a corresponding `test_<threat>` function. Missing = HIGH.
-
-**Why:** Documented threats with no test become "we said we'd handle it" claims that nothing actually verifies. Threats without tests are unmitigated.
-
-See `skills/spec-compliance/SKILL.md` for the full spec compliance verification protocol.
+**Why:** "Claim a number, never verify" produces multi-test discrepancies; 2-second command converts memory bug into script.
 
 ### MUST: `__all__` / Re-export Symbol Counts Use Structural Enumeration, Not Grep
 
-Counts of `__all__` entries (Python binding) or `pub use` re-exports (Rust crate) used in spec authority, docstrings, audit findings, or CHANGELOG claims MUST be produced by structural enumeration of the language's parser AST — NOT `grep -c '"'` / `wc -l` on the assignment block. Grep counts comments, blank lines, and line continuations as elements; structural parsers count list items.
+Counts of `__all__` entries (Python) or re-exports (Rust `pub use ...`) used in spec authority, docstrings, audit findings, or CHANGELOG claims MUST be produced by structural enumeration of the language's parser AST — NOT `grep -c` / `wc -l`. See guide for canonical Python (`ast.parse()`) and Rust (`syn::parse_file` / `cargo doc --document-private-items`) snippets.
 
 ```python
-# DO — Python binding: AST-derived count
-import ast, pathlib
-tree = ast.parse(pathlib.Path("bindings/kailash-python/python/kailash/__init__.py").read_text())
-for n in ast.walk(tree):
-    if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets):
-        if isinstance(n.value, ast.List):
-            print(len(n.value.elts))  # canonical count
-```
-
-```rust
-// DO — Rust crate: structural enumeration via syn::parse_file
-let src = std::fs::read_to_string("crates/kailash/src/lib.rs")?;
-let file = syn::parse_file(&src)?;
-let pub_use_count = file.items.iter().filter(|i| matches!(i, syn::Item::Use(u)
-    if matches!(u.vis, syn::Visibility::Public(_)))).count();
-println!("{}", pub_use_count);
-
-// Alternative: cargo doc --document-private-items JSON output
-// $ cargo doc --no-deps --document-private-items --output-format=json 2>/dev/null
-// Then parse target/doc/*.json for re-export entries.
-```
-
-```bash
-# DO NOT — grep-based count (counts comments + blank lines + continuations)
-grep -c '^\s*"' bindings/kailash-python/python/kailash/__init__.py
-grep -c '^pub use' crates/kailash/src/lib.rs   # misses items inside pub mod blocks
+# DO — Python: walk ast.Assign for __all__, len(value.elts)
+# DO NOT — grep '^\s*"' (counts comments + blank lines + line continuations as entries)
 ```
 
 **BLOCKED rationalizations:** "Grep is faster" / "I'll subtract the comment lines manually" / "The count is approximate anyway" / "AST is overkill for a docstring number".
 
-**Why:** Grep cannot distinguish `# Group N — comment` from `"Group_N",` when both contain quotes; for Rust, grep cannot follow `pub use module::*` glob expansions or items nested inside `pub mod { ... }` blocks. Structural parsing is canonical because it parses the language, not text. See guide for Wave 6 evidence (Python: three incompatible counts — docstring 41, grep 48, AST 49) and the cross-SDK applicability via `syn::parse_file` for Rust binding consumers who audit the underlying crate.
+**Why:** Grep cannot distinguish `# Group N — comment` from `"Group_N",` when both contain quotes; it cannot follow line continuations across an `__all__ = [...]` block. Structural parsing is canonical because it parses the language, not text. See guide for Wave 6 evidence (three incompatible counts: docstring 41, grep 48, AST 49).
 
-Origin: kailash-py W6 /redteam Round 3 (2026-04-27) — `kailash_ml/__init__.py:627` docstring claimed 41, grep reported 48, AST said 49. Cross-language port: Rust uses `syn::parse_file` or `cargo doc --document-private-items`; the structural-enumeration principle is language-neutral.
+## Test Resource Cleanup
 
-### MUST: Rust `pub use` Result-Type Coverage Pinned By Literal-Identifier Wiring Tests
+Warnings during `pytest` are real bugs that will surface as production incidents. See guide § "PR #466 — 63-Warning Sweep" for full evidence per category below.
 
-When a Rust crate `pub use`-exports a result type (struct / enum / trait), the per-symbol coverage sweep (`tools/sweep-redteam.py --json`) reports a HIGH coverage gap unless at least one test file binds the type to a `let var: <Type> = ...` declaration. Inline `#[cfg(test)]` tests in the same module that exercise the API surface but never name the type literally are NOT sufficient — the sweep tool greps for `<Type>` as an identifier; `let result = build()` binds nothing the tool can see, so the type's contract is uncovered from the tool's view AND from any future refactor's view.
-
-Coverage MUST be pinned in a dedicated `tests/test_<module>_wiring.rs` file that:
-
-1. Imports the type by name from the crate's public surface (e.g. `use kailash_ml::engine::{DriftReport, FeatureDriftResult};`).
-2. Constructs a value via the canonical public-API entry (e.g. `DriftMonitor::from_reference().check()` returns `DriftReport`).
-3. Binds the value to `let var: <Type> = ...` so the type appears as a literal identifier on the LHS.
-4. Asserts every public field individually (`assert_eq!(var.field_a, ...)`, `assert!(var.field_b.is_finite())`).
-5. For trait wiring, casts a concrete impl to `&dyn TraitName` so the trait surface compiles only if every used method exists (`let backend: &dyn FeatureStoreBackend = &store;`).
-
-```rust
-// DO — wiring test binds the type literally; sweep tool sees it
-use kailash_ml::engine::{DriftMonitor, DriftConfig, DriftReport, FeatureDriftResult};
-
-#[test]
-fn drift_report_full_field_assertions() {
-    let mut monitor = DriftMonitor::from_reference(&data, &names, DriftConfig::default()).unwrap();
-    let report: DriftReport = monitor.check(&current).unwrap();   // ← literal type binding
-    assert!(!report.features.is_empty());
-    assert!(report.overall_drifted);
-    let f0: &FeatureDriftResult = &report.features["f0"];          // ← literal type binding
-    assert_eq!(f0.feature_name, "f0");
-}
-
-// DO NOT — inline test exercises the API but never names the type literally
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn check_works() {
-        let result = DriftMonitor::from_reference(&d, &n, DriftConfig::default())
-            .unwrap()
-            .check(&c)
-            .unwrap();              // ← `result` shadows the type; sweep tool sees nothing
-        assert!(result.overall_drifted);
-    }
-}
-```
-
-**BLOCKED rationalizations:**
-
-- "The inline `#[cfg(test)]` tests already exercise the API; adding a wiring test is duplication"
-- "Field-by-field assertions are brittle; one assertion that the API works is enough"
-- "The type is `pub use`-exported, that proves it's reachable"
-- "If a refactor breaks the type, integration tests will catch it"
-- "The sweep tool is the wrong tool; we shouldn't author tests for its quirks"
-- "I'll add a wiring test if and when the sweep flags the type"
-
-**Why:** A `pub use`-exported type with no literal-identifier binding in any test corpus is structurally indistinguishable from a removed type — the sweep tool reports a HIGH coverage gap because there's no syntactic anchor. The 2026-05-06 sweep flagged 22 HIGH gaps in kailash-ml and bindings precisely because inline tests never bound the result types literally. Wiring tests close two gaps simultaneously: they make the type discoverable to the per-symbol scan, AND they pin every public field's shape so a downstream refactor that drops a field fails one specific assertion (rather than silently passing because no test reads the field). The trait-cast pattern (`&dyn TraitName`) extends the same defense to trait surfaces: removing a trait method breaks the test at compile time.
-
-#### Same-Shard Accessor For Orphaned `pub use` Types
-
-When a wiring test cannot construct or observe a `pub use`-exported type because the type has NO public constructor AND NO public accessor on any owning facade, the disposition per `rules/autonomous-execution.md` Rule 4 is to add the missing accessor IN THE SAME SHARD as the wiring test — typically a one-line `pub fn <field>(&self) -> &<Type> { &self.<field> }` mirroring the existing accessor pattern (e.g. `history()`, `config()`, `feature_names()` on the same struct). Removing the type from `pub use` is also acceptable; leaving it `pub use`-exported but unreachable is BLOCKED.
-
-```rust
-// DO — same-shard accessor closes the unreachability gap
-impl DriftMonitor {
-    pub fn history(&self) -> &[DriftReport] { &self.history }       // existing
-    pub fn config(&self) -> &DriftConfig { &self.config }            // existing
-    pub fn reference_snapshot(&self) -> &DriftSnapshot {             // ← new in same shard
-        &self.reference
-    }
-}
-
-// DO NOT — pub use exposed; no constructor; no accessor; type is structurally orphaned
-pub use drift::{DriftSnapshot, ...};
-pub struct DriftMonitor {
-    reference: DriftSnapshot,    // private field; no accessor; users cannot observe
-}
-```
-
-**Why:** A `pub use`-exported type with no public construction or observation path is the orphan failure mode at the type-export level: downstream consumers see the type in the API surface, build mental models against it, and find no way to reach it at runtime. The same-shard accessor sweep is bounded by `rules/autonomous-execution.md` Rule 4's shard budget (≤500 LOC load-bearing logic, ≤5–10 invariants) — typically a 5-line accessor fits trivially. Origin: 2026-05-06 RT-2 (PR #817) — `DriftSnapshot` was `pub use`-exported but had no public accessor on `DriftMonitor`; same-shard fix added `reference_snapshot()` mirroring the existing `history()` accessor pattern.
-
-Origin: 2026-05-06 RT-1 / RT-2 / RT-3 cycle (PRs #816, #817, #818) — three consecutive `/implement` shards established the wiring-test reference shape after `tools/sweep-redteam.py` flagged 22 HIGH coverage gaps in kailash-ml whose underlying types DID have inline-test exercise but no literal-identifier binding. RT-2 surfaced the orphan-accessor variant. The pattern generalizes to any Rust crate with `pub use` re-exports — kailash-dl-diagnostics, kailash-nexus, kailash-dataflow — and to language-axis siblings via the same literal-identifier scan extended for `js_name = "X"` / `name = "X"` aliases (NAPI / PyO3) noted in `workspaces/binding-parity/journal/0070-GAP-redteam-2026-05-06-coverage-findings.md` §3.
-
-## Trust Posture Wiring (this rule)
-
-- **Severity**: `halt-and-report` (lexical regex against `let result = ` followed by no typed binding cannot ship `block` per `hook-output-discipline.md` MUST-2; structural AST walk is required to upgrade to `block`).
-- **Grace period**: 7 days from 2026-05-06 → 2026-05-13.
-- **Cumulative threshold**: 3× same-rule violations in 30 days → posture drop per `trust-posture.md` §4.
-- **Regression-within-grace**: emergency L5→L4 downgrade per `trust-posture.md` §4.
-- **Receipt requirement**: none (rule fires only on tests/\* paths; no SessionStart ack required).
-- **Detection mechanism**: `tools/sweep-redteam.py --json` HIGH gap on `pub use`-exported type with zero literal-identifier hits; OR `find crates/*/tests/ -name 'test_*_wiring.rs' | xargs grep -L "let .*: <Type>"` returning the file as missing the binding.
-- **First violation**: none recorded yet (rule lands fresh in this codify cycle).
-- **Origin**: 2026-05-06 RT-1/2/3 cycle (PRs #816, #817, #818).
-
-## Regression Testing
-
-Every bug fix MUST include a regression test BEFORE the fix is merged.
-
-**Why:** Without a regression test, the same bug silently re-appears in a future refactor with no signal until a user reports it again.
-
-1. Write test that REPRODUCES the bug (must fail before fix, pass after)
-2. Place in `tests/regression/test_issue_*.py` with `@pytest.mark.regression`
-3. Regression tests are NEVER deleted
+### MUST: Fixtures Yield + Cleanup, Never Return
 
 ```python
-@pytest.mark.regression
-def test_issue_42_user_creation_preserves_explicit_id():
-    """Regression: #42 — CreateUser silently drops explicit id."""
-    assert result["id"] == "custom-id-value"
+# DO    yield channel; channel.close()
+# DO NOT return without cleanup → resource leaks until GC
 ```
+
+**BLOCKED rationalizations:** "class has `__del__`" / "unit test, process exits anyway" / "mock makes it fake".
+
+**Why:** Resource classes emitting `ResourceWarning` from `__del__` flood the runner hiding real signals. See guide for PR #466 (36 unclosed channels).
+
+### MUST: AsyncMock Replaced By Mock When `side_effect` Is `async def`
+
+```python
+# DO    patch(..., new_callable=Mock); m.side_effect = fake_open  # async def
+# DO NOT default AsyncMock double-wraps the coroutine; never awaited; RuntimeWarning at GC
+```
+
+**Why:** Default `AsyncMock` wraps the side_effect coroutine again; the wrapper is never awaited; `RuntimeWarning` surfaces at GC, hours later.
+
+### MUST: Helper Classes Use Stub/Helper/Fake Suffix; JWT Test Secrets ≥ 32 Bytes
+
+`class NameStub:` (NOT `class TestName:` with `__init__` — pytest collects `Test*`, triggers `PytestCollectionWarning`, class silently dropped). `JWT_TEST_SECRET = "test-secret-key-minimum-32-bytes!"` (NOT short — `InsecureKeyLengthWarning` per RFC 7518 §3.2).
+
+**Why:** Pytest's `Test*` collection silently drops `__init__`-bearing helper classes, hiding real test logic. Short HMAC keys teach contributors that 10 bytes is acceptable when 32 is the floor.
+
+### MUST: Pytest Plugin + Marker Declaration Pair
+
+Any test using `@pytest.mark.<X>` or `<X>` fixture from a plugin MUST declare the plugin in the owning sub-package's `[dev]` extras AND register the marker in pytest config SAME commit.
+
+```toml
+# DO    dev = ["pytest-benchmark>=4.0.0"]
+#       [tool.pytest.ini_options]
+#       markers = ["benchmark: Performance tests"]
+# DO NOT either layer missing → collection fails, whole sub-package blocked
+```
+
+**BLOCKED rationalizations:** "plugin is in CI so local works" / "pytest accepts unknown markers" / "we'll register in follow-up" / "fixture imported lazily" / "sub-package venv is separate".
+
+**Why:** Missing any layer breaks collection with an unhelpful error. See guide for 2026-04-20 11,917-test block.
+
+## MUST: Serialize Env-Var-Mutating Tests Via Module Lock
+
+Any two tests mutating SAME env var MUST serialize through a module-scope `threading.Lock` held across read-then-mutate; tests take `(monkeypatch, _env_serialized)`. See guide for full fixture pattern.
+
+**BLOCKED rationalizations:** "passes locally, CI scheduling is the bug" / "lock is overkill" / "pytest one-per-worker default" / "`@pytest.mark.serial`" (only with `--dist=loadgroup`) / "monkeypatch auto-restores".
+
+**Why:** `monkeypatch.setenv` restores at fixture teardown — AFTER the test body — so sibling tests observe either value depending on xdist scheduling. Classic "passes locally, fails CI".
 
 ## 3-Tier Testing
 
-### Tier 1 (Unit): Mocking allowed, <1s per test
+- **Tier 1 (Unit)**: Mocking allowed, <1s per test
+- **Tier 2 (Integration)**: Real infrastructure. NO mocking (`@patch`, `MagicMock`, `unittest.mock` — BLOCKED)
+- **Tier 3 (E2E)**: Real everything; every write verified with read-back
 
-### Tier 2 (Integration): Real infrastructure recommended
+**Why:** Mocks in Tier 2/3 hide real failures (connection handling, schema mismatches, transactions) that only surface against real infra. Exception — Protocol-Satisfying Deterministic Adapters: a class satisfying a `typing.Protocol` at runtime with deterministic output is NOT a mock. See guide § "Protocol Adapters" for full example.
 
-- Real database, real API calls (test server)
-- NO mocking (`@patch`, `MagicMock`, `unittest.mock` — BLOCKED)
+## Tier-1 Conftest Stub for Newly-Side-Effecting Internal Methods (Advisory)
 
-**Why:** Mocks at the binding boundary hide failures (connection handling, value serialization, lifetime management) that only surface with the real Python bindings exercising the underlying Rust runtime. Mocked binding objects bypass the FFI path entirely, so a passing mock-based test gives no confidence the binding actually works.
+When an internal method that was previously deterministic becomes side-effecting (e.g., an LLM call, a DB lookup, a network fetch) WITHOUT changing its return-shape contract, the canonical Tier-1 sweep is one autouse fixture in the _deepest applicable_ conftest:
 
-### Tier 3 (E2E): Real everything
-
-- Real browser, real database, real bindings
-- State persistence verification — every write MUST be verified with a read-back
-
-**Why:** The binding write path crosses the Python/Rust boundary, value serialization, and the database driver. Any layer can silently succeed without persisting, so only a read-back proves the data actually landed.
-
+```python
+# tests/unit/conftest.py
+@pytest.fixture(autouse=True)
+def _stub_<method_name>(monkeypatch):
+    from <pkg>.<module> import <Class>
+    monkeypatch.setattr(
+        <Class>, "<method_name>", lambda self, *a, **kw: <fixed_return>
+    )
 ```
-tests/
-├── regression/     # Permanent bug reproduction
-├── unit/           # Tier 1: Mocking allowed
-├── integration/    # Tier 2: Real infrastructure
-└── e2e/           # Tier 3: Real everything
-```
+
+Pytest's conftest-scope rules guarantee the stub does NOT leak to Tier-2 / Tier-3 (sibling `tests/integration/` and `tests/e2e/` directories don't inherit `tests/unit/conftest.py`).
+
+**When to use:**
+
+- Method has many Tier-1 call sites (~10+); editing each costs more than the stub.
+- Tier-1 tests don't depend on the method's actual content, only its return shape.
+- The new side-effect is the side-effect (LLM, DB, network); Tier-1 must remain offline + fast per the 3-Tier contract.
+
+**When NOT to use:**
+
+- The method's actual content is tested in Tier-1 (e.g., a regression test for the keyword classifier itself). Rewrite those tests to shape-only or move them to Tier-2.
+- Only 1-3 call sites are affected — explicit args are clearer.
+
+**Why:** A monkey-patch fixture keeps Tier-1 deterministic and offline without touching N test files. Future test additions pick up the stub automatically. The pattern collapsed a 36-call-site sweep to 1 file in the kailash-kaizen 2.20.0 release cycle (2026-05-06, issue #829).
 
 ## Coverage Requirements
 
@@ -245,204 +180,68 @@ tests/
 | General                              | 80%     |
 | Financial / Auth / Security-critical | 100%    |
 
-## Env-Var Test Isolation
+## MUST: End-to-End Pipeline Regression Above Unit + Integration
 
-Process-level environment variables are shared across every test running in the same process. When two tests both mutate the same env var (`monkeypatch.setenv`, `os.environ[...] = ...`), the test runner's scheduling order becomes a silent input to each test's observable result. In isolation and in serial, both tests pass; parallel scheduling on CI (pytest-xdist) produces flaky failures that look like real regressions.
-
-### MUST: Serialize Env-Var-Mutating Tests Via Test-Module Lock
-
-Any two tests that both mutate the SAME env var MUST serialize through a shared lock at test-module scope. The lock MUST be held for the entire read-then-mutate window, not just the mutate call.
+Every canonical pipeline the docs teach (README Quick Start, tutorial, 3-line example) MUST have a Tier-2+ regression test executing DOCS-EXACT code against real infra, asserting the final user-visible outcome. Lives in `tests/regression/` with `@pytest.mark.regression`; name includes "quickstart"/"readme"/tutorial-name (grep-able). See guide for full example.
 
 ```python
-# DO — pytest-xdist-safe: function-scoped monkeypatch + module-scoped lock
-import threading
-import pytest
-
-_ENV_LOCK = threading.Lock()
-
-@pytest.fixture(autouse=False)
-def _env_serialized():
-    with _ENV_LOCK:
-        yield
-
-def test_reads_max_connections_from_env(monkeypatch, _env_serialized):
-    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
-    client = kailash.ServiceClient()
-    assert client.max_connections == 7
-
-def test_defaults_to_99_when_env_unset(monkeypatch, _env_serialized):
-    monkeypatch.delenv("KAILASH_MAX_CONNECTIONS", raising=False)
-    client = kailash.ServiceClient()
-    assert client.max_connections == 99
-
-# DO NOT — no serialization, parallel xdist worker re-orders the mutations
-def test_reads_max_connections_from_env(monkeypatch):
-    monkeypatch.setenv("KAILASH_MAX_CONNECTIONS", "7")
-    # if the sibling test runs between setenv and client init, this sees 99
-    client = kailash.ServiceClient()
-    assert client.max_connections == 7  # FLAKY on CI, green locally
+@pytest.mark.regression
+async def test_readme_quickstart_executes_end_to_end():
+    result = await km.train(df, target="churned")
+    assert result.trainable is not None  # handoff field MUST survive
 ```
 
-**Alternatives that also satisfy this rule:**
+**BLOCKED rationalizations:** "primitives have unit+integration, pipeline is composition" / "README is illustrative" / "Tier 2 per primitive proves interfaces" / "user will file issue" / "E2E is slow and flaky" / "pipeline is demo's concern, not SDK".
 
-- `pytest-forked` (run each test in a fresh subprocess — hard isolation, highest cost)
-- `monkeypatch` with `scope="function"` (default) AND the module-scoped lock above (cheap, sufficient for most cases)
-- `pytest.MonkeyPatch.context()` inside the test body combined with the lock
+**Why:** Unit tests per primitive construct fixtures with exactly the fields THAT primitive needs — they cannot observe a field MISSING from the A→B handoff. Only DOCS-EXACT chain exercises the handoff contract. See guide for kailash-ml W33b evidence + `zero-tolerance.md` §2 "Fake integration via missing field".
 
-**BLOCKED rationalizations:**
+## State Persistence Verification (Tiers 2-3)
 
-- "The tests pass in isolation, CI scheduling is the bug"
-- "Adding a lock is overkill for two tests"
-- "pytest defaults to one-test-per-worker anyway"
-- "We can mark the tests `@pytest.mark.serial` instead" (only if the marker is actually honored by the runner — xdist does not enforce it without `--dist=loadgroup` + group assignment)
-- "monkeypatch auto-restores, so serialization is redundant"
-
-**Why:** Env vars are the textbook example of shared process state. `monkeypatch.setenv` restores at fixture teardown — which is AFTER the test body runs — so the sibling test can observe either the mutated value or the original depending on xdist worker scheduling. The flakiness surfaces intermittently on CI where test scheduling depends on runner load, producing a class of "passes locally, fails on CI" bugs that waste a full CI cycle per iteration. For binding consumer projects, env-var-driven config feeds through to the underlying Rust runtime via PyO3/Magnus — a flaky env race in the Python test suite produces non-deterministic binding behavior that looks like an FFI bug.
-
-Origin: Cross-SDK from kailash-rs PR #435 (2026-04-20) — `DATAFLOW_MAX_CONNECTIONS` env-var race produced a flaky CI failure (expected=7, actual=99). Python variant uses `monkeypatch` + `threading.Lock`; Rust variant uses `tokio::sync::Mutex` (see kailash-rs BUILD-repo testing.md).
-
-### Shared-Resource Test Isolation (Rust SDK)
-
-The env-var race above is one instance of a broader failure pattern: two tests mutating the same process-level shared resource race on parallel scheduling. The rule generalizes to any shared external state that Rust integration tests touch — a Docker Postgres container, a Redis instance, a shared cache, a file-system lockfile. Same contract: serialize across the read-then-mutate window via a test-module-scope Mutex.
-
-### MUST: Use `tokio::sync::Mutex` For Async Guards That Cross `.await`
-
-Any two integration tests that mutate the SAME shared external resource (real-PG container, real-Redis, shared cache, lockfile) MUST serialize through a `tokio::sync::Mutex` at test-module scope. The `std::sync::Mutex` form is BLOCKED when the guard crosses an `.await` point — it trips `clippy::await_holding_lock` AND risks deadlock if the tokio runtime moves the task to a different thread mid-await.
-
-```rust
-// DO — tokio::sync::Mutex, guard survives .await safely
-use tokio::sync::Mutex;
-use once_cell::sync::Lazy;
-
-static PG_INTEGRATION_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
-
-#[tokio::test]
-async fn test_real_pg_round_trip() {
-    let _guard = PG_INTEGRATION_LOCK.lock().await;
-    let pool = connect_real_pg().await;       // .await under tokio::sync guard — OK
-    let rows = pool.fetch_all("...").await;
-    assert_eq!(rows.len(), 3);
-}
-
-#[tokio::test]
-async fn test_real_pg_migration_applies_idempotently() {
-    let _guard = PG_INTEGRATION_LOCK.lock().await;
-    let pool = connect_real_pg().await;
-    migrate(&pool).await.unwrap();
-    migrate(&pool).await.unwrap();             // second apply MUST be a no-op
-}
-
-// DO NOT — std::sync::Mutex across .await
-static PG_INTEGRATION_LOCK: Lazy<std::sync::Mutex<()>> =
-    Lazy::new(|| std::sync::Mutex::new(()));
-
-#[tokio::test]
-async fn test_real_pg_round_trip() {
-    let _guard = PG_INTEGRATION_LOCK.lock().unwrap();   // BLOCKED
-    let pool = connect_real_pg().await;                  // held across .await
-    // clippy::await_holding_lock + deadlock risk if the task re-schedules
-}
-```
-
-**BLOCKED rationalizations:**
-
-- "The tests pass in isolation, CI scheduling is the bug"
-- "Docker is slow enough that the tests don't actually overlap"
-- "`cargo nextest` already isolates per-test processes" (only when configured with `test-threads = 1` OR per-test process isolation; not the default)
-- "std::sync::Mutex is faster and the guard is brief"
-- "`#[serial]` from the `serial_test` crate is simpler"
-- "We'll migrate to tokio::sync::Mutex later"
-
-**Why:** `cargo nextest` and `cargo test` default to thread-level parallelism. Two `#[tokio::test]` functions that both `connect_real_pg().await` against the SAME Docker container race on startup: the first test's `migrate()` may see the second test's schema state, the first test's `fetch_all` may see the second test's inserted rows. The flakiness is intermittent and scales with runner load — exactly the "passes locally, fails on CI under Mac-runner load" failure mode that wastes a full CI cycle per iteration. `tokio::sync::Mutex` is the only async-safe primitive; `std::sync::Mutex` deadlocks when the tokio runtime re-schedules the task mid-await; `#[serial]` works but has worse error messages on lock poisoning and doesn't compose with nested serialization domains (e.g. PG-lock + Redis-lock in the same test). The test-module-scope Lazy guarantees one Mutex instance per resource per test-module — adding a second shared resource adds a second lock, not a second test-module.
-
-Origin: kailash-rs commit b4ed4cb5 (2026-04-22) — serialize real-PG integration tests via `tokio::sync::Mutex`, fixing a 75% flake rate on Mac runners caused by Docker Postgres container startup race (per `specs/ci-infrastructure.md §5.4`). Generalizes the Env-Var pattern above from "shared env var" to any "shared external state" — the Mutex is the same structural defense either way.
-
-## MUST: Pytest Plugin + Marker Declaration Pair
-
-Any test file that uses `@pytest.mark.<X>` or the `<X>` fixture from a pytest plugin MUST declare the plugin in the owning sub-package's `[dev]` extras AND register the marker in that sub-package's pytest `markers` config in the SAME commit. Using a plugin without declaring it OR using a marker without registering it is BLOCKED — collection fails with `"'<X>' not found in markers configuration option"` or `ModuleNotFoundError` and no test in that sub-package can run.
-
-```toml
-# DO — plugin declared in [dev] extras AND marker registered in same pyproject
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-benchmark>=4.0.0",  # declared
-]
-
-[tool.pytest.ini_options]
-markers = [
-    "benchmark: Performance benchmark tests (pytest-benchmark)",  # registered
-]
-```
+Every write MUST be verified with a read-back: call create/update, then call get/list, assert the value.
 
 ```python
-# DO — test uses the plugin AFTER declaration + registration landed
-@pytest.mark.benchmark
-def test_binding_read_performance(benchmark, client):
-    benchmark(lambda: client.get("/health"))
-
-# DO NOT — test uses plugin with neither declaration nor marker registration
-@pytest.mark.benchmark   # marker unregistered → collection fails
-def test_binding_read_performance(benchmark):   # benchmark fixture unavailable → ModuleNotFoundError
-    ...
+# DO    result = api.create_company(name="Acme"); assert api.get_company(result.id).name == "Acme"
+# DO NOT assert result.status == 200  # DataFlow may silently ignore params
 ```
 
-**BLOCKED rationalizations:**
+**Why:** DataFlow `UpdateNode` silently ignores unknown parameter names — API returns success but zero bytes written.
 
-- "The plugin is in CI so local works fine"
-- "pytest accepts unknown markers by default"
-- "We'll register the marker in a follow-up commit"
-- "The fixture is imported lazily so it doesn't matter"
-- "It works in the sub-package venv, root venv is a separate concern"
+## MUST: One Direct Test Per Variant In Every Delegating Pair
 
-**Why:** Pytest plugins form a hidden middle layer: declared in sub-package `[dev]` extras, registered in pytest `markers` config, invoked via decorator or fixture. Any one layer missing breaks collection with an unhelpful error and blocks the entire sub-package's test suite. For binding consumer projects that split tests across the root project and bindings/ sub-packages, missing plugin declarations silently break the whole sub-package.
-
-Origin: Cross-SDK from kailash-py 2026-04-20 /redteam collection-gate sweep — a test file in a sub-package used `@pytest.mark.benchmark` + `benchmark` fixture without declaring `pytest-benchmark`; blocked 11,917 tests from collection. Same failure shape in binding consumer projects.
-
-## Test-Skip Triage Decision Tree
-
-Every test that is skipped, xfailed, or deleted MUST be classified into exactly one of the three tiers below. Silent skips, unbounded `@pytest.mark.skip`, or empty test bodies pretending to be tests are BLOCKED.
-
-| Tier           | When                                                           | Action                                                                                                             |
-| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **ACCEPTABLE** | Missing dep / infra unavailable / platform constraint          | Keep skip; reason MUST name the constraint (`@pytest.mark.skipif(not REDIS_AVAILABLE, reason="redis required")`)   |
-| **BORDERLINE** | Real library limitation; documenting a known-failing edge case | Convert to `@pytest.mark.xfail(strict=False, reason="...")` — preserves test body, flips green when fixed upstream |
-| **BLOCKED**    | "TODO", "needs refactoring", "flaky", "times out", empty body  | DELETE the test (and any abandoned fixtures it owned); if the underlying bug matters, file an issue                |
+When a module exposes paired variants delegating to a shared core (`get`/`get_raw`, `post`/`post_raw`, `insert`/`insert_batch`, `read`/`read_typed`), each variant MUST have a direct-call test — not reaching the other by delegation.
 
 ```python
-# DO — ACCEPTABLE: infra-conditional skip
-@pytest.mark.skipif(
-    os.environ.get("POSTGRES_TEST_URL") is None,
-    reason="requires POSTGRES_TEST_URL env var",
-)
-def test_real_postgres_round_trip(): ...
-
-# DO — BORDERLINE: convert to xfail with full reason
-@pytest.mark.xfail(
-    strict=False,
-    reason="kailash-rs bindings do not yet surface this edge case via PyO3",
-)
-def test_binding_edge_case(): ...
-
-# DO NOT — BLOCKED: TODO-style silent skip
-@pytest.mark.skip(reason="TODO")
-def test_something(): ...
-
-# DO NOT — BLOCKED: empty body pretending to be a test
-def test_binding_works():
-    pass  # implementation pending
+# DO — direct per-variant tests
+def test_get_typed_success(client): user = client.get("/u/42"); assert user["name"] == "Alice"
+def test_get_raw_success(client):   resp = client.get_raw("/u/42"); assert resp["status"] == 200
+# DO NOT — only typed variant; refactor of get_raw error-mapping ships silent regression
 ```
 
-**BLOCKED rationalizations:**
+**BLOCKED rationalizations:** "typed calls raw internally, one test covers both" / "shared core" / "integration catches this" / "raw is just less-useful typed".
 
-- "It's only one skipped test"
-- "I'll fix the test when I have time"
-- "The test was passing before but now flakes — let me skip it for now"
-- "TODO comments in the skip reason are documentation"
+**Why:** Convergent delegation paths look like one path until they diverge under refactor pressure. `/redteam` MUST mechanically grep each variant pair; any pair with zero direct call site is a finding.
 
-**Why:** Silent skips and empty test bodies inflate the green-test count without exercising any code. The next session reads "5950 tests pass" and concludes the suite is healthy when the actually-tested surface has shrunk. For binding consumer projects, the failure mode is amplified — a skipped binding test hides a broken FFI path that only surfaces when the binding is called in production. Deletion is the only honest disposition for a test that does not run; xfail is the only honest disposition for a test that documents a real limitation.
+## Rules
 
-Origin: Cross-SDK from kailash-py gh #512 / PR #518 (2026-04-19) — applied this triage to convert 1 test to xfail, delete 2 TODO-style tests, and delete 6 abandoned test files. Binding consumer projects face the same triage.
+- Test-first development for new features
+- Deterministic: no random data without seeds, no time-dependent assertions
+- Isolated: clean setup/teardown, isolated DBs, tests MUST NOT affect each other
+- Naming: `test_[feature]_[scenario]_[expected_result].py`
+
+**Why:** Intermittent failures erode trust; shared state → order-dependent results that pass individually but fail in CI where order differs.
+
+Origin: warnings sweep + test-skip triage + paired-variant coverage + env-var race + E2E regression + 2026-04-27 AST-counts review. See guide for full session evidence.
+
+<!-- /slot:neutral-body -->
+
+<!-- slot:lang-testing-extensions -->
+
+
+## rs USE-template testing — binding-consumer context
+
+This variant serves the rs USE templates — **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python (or Ruby).
+
+Everything in the universal testing rules above (Probe-Driven Verification, Audit Mode, Regression Testing, Test Resource Cleanup, 3-Tier, Coverage, env-var serialization, plugin/marker pairing, E2E pipeline regression, state-persistence read-back) applies unchanged. The sections below ADD the binding-consumer specializations — they do not replace the universal rules.
 
 ## Kailash Binding Patterns
 
@@ -460,77 +259,144 @@ def test_workflow_execution():
     assert result["results"] is not None
 ```
 
-## Delegating Primitives Need Direct Coverage
+## MUST: One Direct Test Per Variant Through The Binding
 
-When a binding-layer class exposes paired variants that delegate to a shared core (e.g. `get` / `get_raw`, `post` / `post_raw`, `put` / `put_raw`, `delete` / `delete_raw`), each variant MUST have at least one test that calls it directly through the Python or Ruby binding — not a test that calls only one variant and reaches the other by delegation.
-
-This is a narrow rule about delegating primitive pairs. It is NOT a universal "every binding method has a direct test" mandate.
-
-### MUST: One Direct Test Per Variant Through The Binding
+The universal "One Direct Test Per Variant In Every Delegating Pair" rule above applies at the binding boundary specifically. When a binding-layer class exposes paired variants delegating to a shared Rust core (`get`/`get_raw`, `post`/`post_raw`, `put`/`put_raw`, `delete`/`delete_raw`), each variant MUST have at least one test that calls it directly **through the Python or Ruby binding** — not a test that calls one variant and reaches the other by delegation.
 
 ```python
 # DO — one test per variant, called through the binding
-import kailash
-
 def test_service_client_get_typed_returns_dict(client):
-    """Direct exercise of the typed .get() Python binding method."""
-    user = client.get("/users/42")
-    assert isinstance(user, dict)
-    assert user["name"] == "Alice"
-
+    user = client.get("/users/42"); assert user["name"] == "Alice"
 def test_service_client_get_raw_returns_response_dict(client):
-    """Direct exercise of the raw .get_raw() Python binding method."""
-    resp = client.get_raw("/users/42")
-    assert isinstance(resp, dict)
-    assert resp["status"] == 200
-    assert "Alice" in resp["body"]
+    resp = client.get_raw("/users/42"); assert resp["status"] == 200
 
 # DO NOT — exercise only the typed variant and trust delegation
 def test_service_client_get_works(client):
-    """Only calls client.get(); never touches client.get_raw()."""
-    user = client.get("/users/42")
-    assert user["name"] == "Alice"
-# A refactor that changes get_raw's error mapping ships a silent regression
-# because the binding test never exercises that PyO3/Magnus boundary.
+    user = client.get("/users/42"); assert user["name"] == "Alice"
+# refactor of get_raw's PyO3/Magnus error mapping ships a silent FFI regression
 ```
 
 **Why:** Binding-layer paired variants cross the FFI boundary independently — a refactor that changes the typed variant's PyO3 conversion while leaving the raw variant alone ships a silent FFI regression. Tests that only exercise one variant cannot catch this because the failure mode is _across_ the binding boundary, not in the shared Rust core.
 
-**BLOCKED rationalizations:**
-
-- "The typed variant calls the raw variant internally"
-- "Both variants share the same Rust execute() core"
-- "Integration tests at the Rust layer catch this"
-- "PyO3 wrapping is mechanical, it can't drift"
+**BLOCKED rationalizations:** "The typed variant calls the raw variant internally" / "Both variants share the same Rust execute() core" / "Integration tests at the Rust layer catch this" / "PyO3 wrapping is mechanical, it can't drift".
 
 ### MUST: Mechanical Enforcement Via Grep
 
 `/redteam` MUST grep the binding test directory for direct call sites of each known raw variant and report any pair where one side has zero matches.
 
 ```bash
-# DO — check each binding-exposed variant has a direct test in YOUR project's
-# test directory. Adjust TEST_DIR for your layout (the default `tests/` works
-# for most kailash-enterprise consumer projects).
 TEST_DIR="${TEST_DIR:-tests}"
 for variant in get_raw post_raw put_raw delete_raw; do
   count=$(grep -rln "client\.$variant(" "$TEST_DIR" | wc -l)
-  if [ "$count" -eq 0 ]; then
-    echo "MISSING: no test calls client.$variant() through the Python binding"
-  fi
+  [ "$count" -eq 0 ] && echo "MISSING: no test calls client.$variant() through the binding"
 done
 ```
 
 **Why:** Mechanical grep at audit time catches the regression before it reaches a downstream consumer. Manual "I think I tested both" is not auditable across PyO3/Magnus binding refactors.
 
-Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`). The Rust `put_raw` and `delete_raw` had wiremock coverage; the Python binding equivalents at `bindings/kailash-python/tests/test_service_client.py` had no direct exercise — every test went through the typed `.put()` / `.delete()` variants. Fixed by adding direct binding-layer tests for each raw variant. The pattern applies to every binding pair that wraps a Rust delegating-primitive.
+Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`) — Rust `put_raw`/`delete_raw` had wiremock coverage; the Python binding equivalents had none.
 
-## Rules
+## MUST: Rust `pub use` Result-Type Coverage Pinned By Literal-Identifier Wiring Tests
 
-- Test-first development for new features
-- Tests MUST be deterministic (no random data without seeds, no time-dependent assertions)
-  **Why:** Non-deterministic tests produce intermittent failures that erode trust in the suite, causing real binding regressions to be dismissed as flaky.
-- Tests MUST NOT affect other tests (clean setup/teardown, isolated DBs)
-  **Why:** Shared state between tests creates order-dependent results that pass locally but fail in CI where execution order differs.
-- Naming: `test_[feature]_[scenario]_[expected_result].py`
+When the underlying Rust crate `pub use`-exports a result type (struct / enum / trait), the per-symbol coverage sweep (`tools/sweep-redteam.py --json`) reports a HIGH gap unless at least one test file binds the type to a `let var: <Type> = ...` declaration. Inline `#[cfg(test)]` tests that exercise the API but never name the type literally are NOT sufficient — the sweep greps for `<Type>` as an identifier; `let result = build()` binds nothing the tool can see.
 
-<!-- /slot:neutral-body -->
+Pin coverage in a dedicated `tests/test_<module>_wiring.rs` that: (1) imports the type by name from the crate's public surface; (2) constructs a value via the canonical public-API entry; (3) binds it to `let var: <Type> = ...`; (4) asserts every public field individually; (5) for trait wiring, casts a concrete impl to `&dyn TraitName`.
+
+```rust
+// DO — wiring test binds the type literally; sweep tool sees it
+use kailash_ml::engine::{DriftMonitor, DriftConfig, DriftReport, FeatureDriftResult};
+
+#[test]
+fn drift_report_full_field_assertions() {
+    let mut monitor = DriftMonitor::from_reference(&data, &names, DriftConfig::default()).unwrap();
+    let report: DriftReport = monitor.check(&current).unwrap();   // ← literal type binding
+    assert!(!report.features.is_empty());
+    let f0: &FeatureDriftResult = &report.features["f0"];          // ← literal type binding
+    assert_eq!(f0.feature_name, "f0");
+}
+
+// DO NOT — inline test exercises the API but never names the type literally
+let result = DriftMonitor::from_reference(&d,&n,DriftConfig::default()).unwrap().check(&c).unwrap();
+// `result` shadows the type; sweep tool sees nothing
+```
+
+**BLOCKED rationalizations:** "The inline `#[cfg(test)]` tests already exercise the API; a wiring test is duplication" / "Field-by-field assertions are brittle" / "The type is `pub use`-exported, that proves it's reachable" / "Integration tests will catch a refactor" / "We shouldn't author tests for the sweep tool's quirks" / "I'll add a wiring test when the sweep flags it".
+
+**Why:** A `pub use`-exported type with no literal-identifier binding in any test corpus is structurally indistinguishable from a removed type — the sweep reports a HIGH gap because there's no syntactic anchor. Wiring tests make the type discoverable to the per-symbol scan AND pin every public field's shape so a downstream refactor that drops a field fails one specific assertion. The trait-cast pattern (`&dyn TraitName`) extends the same defense to trait surfaces.
+
+### Same-Shard Accessor For Orphaned `pub use` Types
+
+When a wiring test cannot construct or observe a `pub use`-exported type because it has NO public constructor AND NO public accessor on any owning facade, the disposition per `rules/autonomous-execution.md` Rule 4 is to add the missing accessor IN THE SAME SHARD — typically a one-line `pub fn <field>(&self) -> &<Type> { &self.<field> }` mirroring the existing accessor pattern. Removing the type from `pub use` is also acceptable; leaving it `pub use`-exported but unreachable is BLOCKED.
+
+**Why:** A `pub use`-exported type with no public construction/observation path is the orphan failure mode at the type-export level. Origin: 2026-05-06 RT-1/2/3 (PRs #816/#817/#818) — `tools/sweep-redteam.py` flagged 22 HIGH gaps whose types had inline-test exercise but no literal-identifier binding; RT-2 surfaced the orphan-accessor variant (`DriftSnapshot` `pub use`-exported, no accessor; same-shard `reference_snapshot()` added).
+
+**Trust Posture Wiring (this section):** `halt-and-report` (lexical regex against `let result = ` with no typed binding cannot ship `block` per `hook-output-discipline.md` MUST-2; structural AST walk required to upgrade). Grace 7d. Cumulative 3×/30d → posture drop per `trust-posture.md` §4. Detection: `tools/sweep-redteam.py --json` HIGH gap on `pub use`-exported type with zero literal-identifier hits, OR `find crates/*/tests/ -name 'test_*_wiring.rs' | xargs grep -L "let .*: <Type>"`.
+
+## Shared-Resource Test Isolation (Rust SDK)
+
+The universal "Serialize Env-Var-Mutating Tests Via Module Lock" rule generalizes to any shared external state Rust integration tests touch — a Docker Postgres container, Redis, a shared cache, a file-system lockfile.
+
+### MUST: Use `tokio::sync::Mutex` For Async Guards That Cross `.await`
+
+Any two integration tests that mutate the SAME shared external resource MUST serialize through a `tokio::sync::Mutex` at test-module scope. The `std::sync::Mutex` form is BLOCKED when the guard crosses an `.await` — it trips `clippy::await_holding_lock` AND risks deadlock if the tokio runtime moves the task to a different thread mid-await.
+
+```rust
+// DO — tokio::sync::Mutex, guard survives .await safely
+use tokio::sync::Mutex;
+use once_cell::sync::Lazy;
+static PG_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+
+#[tokio::test]
+async fn test_real_pg_round_trip() {
+    let _g = PG_LOCK.lock().await;
+    let pool = connect_real_pg().await;        // .await under tokio::sync guard — OK
+    assert_eq!(pool.fetch_all("...").await.len(), 3);
+}
+
+// DO NOT — std::sync::Mutex across .await
+static PG_LOCK: Lazy<std::sync::Mutex<()>> = Lazy::new(|| std::sync::Mutex::new(()));
+#[tokio::test]
+async fn test_real_pg_round_trip() {
+    let _g = PG_LOCK.lock().unwrap();          // BLOCKED — held across .await
+    let pool = connect_real_pg().await;        // clippy::await_holding_lock + deadlock risk
+}
+```
+
+**BLOCKED rationalizations:** "Tests pass in isolation, CI scheduling is the bug" / "Docker is slow enough that tests don't overlap" / "`cargo nextest` already isolates per-test processes" (only with `test-threads = 1`) / "std::sync::Mutex is faster and the guard is brief" / "`#[serial]` from serial_test is simpler" / "We'll migrate later".
+
+**Why:** `cargo nextest`/`cargo test` default to thread-level parallelism. Two `#[tokio::test]` functions that both `connect_real_pg().await` against the SAME container race on startup; `tokio::sync::Mutex` is the only async-safe primitive; `std::sync::Mutex` deadlocks when the runtime re-schedules the task mid-await; `#[serial]` has worse poisoning errors and doesn't compose with nested serialization domains. Origin: kailash-rs commit `b4ed4cb5` (2026-04-22) — fixed a 75% Mac-runner flake from a Docker Postgres startup race (`specs/ci-infrastructure.md §5.4`).
+
+## Test-Skip Triage Decision Tree (binding-consumer)
+
+Every skipped / xfailed / deleted test MUST be classified into exactly one tier. Silent skips, unbounded `@pytest.mark.skip`, or empty bodies pretending to be tests are BLOCKED.
+
+| Tier           | When                                                           | Action                                                                                               |
+| -------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **ACCEPTABLE** | Missing dep / infra unavailable / platform constraint          | Keep skip; reason names the constraint (`@pytest.mark.skipif(not REDIS, reason="redis required")`)   |
+| **BORDERLINE** | Real library limitation; documenting a known-failing edge      | Convert to `@pytest.mark.xfail(strict=False, reason="...")` — preserves body, flips green when fixed |
+| **BLOCKED**    | "TODO" / "needs refactor" / "flaky" / "times out" / empty body | DELETE the test (and abandoned fixtures); if the bug matters, file an issue                          |
+
+```python
+# DO — ACCEPTABLE: infra-conditional skip
+@pytest.mark.skipif(os.environ.get("POSTGRES_TEST_URL") is None, reason="requires POSTGRES_TEST_URL")
+def test_real_postgres_round_trip(): ...
+# DO — BORDERLINE: xfail with full reason
+@pytest.mark.xfail(strict=False, reason="kailash-rs bindings do not yet surface this edge via PyO3")
+def test_binding_edge_case(): ...
+# DO NOT — BLOCKED: TODO-style silent skip / empty body
+@pytest.mark.skip(reason="TODO")
+def test_something(): ...
+```
+
+**BLOCKED rationalizations:** "It's only one skipped test" / "I'll fix it when I have time" / "It flakes — skip it for now" / "TODO comments in the skip reason are documentation".
+
+**Why:** Silent skips inflate the green count without exercising code; for binding consumers a skipped binding test hides a broken FFI path that only surfaces in production. Deletion is the only honest disposition for a test that does not run; xfail the only honest disposition for a documented real limitation. Origin: cross-SDK from kailash-py gh #512 / PR #518 (2026-04-19).
+
+## Binding-boundary Tier rationale
+
+The universal 3-Tier contract applies; the binding boundary sharpens the Tier 2/3 "why":
+
+- **Tier 2 (Integration), NO mocking:** mocks at the binding boundary bypass the FFI path entirely (connection handling, value serialization, lifetime management) — a passing mock-based test gives zero confidence the binding actually works.
+- **Tier 3 (E2E), read-back MANDATORY:** the binding write path crosses the Python/Ruby→Rust boundary, value serialization, and the DB driver. Any layer can silently succeed without persisting; only a read-back proves the data landed.
+
+<!-- /slot:lang-testing-extensions -->
