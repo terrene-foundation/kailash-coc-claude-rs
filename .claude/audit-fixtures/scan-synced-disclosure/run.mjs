@@ -199,6 +199,29 @@ const CASES = [
     expectShapes: ["nonfoundation-org-slug"],
     expectFindingCount: 2,
   },
+  {
+    // R5 (issue-followup #336): `refs` git-namespace allowlist anchor.
+    // Locks the `refs(?=/)` slash-anchored allowlisting in the
+    // nonfoundation-org-slug SHAPE so that:
+    //  (a) substrate ref names (`refs/coc/coordination-genN`,
+    //      `refs/coc/archive-genN`, `refs/coc/**`, `refs/heads/main`,
+    //      `refs/tags/v1.0`) stay CLEAN.
+    //  (b) smuggle patterns where `refs-` prefixes a non-Foundation org
+    //      slug (`refs-acme-corp/loom`, `chore/refs-customer-corp/coc-x`)
+    //      STILL flag. Without the slash-anchor on `refs`, `refs\b` would
+    //      match `refs` followed by `-` (a word boundary), suppressing
+    //      legitimate smuggle detection.
+    //  (c) bare third-party org slugs (`customer-acme/loom`) STILL flag
+    //      as before — the `refs` allowlist doesn't touch the broader
+    //      4th-alt behavior.
+    // Expected findings: 4 (3 explicit FLAG cases + 1 in the explanatory
+    // prose line 25 that contains a literal `refs-acme-corp/loom`).
+    name: "r5-refs-allowlist",
+    dir: "r5-refs-allowlist",
+    expectExit: 1,
+    expectShapes: ["nonfoundation-org-slug"],
+    expectFindingCount: 4,
+  },
 ];
 
 function runScanner(root) {

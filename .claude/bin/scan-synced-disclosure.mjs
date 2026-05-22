@@ -137,6 +137,12 @@ function isNeverSynced(relPath, base, segs) {
   if (pSegs[0] === ".proposals") return true;
   if (pSegs[0] === "test-harness") return true;
   if (pSegs[0] === "projects") return true;
+  // worktrees/ is gitignored and contains transient agent work directories
+  // (each a full repo checkout under .claude/worktrees/agent-<hash>/). The
+  // contents are not synced to consumers — they're operator-local agent
+  // scratch space. Excluding them prevents the scanner from flagging
+  // findings inside agent transients that NEVER reach a downstream surface.
+  if (pSegs[0] === "worktrees") return true;
   if (base === "sync-manifest.yaml") return true;
   if (base === "VERSION") return true;
   if (base === "CLAUDE.md") return true;
@@ -664,7 +670,7 @@ const SHAPES = [
     // suppressed by the anchored ALLOWLIST, identical to the other
     // four alternatives. Disposition: CLOSED (not documented-residual).
     id: "nonfoundation-org-slug",
-    rx: /\b[a-z][a-z0-9-]*-enterprise(?:-[a-z0-9]+)*\b|(?:git@github\.com:|github\.com[:/]|gh api repos\/|--repo\s+)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)[a-z0-9._-]*(?:#\d+)?|gh api orgs\/[a-z][a-z0-9-]{2,}\b|(?<![\w./-])(?!(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier|repos|agents|skills|commands|rules|bin|lib|hooks|guides|variants|specs|chore|csq|workspaces|feat|fix|docs|test|refactor|style|src|packages|pkg|pkgs|tests|crates|cmd|internal|node_modules|dist|build|target|bindings|ffi|python|java|deployment|localhost|service|statefulset|daemonset|pod|svc)\b)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)(?:#\d+)?\b|(?:\b(?:chore|feat|fix|release|docs|test|refactor|style)\/|[a-z][a-z0-9+.-]*:\/\/)(?!(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier|repos|agents|skills|commands|rules|bin|lib|hooks|guides|variants|specs|chore|csq|workspaces|feat|fix|docs|test|refactor|style|src|packages|pkg|pkgs|tests|crates|cmd|internal|node_modules|dist|build|target|bindings|ffi|python|java|deployment|localhost|service|statefulset|daemonset|pod|svc)\b)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)(?:#\d+)?\b/g,
+    rx: /\b[a-z][a-z0-9-]*-enterprise(?:-[a-z0-9]+)*\b|(?:git@github\.com:|github\.com[:/]|gh api repos\/|--repo\s+)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)[a-z0-9._-]*(?:#\d+)?|gh api orgs\/[a-z][a-z0-9-]{2,}\b|(?<![\w./-])(?!(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier|repos|agents|skills|commands|rules|bin|lib|hooks|guides|variants|specs|chore|csq|workspaces|feat|fix|docs|test|refactor|style|src|packages|pkg|pkgs|tests|crates|cmd|internal|node_modules|dist|build|target|bindings|ffi|python|java|deployment|localhost|service|statefulset|daemonset|pod|svc|refs(?=\/))\b)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)(?:#\d+)?\b|(?:\b(?:chore|feat|fix|release|docs|test|refactor|style)\/|[a-z][a-z0-9+.-]*:\/\/)(?!(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier|repos|agents|skills|commands|rules|bin|lib|hooks|guides|variants|specs|chore|csq|workspaces|feat|fix|docs|test|refactor|style|src|packages|pkg|pkgs|tests|crates|cmd|internal|node_modules|dist|build|target|bindings|ffi|python|java|deployment|localhost|service|statefulset|daemonset|pod|svc|refs(?=\/))\b)[a-z][a-z0-9-]{2,}\/(?:loom|kailash[a-z0-9-]*|coc[a-z0-9-]*|atelier)(?:#\d+)?\b/g,
   },
   {
     // R2 detection-completeness hardening (#263): the prior arch
