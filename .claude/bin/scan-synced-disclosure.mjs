@@ -213,9 +213,17 @@ function isExcluded(relPath) {
   // exists to prevent.
   if (/\.code-workspace$/.test(base)) return true;
 
-  // gitignored operator-local companions (committed *.example.md ARE in scope)
+  // gitignored operator-local companions (committed *.example.md ARE in scope).
+  //
+  // Issue #352 fix: `*.local.json` exclusion is loom-source-only — at loom
+  // these files are gitignored (never committed). At a destination scan
+  // (--root pointing at a USE template or BUILD repo), a committed
+  // `*.local.json` IS the disclosure event the scanner exists to catch:
+  // the file shipped past the never-sync exclusion (parity gap with
+  // `/sync`'s LOOM_LOCAL_PATTERNS). Scan it when REPO_ROOT_ACTIVE differs
+  // from REPO_ROOT (destination mode).
   if (/\.operator\.local\.md$/.test(base)) return true;
-  if (/\.local\.json$/.test(base)) return true;
+  if (/\.local\.json$/.test(base) && REPO_ROOT_ACTIVE === REPO_ROOT) return true;
   if (/\.local\.md$/.test(base)) return true;
 
   // never-synced per manifest exclude: — out of the synced-forest scope

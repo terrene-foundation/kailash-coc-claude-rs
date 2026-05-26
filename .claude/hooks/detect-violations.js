@@ -227,6 +227,24 @@ function logAndEmit(payload, event, finding, what_happened) {
             `probe-driven sweep on ${fp.slice(0, 80)}`,
           );
       }
+      // F29 — value-prioritization MUST-6 verbatim-quote sweep on journal
+      // entries. Fires when the edited file matches journal/NNNN-*.md. The
+      // detector reads the journal from disk (reads its frontmatter +
+      // body-quoted lines + cited journals' content) so this branch fires
+      // post-tool, after the Edit/Write has landed on disk.
+      // reviewer L2: anchor at (^|/) so journal/0154-foo.md and workspace
+      // paths workspaces/x/journal/0154-foo.md both match, but a sibling
+      // dir like not-a-journal/journal/0154-foo.md does NOT.
+      if (fp && /(^|\/)journal\/\d{4}-.*\.md$/.test(fp)) {
+        const must6Finding = P.detectMust6Paraphrase(fp);
+        if (must6Finding)
+          return logAndEmit(
+            payload,
+            event,
+            must6Finding,
+            `MUST-6 verbatim-quote sweep on ${fp.slice(0, 80)}`,
+          );
+      }
     }
     return passthrough();
   }

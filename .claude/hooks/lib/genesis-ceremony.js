@@ -392,6 +392,19 @@ function runEnrollmentCeremony(opts) {
           step: "3-org-admin",
         };
       }
+      // Issue #358: also require state=="active". An "admin" with state
+      // "pending" / "suspended" cannot stand in as the verified-identity
+      // anchor that substitutes for an unsigned root commit in the org-owned
+      // bootstrap relaxation (Step 4 below). The relaxation is conditioned
+      // on this attestation, so the attestation MUST be currently in force.
+      if (r.body.state !== "active") {
+        return {
+          ok: false,
+          error: "org membership not active",
+          reason: `gh api orgs/${declaredOwner}/memberships/${adminLogin} state is '${r.body && r.body.state}', not 'active' (issue #358 — admin attestation MUST be active to substitute as the verified-identity anchor)`,
+          step: "3-org-admin",
+        };
+      }
       // HIGH-1: allowlist org-membership capture.
       // M3 HIGH-4: anchor capture_ts.
       orgMembershipCapture = ghApiAllowlist._allowlistOrgMembership(r.body, {
@@ -423,7 +436,22 @@ function runEnrollmentCeremony(opts) {
     const body = r.body || {};
     const commit = body.commit || {};
     const verification = commit.verification || {};
-    if (verification.verified !== true) {
+    // Issue #358: org-owned bootstrap relaxation. When the repo is org-owned
+    // AND Step 3 verified the signing operator is a current org admin with
+    // state=="active" (orgMembershipCapture truthy ⇒ both checks passed), the
+    // verified-admin attestation captured at Step 3 substitutes as the
+    // verified-identity anchor for the trust root. The unsigned-root state
+    // is still captured (via the standard allowlist) into the signed
+    // genesis-anchor record so auditors can see the ceremony proceeded under
+    // the org-admin attestation path.
+    //
+    // The user-owned branch (repoOwnerKind === "user") is UNCHANGED: the
+    // signed-root-commit IS the verified-identity anchor there; no
+    // substituting external attestation is captured for that path, so the
+    // gate cannot be relaxed.
+    const isOrgBootstrapWithAdminAttestation =
+      repoOwnerKind === "org" && orgMembershipCapture;
+    if (verification.verified !== true && !isOrgBootstrapWithAdminAttestation) {
       return {
         ok: false,
         error: "root_commit verification unverified",
@@ -433,7 +461,8 @@ function runEnrollmentCeremony(opts) {
     }
     // For repo_owner_kind=user we require commit.author or verification to
     // be associated with the declared owner. For org-owned we accept the
-    // verified flag + the org-admin signer.
+    // verified flag + the org-admin signer (or, per issue #358, the verified
+    // org-admin attestation when the root commit itself is unsigned).
     if (repoOwnerKind === "user") {
       const authorName = commit.author && commit.author.name;
       const authorLogin = body.author && body.author.login;

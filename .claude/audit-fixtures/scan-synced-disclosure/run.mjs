@@ -222,6 +222,22 @@ const CASES = [
     expectShapes: ["nonfoundation-org-slug"],
     expectFindingCount: 4,
   },
+  {
+    // Issue #352 destination-mode `.local.json` scan-on (R1 security
+    // LOW-S2): the `*.local.json` exclusion in `isExcluded()` now scopes
+    // to `REPO_ROOT_ACTIVE === REPO_ROOT` (loom-source-scan only). When
+    // `--root <dir>` points at a destination, committed `.local.json`
+    // files ARE scanned because their presence at a sync destination IS
+    // the disclosure event. The fixture plants a synthetic
+    // `loom-links.local.json` carrying `/Users/fakeuser/fake-repos`
+    // home-path shapes — these MUST flag at the destination scan. At
+    // loom-source the same predicate path is excluded; the predicate's
+    // destination-mode flip is what this fixture pins.
+    name: "destination-local-json",
+    dir: "destination-local-json",
+    expectExit: 1,
+    expectShapes: ["operator-home-path"],
+  },
 ];
 
 function runScanner(root) {

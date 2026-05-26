@@ -106,6 +106,18 @@ function _allowlistRepoOwner(body, opts) {
  * verification.reason, verification.signature, verification.payload,
  * commit.author.{name,email,date}, body.author.login. These are the fields
  * that bind the root-commit verification to the declared owner.
+ *
+ * Issue #358 (org-owned bootstrap relaxation): when a ceremony succeeds
+ * with verification.verified === false under the org-owned bootstrap
+ * path, the signed genesis-anchor record's gh_api_root_commit_capture
+ * carries both verification.verified (the unverified state) AND
+ * verification.reason (e.g. "unsigned") — these fields are part of the
+ * allowlist below and are captured verbatim. Auditors inspecting the
+ * record can therefore see the root commit was unverified AND
+ * (cross-referencing the sibling gh_api_org_membership_capture) see
+ * the ceremony proceeded under the verified-admin attestation path
+ * (Step 3 returned role=="admin" + state=="active"). The two captures
+ * together are the structural evidence trail for the relaxation.
  */
 function _allowlistCommitVerification(body, opts) {
   if (!body || typeof body !== "object") return body;

@@ -406,6 +406,40 @@ export function loadCliCaps() {
           const parsed = fm ? parseInt(fm[1], 10) : 10;
           return Math.max(10, parsed);
         })(),
+        // F23a / rule-authoring.md MUST Rule 10 — proximity-band override.
+        // Defaults to 15 (the rule-text value) when absent. Clamp to
+        // floorPct + 1 minimum to prevent a misconfigured manifest from
+        // silently disabling the advisory band (same fail-closed pattern
+        // as the floor clamp above per security-reviewer M3).
+        headroom_proximity_band_pct: (() => {
+          const pr = new RegExp(
+            `\\b${cli}:\\s*\\n` +
+              `[\\s\\S]*?headroom_proximity_band_pct:\\s*(\\d+)`,
+            "m",
+          );
+          const pm = src.match(pr);
+          const parsed = pm ? parseInt(pm[1], 10) : 15;
+          // Floor for THIS clamp is derived above; we cannot reference
+          // it from inside the IIFE, so re-parse. Same regex shape.
+          const floorParsed = (() => {
+            const fr = new RegExp(
+              `\\b${cli}:\\s*\\n` +
+                `[\\s\\S]*?headroom_floor_pct:\\s*(\\d+)`,
+              "m",
+            );
+            const fm = src.match(fr);
+            return fm ? Math.max(10, parseInt(fm[1], 10)) : 10;
+          })();
+          if (parsed <= floorParsed) {
+            process.stderr.write(
+              `[emit] WARN: ${cli} headroom_proximity_band_pct=${parsed} <= ` +
+                `headroom_floor_pct=${floorParsed}; clamping band to ${floorParsed + 1} ` +
+                `per F23a Security-M3 fail-closed clamp (rule-authoring.md MUST Rule 10).\n`,
+            );
+            return floorParsed + 1;
+          }
+          return parsed;
+        })(),
       };
     }
   }
@@ -457,6 +491,53 @@ export function validateAggregateHeadroom({ cli, lang, emissionBytes, blockCap, 
         "without explicit Codex-override-ceiling-stable evidence per plan §3.2.",
     },
   ];
+}
+
+// F23a / rule-authoring.md MUST Rule 10 — proximity-band advisory.
+// Emission is above floor (no BLOCK) but within the 15% proximity band:
+// the next baseline-priority MUST clause addition on this lane needs
+// paired extraction OR named-rationale exception per the rule. Returns
+// null when no advisory applies; otherwise an advisory object surfaced
+// in dry-run + write reports + console WARN. The 15% default matches
+// rule-authoring.md MUST 10 verbatim; per-CLI override lives in
+// `sync-manifest.yaml::cli_variants.context/root.md.<cli>.headroom_proximity_band_pct`
+// (defaults to 15 when absent).
+export const HEADROOM_PROXIMITY_BAND_PCT_DEFAULT = 15;
+
+export function getProximityBandAdvisory({
+  cli,
+  lang,
+  emissionBytes,
+  blockCap,
+  floorPct,
+  proximityBandPct = HEADROOM_PROXIMITY_BAND_PCT_DEFAULT,
+}) {
+  if (blockCap <= 0) return null;
+  if (proximityBandPct <= floorPct) return null; // misconfiguration; no band
+  const livePctRaw = ((blockCap - emissionBytes) / blockCap) * 100;
+  if (livePctRaw < floorPct) return null; // BLOCK case — handled separately
+  if (livePctRaw >= proximityBandPct) return null; // outside band — no advisory
+  const proximityBandBytes = Math.floor(blockCap * (1 - proximityBandPct / 100));
+  return {
+    cli,
+    lang: lang || "base",
+    emission_bytes: emissionBytes,
+    block_cap_bytes: blockCap,
+    headroom_pct: Number(livePctRaw.toFixed(2)),
+    headroom_floor_pct: floorPct,
+    proximity_band_pct: proximityBandPct,
+    proximity_band_bytes: proximityBandBytes,
+    margin_to_floor_bytes: emissionBytes <= Math.floor(blockCap * (1 - floorPct / 100))
+      ? Math.floor(blockCap * (1 - floorPct / 100)) - emissionBytes
+      : 0,
+    advisory:
+      "F23a proximity-band advisory (rule-authoring.md MUST Rule 10): " +
+      `headroom ${livePctRaw.toFixed(2)}% within ${proximityBandPct}% proximity band ` +
+      `above ${floorPct}% floor. Next baseline-priority MUST clause addition on this ` +
+      "lane MUST EITHER ship paired extraction-to-skill recovering ≥ the bytes added " +
+      "OR carry a named-rationale exception in the proposal's receipt journal. " +
+      "Adding load-bearing content without (a) or (b) is BLOCKED per Rule 10.",
+  };
 }
 
 export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun = false } = {}) {
@@ -582,6 +663,26 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
     floorPct: HEADROOM_FLOOR_PCT,
   });
 
+  // F23a proximity-band advisory (rule-authoring.md MUST Rule 10).
+  // Default 15%; per-CLI override via sync-manifest.yaml::cli_variants.context/root.md.<cli>.headroom_proximity_band_pct.
+  const proximityBandPct =
+    (caps.headroom_proximity_band_pct ?? HEADROOM_PROXIMITY_BAND_PCT_DEFAULT);
+  const proximityBandAdvisory = getProximityBandAdvisory({
+    cli,
+    lang,
+    emissionBytes,
+    blockCap: BLOCK_CAP,
+    floorPct: HEADROOM_FLOOR_PCT,
+    proximityBandPct,
+  });
+  if (proximityBandAdvisory) {
+    console.log(
+      `[${cli}${lang ? " " + lang : ""}] ADVISORY: headroom ${proximityBandAdvisory.headroom_pct}% ` +
+      `within ${proximityBandPct}% proximity band — next baseline MUST addition requires ` +
+      `paired extraction OR named-rationale exception per rule-authoring.md Rule 10.`,
+    );
+  }
+
   const emitName = cli === "codex" ? "AGENTS.md" : "GEMINI.md";
   const outPath = path.join(outDir, emitName);
   const reportPath = path.join(outDir, `emit-report-${cli}.json`);
@@ -613,6 +714,7 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
       headroom_pct: headroomPctForReport,
       headroom_floor_pct: HEADROOM_FLOOR_PCT,
       headroom_floor_violations: headroomFloorViolations,
+      proximity_band_advisory: proximityBandAdvisory,
       budget_warnings: budgetWarnings,
       budget_block_violations: budgetBlockViolations,
       per_rule: perRuleReport,
@@ -638,6 +740,7 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
         headroom_pct: headroomPctForReport,
         headroom_floor_pct: HEADROOM_FLOOR_PCT,
         headroom_floor_violations: headroomFloorViolations,
+        proximity_band_advisory: proximityBandAdvisory,
         rules_emitted: crit.length,
         per_rule: perRuleReport,
         budget_warnings: budgetWarnings,
@@ -679,6 +782,7 @@ export function emitBaseline(cli, outDir, { lang = null, verbose = false, dryRun
     headroom_pct: Number(headroomPct.toFixed(2)),
     headroom_floor_pct: HEADROOM_FLOOR_PCT,
     headroom_floor_violations: headroomFloorViolations,
+    proximity_band_advisory: proximityBandAdvisory,
     budget_warnings: budgetWarnings,
     budget_block_violations: budgetBlockViolations,
   };
