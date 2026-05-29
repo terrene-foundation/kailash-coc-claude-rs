@@ -60,6 +60,17 @@ const SCHEMA_PATH = path.join(
   "operators.roster.schema.json",
 );
 
+// F71: canonical $id the loaded schema MUST self-identify with.
+// Defense-in-depth against a planted-schema attack vector — F67's
+// integrity-guard.js DIRECT set blocks unauthorized local file writes
+// to the schema path; this $id check is the runtime/in-memory sibling:
+// even if a test environment or future refactor introduces a
+// schema-loader path that bypasses integrity-guard (e.g. a fixture
+// schema injected via require.cache or a path override), the $id
+// mismatch surfaces loudly. Per journal/0162 § F71 acceptance.
+const EXPECTED_SCHEMA_ID =
+  "https://terrene.foundation/schemas/operators.roster.schema.json";
+
 let _schemaCache = null;
 function loadSchema() {
   if (_schemaCache !== null) return _schemaCache;
@@ -69,13 +80,22 @@ function loadSchema() {
     );
   }
   const raw = fs.readFileSync(SCHEMA_PATH, "utf8");
+  let parsed;
   try {
-    _schemaCache = JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch (err) {
     throw new Error(
       `roster-schema-validate: schema is not valid JSON: ${err.message}`,
     );
   }
+  // F71: $id self-identification check. Throws BEFORE cache so a
+  // planted schema cannot poison the cache for downstream consumers.
+  if (parsed.$id !== EXPECTED_SCHEMA_ID) {
+    throw new Error(
+      `roster-schema-validate: schema $id mismatch — expected "${EXPECTED_SCHEMA_ID}", got "${parsed.$id}" (F71 planted-schema defense-in-depth)`,
+    );
+  }
+  _schemaCache = parsed;
   return _schemaCache;
 }
 
@@ -219,6 +239,43 @@ function _validate(value, schema, pathBreadcrumb, errors) {
 }
 
 /**
+ * GPG fingerprints MUST be uppercase 40-hex (#372). `gpg --with-colons`
+ * emits this canonical form, and operator-id.js::_parseGpgColonFingerprint
+ * preserves it; resolution then compares case-sensitively against the
+ * roster (operator-id.js::_findPersonByFingerprint). A hand-authored
+ * lowercase (or non-40-hex) GPG fingerprint would never match at
+ * resolution and would SILENTLY fall to L2_SUPERVISED. This assert makes
+ * that malformed entry fail LOUD at the validation gate (the
+ * /whoami --register PR round-trip hard-stops on `valid:false`) instead.
+ *
+ * This is a load-time CODE assert, not a JSON-Schema `pattern`, because:
+ *   (a) the constraint is conditional on `type === "gpg"` and this vendored
+ *       validator intentionally does NOT support if/then (see header), and
+ *   (b) a `pattern` on the shared `fingerprint` field would wrongly reject
+ *       SSH `SHA256:base64` fingerprints, which are case-sensitive.
+ * GPG-path only; the shared compare in operator-id.js is untouched.
+ */
+const GPG_FINGERPRINT_RE = /^[0-9A-F]{40}$/;
+
+function _validateGpgFingerprints(roster, errors) {
+  const persons = roster && roster.persons;
+  if (!persons || typeof persons !== "object" || Array.isArray(persons)) return;
+  for (const personId of Object.keys(persons)) {
+    const person = persons[personId];
+    if (!person || !Array.isArray(person.keys)) continue; // shape errors already flagged by _validate
+    person.keys.forEach((key, i) => {
+      if (!key || typeof key !== "object" || key.type !== "gpg") return;
+      if (typeof key.fingerprint !== "string") return; // type/required errors already flagged
+      if (!GPG_FINGERPRINT_RE.test(key.fingerprint)) {
+        errors.push(
+          `$.persons.${personId}.keys[${i}].fingerprint: GPG fingerprint must be uppercase 40-hex (^[0-9A-F]{40}$), got ${JSON.stringify(key.fingerprint)}`,
+        );
+      }
+    });
+  }
+}
+
+/**
  * Validate a roster object against the operators-roster JSON Schema.
  *
  * @param {object} roster — parsed JSON content of operators.roster.json
@@ -240,6 +297,9 @@ function validate(roster) {
     };
   }
   _validate(roster, schema, "$", errors);
+  // #372: GPG-fingerprint uppercase-40-hex assert (conditional on key.type,
+  // which the vendored validator cannot express as a JSON-Schema pattern).
+  _validateGpgFingerprints(roster, errors);
   return { valid: errors.length === 0, errors };
 }
 

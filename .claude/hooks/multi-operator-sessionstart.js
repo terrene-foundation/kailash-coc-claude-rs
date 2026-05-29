@@ -135,10 +135,25 @@ function resolveOwnIdentity(repoDir) {
 }
 
 function readPosture(repoDir) {
-  const posturePath = path.join(repoDir, ".claude", "learning", "posture.json");
-  if (!fs.existsSync(posturePath)) return null;
+  // F42 (2026-05-26): route through the SSOT reader in lib/state-io.js so
+  // v1-on-disk inputs auto-migrate to v2 shape AND multi-operator consumers
+  // (computeOperativePosture below) get the schema_version: 2 + repo_floor +
+  // operators surface they require. Pre-F42 this function returned the raw
+  // v1 file shape, which silently dropped through computeOperativePosture's
+  // null-guard into the L5_DELEGATED default for every operator — the
+  // "looks correct, structurally inert" trap the F42 brief flags.
   try {
-    return JSON.parse(fs.readFileSync(posturePath, "utf8"));
+    const { readPosture: ssotRead } = require(
+      path.join(__dirname, "lib", "state-io.js"),
+    );
+    const posture = ssotRead(repoDir);
+    // The SSOT reader always returns an object (fresh-repo or fail-closed
+    // facets included). The pre-F42 contract returned `null` on missing
+    // file; preserve that contract for the _fresh case so downstream
+    // computePostureSurface still defaults to L5_DELEGATED via the null
+    // branch when no posture has ever been written.
+    if (posture && posture._fresh === true) return null;
+    return posture;
   } catch {
     return null;
   }

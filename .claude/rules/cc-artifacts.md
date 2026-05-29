@@ -146,6 +146,8 @@ specs/lint-mechanism.md says "test the lint with a stub file containing X..."
 (no fixture on disk; future contributor must reconstruct from prose)
 ```
 
+Fixtures MAY use per-case sidecar files (as shown above) OR inline-case definition in `run.mjs`/`run.test.js` — the runner contract (assert expected vs actual + non-zero exit on mismatch) is the load-bearing primitive; the storage layout is operator-choice (see `.claude/audit-fixtures/codex-dispatcher/README.md` § "Fixture layout" for the inline-runner variant and selection criteria; receipts: cc-architect R2 LOW-2 + journal/0167 § R3 wave).
+
 **BLOCKED responses:**
 
 - "Synthetic fixtures are temp files; committing them is overhead"

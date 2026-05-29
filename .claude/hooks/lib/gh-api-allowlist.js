@@ -49,6 +49,34 @@ const { loginsEqual } = require("./github-login.js");
 const GH_API_CAPTURE_FRESHNESS_MS = 5 * 60 * 1000;
 
 /**
+ * Freshness ceiling for a `genesis-migration` ceremony's gh-api capture,
+ * distinct from the routine-enrollment `GH_API_CAPTURE_FRESHNESS_MS`.
+ *
+ * Migration ceremonies (per `multi-operator-coordination.md` MUST-7) are
+ * multi-step: (1) capture `gh api repos/{owner}/{repo}` external owner,
+ * (2) capture `gh api repos/{owner}/{repo}/commits/{new_root_commit}` for
+ * re-anchor sub-case, (3) capture `gh api orgs/{org}/memberships/{user}`
+ * for the N=1 org-admin anchor under MUST-7, (4) verify local + origin
+ * root-commit SHA agreement, (5) sign the migration record. The composite
+ * ceremony can legitimately span up to ~15 minutes when the operator
+ * stalls between captures (network hiccup, MFA re-prompt, switching
+ * windows) — the 5-min routine-enrollment ceiling rejects every legitimate
+ * migration in practice.
+ *
+ * 15 minutes (900_000 ms) is the conservative migration-ceremony ceiling:
+ * tolerates multi-step ceremony + clock skew + worker boundary stalls;
+ * does NOT tolerate replay of a capture from a previous hour/day/month.
+ *
+ * Per F86 acceptance criterion (2): exported here so the fold-rule-9c.js
+ * amendment (paired with `genesis-ceremony.js::performMigration`) can
+ * re-verify capture freshness at fold time without re-deriving the
+ * constant. Distinct from `GH_API_CAPTURE_FRESHNESS_MS` so an unrelated
+ * routine-enrollment freshness change cannot silently change migration
+ * semantics.
+ */
+const MIGRATION_LIVENESS_TTL = 15 * 60 * 1000;
+
+/**
  * Strip keys whose value is exactly `undefined`. `null` is preserved
  * because the allowlist explicitly uses null to signal "field absent in
  * the upstream response". This keeps canonicalSerialize (which rejects
@@ -372,6 +400,10 @@ module.exports = {
   _allowlistCollaboratorsList,
   // M3 hardening surface (HIGH-2, HIGH-4)
   GH_API_CAPTURE_FRESHNESS_MS,
+  // F86 / MUST-7 migration-ceremony surface — distinct ceiling for the
+  // multi-step migration ceremony so its 15-min tolerance does not silently
+  // relax the 5-min routine-enrollment default.
+  MIGRATION_LIVENESS_TTL,
   _isCaptureFresh,
   _verifyDistinctBoundCollaborators,
 };

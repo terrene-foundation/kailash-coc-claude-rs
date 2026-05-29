@@ -395,6 +395,19 @@ function discriminateState(input) {
         "log missing/truncated while clone-init witness survives — state damage detected",
     };
   }
+  // Adversarial init-marker nuke (F50 Phase 2 security-reviewer HIGH-1, 2026-05-26):
+  // init marker absent BUT clone-init witness survives. An adversary with file-write
+  // access (bypassing the deny-matrix) could nuke posture.json + .bak + .initialized
+  // to make the repo masquerade as fresh; the witness's separate-location existence
+  // is the structural anchor that catches this — fail-closed to L1 regardless of
+  // marker state when the witness has been recorded for this clone.
+  if (!initMarkerExists && cloneInitWitnessExists) {
+    return {
+      disposition: "corrupt-L1",
+      reason:
+        "clone-init witness survives while .initialized marker is absent — adversarial init-marker nuke or coordinated state deletion detected",
+    };
+  }
   // Fresh repo: no init marker (and consequently nothing else to inspect).
   if (!initMarkerExists && !logNonEmpty) {
     return {

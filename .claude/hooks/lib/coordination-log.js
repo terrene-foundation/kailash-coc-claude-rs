@@ -1128,6 +1128,22 @@ function _checkRule5(record, roster) {
       reason: "rule 5: checkpoint missing required field archive_genN_tip_hash",
     };
   }
+  // F51 NOTE: rule-5 records carry `archive_genN_tip_hash` as a bare
+  // string (the pinned tip SHA), NOT a `{ref, tip_sha}` object. Without
+  // an embedded ref name there is no archive ref to read live against —
+  // unlike rule-9b's `archive_genN_tip_pin` which carries both halves
+  // and IS wired through `verifyArchiveTipPin` (see fold-rule-9b.js
+  // post-R9-A-01 block). Symmetric live-tip wiring for rule 5 is OUT
+  // OF SCOPE for F51 by construction: rule-5's design carries the pin
+  // hash via the rotation record (rule 9b transitively re-anchors it
+  // per `_collectPriorArchivePins`), so a tampered rule-5 hash is
+  // detected via the rule-9b path's live verification at the next
+  // rotation. If rule-5 records ever grow a paired `archive_ref_name +
+  // archive_genN_tip_hash` shape (and the field-presence check already
+  // names `archive_ref_name` in `_collectPriorArchivePins` line 175,
+  // suggesting a future-compatible extension), the verify hook should
+  // land here under the same `ctx.opts.archiveTipVerify` gate as rule
+  // 9b.
   // 2-of-N co-sign requirement
   if (!Array.isArray(c.co_signers) || c.co_signers.length === 0) {
     return {

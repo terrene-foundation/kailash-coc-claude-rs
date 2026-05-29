@@ -73,10 +73,15 @@ secrets/
 # Local settings (user-specific, not for distribution)
 .claude/settings.local.json
 
-# Internal docs (not for distribution)
-/docs/01-kailash-vibe-cc-internals/
-
 # Generated script outputs
 **/scripts/data/
 **/scripts/outputs/
 **/scripts/*.log
+
+# >>> coc:gitignore_additions — managed by loom /sync; do not edit between markers >>>
+.claude/operator-id
+.coc-fetch-cache
+.claude/learning/codify-lease.json
+.claude/logs/
+**/.journal-skipped.log
+# <<< coc:gitignore_additions <<<

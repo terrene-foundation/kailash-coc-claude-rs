@@ -238,6 +238,54 @@ const CASES = [
     expectExit: 1,
     expectShapes: ["operator-home-path"],
   },
+  {
+    // F77 good (#386): a synced .claude/settings.json with NO operator-PII
+    // paths in permissions.allow/deny — every tool-call matcher uses a
+    // relative or $CLAUDE_PROJECT_DIR-rooted path. The new
+    // settings-permission-absolute-path SHAPE MUST NOT fire AND the
+    // existing operator-home-path SHAPE MUST NOT fire (settings.json
+    // is now in the walk surface per the F77 isNeverSynced narrowing).
+    name: "f77-settings-good",
+    dir: "f77-settings-good",
+    expectExit: 0,
+    expectShapes: [],
+  },
+  {
+    // F77 bad (#386): a synced .claude/settings.json carrying SYNTHETIC
+    // operator-PII paths inside permissions.allow tool-call matchers.
+    // The fixture plants 3 Edit/Write/Read(/Users/fakeuser/...) entries
+    // + 1 Bash(/home/fakebuilder/...) entry — 4 settings-permission-
+    // absolute-path findings expected (one per matcher). The /Users/
+    // and /home/ tokens additionally trigger the operator-home-path
+    // shape, but the fixture's count lock is on the new shape only —
+    // a count delta would surface a regression in either the new
+    // shape's regex or the per-line tokenization (settings.json is
+    // single-line-per-matcher JSON, so each matcher is its own line
+    // for the line-by-line scanner).
+    name: "f77-settings-bad",
+    dir: "f77-settings-bad",
+    expectExit: 1,
+    expectShapes: ["settings-permission-absolute-path"],
+  },
+  {
+    // F77 own-coords-still-flagged (#386): proves the new SHAPE skips
+    // the Option-1 allowlist. The maintainer's own /Users/esperie/ path
+    // is allowlisted for PROSE leaks (per the co-owner Option-1 ruling
+    // 2026-05-17 #263); the tool-call matcher form is intrinsically
+    // wrong regardless of which operator's path appears inside. The
+    // fixture plants 2 Edit/Read(/Users/esperie/...) matchers — both
+    // MUST flag as settings-permission-absolute-path. The
+    // operator-home-path SHAPE would have suppressed these via the
+    // /Users/esperie/ allowlist entry, but the new SHAPE's
+    // allowlist-skip carve-out fires here. A 0 finding count = the
+    // allowlist-skip regressed; a 3rd finding = the skip leaked into
+    // the operator-home-path SHAPE (which MUST continue honoring
+    // Option-1 for prose leaks).
+    name: "f77-settings-own-coords-still-flagged",
+    dir: "f77-settings-own-coords-still-flagged",
+    expectExit: 1,
+    expectShapes: ["settings-permission-absolute-path"],
+  },
 ];
 
 function runScanner(root) {

@@ -54,6 +54,16 @@ const { canonicalSerialize, verify: cocVerify } = require("./coc-sign.js");
 // spelled out the same check inline; drift across rule 5 / 9b / 9c was
 // unbounded.
 const { isEligibleSigner } = require("./eligibility.js");
+// F51: live archive-ref tip verification. `verifyArchiveTipPin` compares
+// the embedded archive_genN_tip_pin against the observed `refs/coc/
+// archive-genN` tip on disk; `readArchiveRefTip` is the live-API
+// primitive (`git for-each-ref` via execFileSync) that supplies the
+// observed SHA. Both are injected via ctx.opts at fold time so tests can
+// substitute a fixture-driven reader without monkey-patching modules.
+const { verifyArchiveTipPin } = require("./archive-ref.js");
+const {
+  readArchiveRefTip: defaultReadArchiveRefTip,
+} = require("./transport-git-ref.js");
 
 /**
  * Resolve a verified_id to its roster person (if any).
@@ -255,6 +265,90 @@ function foldGenerationRotation(record, ctx) {
       reason:
         "rule 9b: missing required field archive_genN_tip_pin (R9-A-01); rotation MUST pin the outgoing generation's archive_genN tip",
     };
+  }
+
+  // F51 — live tip verification (multi-operator-coordination.md MUST-5).
+  // The pin-presence check above closes the "missing field" failure mode;
+  // this block closes the "pinned-tip diverges from observed tip" mode by
+  // running `archive-ref.js::verifyArchiveTipPin` against the live
+  // `refs/coc/archive-genN` tip read from disk via
+  // `transport-git-ref.js::readArchiveRefTip` (a `git for-each-ref`
+  // wrapper, NOT a documentation grep — `verify-resource-existence.md`
+  // MUST-2 shape).
+  //
+  // The verifier is opt-in via ctx.opts.archiveTipVerify (the engine's
+  // foldOpts.archiveTipVerify forwards here). When the caller does NOT
+  // wire it — e.g. the engine is folding an in-memory record stream with
+  // no on-disk repo, or a test scenario that asserts only field-presence
+  // — the live-tip check is skipped. Skipping the verify on a server-
+  // side-ruleset-protected repo would leave dropped/truncated archive
+  // refs detectable only at field-presence (MUST-5 second structural
+  // defense); the production fold path (session-end emitter, /codify
+  // fold) wires archiveTipVerify so the second defense is live.
+  //
+  // ctx.opts.archiveTipVerify shape:
+  //   { repoDir: "/path/to/repo",
+  //     readArchiveRefTip?: (repoDir, refName) => { ok, tipSha | reason } }
+  // The readArchiveRefTip override exists so Tier-1 tests can substitute
+  // a deterministic fixture reader without spinning up a real git repo;
+  // production callers omit the override and pick up the default.
+  const archiveTipVerify =
+    (ctx && ctx.opts && ctx.opts.archiveTipVerify) || null;
+  if (archiveTipVerify) {
+    if (
+      typeof archiveTipVerify !== "object" ||
+      typeof archiveTipVerify.repoDir !== "string" ||
+      !archiveTipVerify.repoDir
+    ) {
+      return {
+        accepted: false,
+        foldState: state,
+        reason:
+          "rule 9b: ctx.opts.archiveTipVerify provided but malformed (repoDir required); refusing to skip live-tip verification silently",
+      };
+    }
+    const readFn =
+      typeof archiveTipVerify.readArchiveRefTip === "function"
+        ? archiveTipVerify.readArchiveRefTip
+        : defaultReadArchiveRefTip;
+    const refName = c.archive_genN_tip_pin.ref;
+    const liveRead = readFn(archiveTipVerify.repoDir, refName);
+    if (!liveRead || liveRead.ok !== true) {
+      // Typed-error per zero-tolerance Rule 3 — no silent fallback to
+      // "pass because we couldn't read". Halt-and-report per
+      // observability.md Rule 5: the reason names the divergence so the
+      // calling fold path can route to the advisory shape.
+      const why =
+        liveRead && liveRead.reason
+          ? liveRead.reason
+          : "readArchiveRefTip returned no-ok with no reason";
+      return {
+        accepted: false,
+        foldState: state,
+        reason: `rule 9b: live archive-ref read failed for '${refName}': ${why}`,
+      };
+    }
+    // Build a synthetic checkpoint-shaped record for verifyArchiveTipPin —
+    // the helper's contract is { content: { archive_tip_pins: { ref: sha } } }
+    // and the rotation record carries the equivalent pin under
+    // content.archive_genN_tip_pin. Reshape rather than overload the
+    // verifier so the helper's audit surface stays one-shape.
+    const pinView = {
+      content: {
+        archive_tip_pins: {
+          [c.archive_genN_tip_pin.ref]: c.archive_genN_tip_pin.tip_sha,
+        },
+      },
+    };
+    const verifyResult = verifyArchiveTipPin(pinView, refName, liveRead.tipSha);
+    if (!verifyResult || verifyResult.match !== true) {
+      const why = (verifyResult && verifyResult.reason) || "no reason";
+      return {
+        accepted: false,
+        foldState: state,
+        reason: `rule 9b: live archive-ref tip verification failed for '${refName}': ${why} (expected pinned tip ${c.archive_genN_tip_pin.tip_sha}, observed ${liveRead.tipSha})`,
+      };
+    }
   }
 
   // --- 2-of-N owner co-signature ---

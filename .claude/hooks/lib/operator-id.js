@@ -70,12 +70,81 @@ function _readJsonSafe(filePath) {
  * Matches coc-sign.js's SSH-substrate convention; GPG path uses the supplied
  * key identifier directly (the gpg key id IS the verified_id).
  */
-function _fingerprintFromKey(keyPath, keyType) {
+/**
+ * #366: Parse the canonical 40-hex primary-key fingerprint out of
+ * `gpg --list-keys --with-colons --fingerprint` output. The `fpr` record's
+ * 10th colon-field (index 9) carries the fingerprint; the FIRST `fpr` after a
+ * `pub` record is the primary key. Pure function (no spawn) so the parse is
+ * unit-testable against a fixture without a live keyring. Returns the
+ * uppercase 40-hex string or null when no valid primary `fpr` is present.
+ */
+function _parseGpgColonFingerprint(colonOutput) {
+  if (!colonOutput || typeof colonOutput !== "string") return null;
+  const lines = colonOutput.split("\n");
+  // #366 security (redteam R1 MEDIUM): a COLLIDING short/long key-id can make
+  // `gpg --list-keys <keyid>` emit MORE THAN ONE primary key (>1 `pub`/`sec`
+  // record). Returning the first `fpr` would bind verified_id to an arbitrary
+  // one of the colliding keys — a session-role-view escalation vector under
+  // the bounded-trust model. Ambiguous keyring → return null → caller falls
+  // back to the verbatim id → fails the 40-hex roster `===` → safe L2. We
+  // never silently resolve a role from an ambiguous match.
+  const primaryCount = lines.filter(
+    (l) => l.startsWith("pub:") || l.startsWith("sec:"),
+  ).length;
+  // Require EXACTLY one primary key: `> 1` is the collision/ambiguity vector;
+  // `=== 0` is a malformed / non-gpg stream with no owning `pub` record. Both
+  // resolve to null → fallback → safe L2, and the single predicate removes any
+  // need to reason about whether a 0-`pub` stream is gpg-authentic (redteam R2).
+  if (primaryCount !== 1) return null;
+  // Exactly one primary: the first valid `fpr` is the primary key's
+  // fingerprint (gpg emits the primary `pub`+`fpr` before any subkey records).
+  for (const line of lines) {
+    if (line.startsWith("fpr:")) {
+      const fpr = line.split(":")[9];
+      if (fpr && /^[0-9A-Fa-f]{40}$/.test(fpr)) return fpr.toUpperCase();
+    }
+  }
+  return null;
+}
+
+/**
+ * #366: Normalize a GPG key identifier (short ID / long ID / 40-hex) to the
+ * canonical 40-hex fingerprint via `gpg --list-keys --with-colons
+ * --fingerprint <keyid>`. Returns null on any failure (gpg absent, key not in
+ * keyring, ambiguous/empty output) so the caller falls back to the verbatim
+ * identifier — preserving prior behavior with NO regression when gpg can't
+ * resolve.
+ */
+function _gpgFingerprint(keyId) {
+  if (!keyId || typeof keyId !== "string") return null;
+  const r = spawnSync(
+    "gpg",
+    ["--list-keys", "--with-colons", "--fingerprint", keyId],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  if (r.status !== 0) return null;
+  return _parseGpgColonFingerprint(r.stdout.toString());
+}
+
+/**
+ * Resolve the SSH key fingerprint via `ssh-keygen -lf <pubkey>` (canonical
+ * Tier-2 invocation). Returns the SHA256:base64 token or null on any failure.
+ * For GPG (#366): normalize the key identifier to the schema-canonical 40-hex
+ * fingerprint so roster lookup (40-hex per operators.roster.schema.json) holds
+ * regardless of whether git config stores a short/long key id. An optional
+ * `resolver` (keyId → 40-hex | null) is injectable for deterministic tests;
+ * it defaults to the live `_gpgFingerprint`.
+ */
+function _fingerprintFromKey(keyPath, keyType, resolver) {
   if (!keyPath || typeof keyPath !== "string") return null;
   if (keyType === "gpg") {
-    // For GPG the keyPath is a key identifier (uid/fingerprint/email) per
-    // coc-sign.js's contract. The verified_id IS that identifier.
-    return keyPath;
+    // #366: the git-config user.signingkey is commonly a 16-hex short/long key
+    // id, but the roster schema mandates the 40-hex fingerprint. Normalize via
+    // gpg before the strict-=== roster match; fall back to the verbatim id only
+    // when gpg cannot resolve (no keyring / gpg absent), preserving prior
+    // behavior with no regression.
+    const resolve = typeof resolver === "function" ? resolver : _gpgFingerprint;
+    return resolve(keyPath) || keyPath;
   }
   // SSH: derive fingerprint from the pubkey file. Accept either the
   // private-key path or the .pub path.
@@ -307,6 +376,12 @@ module.exports = {
   L2_SUPERVISED,
   UNROSTERED_BLOCKED_INTO,
   NO_KEY_BLOCKED_INTO,
+  // #366: GPG fingerprint normalization internals — exported for regression
+  // tests (the parser is pure + deterministic; the resolver is injectable into
+  // _fingerprintFromKey for keyring-free tests).
+  _parseGpgColonFingerprint,
+  _gpgFingerprint,
+  _fingerprintFromKey,
   // Test-only counters. NOT part of the supported API.
   _test_getDeriveCount: () => _deriveCount,
   _test_resetDeriveCount: () => {

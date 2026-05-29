@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "description": "Kailash COC Claude (Python) - Claude Code hooks configuration",
+  "description": "Kailash COC Claude (Rust) - Claude Code hooks configuration",
   "effortLevel": "high",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
@@ -33,14 +33,11 @@
       "Bash(md5:*)",
       "Bash(rm:.claude/test-harness/*)",
       "Bash(rm -rf .claude/test-harness*)",
-      "Edit(/Users/esperie/repos/loom/kailash-*/**)",
-      "Write(/Users/esperie/repos/loom/kailash-*/**)",
-      "Read(/Users/esperie/repos/loom/kailash-*/**)",
-      "Edit(/Users/esperie/repos/loom/.claude/**)",
-      "Write(/Users/esperie/repos/loom/.claude/**)",
-      "Edit(/Users/esperie/repos/kailash-*/**)",
-      "Write(/Users/esperie/repos/kailash-*/**)",
-      "Read(/Users/esperie/repos/kailash-*/**)"
+      "Edit($CLAUDE_PROJECT_DIR/**)",
+      "Write($CLAUDE_PROJECT_DIR/**)",
+      "Read($CLAUDE_PROJECT_DIR/**)",
+      "Edit($CLAUDE_PROJECT_DIR/.claude/**)",
+      "Write($CLAUDE_PROJECT_DIR/.claude/**)"
     ]
   },
   "hooks": {

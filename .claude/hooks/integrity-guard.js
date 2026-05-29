@@ -188,8 +188,17 @@ function isWatchedPath(absPath, repoDir) {
     rel = absPath.replace(/\\/g, "/");
   }
   // Direct hits on integrity-critical singletons.
+  //
+  // operators.roster.schema.json added per F67/security-reviewer HIGH-1
+  // (journal 0162): the schema is the trust-root contract — it defines
+  // what a valid roster looks like. A malicious operator who weakens
+  // the schema (e.g. removes propertyNames-prototype-pollution rejection,
+  // relaxes GPG fingerprint constraint, adds a human_admin synonym to
+  // host_role enum) silently accepts forged rosters. Same structural
+  // authority class as operators.roster.json — both gated equally.
   const DIRECT = new Set([
     ".claude/operators.roster.json",
+    ".claude/operators.roster.schema.json",
     ".claude/learning/coordination-log.jsonl",
     ".claude/learning/posture.json",
     ".claude/learning/violations.jsonl",

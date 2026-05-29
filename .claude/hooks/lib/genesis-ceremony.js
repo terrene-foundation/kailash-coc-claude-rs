@@ -41,6 +41,17 @@ const cocSign = require("./coc-sign.js");
 const ghApiAllowlist = require("./gh-api-allowlist.js");
 const githubLogin = require("./github-login.js");
 const { isUnenrolled } = require("./roster-schema-validate.js");
+const { CO_SIGN_ANCHOR_KIND_ORG_ADMIN } = require("./fold-rule-9c.js");
+
+// F86 / MUST-7 typed-error tokens. Callers (sessions, CLI, hooks)
+// pattern-match these strings to distinguish the structural-block paths
+// from runtime / network failures. The strings are part of the public
+// surface (per the rule prose); changes require a coordinated update of
+// the rule body + helper + caller pattern matchers.
+const ERR_USER_OWNED_N1_BLOCKED =
+  "genesis-migration: user-owned N=1 has no structural co-sign anchor; add a second owner via /whoami --register before migrating";
+const ERR_GHES_SHARED_APPLIANCE_BLOCKED =
+  'genesis-migration: host="ghes-shared-appliance" has out-of-band appliance-admin mutation channel; org-admin attestation cannot substitute as the structural anchor under N=1. Add a second owner via /whoami --register before migrating';
 
 /**
  * Default sign function bound to coc-sign.js. Callers MAY override for
@@ -589,11 +600,783 @@ function runEnrollmentCeremony(opts) {
   return { ok: true, record };
 }
 
+// =========================================================================
+// F86 / MUST-7 — performMigration (N=1 org-admin path + re-anchor sub-case)
+// =========================================================================
+
+/**
+ * Resolve the sole owner person_id in the roster for the N=1 path. Returns
+ * {ok, person_id, person, count} where `count` is the total number of
+ * rostered (non-PLACEHOLDER) owner person_ids. The N=1 path requires
+ * count === 1; count ≥ 2 surfaces as a typed error pointing the caller at
+ * the 2-of-N path (which lives outside this helper's scope).
+ */
+function _resolveSoleOwner(roster) {
+  const owners = Object.entries((roster && roster.persons) || {}).filter(
+    ([pid, person]) => !isUnenrolled(pid) && person && person.role === "owner",
+  );
+  if (owners.length === 0) {
+    return {
+      ok: false,
+      count: 0,
+      reason: "roster declares zero rostered owner person_ids",
+    };
+  }
+  if (owners.length > 1) {
+    return {
+      ok: false,
+      count: owners.length,
+      reason: `roster declares ${owners.length} rostered owner person_ids; MUST-7 N=1 path requires exactly one. Use the 2-of-N migration path instead.`,
+    };
+  }
+  const [pid, person] = owners[0];
+  return { ok: true, count: 1, person_id: pid, person };
+}
+
+/**
+ * Run a git command and return {ok, stdout, stderr, status}. The caller
+ * MAY override via opts.git for testing (avoids subprocess invocation).
+ * In production this wraps `git` with the safer execFileSync arg-array
+ * form per `security.md` § "No eval()" (no shell-string interpolation).
+ */
+function _defaultGit({ args, cwd }) {
+  // eslint-disable-next-line global-require
+  const { execFileSync } = require("child_process");
+  try {
+    const stdout = execFileSync("git", args, {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      encoding: "utf8",
+    });
+    return { ok: true, stdout: String(stdout).trim(), stderr: "", status: 0 };
+  } catch (err) {
+    return {
+      ok: false,
+      stdout: "",
+      stderr: err && err.stderr ? String(err.stderr) : String(err),
+      status: err && err.status ? err.status : 1,
+    };
+  }
+}
+
+/**
+ * F88 — default per-emitter chain-head reader for the migration record's
+ * seq/prev_hash stamping.
+ *
+ * The migration record MUST extend the emitter's existing coordination-log
+ * chain: when the emitter already anchored a `genesis-anchor` (or any prior
+ * record), the migration is a CONTINUATION (`seq = head.lastSeq + 1`,
+ * `prev_hash = head.lastContentHash`), NOT a fresh `seq:0/prev_hash:null`
+ * root. Stamping `seq:0` when a prior record exists triggers fold rule-3
+ * fork detection (`coordination-log.js` `_checkRule3`, which runs BEFORE
+ * the type-dispatch predicate and is keyed on `(verified_id, seq)` with no
+ * genesis-migration exemption) — the legitimate owner would be flagged as a
+ * cryptographic equivocator and the trust root would NOT re-anchor. See
+ * journal/0172 (F88) for the full defect post-mortem.
+ *
+ * The reader folds the live log through the SAME engine the migration will
+ * later be folded by and reuses `computeOwnChainHead` (the SSOT for rule-2
+ * chain-head semantics), so the `prev_hash` it returns is byte-identical to
+ * what rule-2 will expect. Reads synchronously to keep performMigration
+ * synchronous; an absent / empty log returns null (genuinely-first record →
+ * seq:0 is then correct).
+ *
+ * @param {{cwd: string, roster: object, verifiedId: string}} args
+ * @returns {{lastSeq: number, lastContentHash: string} | null}
+ */
+function _defaultReadChainHead({ cwd, roster, verifiedId }) {
+  // eslint-disable-next-line global-require
+  const fs = require("fs");
+  // eslint-disable-next-line global-require
+  const path = require("path");
+  // eslint-disable-next-line global-require
+  const coordinationLog = require("./coordination-log.js");
+  const logPath = path.join(
+    cwd,
+    ".claude",
+    "learning",
+    "coordination-log.jsonl",
+  );
+  let raw;
+  try {
+    raw = fs.readFileSync(logPath, "utf8");
+  } catch (err) {
+    // ENOENT → no prior chain (fresh log); any other read error is a real
+    // failure the caller MUST see, not silently treat as "fresh" (which
+    // would re-introduce the seq:0 fork). Re-throw non-ENOENT.
+    if (err && err.code === "ENOENT") return null;
+    throw err;
+  }
+  const records = raw
+    .split("\n")
+    .filter((l) => l.length > 0)
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter((r) => r && typeof r === "object");
+  if (records.length === 0) return null;
+  const folded = coordinationLog.foldLog(records, roster, {});
+  return coordinationLog.computeOwnChainHead(folded, verifiedId);
+}
+
+/**
+ * Verify the local repo's root commit per MUST-7 Re-anchor sub-case
+ * (4)(a). Returns {ok, sha} or {ok:false, reason, step}.
+ *
+ * Local root commit = `git rev-list --max-parents=0 HEAD`. If multiple
+ * roots exist (octopus history), the command returns multiple lines —
+ * reject as ambiguous; the migration ceremony is undefined on multi-root
+ * repos.
+ */
+function _verifyLocalRootCommit(git, cwd, expected) {
+  const r = git({ args: ["rev-list", "--max-parents=0", "HEAD"], cwd });
+  if (!r || !r.ok) {
+    return {
+      ok: false,
+      step: "4a-local-root-commit",
+      reason: `git rev-list --max-parents=0 HEAD failed: ${r && r.stderr ? r.stderr : "unknown"}`,
+    };
+  }
+  const lines = r.stdout.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length === 0) {
+    return {
+      ok: false,
+      step: "4a-local-root-commit",
+      reason: "git rev-list returned no root commit (HEAD has no history)",
+    };
+  }
+  if (lines.length > 1) {
+    return {
+      ok: false,
+      step: "4a-local-root-commit",
+      reason: `git rev-list returned ${lines.length} root commits (multi-root history); re-anchor ceremony undefined`,
+    };
+  }
+  const actual = lines[0].trim();
+  if (actual !== expected) {
+    return {
+      ok: false,
+      step: "4a-local-root-commit",
+      reason: `local root commit ${actual} does not match expected new_root_commit ${expected}`,
+    };
+  }
+  return { ok: true, sha: actual };
+}
+
+/**
+ * Verify the origin's default-branch root commit matches local per
+ * MUST-7 Re-anchor sub-case (4)(d). Closes the residual where an
+ * operator running `git filter-repo` between Step 3 capture and the
+ * helper invocation could produce a local checkout matching their chosen
+ * SHA while remote root diverges. The check is best-effort: if origin
+ * is unreachable the helper returns a typed soft-fail so the caller can
+ * decide whether to proceed under bounded-trust acceptance OR retry with
+ * network available.
+ *
+ * Returns {ok, sha} | {ok:false, reason, step, soft?:true}.
+ */
+function _verifyOriginRootCommit(git, cwd, expected, defaultBranch) {
+  const refspec = `origin/${defaultBranch}`;
+  const r = git({
+    args: ["rev-list", "--max-parents=0", refspec],
+    cwd,
+  });
+  if (!r || !r.ok) {
+    return {
+      ok: false,
+      step: "4d-origin-root-commit",
+      soft: true,
+      reason: `git rev-list --max-parents=0 ${refspec} failed (origin may be unreachable): ${r && r.stderr ? r.stderr : "unknown"}`,
+    };
+  }
+  const lines = r.stdout.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length === 0) {
+    return {
+      ok: false,
+      step: "4d-origin-root-commit",
+      soft: true,
+      reason: `git rev-list returned no root commit for ${refspec}`,
+    };
+  }
+  if (lines.length > 1) {
+    return {
+      ok: false,
+      step: "4d-origin-root-commit",
+      reason: `${refspec} has ${lines.length} root commits (multi-root history)`,
+    };
+  }
+  const actual = lines[0].trim();
+  if (actual !== expected) {
+    return {
+      ok: false,
+      step: "4d-origin-root-commit",
+      reason: `origin/${defaultBranch} root commit ${actual} does not match local new_root_commit ${expected} (mid-ceremony git filter-repo divergence — local checkout has been history-rewritten relative to origin)`,
+    };
+  }
+  return { ok: true, sha: actual };
+}
+
+/**
+ * F86 / MUST-7 — perform a `genesis-migration` ceremony.
+ *
+ * Two ceremony kinds:
+ *
+ *   "migration" — relocate the trust root to a new repo owner. Requires
+ *     all standard MUST-4 fields PLUS, under N=1 + org-owned, the
+ *     MUST-7-mandated structural-equivalent anchor (gh_api_org_membership
+ *     capture with role=admin + state=active + fresh per
+ *     MIGRATION_LIVENESS_TTL + matched against the sole owner's bound
+ *     github_login).
+ *
+ *   "re-anchor" — correct an existing `genesis.root_commit` pointer to
+ *     track the actual repo root. Layered on top of the migration shape:
+ *     also requires (a) local root commit verification, (b) gh api
+ *     commits/{new_root_commit} verification, (c) origin/<default-branch>
+ *     root agreement, and (d) `content.pre_correction_root_commit`
+ *     surfacing the old SHA the re-anchor corrects.
+ *
+ * Routing matrix (per MUST-7 (a)-(g)):
+ *
+ *   user-owned + N=1   → typed-error ERR_USER_OWNED_N1_BLOCKED
+ *   ghes-shared-appliance (host config) → typed-error ERR_GHES_SHARED_APPLIANCE_BLOCKED
+ *   org-owned + N=1    → emit canonical N=1 record with
+ *                        co_signers:[] + co_sign_anchor_kind discriminator
+ *                        + gh_api_org_membership_capture + gh_api_owner_capture
+ *                        + signed content covering all of the above
+ *   org-owned + N≥2 OR user-owned + N≥2 → typed-error directing caller to
+ *                        the 2-of-N path (this helper is N=1-only).
+ *
+ * @param {object} opts
+ * @param {object} opts.roster                 - parsed roster JSON
+ * @param {{owner: string, name: string}} opts.repo - source repo identification
+ * @param {{owner: string, name: string}} [opts.newRepo] - post-migration repo identification (defaults to opts.repo for re-anchor)
+ * @param {string} opts.signingKeyPath         - path to the SSH/GPG signing key
+ * @param {string} opts.signingKeyFingerprint  - the verified_id (fingerprint) of the key
+ * @param {function} opts.ghApi                - (endpoint: string) => {ok, status, body, error?}
+ * @param {function} opts.transportAppend      - (record: object) => {ok, error?}
+ * @param {function} [opts.git]                - ({args, cwd}) => {ok, stdout, stderr, status}; defaults to execFileSync
+ * @param {string} [opts.cwd]                  - cwd for git invocations; defaults to process.cwd()
+ * @param {"migration"|"re-anchor"} opts.kind  - ceremony kind
+ * @param {string} [opts.newRootCommit]        - required for kind="re-anchor"; the corrected root SHA
+ * @param {string} [opts.preCorrectionRootCommit] - required for kind="re-anchor"; the old SHA being corrected
+ * @param {string} [opts.defaultBranch="main"] - origin/<branch> for re-anchor cross-check
+ * @param {number} opts.fromGenesisGeneration  - current generation counter
+ * @param {number} opts.toGenesisGeneration    - new generation counter (must be > from)
+ * @param {string} [opts.host]                 - optional host config token, e.g. "ghes-shared-appliance"
+ * @param {function} [opts.now]                - () => ISO-8601 string; defaults to wall clock
+ * @param {function} [opts.sign]               - override for coc-sign.sign
+ * @param {"ssh"|"gpg"} [opts.keyType]         - signing key type; default "ssh"
+ *
+ * @returns {{ok: true, record: object} |
+ *           {ok: false, error: string, reason: string, step: string}}
+ */
+function performMigration(opts) {
+  const o = opts || {};
+  const {
+    roster,
+    repo,
+    signingKeyPath,
+    signingKeyFingerprint,
+    ghApi,
+    transportAppend,
+    kind,
+    newRootCommit,
+    preCorrectionRootCommit,
+    fromGenesisGeneration,
+    toGenesisGeneration,
+    host,
+  } = o;
+  const newRepo = o.newRepo || o.repo;
+  const defaultBranch = o.defaultBranch || "main";
+  const cwd = o.cwd || process.cwd();
+  const now = o.now || (() => new Date().toISOString());
+  const sign = o.sign || defaultSign;
+  const keyType = o.keyType || "ssh";
+  const git = o.git || _defaultGit;
+  // F88 — per-emitter chain-head reader. Injectable for tests; the default
+  // folds the live coordination-log so the migration record extends the
+  // emitter's chain instead of forking at seq:0. See _defaultReadChainHead.
+  const readChainHead = o.readChainHead || _defaultReadChainHead;
+
+  // Step 1: input + roster preflight
+  if (kind !== "migration" && kind !== "re-anchor") {
+    return {
+      ok: false,
+      error: "invalid ceremony kind",
+      reason: `opts.kind must be "migration" or "re-anchor"; got ${JSON.stringify(kind)}`,
+      step: "1-input",
+    };
+  }
+  const rosterErr = _validateRosterForCeremony(roster);
+  if (rosterErr) {
+    return {
+      ok: false,
+      error: "roster invalid",
+      reason: rosterErr,
+      step: "1-input",
+    };
+  }
+  if (!repo || typeof repo !== "object" || !repo.owner || !repo.name) {
+    return {
+      ok: false,
+      error: "repo identification missing",
+      reason: "opts.repo MUST be {owner, name}",
+      step: "1-input",
+    };
+  }
+  if (!newRepo || !newRepo.owner || !newRepo.name) {
+    return {
+      ok: false,
+      error: "newRepo identification missing",
+      reason:
+        "opts.newRepo MUST be {owner, name} (defaults to opts.repo for kind=re-anchor)",
+      step: "1-input",
+    };
+  }
+  if (
+    typeof fromGenesisGeneration !== "number" ||
+    !Number.isInteger(fromGenesisGeneration) ||
+    typeof toGenesisGeneration !== "number" ||
+    !Number.isInteger(toGenesisGeneration)
+  ) {
+    return {
+      ok: false,
+      error: "genesis_generation must be integers",
+      reason: `from=${fromGenesisGeneration}, to=${toGenesisGeneration}`,
+      step: "1-input",
+    };
+  }
+  if (toGenesisGeneration <= fromGenesisGeneration) {
+    return {
+      ok: false,
+      error: "monotonic generation required",
+      reason: `genesis_generation must increment monotonically (from=${fromGenesisGeneration}, to=${toGenesisGeneration})`,
+      step: "1-input",
+    };
+  }
+  if (!signingKeyPath || !signingKeyFingerprint) {
+    return {
+      ok: false,
+      error: "signing key not configured",
+      reason:
+        "opts.signingKeyPath + opts.signingKeyFingerprint are required (zero-tolerance.md Rule 3 — no silent fallback)",
+      step: "1-input",
+    };
+  }
+  if (typeof ghApi !== "function") {
+    return {
+      ok: false,
+      error: "ghApi callable missing",
+      reason: "opts.ghApi must be a function (endpoint) => {ok,status,body}",
+      step: "1-input",
+    };
+  }
+  if (typeof transportAppend !== "function") {
+    return {
+      ok: false,
+      error: "transportAppend callable missing",
+      reason: "opts.transportAppend must be a function (record) => {ok}",
+      step: "1-input",
+    };
+  }
+  if (kind === "re-anchor") {
+    if (typeof newRootCommit !== "string" || !newRootCommit) {
+      return {
+        ok: false,
+        error: "newRootCommit required for kind=re-anchor",
+        reason: "opts.newRootCommit MUST be the corrected root SHA",
+        step: "1-input",
+      };
+    }
+    if (
+      typeof preCorrectionRootCommit !== "string" ||
+      !preCorrectionRootCommit
+    ) {
+      return {
+        ok: false,
+        error: "preCorrectionRootCommit required for kind=re-anchor",
+        reason:
+          "opts.preCorrectionRootCommit MUST be the old SHA being corrected",
+        step: "1-input",
+      };
+    }
+    if (newRootCommit === preCorrectionRootCommit) {
+      return {
+        ok: false,
+        error: "no-op re-anchor",
+        reason:
+          "newRootCommit === preCorrectionRootCommit; re-anchor would not change the trust root",
+        step: "1-input",
+      };
+    }
+  }
+
+  // Validate gh-api endpoint inputs BEFORE interpolation (parity with
+  // runEnrollmentCeremony HIGH-3).
+  const newOwnerValid = githubLogin.validateGithubLogin(newRepo.owner);
+  if (!newOwnerValid.valid) {
+    return {
+      ok: false,
+      error: "newRepo.owner invalid",
+      reason: `newRepo.owner ${newOwnerValid.reason}`,
+      step: "1-input",
+    };
+  }
+  const newNameValid = githubLogin.validateGithubRepoName(newRepo.name);
+  if (!newNameValid.valid) {
+    return {
+      ok: false,
+      error: "newRepo.name invalid",
+      reason: `newRepo.name ${newNameValid.reason}`,
+      step: "1-input",
+    };
+  }
+
+  // Step 2: route by repo_owner_kind + host config. The user-owned and
+  // ghes-shared-appliance blocks are STRUCTURAL — they fire before any
+  // network call so the typed error is reachable offline.
+  const repoOwnerKind = roster.genesis.repo_owner_kind;
+  if (host === "ghes-shared-appliance") {
+    return {
+      ok: false,
+      error: "ghes-shared-appliance blocked",
+      reason: ERR_GHES_SHARED_APPLIANCE_BLOCKED,
+      step: "2-route",
+    };
+  }
+  if (repoOwnerKind === "user") {
+    return {
+      ok: false,
+      error: "user-owned N=1 blocked",
+      reason: ERR_USER_OWNED_N1_BLOCKED,
+      step: "2-route",
+    };
+  }
+  if (repoOwnerKind !== "org") {
+    return {
+      ok: false,
+      error: "unknown repo_owner_kind",
+      reason: `roster.genesis.repo_owner_kind must be "user" or "org"; got "${repoOwnerKind}"`,
+      step: "2-route",
+    };
+  }
+
+  // Step 3: resolve the sole owner (N=1 gate).
+  const owner = _resolveSoleOwner(roster);
+  if (!owner.ok) {
+    return {
+      ok: false,
+      error: "sole-owner resolution failed",
+      reason: owner.reason,
+      step: "3-sole-owner",
+    };
+  }
+  if (
+    !owner.person ||
+    typeof owner.person.github_login !== "string" ||
+    !owner.person.github_login
+  ) {
+    return {
+      ok: false,
+      error: "sole owner missing github_login",
+      reason: `roster.persons[${owner.person_id}].github_login is missing or empty; cannot bind org-admin attestation`,
+      step: "3-sole-owner",
+    };
+  }
+  // The signing fingerprint MUST belong to the sole owner.
+  const signingKey = _findSigningKey(owner.person, signingKeyFingerprint);
+  if (!signingKey) {
+    return {
+      ok: false,
+      error: "signing key not the sole owner's enrolled key",
+      reason: `signing fingerprint ${signingKeyFingerprint} is not enrolled under the sole owner person_id ${owner.person_id}`,
+      step: "3-sole-owner",
+    };
+  }
+  const adminLogin = owner.person.github_login;
+  const adminValid = githubLogin.validateGithubLogin(adminLogin);
+  if (!adminValid.valid) {
+    return {
+      ok: false,
+      error: "sole owner github_login invalid",
+      reason: `sole owner github_login ${adminValid.reason}`,
+      step: "3-sole-owner",
+    };
+  }
+
+  // Step 4 (re-anchor only): local + origin root-commit verification.
+  if (kind === "re-anchor") {
+    const local = _verifyLocalRootCommit(git, cwd, newRootCommit);
+    if (!local.ok) {
+      return {
+        ok: false,
+        error: "local root-commit verification failed",
+        reason: local.reason,
+        step: local.step,
+      };
+    }
+    const remote = _verifyOriginRootCommit(
+      git,
+      cwd,
+      newRootCommit,
+      defaultBranch,
+    );
+    if (!remote.ok) {
+      return {
+        ok: false,
+        error: "origin root-commit verification failed",
+        reason: remote.reason,
+        step: remote.step,
+        ...(remote.soft ? { soft: true } : {}),
+      };
+    }
+  }
+
+  // Step 5: capture fresh gh api repos/{owner}/{repo} — the
+  // post-migration external-owner check.
+  let ownerCapture;
+  try {
+    const r = ghApi(`repos/${newRepo.owner}/${newRepo.name}`);
+    if (!r || !r.ok) {
+      return {
+        ok: false,
+        error: "gh api repos call failed",
+        reason: `gh api repos/${newRepo.owner}/${newRepo.name} → status ${r && r.status} body ${JSON.stringify(r && r.body)}`,
+        step: "5-gh-api-owner",
+      };
+    }
+    if (!r.body || !r.body.owner || typeof r.body.owner.login !== "string") {
+      return {
+        ok: false,
+        error: "gh api repos response malformed",
+        reason: `expected body.owner.login; got ${JSON.stringify(r.body)}`,
+        step: "5-gh-api-owner",
+      };
+    }
+    if (!githubLogin.loginsEqual(r.body.owner.login, newRepo.owner)) {
+      return {
+        ok: false,
+        error: "owner_mismatch",
+        reason: `gh api owner mismatch: newRepo.owner '${newRepo.owner}', gh api returned '${r.body.owner.login}'`,
+        step: "5-gh-api-owner",
+      };
+    }
+    ownerCapture = ghApiAllowlist._allowlistRepoOwner(r.body, {
+      capture_ts: now(),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: "gh api repos call threw",
+      reason: `network unavailable or ghApi threw: ${err && err.message ? err.message : String(err)}`,
+      step: "5-gh-api-owner",
+    };
+  }
+
+  // Step 6: capture fresh gh api orgs/{org}/memberships/{adminLogin} —
+  // the structural-equivalent anchor under N=1. Per MUST-7 (c): role
+  // MUST be "admin" + state MUST be "active".
+  let orgMembershipCapture;
+  try {
+    const r = ghApi(`orgs/${newRepo.owner}/memberships/${adminLogin}`);
+    if (!r || !r.ok) {
+      return {
+        ok: false,
+        error: "org membership check failed",
+        reason: `gh api orgs/${newRepo.owner}/memberships/${adminLogin} → status ${r && r.status} body ${JSON.stringify(r && r.body)}`,
+        step: "6-org-admin",
+      };
+    }
+    if (!r.body || r.body.role !== "admin") {
+      return {
+        ok: false,
+        error: "not an org admin",
+        reason: `gh api orgs/${newRepo.owner}/memberships/${adminLogin} role is '${r.body && r.body.role}', not 'admin'`,
+        step: "6-org-admin",
+      };
+    }
+    if (r.body.state !== "active") {
+      return {
+        ok: false,
+        error: "org membership not active",
+        reason: `gh api orgs/${newRepo.owner}/memberships/${adminLogin} state is '${r.body.state}', not 'active'`,
+        step: "6-org-admin",
+      };
+    }
+    orgMembershipCapture = ghApiAllowlist._allowlistOrgMembership(r.body, {
+      capture_ts: now(),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: "org membership call threw",
+      reason: `network unavailable or ghApi threw: ${err && err.message ? err.message : String(err)}`,
+      step: "6-org-admin",
+    };
+  }
+
+  // Step 7 (re-anchor only): capture fresh gh api
+  // commits/{new_root_commit} — independent gh-api anchor for the
+  // corrected root commit per MUST-7 Re-anchor sub-case (4)(b).
+  let rootCommitCapture = null;
+  if (kind === "re-anchor") {
+    try {
+      const r = ghApi(
+        `repos/${newRepo.owner}/${newRepo.name}/commits/${newRootCommit}`,
+      );
+      if (!r || !r.ok) {
+        return {
+          ok: false,
+          error: "gh api commits call failed",
+          reason: `gh api commits/${newRootCommit} → status ${r && r.status} body ${JSON.stringify(r && r.body)}`,
+          step: "7-root-commit",
+        };
+      }
+      const body = r.body || {};
+      const commit = body.commit || {};
+      const verification = commit.verification || {};
+      // Org-owned bootstrap relaxation (issue #358 sibling): under the
+      // N=1 org-admin path, the verified-active admin attestation
+      // captured at Step 6 substitutes as the verified-identity anchor
+      // for the trust root — exactly the same shape as enrollment.
+      // We still RECORD verification.verified faithfully so an auditor
+      // sees the ceremony proceeded under the org-admin path even if
+      // the root commit itself was unsigned (typical for filter-repo
+      // rewrites).
+      void verification;
+      rootCommitCapture = ghApiAllowlist._allowlistCommitVerification(body, {
+        capture_ts: now(),
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        error: "gh api commits call threw",
+        reason: `network unavailable or ghApi threw: ${err && err.message ? err.message : String(err)}`,
+        step: "7-root-commit",
+      };
+    }
+  }
+
+  // Step 8: build canonical content, sign, append.
+  //
+  // Field-name convention for the N=1 path follows MUST-7 spec literally:
+  //   - gh_api_owner_capture (matches genesis-anchor convention)
+  //   - gh_api_org_membership_capture (matches enrollment convention)
+  //   - co_sign_anchor_kind (discriminator MUST-7 (e))
+  //   - co_signers: [] (MUST-7 (b))
+  //   - new_repo_owner / new_repo_owner_kind (fold-rule-9c match surface)
+  //   - from_genesis_generation / to_genesis_generation (fold-rule-9c)
+  //
+  // Per MUST-7 (f): the primary signature MUST cover the entire content
+  // block including co_signers, co_sign_anchor_kind, and BOTH captures.
+  // canonicalSerialize over recordCore (with sig absent) is exactly that.
+  const content = {
+    new_repo_owner: newRepo.owner,
+    new_repo_owner_kind: "org",
+    from_genesis_generation: fromGenesisGeneration,
+    to_genesis_generation: toGenesisGeneration,
+    co_signers: [],
+    co_sign_anchor_kind: CO_SIGN_ANCHOR_KIND_ORG_ADMIN,
+    gh_api_owner_capture: ownerCapture,
+    gh_api_org_membership_capture: orgMembershipCapture,
+  };
+  if (kind === "re-anchor") {
+    content.pre_correction_root_commit = preCorrectionRootCommit;
+    content.gh_api_root_commit_capture = rootCommitCapture;
+  }
+
+  // F88 — stamp seq/prev_hash as a chain-continuation off the emitter's
+  // current chain head. Hardcoding seq:0/prev_hash:null (the pre-F88 bug)
+  // forks against an existing genesis-anchor at the same (verified_id, seq=0)
+  // — fold rule-3 rejects the record AND flags the owner as an equivocator,
+  // and the trust root never re-anchors. The head is derived from the live
+  // log via the same engine + SSOT the fold will use, so prev_hash matches
+  // rule-2 byte-for-byte. A null head (genuinely-first record, fresh log)
+  // correctly yields seq:0/prev_hash:null. See journal/0172.
+  let chainHead;
+  try {
+    chainHead = readChainHead({
+      cwd,
+      roster,
+      verifiedId: signingKeyFingerprint,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: "chain-head read failed",
+      reason: `readChainHead threw (coordination-log unreadable; refusing to fall back to seq:0 which would fork): ${err && err.message ? err.message : String(err)}`,
+      step: "8-chain-head",
+    };
+  }
+  const recordSeq = chainHead ? chainHead.lastSeq + 1 : 0;
+  const recordPrevHash = chainHead ? chainHead.lastContentHash : null;
+
+  const recordCore = {
+    type: "genesis-migration",
+    verified_id: signingKeyFingerprint,
+    person_id: owner.person_id,
+    seq: recordSeq,
+    prev_hash: recordPrevHash,
+    ts: now(),
+    content,
+  };
+
+  let bytes;
+  try {
+    bytes = cocSign.canonicalSerialize(recordCore);
+  } catch (err) {
+    return {
+      ok: false,
+      error: "canonicalSerialize threw",
+      reason: err && err.message ? err.message : String(err),
+      step: "8-serialize",
+    };
+  }
+
+  const signResult = sign(bytes, { keyType, keyPath: signingKeyPath });
+  if (!signResult || !signResult.ok) {
+    return {
+      ok: false,
+      error: signResult && signResult.error ? signResult.error : "sign failed",
+      reason: signResult && signResult.reason ? signResult.reason : "unknown",
+      step: "8-sign",
+    };
+  }
+  const record = Object.assign({}, recordCore, { sig: signResult.sig });
+
+  const appendResult = transportAppend(record);
+  if (!appendResult || !appendResult.ok) {
+    return {
+      ok: false,
+      error: "transport append failed",
+      reason:
+        appendResult && appendResult.error
+          ? appendResult.error
+          : "unknown transport append error",
+      step: "8-append",
+    };
+  }
+
+  return { ok: true, record };
+}
+
 module.exports = {
   runEnrollmentCeremony,
+  performMigration,
+  // F86 / MUST-7 typed-error tokens exported so callers can pattern-match
+  // structural-block paths without re-deriving the strings.
+  ERR_USER_OWNED_N1_BLOCKED,
+  ERR_GHES_SHARED_APPLIANCE_BLOCKED,
   _internal: {
     _validateRosterForCeremony,
     _resolveGenesisOwner,
     _findSigningKey,
+    _resolveSoleOwner,
+    _verifyLocalRootCommit,
+    _verifyOriginRootCommit,
   },
 };

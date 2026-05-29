@@ -20,6 +20,15 @@
  *    schema  (committed):  .claude/bin/loom-links.local.example.json
  *    override (abs path):  $LOOM_LINKS_CONFIG
  *
+ *  Canonical sublayout hint (F61, 2026-05-28): the recommended on-disk
+ *  realization of the logical key namespace is `~/repos/kailash/{build,use}/<slug>`
+ *  (e.g. ~/repos/kailash/build/py for build.py, ~/repos/kailash/use/py for
+ *  use-template.py). This is a HINT for fresh operators — the resolver is
+ *  layout-agnostic and existing layouts (flat ~/repos/<slug>, nested
+ *  ~/repos/loom/<slug>) remain fully supported. See cross-repo.md
+ *  § "Canonical Sublayout (Recommended — F61)" and the example schema's
+ *  _README "CANONICAL SUBLAYOUT" section.
+ *
  *  Disclosure discipline (issue #263): THIS FILE IS A SYNCED ARTIFACT
  *  (`bin/**` is a sync tier). It ships ONLY the loader + schema shape —
  *  ZERO embedded paths, org slugs, hostnames, or operator identifiers.

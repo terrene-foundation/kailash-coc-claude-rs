@@ -146,7 +146,17 @@ function isNeverSynced(relPath, base, segs) {
   if (base === "sync-manifest.yaml") return true;
   if (base === "VERSION") return true;
   if (base === "CLAUDE.md") return true;
-  if (base === "settings.json") return true;
+  // F77 (#386): settings.json IS synced to USE templates as committed
+  // content. Operator-PII paths smuggled via `permissions.allow` /
+  // `permissions.deny` entries — e.g. `Edit(/Users/<op>/repos/loom/**)` —
+  // are correlatable across 30+ downstream consumers exactly like the
+  // prose-level leaks the rest of the SHAPES catch. The scanner MUST
+  // walk settings.json so the `operator-home-path` shape fires on those
+  // `(/Users|/home)/<op>/` tokens regardless of whether they sit inside
+  // a tool-call matcher (`Edit(...)`, `Write(...)`, `Read(...)`) or in
+  // prose. `settings.local.json` REMAINS never-synced — that file is
+  // gitignored per `permissions.deny` convention and carries genuine
+  // per-operator local overrides.
   if (base === "settings.local.json") return true;
   if (base === ".coc-sync-marker") return true;
   if (base === "scheduled_tasks.lock") return true;
@@ -709,6 +719,29 @@ const SHAPES = [
     id: "operator-service-label",
     rx: /\bcom\.(?!example\b)[a-z0-9]+\.(?:runner|actions)[a-z0-9.-]*\b/g,
   },
+  {
+    // F77 (#386): synced settings.json `permissions.allow` / `permissions.deny`
+    // matcher entries of the form `Edit(/<absolute-path>/...)`,
+    // `Write(/<absolute-path>/...)`, `Read(/<absolute-path>/...)` (and the
+    // sibling `Bash`/`MultiEdit`/`Glob`/`Grep` tool-name forms) carry a
+    // structural defect distinct from the prose `/Users/<op>/` leak class:
+    // the matcher itself encodes a runtime authorization scope keyed to an
+    // absolute filesystem path, so every downstream consumer's session
+    // inherits a matcher that ONLY ever fires against the maintainer's
+    // own checkout layout. This shape flags the matcher form regardless
+    // of which operator's path it carries — even an Option-1-allowlisted
+    // `/Users/esperie/` is wrong INSIDE a `permissions.*` matcher in a
+    // synced settings.json (the matcher should be relative or
+    // `$CLAUDE_PROJECT_DIR`-rooted). The shape deliberately does NOT
+    // intersect the allowlist (allowlistCovers is keyed to the matched
+    // SPAN, and the span here is the WHOLE matcher token; no
+    // Option-1 allowlist entry covers a tool-call-matcher span).
+    // Foundation-public placeholder `$CLAUDE_PROJECT_DIR` and relative
+    // paths do not match the shape's leading `(/` anchor — they stay
+    // clean.
+    id: "settings-permission-absolute-path",
+    rx: /"(?:Edit|Write|Read|Bash|MultiEdit|Glob|Grep|NotebookEdit)\((\/(?:Users|home)\/[^"\)]+)\)"/g,
+  },
 ];
 
 // ────────────────────────────────────────────────────────────────
@@ -747,7 +780,20 @@ function scanFile(file, findings) {
       while ((m = shape.rx.exec(line)) !== null) {
         const matchText = m[0];
         if (m.index === shape.rx.lastIndex) shape.rx.lastIndex++;
-        if (allowlistCovers(matchText)) continue;
+        // F77 (#386): the settings-permission-absolute-path shape is
+        // INTRINSICALLY wrong regardless of which operator's path it
+        // wraps — a tool-call matcher in a synced settings.json's
+        // `permissions.*` array MUST NOT carry an absolute filesystem
+        // path even if the path's operator-stem is the maintainer's own
+        // Option-1 self-coordinate. Skip the allowlist suppression for
+        // this shape so own-coordinate `/Users/esperie/` tokens inside
+        // an `Edit(...)` matcher still flag. Every other shape retains
+        // the Option-1 allowlist semantics unchanged.
+        if (
+          shape.id !== "settings-permission-absolute-path" &&
+          allowlistCovers(matchText)
+        )
+          continue;
         findings.push({
           path: rel,
           line: i + 1,
