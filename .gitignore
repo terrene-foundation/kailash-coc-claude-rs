@@ -85,3 +85,7 @@ secrets/
 .claude/logs/
 **/.journal-skipped.log
 # <<< coc:gitignore_additions <<<
+
+# Never track loom-internal variant overlays or operator-local disclosure companions (PII).
+.claude/variants/
+*.operator.local.md
