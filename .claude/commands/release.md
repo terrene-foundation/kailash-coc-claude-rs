@@ -72,6 +72,20 @@ maturin build --release
 twine upload dist/*.whl  # Wheels only, never sdist
 ```
 
+**RubyGems** (platform gems via CI -- `bindings/kailash-ruby/`):
+
+```bash
+cd bindings/kailash-ruby
+# Bump version in kailash.gemspec to match the workspace version
+cargo build -p kailash-ruby --release
+cp target/release/libkailash.dylib lib/kailash/kailash.bundle   # macOS
+codesign -fs - lib/kailash/kailash.bundle                       # macOS only
+bundle exec rspec
+# Tag + push: CI builds platform gems (arm64-darwin, x86_64-linux,
+# aarch64-linux) and publishes via RUBYGEMS_API_KEY.
+# Source protection: platform gems MUST NOT contain .rs or Cargo.toml.
+```
+
 **CLI binary** (cross-compiled via CI):
 
 - macOS arm64, Linux x86_64, Linux aarch64
@@ -98,6 +112,7 @@ Verify published artifacts install correctly, update downstream dependency pins,
 - NEVER publish proprietary crates to crates.io (source protection)
 - NEVER upload sdist (.tar.gz) to PyPI -- wheel-only for bindings
 - NEVER include .rs or Cargo.toml in wheel contents
+- NEVER ship .rs or Cargo.toml inside a platform gem (RubyGems source protection; CI `source-protection-audit` enforces this)
 - NEVER publish without full `cargo test --workspace` passing
 - NEVER skip `cargo audit` before release
 - ALWAYS verify `publish = false` on proprietary crates before release

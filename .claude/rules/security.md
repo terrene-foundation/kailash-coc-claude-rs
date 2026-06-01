@@ -34,7 +34,7 @@ All database queries MUST use parameterized queries or ORM.
 
 ## Credential Decode Helpers
 
-Connection strings carry credentials in URL-encoded form. Decoding them at a call site with `unquote(parsed.password)` is BLOCKED — every decode site MUST route through a shared helper module so the validation logic lives in exactly one place and drift between sites is impossible.
+Connection strings carry credentials URL-encoded; every decode site MUST route through a shared helper module. Call-site `unquote(parsed.password)` is BLOCKED.
 
 ### 1. Null-Byte Rejection At Every Credential Decode Site (MUST)
 
@@ -52,7 +52,7 @@ Every URL parsing site that extracts `user`/`password` from `urlparse(connection
 - "We'll consolidate later"
 - "The URL comes from a trusted config file, null bytes can't happen"
 
-**Why:** A crafted `mysql://user:%00bypass@host/db` decodes to `\x00bypass`; the MySQL C client truncates credentials at the first null byte and the driver sends an empty password, succeeding against any row in `mysql.user` with an empty `authentication_string`. Drift between sites that have the check and sites that don't is unauditable without a single helper.
+**Why:** A crafted `mysql://user:%00bypass@host/db` decodes to `\x00bypass`, which the MySQL C client truncates to an empty password. See guide for full evidence.
 
 ### 2. Pre-Encoder Consolidation (MUST)
 
@@ -63,7 +63,7 @@ Password pre-encoding helpers (`quote_plus` of `#$@?` etc.) MUST live in the sam
 # DO NOT pwd = pwd.replace("@","%40").replace(":","%3A")  # inline per-adapter; drifts from decode path
 ```
 
-**Why:** Encode and decode are dual halves of one contract; splitting them across modules guarantees one half drifts. Round-trip tests are only meaningful when both ends share the helper.
+**Why:** Encode and decode are dual halves of one contract; splitting them across modules guarantees one half drifts.
 
 ## Input Validation
 
@@ -103,7 +103,7 @@ For declared-string fields, the sanitizer MUST replace dangerous SQL keyword seq
 "'; DROP TABLE users; --" → "''; DROP TABLE users; --"
 ```
 
-**Why:** Token-replace makes attacker intent grep-able post-incident (`grep STATEMENT_BLOCKED audit.log`). Quote-escape preserves the payload as data, masking that an attack was attempted. The actual injection defense is parameter binding; the sanitizer is the audit trail.
+**Why:** Token-replace makes attacker intent grep-able post-incident (`grep STATEMENT_BLOCKED audit.log`); quote-escape preserves the payload as data, masking the attack.
 
 ### 2. Type-Confusion MUST Raise, Not Silently Coerce
 
@@ -114,7 +114,7 @@ For declared-string fields receiving `dict` / `list` / `set` / `tuple` values, t
 # DO NOT value = str(value)   # silent coercion — structural attack left the validation boundary unaudited
 ```
 
-**Why:** A malicious upstream node that passes `{"injection": "'; DROP TABLE …"}` for a field declared as `str` bypasses every string-only check. Raising at the type-confusion boundary closes the bypass; coercion-to-string converts a structural attack into an unaudited storage event.
+**Why:** A malicious upstream node passing `{"injection": "'; DROP TABLE …"}` for a str-declared field bypasses every string-only check; raising at the type-confusion boundary closes the bypass. See guide for exhaustive examples.
 
 ### 3. Safe Types Are Returned As-Is
 
@@ -144,7 +144,7 @@ When a security-relevant kwarg (classification policy, tenant scope, clearance c
 - "Test coverage will catch divergence later"
 - "The kwarg has a safe default — siblings still get baseline behaviour"
 
-**Why:** A helper that takes a security-relevant kwarg has the kwarg precisely because the unqualified call leaks or misbehaves. Leaving any sibling call site on the unqualified signature ships the exact failure mode the kwarg was introduced to fix; the "safe default" is by definition the insecure default (otherwise the kwarg would not exist). The fix is mechanical — `grep -rn 'helper_name(' .` and patch every hit in the same PR.
+**Why:** A helper takes a security-relevant kwarg precisely because the unqualified call leaks or misbehaves, so any sibling left on the unqualified signature ships the exact failure mode the kwarg fixes (the "safe default" is the insecure default). Fix is mechanical: `grep -rn 'helper_name(' .` + patch every hit.
 
 Origin: cross-SDK — BP-049 (2026-04-19) landed `validate_model(policy=..., model_name=...)` plumbing in kailash-py PR #522 but left one sibling unqualified; post-release reviewer caught it; fast-patched in PR #529.
 

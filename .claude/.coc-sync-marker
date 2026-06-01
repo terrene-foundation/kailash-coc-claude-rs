@@ -1,14 +1,26 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-06-01T07:15:00Z
+timestamp: 2026-06-01T13:16:21Z
 source: loom/.claude
-loom_sha: 1de1c41
-loom_version: 2.38.0
+loom_sha: e934018
+loom_version: 2.39.0
 variant: rs
-clis: [claude]
+template_type: cc-only-legacy
+clis: ["claude"]
 stats:
-  content_synced_byte_equal: true
-  baseline_status: none
-  preserved:
-    - CLAUDE.md
-    - README.md
-  obsoleted_purge: variants-tree-confirmed-absent
+  copied: 1242
+  byte_verified: 1242
+  updated: 10
+  created: 4
+  deleted: 1
+  composed: 96          # rs variant overlays (slot + full) applied via compose/strip
+  preserved: 1          # CLAUDE.md (template-owned)
+  obsoleted_purged: 0   # all obsoleted paths already absent
+  coc_obsoleted_entries: 47
+  baselines_emitted:
+    cc: 0               # CLAUDE.md preserved, not emitted
+  cli_artifacts: null   # cc-only-legacy — no codex/gemini emission
+verify_overlays:
+  lang: rs
+  passing: 192
+  failing: 0
+disclosure_scan: clean   # 0 findings (scan-synced-disclosure --root)

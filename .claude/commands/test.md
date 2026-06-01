@@ -96,6 +96,34 @@ def test_workflow_execution():
     assert result["results"]["echo"] is not None
 ```
 
+### If Project Uses Kailash Ruby Bindings (gem)
+
+```ruby
+# Ruby binding test — real Rust runtime via Magnus (NO MOCKING)
+require "kailash"
+
+RSpec.describe "workflow execution" do
+  let(:registry) { Kailash::Registry.new }
+  after { registry.close unless registry.closed? }
+
+  it "executes against the real runtime" do
+    builder = Kailash::WorkflowBuilder.new
+    builder.add_node("EchoNode", "echo", { "message" => "hello" })
+    wf = builder.build(registry)
+    Kailash::Runtime.open(registry) do |rt|
+      result = rt.execute(wf, {})
+      expect(result.results["echo"]).not_to be_nil
+    end
+    wf.close
+  end
+end
+```
+
+Ruby bindings use **string keys** (not symbols) for node params (serde_json
+expects strings), and the block form of `Kailash::Runtime.open` guarantees the
+Magnus-backed runtime is closed even on exception. See the `28-ruby-bindings`
+skill for the full RSpec 3-tier reference.
+
 ## Critical Rule - NO MOCKING in Tier 2-3
 
 ```rust
@@ -111,6 +139,13 @@ def test_workflow_execution():
 MagicMock()                  # BLOCKED
 unittest.mock                # BLOCKED
 mocker.patch()               # BLOCKED
+```
+
+```ruby
+# PROHIBITED in integration/e2e tests (Ruby bindings)
+instance_double("Kailash::Registry")   # BLOCKED — no doubles of kailash internals
+allow(reg).to receive(:execute)        # BLOCKED — use the real Magnus runtime
+# No fake Registry/Runtime; execute against the real Rust engine
 ```
 
 ## Agent Teams
