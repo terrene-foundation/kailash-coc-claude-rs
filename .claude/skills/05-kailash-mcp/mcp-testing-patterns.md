@@ -11,7 +11,7 @@ Test MCP integrations with real servers and mock strategies.
 > Category: `mcp`
 > Priority: `HIGH`
 > SDK Version: `0.9.25+`
-> Related Skills: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md), [`gold-test-creation`](../../17-gold-standards/gold-test-creation.md)
+> Related Skills: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md), [`gold-test-creation`](../17-gold-standards/gold-test-creation.md)
 > Related Subagents: `mcp-specialist` (test server implementation), `testing-specialist` (3-tier strategy)
 
 ## Quick Reference
@@ -239,8 +239,8 @@ def test_mcp_server_failure_handling():
 
 ## Related Patterns
 
-- **Gold Standard Testing**: [`gold-test-creation`](../../17-gold-standards/gold-test-creation.md)
-- **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
+- **Gold Standard Testing**: [`gold-test-creation`](../17-gold-standards/gold-test-creation.md)
+- **MCP Integration**: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md)
 
 ## When to Escalate
 

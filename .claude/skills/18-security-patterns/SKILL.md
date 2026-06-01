@@ -60,25 +60,6 @@ workflow.add_node("HTTPRequestNode", "api", {
 })
 ```
 
-## Reference Documentation
-
-### Core Security
-
-- **[security-secrets](security-secrets.md)** - Secret management patterns
-- **[security-input-validation](security-input-validation.md)** - Input validation
-- **[security-injection-prevention](security-injection-prevention.md)** - SQL/code injection prevention
-
-### Authentication & Authorization
-
-- **[security-auth-patterns](security-auth-patterns.md)** - Auth best practices
-- **[security-api-keys](security-api-keys.md)** - API key management
-- **[security-tokens](security-tokens.md)** - Token handling
-
-### OWASP Compliance
-
-- **[security-owasp-top10](security-owasp-top10.md)** - OWASP Top 10 prevention
-- **[security-audit-checklist](security-audit-checklist.md)** - Security audit checklist
-
 ## Security Checklist
 
 ### Before Every Commit

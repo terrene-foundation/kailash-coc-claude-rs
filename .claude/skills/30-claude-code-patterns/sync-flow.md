@@ -27,7 +27,15 @@ Pull latest artifacts from the USE template repo. No target needed — reads tem
 
 3. **Purge obsoleted paths in this consumer (MUST, before any merge)**:
 
+   **HALT-on-dirty precondition (MUST — runs BEFORE the purge loop):** the purge below runs `rm -rf` against consumer paths. Before the loop, run `git status --porcelain` in the consumer. A non-empty result HALTS the downstream sync — the operator commits/stashes/cleans first, then re-runs. **HALT, never auto-stash** (stash is itself a loss vector — design red-team HIGH-1). An obsoleted-path directory may legitimately contain uncommitted operator work; deleting it via `rm -rf` while the tree is dirty risks unrecoverable loss of untracked-not-ignored files (the #401 class — no git object, no reflog). This is the second `rm`-without-porcelain-check instance the #401 analyst surfaced; it gets the same gate as Gate 2 step 0a.
+
    ```bash
+   # HALT-on-dirty: refuse to purge into a tree with uncommitted work.
+   if [ -n "$(git status --porcelain)" ]; then
+     echo "HALT: working tree dirty — commit/stash/clean before /sync purge" >&2
+     git status --porcelain >&2
+     exit 1
+   fi
    for path in <obsoleted-paths>; do
      if [ -e "./$path" ]; then
        rm -rf "./$path"
@@ -142,6 +150,26 @@ status: pending_review
 Merges loom/ source + variant overlays into USE template repos. Delegated to **coc-sync** agent. This is a **merge** — templates may have legitimate local content.
 
 **0. Synced-disclosure gate (MUST — runs BEFORE any emit step, the first action of Gate 2):** Gate 2 MUST run `node .claude/bin/scan-synced-disclosure.mjs --check` against loom/'s tree before computing or emitting any change. A non-zero exit is a **BLOCK-level finding**: /sync MUST HALT distribution, MUST surface the scanner's redacted report (path:line + `[SHAPE:<id>]` + «REDACTED» context — never the raw token) in the sync output, and MUST NOT emit a single file to any target until a human adjudicates. The scanner fences the now-closed #252 forest: any operator hostname, non-Foundation org slug, org-derived runner label, operator home path, or launchd/systemd service-label stem that reaches the synced surface propagates to 30+ downstream consumers and is correlatable across all of them. Resolve a finding by **genericizing** the disclosure + **relocating** the operator-specific value into the gitignored operator-local companion (per the #255 / #260 pattern), then re-run the scanner to confirm exit 0 before resuming Gate 2. The check is mechanical (positive-allowlist + structural shapes, zero secret tokens in the scanner itself), not semantic — same structural-defense shape as step-5a's canonical-divergence gate and coc-sync.md Step 8's "every obsoleted path is GONE" assertion. **BLOCKED rationalizations:** "the finding is in a comment, not user-visible" / "that token is the operator's own org, the consumers won't care" / "re-running the scanner every /sync is overhead" / "allowlist the token so the sync can proceed" (allowlisting a real operator/org token IS the #264 leak the scanner exists to prevent) / "the finding is pre-existing, not introduced this cycle" / "ship it, file a follow-up to genericize later". Why: a synced disclosure that escapes Gate 2 cannot be recalled — it is now in 30+ consumer repos' git history permanently; the one-time genericize-and-relocate cost is trivially smaller than the unrecoverable cross-consumer correlation it prevents. Detection is O(files) regex; resolution is human, scoped, and rare in a well-fenced tree (zero findings is the steady state once the residuals are remediated).
+
+**0a. HALT-on-dirty precondition (MUST — runs per target, BEFORE any write to that target), on MODIFIED-TRACKED files outside the never-synced set:** Downstream templates are perpetually WIP; a WHOLE-TREE halt makes /sync structurally impossible there. The #401 loss has exactly two sub-cases — (1) a modified **TRACKED** file overwritten (NO reflog when uncommitted), and (2) untracked work `rm -rf`'d (no git object). `sync-tier-aware.mjs` snapshots EVERY untracked-not-ignored file **surface-wide** (`git ls-files --others --exclude-standard`, lines 212–293) at the START of the per-target write — BEFORE its own copy/purge AND before the later Step-4.6 emit-cli `.codex/`/`.gemini/`/`.codex-mcp-guard/` writes — so sub-case (2) is ALWAYS recoverable regardless of path. Sub-case (1) is the ONLY one the snapshot does NOT cover. So the gate HALTs on exactly that — any modified-TRACKED entry, whole-tree, outside the never-synced/regenerated set — with **NO write-set allowlist to drift**:
+
+```bash
+git -C <target_dir> status --porcelain -- . \
+  ':(exclude).claude/VERSION'       ':(exclude).claude/.coc-sync-marker' \
+  ':(exclude).claude/learning/'     ':(exclude).claude/.proposals/' \
+  ':(exclude).claude/settings.local.json' \
+  | grep -vE '^\?\?'
+```
+
+A non-empty result (any non-untracked porcelain entry — `M`/`A`/`D`/`R`/`C`/`U`, the `^??` untracked lines filtered out — outside the never-synced set) is a **HALT-level finding**: STOP, surface it, the operator commits/cleans those TRACKED changes first, then re-runs. **HALT, never auto-stash** — `git stash` is itself a data-loss vector (the design red-team's HIGH-1).
+
+**Why HALT-on-modified-tracked is robust (closes the allowlist-drift hole a scoped-pathspec design opened):** halting on ALL modified-tracked needs NO enumeration of the write-set, so it CANNOT miss a write path — the earlier `.claude/ .codex/ .gemini/`-only pathspec MISSED `.gitignore` + `.codex-mcp-guard/` + `bin/coc` + the multi-CLI `sync-manifest.yaml` (security-reviewer CRIT+HIGH), re-opening the #401 hole; halting on every modified-tracked closes it structurally. Untracked WIP (`workspaces/`, `docs/`, `.session-notes`, `.claude/learning/` state) PROCEEDS — covered surface-wide by the snapshot that runs before every Gate-2 write. `VERSION`/`.coc-sync-marker` excluded (regenerated steps 7–9; a dirty `VERSION` is #407 auto-drift, not operator data — operators MUST NOT hand-edit a consumer's `.claude/VERSION`, it is tool-owned and Gate-2 overwrites it; corrections go through `/sync`, not a manual edit); `learning/`/`.proposals/`/`settings.local.json` excluded (never-synced per-repo state).
+
+**Snapshot-ordering invariant (security-reviewer MED — load-bearing):** the untracked-allow is safe ONLY because the surface-wide snapshot runs BEFORE every Gate-2 write — `sync-tier-aware.mjs` Step-4 snapshot precedes Step-4.6 emit-cli (`coc-sync.md` §Step 4.6). A future Gate-2 write path that runs WITHOUT a preceding surface-wide untracked snapshot would make the untracked-allow unsafe for that path; such a path MUST snapshot-first OR be added to a modified-tracked-equivalent halt. Durable fix (journal/0199 For-Discussion #1): each write tool asserts the snapshot ran before its first write, rather than two hand-maintained lists.
+
+**Still BLOCKED:** "auto-stash is safe enough" / "the snapshot covers it, just overwrite the modified rule" (snapshot is UNTRACKED-only — a modified TRACKED artifact has NO reflog, MUST HALT) / "porcelain-checking is overhead". **NOT blocked (the over-halt fix):** untracked WIP proceeds — snapshot-covered.
+
+**Serial same-lane orchestration (MUST):** `sync-tier-aware.mjs` is PER-LANE — one invocation writes BOTH templates in a lane unless scoped. When distributing to a multi-template lane, the orchestrator MUST sync each template SERIALLY (`node .claude/bin/sync-tier-aware.mjs --target <lane> --template <repo>` once per template), OR run a single `--all-templates` invocation — NEVER dispatch parallel same-lane sync agents. Parallel same-lane agents collide on the shared per-lane write (the #401 incident: concurrent same-lane dispatch destroyed a sibling consumer's untracked work). A bare `--target <lane>` write with neither `--template` nor `--all-templates` is REFUSED by the tool (exit 2) — pass one explicitly. Cross-LANE parallelism (py + rs + rb simultaneously) is fine — those resolve to disjoint template dirs. **BLOCKED rationalizations:** "parallel same-lane is faster" / "the two templates are different dirs so it's safe" (the per-lane tool writes both in one invocation regardless of dispatch) / "I'll just launch one agent per template in parallel" (still same-lane collision on the shared invocation path).
 
 ### Process
 

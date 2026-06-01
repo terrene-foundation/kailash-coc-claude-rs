@@ -166,6 +166,48 @@ function loadExclusions() {
 }
 
 // ────────────────────────────────────────────────────────────────
+// sync-manifest.yaml → loom_only (top-level FLAT glob list)
+// ────────────────────────────────────────────────────────────────
+// F104 — loom-only artifacts are a POSITIVE never-sync declaration.
+// A source path matching any glob here is skipped for EVERY target
+// (cc/codex/gemini × every lang), BEFORE tier classification. Same flat
+// list shape as `obsoleted:` / `exclude:`: a top-level key whose body is a
+// list of `- <glob>` entries (NO nested CLI sub-keys). Bare source-relative
+// globs (`agents/management/coc-sync.md`) matched against the manifest-
+// relative path the emit functions build (`agents/...`).
+function loadLoomOnly() {
+  const manifestPath = path.join(REPO, ".claude", "sync-manifest.yaml");
+  const src = fs.readFileSync(manifestPath, "utf8");
+  const lines = src.split("\n");
+
+  const result = [];
+  let inStanza = false;
+
+  for (const line of lines) {
+    if (/^loom_only:\s*$/.test(line)) {
+      inStanza = true;
+      continue;
+    }
+    if (!inStanza) continue;
+
+    // End of stanza: a new top-level key (column 0, ends with `:`).
+    if (/^[a-zA-Z_][^:]*:\s*$/.test(line) && !line.startsWith(" ")) {
+      break;
+    }
+
+    // List entry (2-space indent, leading dash). Strip inline comments.
+    const entryMatch = line.match(/^ {2}-\s*(.+?)\s*$/);
+    if (entryMatch) {
+      const val = entryMatch[1].replace(/^["']|["']$/g, "");
+      const cleaned = val.replace(/\s+#.*$/, "").trim();
+      if (cleaned) result.push(cleaned);
+    }
+  }
+
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────────
 // sync-manifest.yaml → tiers.* (top-level tier → glob list)
 // ────────────────────────────────────────────────────────────────
 // Mirrors loadExclusions: line-oriented parsing, no YAML library. The
@@ -549,7 +591,7 @@ function tomlLiteralEscape(body) {
   return body.replace(/'''/g, "''′'"); // U+2032 ′ — visually near but not a quote
 }
 
-function emitCommands({ outDir, exclusions, tierFilter, lang, verbose }) {
+function emitCommands({ outDir, exclusions, tierFilter, loomOnly, lang, verbose }) {
   const srcDir = path.join(REPO, ".claude", "commands");
   if (!fs.existsSync(srcDir)) {
     return { codex: 0, gemini: 0, skipped: 0 };
@@ -561,6 +603,13 @@ function emitCommands({ outDir, exclusions, tierFilter, lang, verbose }) {
     if (!relPath.endsWith(".md")) continue;
     const manifestRel = `commands/${relPath}`;
     const name = path.basename(relPath, ".md");
+
+    // F104 loom-only filter: positive never-sync declaration. Skip for
+    // EVERY target, BEFORE tier classification.
+    if (loomOnly && matchesAnyGlob(manifestRel, loomOnly)) {
+      stats.skipped++;
+      continue;
+    }
 
     // Tier-subscription filter: skip files not matched by any subscribed tier.
     // tierFilter is null when --target is absent (legacy emit-everything mode).
@@ -626,7 +675,7 @@ function emitCommands({ outDir, exclusions, tierFilter, lang, verbose }) {
 // live under the skill dir and are loaded on demand. We copy the WHOLE
 // skill directory (not just SKILL.md) so the sub-file references in
 // SKILL.md resolve when the CLI reads them.
-function emitSkills({ outDir, exclusions, tierFilter, lang, verbose }) {
+function emitSkills({ outDir, exclusions, tierFilter, loomOnly, lang, verbose }) {
   const srcDir = path.join(REPO, ".claude", "skills");
   if (!fs.existsSync(srcDir)) return { codex: 0, gemini: 0, skipped: 0 };
 
@@ -639,6 +688,14 @@ function emitSkills({ outDir, exclusions, tierFilter, lang, verbose }) {
   for (const skill of skillDirs) {
     const manifestRel = `skills/${skill}/SKILL.md`;
     const skillSrc = path.join(srcDir, skill);
+
+    // F104 loom-only filter: positive never-sync declaration. A skill dir
+    // matching a loom_only prefix glob (skills/<n>/** or skills/<n>/SKILL.md)
+    // is skipped for both CLIs, BEFORE tier classification.
+    if (loomOnly && matchesAnyGlob(manifestRel, loomOnly)) {
+      stats.skipped += 2; // skipped for both CLIs
+      continue;
+    }
 
     // Tier-subscription filter: skill tier patterns are usually
     // `skills/NN-name/**` (prefix globs). Match the SKILL.md path against
@@ -805,7 +862,7 @@ const CODEX_AGENT_STRUCTURAL_EXCLUSIONS = [
 // (interactive only), (c) headless fallback (use pattern a). The file
 // is loaded into context on demand via inline-cat injection — no
 // baseline-context cap pressure.
-function emitCodexAgentPrompts({ outDir, exclusions, tierFilter, lang, verbose }) {
+function emitCodexAgentPrompts({ outDir, exclusions, tierFilter, loomOnly, lang, verbose }) {
   const srcDir = path.join(REPO, ".claude", "agents");
   if (!fs.existsSync(srcDir)) return { codex: 0, skipped: 0 };
 
@@ -818,6 +875,11 @@ function emitCodexAgentPrompts({ outDir, exclusions, tierFilter, lang, verbose }
   for (const { absPath, relPath } of walkFiles(srcDir)) {
     if (!relPath.endsWith(".md")) continue;
     const manifestRel = `agents/${relPath}`;
+    // F104 loom-only filter: positive never-sync declaration, BEFORE tier.
+    if (loomOnly && matchesAnyGlob(manifestRel, loomOnly)) {
+      stats.skipped++;
+      continue;
+    }
     if (tierFilter && !matchesAnyGlob(manifestRel, tierFilter)) {
       stats.skipped++;
       continue;
@@ -895,7 +957,7 @@ function emitCodexAgentPrompts({ outDir, exclusions, tierFilter, lang, verbose }
   return stats;
 }
 
-function emitGeminiAgents({ outDir, exclusions, tierFilter, lang, verbose }) {
+function emitGeminiAgents({ outDir, exclusions, tierFilter, loomOnly, lang, verbose }) {
   const srcDir = path.join(REPO, ".claude", "agents");
   if (!fs.existsSync(srcDir)) return { gemini: 0, skipped: 0 };
 
@@ -908,6 +970,11 @@ function emitGeminiAgents({ outDir, exclusions, tierFilter, lang, verbose }) {
   for (const { absPath, relPath } of walkFiles(srcDir)) {
     if (!relPath.endsWith(".md")) continue;
     const manifestRel = `agents/${relPath}`;
+    // F104 loom-only filter: positive never-sync declaration, BEFORE tier.
+    if (loomOnly && matchesAnyGlob(manifestRel, loomOnly)) {
+      stats.skipped++;
+      continue;
+    }
     // Tier-subscription filter: skip agents not matched by any subscribed tier.
     if (tierFilter && !matchesAnyGlob(manifestRel, tierFilter)) {
       stats.skipped++;
@@ -985,6 +1052,7 @@ function main() {
 
   const onlyCli = args.cli; // null = both
   const exclusions = loadExclusions();
+  const loomOnly = loadLoomOnly(); // F104 — positive never-sync globs (all targets)
   const tierFilter = buildTierFilter(args.target); // null when --target absent
   const lang = loadTargetVariant(args.target); // null when --target absent or variant unset
   const outDir = path.resolve(args.out);
@@ -995,6 +1063,7 @@ function main() {
     console.log(`Output: ${outDir}`);
     console.log(`Exclusions (codex): ${exclusions.codex.length} globs`);
     console.log(`Exclusions (gemini): ${exclusions.gemini.length} globs`);
+    console.log(`Loom-only (all targets): ${loomOnly.length} globs`);
     if (tierFilter) {
       const subs = loadTargetTierSubscriptions(args.target);
       console.log(
@@ -1007,16 +1076,16 @@ function main() {
   }
 
   const report = {
-    commands: emitCommands({ outDir, exclusions, tierFilter, lang, verbose: args.verbose }),
-    skills: emitSkills({ outDir, exclusions, tierFilter, lang, verbose: args.verbose }),
+    commands: emitCommands({ outDir, exclusions, tierFilter, loomOnly, lang, verbose: args.verbose }),
+    skills: emitSkills({ outDir, exclusions, tierFilter, loomOnly, lang, verbose: args.verbose }),
     codexAgentPrompts:
       onlyCli === "gemini"
         ? { codex: 0, skipped: 0 }
-        : emitCodexAgentPrompts({ outDir, exclusions, tierFilter, lang, verbose: args.verbose }),
+        : emitCodexAgentPrompts({ outDir, exclusions, tierFilter, loomOnly, lang, verbose: args.verbose }),
     geminiAgents:
       onlyCli === "codex"
         ? { gemini: 0, skipped: 0 }
-        : emitGeminiAgents({ outDir, exclusions, tierFilter, lang, verbose: args.verbose }),
+        : emitGeminiAgents({ outDir, exclusions, tierFilter, loomOnly, lang, verbose: args.verbose }),
   };
 
   // Apply --cli filter after the fact: if onlyCli is set, delete the
@@ -1058,6 +1127,7 @@ if (invokedAsScript) {
 
 export {
   loadExclusions,
+  loadLoomOnly,
   loadTiers,
   loadTargetTierSubscriptions,
   loadTargetVariant,

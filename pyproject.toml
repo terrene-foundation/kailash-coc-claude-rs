@@ -29,7 +29,7 @@ dependencies = [
     # is trade secret, but install + use is free for every user.
     # Alternative: replace with `kailash-py` for the fully open-source
     # (Apache 2.0) pure-Python implementation of the same specs.
-    "kailash-enterprise>=4.0.0",
+    "kailash-enterprise>=4.3.3",
     # CLI Framework
     "click>=8.0",
     "rich>=13.0.0",

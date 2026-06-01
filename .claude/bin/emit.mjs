@@ -236,8 +236,8 @@ export function stripRuleFrontmatter(raw) {
 //   4. variants/<lang>-<cli>/rules/<rule>.md  (ternary, both-axis)
 // 2–4 are all applied if present (union of slot replacements), in
 // that order. Language-axis overlays were added 2026-04-22 (Phase I2)
-// to close the semantic-licensing bug where, e.g., the proprietary
-// rs override of independence.md was invisible to emit because only
+// to close the semantic-override bug where, e.g., the language-specific
+// rs override of framework-first.md was invisible to emit because only
 // CLI-only and ternary paths composed into the baseline.
 export function composeRule(ruleName, cli, lang = null) {
   // Rule-name validation: must be a simple .md filename — no traversal.

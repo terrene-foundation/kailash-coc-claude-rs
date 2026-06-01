@@ -14,7 +14,7 @@ Rules are the agent's linguistic tripwires. This meta-rule defines how all other
 
 Origin: journal/0052-DISCOVERY-session-productivity-patterns.md §6. Validated by subprocess A/B test: rule quality improved from 2/6 to 6/6 when this meta-rule was loaded. Extended 2026-05-22 (F23a cycle): added MUST Rule 10 + Trust Posture Wiring per journal/0144 § Forest item F23 + analyst FM1. Extended 2026-05-23 (F23b cycle): added MUST Rule 11 (2nd-extraction escalation across (rule, CLI) pairs within 30 days) per journal/0146 § FM-C + journal/0147 + journal/0148 (mid-cycle amendment); Rule 10's "Named-rationale exception — MANDATORY sub-fields" template moved to .claude/skills/skill-authoring/proximity-band-named-rationale-template.md as structural-cleanup improvement (NOT Rule-10 compliance — this rule is path-scoped, so Rule 10's proximity-band gate does NOT fire on rule-authoring.md edits; see journal/0148 § "Lesson learned"). Multi-agent redteam R1 dispositions in journal/0149.
 
-**Length rationale (per `rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines").** Rule body is ~248 lines, exceeding the 200-line guidance by ~48. Named rationale: Rule 10 (proximity-band admission gate) requires DO/DO NOT examples + BLOCKED rationalization corpus + Trust Posture Wiring per the meta-rule's own MUST 3 + MUST 4 + MUST 7 + trust-posture.md MUST 8 canonical 8-field shape; collapsing any of those would weaken the structural defense the rule provides. The rule is self-referential — exempting itself from its own length cap requires the same named-rationale-at-Origin shape every other rule uses (sibling precedent: `user-flow-validation.md` Origin + `multi-operator-coordination.md` Origin), which is exactly what this paragraph is.
+**Length rationale (per `rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines").** Rule body is ~304 lines, exceeding the 200-line guidance by ~104. Named rationale: Rule 10 (proximity-band admission gate) requires DO/DO NOT examples + BLOCKED rationalization corpus + Trust Posture Wiring per the meta-rule's own MUST 3 + MUST 4 + MUST 7 + trust-posture.md MUST 8 canonical 8-field shape; collapsing any of those would weaken the structural defense the rule provides. The rule is self-referential — exempting itself from its own length cap requires the same named-rationale-at-Origin shape every other rule uses (sibling precedent: `user-flow-validation.md` Origin + `multi-operator-coordination.md` Origin), which is exactly what this paragraph is.
 
 See `guides/deterministic-quality/01-rule-authoring-principles.md` for full evidence, anti-patterns, and reproduction protocol.
 
@@ -276,7 +276,7 @@ particular addition is heavy.)
 
 - Rules longer than 200 lines
 
-**Why:** Rules longer than 200 lines are skimmed; the agent misses load-bearing clauses. Extract reference material into a guide or skill.
+**Why:** Rules longer than 200 lines are skimmed AND over-density degrades the output of the agent that loads the artifact — not just its token budget (journal/0193, directional: a dense rule-slice dropped a consuming agent's plan 93→82, and curated-minimal beat verbose more as the model weakened). Curation — minimal load-bearing clauses, depth extracted to a guide/skill — is therefore an OUTPUT-QUALITY requirement, not only budget hygiene; the injection-time complement is `rules/governed-throughput.md`.
 
 ## The "Loud, Linguistic, Layered" Test
 

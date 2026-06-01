@@ -11,7 +11,7 @@ Secure MCP server connections with API keys, JWT tokens, and OAuth 2.1.
 > Category: `mcp`
 > Priority: `HIGH`
 > SDK Version: `0.9.25+`
-> Related Skills: [`mcp-transports-quick`](mcp-transports-quick.md), [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
+> Related Skills: [`mcp-transports-quick`](mcp-transports-quick.md), [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md)
 > Related Subagents: `mcp-specialist` (security implementation, OAuth flows)
 
 ## Quick Reference
@@ -442,7 +442,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 ## Related Patterns
 
 - **Transport Configuration**: [`mcp-transports-quick`](mcp-transports-quick.md)
-- **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
+- **MCP Integration**: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md)
 
 ## When to Escalate to Subagent
 

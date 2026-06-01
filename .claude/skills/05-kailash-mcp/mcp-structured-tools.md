@@ -11,7 +11,7 @@ Define MCP tools with JSON Schema validation for reliable parameter handling.
 > Category: `mcp`
 > Priority: `MEDIUM`
 > SDK Version: `0.9.25+`
-> Related Skills: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md), [`mcp-resources`](mcp-resources.md)
+> Related Skills: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md), [`mcp-resources`](mcp-resources.md)
 > Related Subagents: `mcp-specialist` (complex schemas, validation logic)
 
 ## Quick Reference
@@ -428,7 +428,7 @@ workflow.add_node("IterativeLLMAgentNode", "agent", {
 
 ## Related Patterns
 
-- **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
+- **MCP Integration**: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md)
 - **MCP Resources**: [`mcp-resources`](mcp-resources.md)
 
 ## When to Escalate to Subagent

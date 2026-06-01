@@ -481,7 +481,7 @@ ErrorEnhancer has **negligible performance impact**:
 ## Related Resources
 
 - **[dataflow-inspector](dataflow-inspector.md)** - Proactive workflow validation
-- **[dataflow-validation](dataflow-validation.md)** - Build-time validation modes
+- **[dataflow-validation](dataflow-validation-layers.md)** - Build-time validation modes
 
 ## When to Use This Skill
 

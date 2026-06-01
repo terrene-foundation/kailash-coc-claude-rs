@@ -111,7 +111,9 @@ sub-topic-2.md   ← Specialist deep-dive (e.g., fixture patterns, error taxonom
 fixtures/        ← Optional: example payloads the skill references
 ```
 
-The SKILL.md body should be enough that a session resolves common questions without expanding sub-files into context. Sub-files load on demand via explicit cross-reference (`See [topic.md](topic.md) for the full taxonomy`).
+The SKILL.md body should be enough that a session resolves common questions without expanding sub-files into context. Sub-files load on demand via explicit cross-reference (`See [<topic>.md](<topic>.md) for the full taxonomy`).
+
+Progressive disclosure is also an **output-quality** discipline, not only a token-budget one: per the curation/over-density principle (`rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines" + cc-architect dimension 7, grounded in journal/0193's directional ablation), an artifact whose load-bearing content is drowned in non-load-bearing prose degrades the OUTPUT of the agent that loads it — extract depth to sub-files, keep the body curated. Surfacing this at audit time is an advisory FINDING (recommend extraction), never a structural FAIL.
 
 ### DO — Index With Cross-References
 

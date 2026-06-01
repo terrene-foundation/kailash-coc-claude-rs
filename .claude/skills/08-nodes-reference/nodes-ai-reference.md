@@ -98,7 +98,7 @@ workflow.add_node("SelfOrganizingAgentNode", "agent", {
 ## Related Skills
 
 - **Node Index**: [`nodes-quick-index`](nodes-quick-index.md)
-- **MCP Integration**: [`mcp-integration-guide`](../../01-core-sdk/mcp-integration-guide.md)
+- **MCP Integration**: [`mcp-integration-guide`](../01-core-sdk/mcp-integration-guide.md)
 
 ## Documentation
 

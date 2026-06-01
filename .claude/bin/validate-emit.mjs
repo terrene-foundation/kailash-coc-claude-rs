@@ -20,7 +20,7 @@
  *  unless --allow=<check-name>:<path> ... validator itself follows
  *  probe-driven-verification.md (each check is structural)".
  *
- *  THE 7 CHECKS (mapped 1:1 to issue #350 Findings 1-7):
+ *  THE CHECKS (1-7 map 1:1 to issue #350 Findings 1-7; 8 added F104):
  *    1. command-frontmatter        every .claude/commands/*.md opens with `---`
  *                                  (or is in COMMAND_FRONTMATTER_EXEMPT)
  *    2. command-line-cap           command body (after frontmatter) <= 150 lines
@@ -39,6 +39,9 @@
  *                                  carry that glob in its `paths:` frontmatter
  *    7. audit-fixture-coverage     every `detect*` detector in violation-patterns.js
  *                                  has an audit-fixture dir with >=1 flag + >=1 clean
+ *    8. loom-only-mutual-exclusion (F104) a `loom_only:` glob that is ALSO in a
+ *                                  synced tier FAILS (blocks /sync); a glob
+ *                                  matching 0 on-disk files = WARN (non-blocking).
  *
  *  Each check is STRUCTURAL (file existence, frontmatter parse, line count, set
  *  membership, glob match, tree presence) per probe-driven-verification.md
@@ -127,6 +130,7 @@ const CHECK_IDS = [
   "mirror-exclusion",
   "paths-annotation-consistency",
   "audit-fixture-coverage",
+  "loom-only-mutual-exclusion",
 ];
 
 const STATUS = {
@@ -480,6 +484,74 @@ function matchesGlob(relPath, glob) {
   return relPath === glob;
 }
 
+// --- loom_only / tiers parsing (check 8) -------------------------------
+
+// Parse the top-level FLAT `loom_only:` glob list (F104). Same shape as
+// `obsoleted:` / `exclude:`: a top-level key whose body is `- <glob>`
+// entries at 2-space indent, no nested CLI sub-keys. Returns string[] (may
+// be empty) or null when the manifest is unreadable.
+function parseLoomOnly(root) {
+  const manifest = safeRead(join(root, ".claude", "sync-manifest.yaml"));
+  if (manifest === null) return null;
+  const out = [];
+  let inBlock = false;
+  for (const raw of manifest.split(/\r?\n/)) {
+    if (/^loom_only:\s*$/.test(raw)) {
+      inBlock = true;
+      continue;
+    }
+    if (!inBlock) continue;
+    // A new top-level key (no indent, ends with `:`) ends the block.
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(raw) && !raw.startsWith(" ")) break;
+    const item = raw.match(/^ {2}-\s*(.+?)\s*$/);
+    if (item) {
+      const v = item[1].replace(/^["']|["']$/g, "").replace(/\s+#.*$/, "").trim();
+      if (v) out.push(v);
+    }
+  }
+  return out;
+}
+
+// Parse the `tiers:` block into { tier: [glob, ...] }. 2-space tier key →
+// 4-space `- glob` entries. Returns {} when absent / unreadable.
+function parseTiers(root) {
+  const manifest = safeRead(join(root, ".claude", "sync-manifest.yaml"));
+  if (manifest === null) return {};
+  const tiers = {};
+  let inBlock = false;
+  let cur = null;
+  for (const raw of manifest.split(/\r?\n/)) {
+    if (/^tiers:\s*$/.test(raw)) {
+      inBlock = true;
+      continue;
+    }
+    if (!inBlock) continue;
+    if (/^[A-Za-z0-9_-]+:\s*$/.test(raw) && !raw.startsWith(" ")) break;
+    const tierHdr = raw.match(/^ {2}([A-Za-z_][\w-]*):\s*$/);
+    if (tierHdr) {
+      cur = tierHdr[1];
+      tiers[cur] = [];
+      continue;
+    }
+    const item = raw.match(/^ {4}-\s*(.+?)\s*$/);
+    if (item && cur) {
+      const v = item[1].replace(/^["']|["']$/g, "").replace(/\s+#.*$/, "").trim();
+      if (v) tiers[cur].push(v);
+    }
+  }
+  return tiers;
+}
+
+// Does `relPath` (manifest-relative, e.g. `agents/management/coc-sync.md`)
+// match `glob`? Supports exact + trailing `/**` (matchesGlob) AND a bare
+// glob authored WITH a leading `.claude/` is tolerated by stripping it. The
+// path-shape both stanzas use is bare (`agents/...`), so a literal compare
+// suffices for the common case; `/**` handles directory-prefix tier globs.
+function loomGlobMatch(relPath, glob) {
+  const g = glob.startsWith(".claude/") ? glob.slice(".claude/".length) : glob;
+  return matchesGlob(relPath, g);
+}
+
 // Emit a FRESH per-CLI tree via emit-cli-artifacts.mjs --out <tmp>, so the
 // mirror check compares against what the emitter ACTUALLY produces — not a
 // possibly-stale checked-in .codex/.gemini tree, and not a hand-rolled path
@@ -777,6 +849,73 @@ function checkAuditFixtureCoverage(root) {
   return { id, source_rule: "cc-artifacts.md Rule 9 / hook-output-discipline.md MUST-4", results };
 }
 
+// Check 8 — loom-only mutual exclusion (F104).
+//   FAIL  a loom_only glob that ALSO appears as a tier entry (any tier) —
+//         a path declared never-sync but also tier-listed would be both
+//         emitted (by tier) and never-emitted (by loom_only); the manifest
+//         contradicts itself. Blocks /sync.
+//   FIXTURE_NEEDED  (WARN, non-blocking would be ideal but the status taxonomy
+//         only has pass/fail/fixture-needed/skip; per the F104 spec a
+//         zero-match glob is a WARN, NOT a block) → emitted as `skip` with a
+//         "WARN:" detail so it surfaces without blocking /sync.
+//   PASS  a loom_only glob that matches >=1 on-disk file AND is in no tier.
+function checkLoomOnlyMutualExclusion(root) {
+  const id = "loom-only-mutual-exclusion";
+  const source_rule = "sync-manifest.yaml loom_only (F104) / cross-repo.md Rule 4";
+  const loomOnly = parseLoomOnly(root);
+  if (loomOnly === null) {
+    return {
+      id,
+      source_rule,
+      results: [{ artifact: "sync-manifest.yaml", status: STATUS.SKIP, detail: "manifest unreadable" }],
+    };
+  }
+  if (loomOnly.length === 0) {
+    return {
+      id,
+      source_rule,
+      results: [{ artifact: "loom_only", status: STATUS.SKIP, detail: "no loom_only entries declared" }],
+    };
+  }
+  const tiers = parseTiers(root);
+  // Flatten every tier's globs with the owning tier name (any tier is synced —
+  // every tier is subscribed by >=1 repo per repos.<t>.tier_subscriptions).
+  const tierEntries = [];
+  for (const [tier, globs] of Object.entries(tiers)) {
+    for (const g of globs) tierEntries.push({ tier, glob: g });
+  }
+  const results = [];
+  for (const lo of loomOnly) {
+    // (a) mutual-exclusion: loom_only glob collides with a synced-tier glob.
+    const collisions = tierEntries.filter(
+      (t) => t.glob === lo || loomGlobMatch(t.glob.replace(/^\.claude\//, ""), lo) || loomGlobMatch(lo, t.glob),
+    );
+    if (collisions.length > 0) {
+      const where = collisions.map((c) => `${c.tier}:${c.glob}`).join(", ");
+      results.push({
+        artifact: lo,
+        status: STATUS.FAIL,
+        detail: `loom_only path is ALSO in synced tier(s) ${where} — a never-sync artifact cannot be tier-listed (mutual-exclusion violation)`,
+      });
+      continue;
+    }
+    // (b) zero-match WARN: glob matches no on-disk file. Non-blocking — emit
+    // as SKIP with a WARN: prefix so it surfaces without halting /sync.
+    const candidate = join(root, ".claude", lo);
+    const exists = existsSync(candidate) || (lo.endsWith("/**") && existsSync(join(root, ".claude", lo.slice(0, -3))));
+    if (!exists) {
+      results.push({
+        artifact: lo,
+        status: STATUS.SKIP,
+        detail: `WARN: loom_only glob matches 0 on-disk files (stale entry? verify the path)`,
+      });
+      continue;
+    }
+    results.push({ artifact: lo, status: STATUS.PASS, detail: "never-sync, in no synced tier, matches on-disk file" });
+  }
+  return { id, source_rule, results };
+}
+
 // --- Orchestration ------------------------------------------------------
 
 const CHECK_FNS = {
@@ -787,6 +926,7 @@ const CHECK_FNS = {
   "mirror-exclusion": checkMirrorExclusion,
   "paths-annotation-consistency": checkPathsAnnotationConsistency,
   "audit-fixture-coverage": checkAuditFixtureCoverage,
+  "loom-only-mutual-exclusion": checkLoomOnlyMutualExclusion,
 };
 
 function runChecks(root, only, opts) {
@@ -950,6 +1090,10 @@ export {
   checkMirrorExclusion,
   checkPathsAnnotationConsistency,
   checkAuditFixtureCoverage,
+  checkLoomOnlyMutualExclusion,
+  parseLoomOnly,
+  parseTiers,
+  loomGlobMatch,
   CANONICAL_CC_TOOLS,
   READONLY_FORBIDDEN_TOOLS,
   CHECK_IDS,

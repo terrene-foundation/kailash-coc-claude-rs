@@ -8,7 +8,6 @@ paths:
 
 # EATP SDK Rules
 
-
 <!-- slot:neutral-body -->
 
 ## Scope
@@ -28,7 +27,7 @@ These rules apply when working with EATP trust code.
 ### Module Structure
 
 - `from __future__ import annotations` in every module
-- `# Copyright 2026 Terrene Foundation` + `# SPDX-License-Identifier: Apache-2.0` header
+- `# Copyright <YEAR> <COPYRIGHT_HOLDER>` + `# SPDX-License-Identifier: <SPDX_ID>` header
 - `logger = logging.getLogger(__name__)` in every module
 - Explicit `__all__` in every module
 - `str`-backed `Enum` classes for JSON-friendly serialization

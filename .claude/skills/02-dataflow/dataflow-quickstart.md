@@ -10,7 +10,7 @@ Zero-config database framework built on Core SDK with automatic node generation 
 > **Skill Metadata**
 > Category: `dataflow`
 > Priority: `CRITICAL`
-> Related Skills: [`workflow-quickstart`](../../01-core-sdk/workflow-quickstart.md), [`dataflow-models`](dataflow-models.md), [`dataflow-queries`](dataflow-queries.md)
+> Related Skills: [`workflow-quickstart`](../01-core-sdk/workflow-quickstart.md), [`dataflow-models`](dataflow-models.md), [`dataflow-queries`](dataflow-queries.md)
 > Related Subagents: `dataflow-specialist` (enterprise features, migrations), `nexus-specialist` (DataFlow+Nexus integration)
 
 ## Quick Reference
@@ -386,9 +386,9 @@ app.start()
 
 - **Model definition**: [`dataflow-models`](dataflow-models.md)
 - **Query patterns**: [`dataflow-queries`](dataflow-queries.md)
-- **Bulk operations**: [`dataflow-bulk-ops`](dataflow-bulk-ops.md)
-- **Nexus integration**: [`dataflow-nexus-integration`](../../5-cross-cutting/integrations/dataflow-nexus-integration.md)
-- **Migration guide**: [`dataflow-migration-quick`](dataflow-migration-quick.md)
+- **Bulk operations**: [`dataflow-bulk-ops`](dataflow-bulk-operations.md)
+- **Nexus integration**: [`dataflow-nexus-integration`](dataflow-nexus-integration.md)
+- **Migration guide**: [`dataflow-migration-quick`](dataflow-migrations-quick.md)
 
 ## When to Escalate to Subagent
 
