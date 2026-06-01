@@ -65,7 +65,19 @@ builder.add_node("NoOpNode", "n", { key: "value" })
 builder.add_node("NoOpNode", "n", { "key" => "value" })
 ```
 
-**Why:** Rust expects String keys in the ValueMap. Symbol keys may not convert correctly.
+**Why:** The Rust side deserializes the ValueMap via `serde_json`, which expects String keys. Symbol keys serialize as `:"key"` and fail to convert.
+
+### 4a. Passing Node Params as Keyword Arguments
+
+```ruby
+# WRONG — Magnus FFI does not accept Ruby kwargs here
+builder.add_node("LogNode", "log", message: "hello")
+
+# CORRECT — pass a Hash<String, Value>
+builder.add_node("LogNode", "log", { "message" => "hello" })
+```
+
+**Why:** The Magnus FFI bridge expects a positional `Hash<String, Value>` for node params, not Ruby keyword arguments. Kwargs are not auto-converted to the ValueMap.
 
 ### 5. Registering Callback After Runtime Creation
 
@@ -140,6 +152,35 @@ builder.add_node("JSONTransformNode", "t", {})
 ```
 
 **Tip**: Use `registry.list_types` to see all valid node type names.
+
+### 9a. Wrapping a Registry/Runtime in a Ruby Mutex
+
+```ruby
+# WRONG — Ruby Mutex around a Kailash native object risks deadlock
+mutex = Mutex.new
+mutex.synchronize { runtime.execute(workflow, inputs) }
+
+# CORRECT — let the native extension handle thread safety; Magnus manages the GVL
+runtime.execute(workflow, inputs)
+```
+
+**Why:** The Rust extension already holds internal locks and Magnus manages GVL acquisition. A Ruby `Mutex` wrapping the native object creates nested lock acquisition that can deadlock under concurrent access. (A `Mutex` INSIDE your own stateful custom-node callback is fine — that guards YOUR Ruby state, not the Kailash object.)
+
+### 9b. Forking After Opening a Registry
+
+```ruby
+# WRONG — Rust thread pools / Arc refs do not survive fork
+registry = Kailash::Registry.new
+fork { runtime.execute(workflow, inputs) }   # child segfaults
+
+# CORRECT — create the Registry AFTER forking, in the child
+fork do
+  registry = Kailash::Registry.new
+  # ... build + execute in the child ...
+end
+```
+
+**Why:** `fork` copies the Ruby heap but not Rust thread pools or `Arc` references, leaving the child with dangling pointers that segfault on first use. Open the Registry after the fork.
 
 ### 10. Missing macOS Codesign
 

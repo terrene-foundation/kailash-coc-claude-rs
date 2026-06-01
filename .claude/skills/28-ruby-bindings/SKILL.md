@@ -112,18 +112,25 @@ Source: `bindings/kailash-ruby/ext/kailash/src/convergence.rs`
 
 ## Skill Files
 
-| File                         | Content                |
-| ---------------------------- | ---------------------- |
-| `ruby-quickstart.md`         | Getting started guide  |
-| `ruby-cheatsheet.md`         | Common patterns        |
-| `ruby-common-mistakes.md`    | Pitfalls and fixes     |
-| `ruby-custom-nodes.md`       | Callback node patterns |
-| `ruby-framework-bindings.md` | Framework Ruby API     |
-| `ruby-gold-standards.md`     | Binding quality rules  |
-| `ruby-available-nodes.md`    | Node list for Ruby     |
+| File                         | Content                                 |
+| ---------------------------- | --------------------------------------- |
+| `ruby-quickstart.md`         | Getting started guide                   |
+| `ruby-cheatsheet.md`         | Common patterns + Ruby idiom cheatsheet |
+| `ruby-common-mistakes.md`    | Pitfalls and fixes                      |
+| `ruby-custom-nodes.md`       | Callback node patterns                  |
+| `ruby-framework-bindings.md` | Framework Ruby API                      |
+| `ruby-gold-standards.md`     | Binding quality rules                   |
+| `ruby-available-nodes.md`    | Node list for Ruby                      |
+| `ruby-nexus-rack.md`         | Nexus server + Rack integration in Ruby |
+| `ruby-mcp.md`                | MCP server/client patterns in Ruby      |
+| `ruby-dataflow.md`           | DataFlow CRUD + models in Ruby          |
+| `ruby-kaizen.md`             | Kaizen agents, signatures, delegates    |
+| `ruby-deployment.md`         | Gem build, packaging, codesign, release |
+| `ruby-eatp-trust.md`         | EATP trust posture + governance in Ruby |
+| `ruby-schema-migration.md`   | Schema migration patterns in Ruby       |
 
 ## Related
 
-- **ruby-binding** agent — Magnus implementation specialist
-- **ruby-pattern-expert** agent — Debugging Magnus errors
-- **ruby-gold-standards** agent — Ruby binding compliance validation
+- **dataflow-specialist** / **nexus-specialist** agents — framework Ruby API guidance
+- **pattern-expert** agent — debugging Magnus / FFI errors and idiom patterns
+- **gold-standards-validator** agent — Ruby binding compliance validation

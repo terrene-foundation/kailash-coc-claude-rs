@@ -133,6 +133,18 @@ runtime = Kailash::Runtime.new(registry, config)
 
 ## Inspect Available Node Types
 
+`Kailash::Registry.new` auto-registers **139 node types** across **25+ categories**. Use `registry.list_types` to enumerate at runtime.
+
+| Category    | Count | Category   | Count |
+| ----------- | ----- | ---------- | ----- |
+| Auth        | 12    | Monitoring | 10    |
+| Security    | 12    | AI         | 9     |
+| HTTP        | 8     | Enterprise | 8     |
+| File        | 7     | RAG        | 7     |
+| Transaction | 5     | Code       | 4     |
+| SQL         | 3     | Cache      | 3     |
+| Streaming   | 3     |            |       |
+
 ```ruby
 registry = Kailash::Registry.new
 types = registry.list_types   # sorted Array of Strings
@@ -143,6 +155,10 @@ puts "Math available" if types.include?("MathOperationsNode")
 
 registry.close
 ```
+
+## Thread Safety (GVL / Ractor)
+
+All Kailash types are `Send + Sync` in Rust, and `runtime.execute()` releases the GVL during Rust execution — so other Ruby threads run concurrently while a workflow executes. Ruby's GVL still serializes pure-Ruby code, so for true CPU-parallel Ruby work use `Ractor` or process-based parallelism (NOT plain threads). Do NOT wrap Kailash native objects in a Ruby `Mutex` — the extension handles its own locking (see `/ruby-common-mistakes`).
 
 ---
 

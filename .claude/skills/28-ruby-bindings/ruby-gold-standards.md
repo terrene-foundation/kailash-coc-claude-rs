@@ -170,6 +170,13 @@ end
 - Assert on actual results
 - Test error cases too
 
+## Artifact Audit Standards (Ruby COC projects)
+
+When auditing Claude Code artifacts in a Ruby project (`/cc-audit`), two Ruby-specific gold standards apply on top of the generic checks:
+
+- **Ruby rules MUST carry a `paths:` glob** (covering `.rb`, `Gemfile`, `.gemspec` files where relevant). A Ruby rule with no `paths:` falls into the always-on baseline and pays full token cost in every session.
+- **Ruby patterns are enforced in artifacts**: string keys (not symbols), block-based cleanup, and no Mutex wrapping of native objects MUST be the patterns the project's rules and skills teach.
+
 ## Anti-Patterns (NEVER do these)
 
 | Anti-Pattern                            | Gold Standard                              |

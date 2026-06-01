@@ -349,3 +349,86 @@ ensure
   registry.close
 end
 ```
+
+## Ruby Idiom Cheatsheet
+
+Ruby-divergent forms of cross-language rules. The rule PRINCIPLE lives in the global rule; only the Ruby syntax differs here.
+
+**Kaizen agent — define signatures with a `signature do ... end` block** (`agent-reasoning`):
+
+```ruby
+class TriageAgent < Kailash::Kaizen::BaseAgent
+  signature do
+    input  :ticket,   desc: "Support ticket content"
+    output :priority, desc: "urgent, high, normal, low"
+  end
+end
+# LLM-first routing — never include?/match?/=~/scan on input to decide
+router = Kailash::Kaizen::Pipeline.router(agents: [billing, tech])
+delegate = Kailash::Kaizen::Delegate.new(model: ENV["LLM_MODEL"])
+delegate.run("Analyze this") { |event| puts event }   # block-streaming
+```
+
+**SQL — Sequel/ActiveRecord, `?` placeholders, transaction blocks** (`infrastructure-sql`):
+
+```ruby
+DB[:users].where(id: user_id).first                       # parameterized via Sequel
+DB.fetch("SELECT * FROM users WHERE id = ?", user_id)     # ? not $1 (dialect-portable)
+DB.transaction { ...read-then-write... }                  # auto-commit releases locks
+DB[:cp].insert_conflict(target: [:k], update: {...}).insert(...)  # upsert, not check-then-act
+```
+
+**Logging — `SemanticLogger` / `Rails.logger`, never `puts`** (`observability`):
+
+```ruby
+logger = SemanticLogger['UserService']
+logger.info("user.create.ok", user_id: uid, request_id: req_id)   # fields as kwargs
+Rails.logger.tagged(request_id: request.request_id) { ... }       # correlation id
+# DO NOT: puts / p / pp / logger.info("User #{uid}")  (unstructured)
+```
+
+**Connection pool — env-driven `max_connections`, share via singleton** (`connection-pool`):
+
+```ruby
+config.max_connections = ENV.fetch("DATAFLOW_MAX_CONNECTIONS", "10").to_i
+config.connection_timeout = 5
+# Puma/Unicorn fork: pool_size = pg_max_connections / num_workers * 0.7
+# health check: ActiveRecord::Base.connection.execute("SELECT 1"), not a workflow
+```
+
+**DataFlow pool — single source via `Config#pool_size`, bounded overflow** (`dataflow-pool`):
+
+```ruby
+pool_size = config.pool_size(environment)        # not Etc.nprocessors*4 / ad-hoc default
+max_overflow = [2, pool_size / 2].max            # not pool_size * 2
+# subsystems take runtime: nil; #close calls @runtime.release (no orphan runtimes)
+```
+
+**PACT — frozen `GovernanceContext`, `Float#finite?`, `@mutex.synchronize`** (`pact-governance`):
+
+```ruby
+ctx = Kailash::Pact::GovernanceContext.new(envelope:, engine:, frozen: true)
+agent.set_governance(ctx)                         # never the bare engine
+child = Kailash::Pact.intersect_envelopes(parent, requested)   # monotonic tightening
+raise ArgumentError unless max_cost.finite?       # NaN < x is always false
+@mutex.synchronize { @envelopes[address.key] }    # Puma is multi-threaded
+```
+
+**RSpec — real runtime, `let` + `after` cleanup** (`testing`):
+
+```ruby
+let(:registry) { Kailash::Registry.new }
+after { registry.close unless registry.closed? }  # let is lazy → explicit close
+# integration specs: NO instance_double(Kailash::Runtime) — exercise the FFI boundary
+```
+
+**E2E god-mode — `Net::HTTP` create-on-404, discover IDs at runtime** (`e2e-god-mode`):
+
+```ruby
+resp = Net::HTTP.get_response(URI("#{base}/api/users/#{id}"))
+if resp.code == "404"                             # create the missing record, don't skip
+  Net::HTTP.post(URI("#{base}/api/users"),
+    { name: "test_user", role: "admin" }.to_json, "Content-Type" => "application/json")
+end
+# never hardcode emails/IDs — query the API first
+```
