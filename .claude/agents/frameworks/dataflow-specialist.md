@@ -3,6 +3,13 @@ name: dataflow-specialist
 description: "DataFlow specialist. Use proactively for ANY DB/cache/schema/query/CRUD/migration work — raw SQL & ORMs BLOCKED."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # DataFlow Specialist Agent

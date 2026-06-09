@@ -3,6 +3,13 @@ name: reviewer
 description: "Quality reviewer. Use for code review, doc consistency, cross-reference accuracy, or code example validation."
 tools: Read, Bash, Grep, Glob, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # Quality Reviewer Agent

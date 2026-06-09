@@ -1,26 +1,24 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-06-01T13:16:21Z
+timestamp: 2026-06-09T11:20:47Z
 source: loom/.claude
-loom_sha: e934018
+loom_sha: 4a12b9c
 loom_version: 2.39.0
 variant: rs
 template_type: cc-only-legacy
 clis: ["claude"]
 stats:
-  copied: 1242
-  byte_verified: 1242
-  updated: 10
-  created: 4
-  deleted: 1
-  composed: 96          # rs variant overlays (slot + full) applied via compose/strip
+  copied: 1290
+  byte_verified: 1290
+  composed: 6           # slot-keyed rs overlays via compose.mjs
+  legacy_overlay: 90    # legacy full-file rs overlays copied as-is (incl. 1 rename)
+  rename: 1             # python-version-bump.md -> rust-version-bump.md (global orphan purged)
   preserved: 1          # CLAUDE.md (template-owned)
   obsoleted_purged: 0   # all obsoleted paths already absent
-  coc_obsoleted_entries: 47
   baselines_emitted:
     cc: 0               # CLAUDE.md preserved, not emitted
   cli_artifacts: null   # cc-only-legacy — no codex/gemini emission
 verify_overlays:
   lang: rs
-  passing: 192
+  passing: 190
   failing: 0
-disclosure_scan: clean   # 0 findings (scan-synced-disclosure --root)
+sdk_pins: no_delta      # no Cargo.toml at target; upstream.sdk_packages unchanged

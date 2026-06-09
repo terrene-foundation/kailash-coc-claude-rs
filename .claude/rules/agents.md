@@ -36,6 +36,19 @@ When multiple independent operations are needed, launch agents in parallel via t
 
 **See also**: `rules/time-pressure-discipline.md` — when the user signals time pressure ("speed up", "deadline looming"), parallelization (parallel specialist delegation, parallel worktree waves of 3) IS the throughput response. Procedure drops are BLOCKED even when the user authorizes them; the structural alternative is more parallel work, not fewer steps.
 
+### MUST: Decompose Onto The Parallel Primitive By Default When The Work Earns It
+
+When the work surface is **≥3 independent items** OR has a **multi-stage shape** (analyze → implement → verify), the orchestrator MUST decompose onto the runtime's parallel orchestration primitive by DEFAULT — not only under `/autonomize`. The trigger is a real gate: a genuinely serial single-item task MUST stay serial. Governance per `rules/governed-throughput.md`; concurrency throttle-aware per `rules/worktree-isolation.md` Rule 4.
+
+```text
+# DO — 3 independent shards → one parallel wave
+# DO NOT — 1 serial rewrite → stay serial
+```
+
+**BLOCKED rationalizations:** "parallel-by-default needs `/autonomize`" / "serial is simpler, I'll decompose later" / "the ≥3-item trigger is my call each session".
+
+**Why:** Parallel decomposition is the baseline throughput response, not a per-session opt-in; the serial-single-item gate prevents over-decomposition of genuinely sequential work.
+
 ### MUST: Parallel Brief-Claim Verification When Issue Count ≥ 3
 
 When `/analyze` runs against a brief covering ≥ 3 distinct issues / failure modes / workstreams, the orchestrator MUST launch parallel deep-dive verification agents — one per claim cluster — to independently re-grep / re-read every factual claim in the brief tagged with file:line citations. Inaccuracies surfaced by the deep-dive sweep MUST be recorded in the workspace journal AND in the architecture plan's "Brief corrections" section AS THE GATE before `/todos`. Single-agent analysis on a ≥3-issue brief is BLOCKED — the framing inherited from the brief is the failure mode this rule prevents.
@@ -102,11 +115,7 @@ When delegating a /redteam round whose mission includes **closure-parity verific
 
 ## MUST: Worktree Isolation for Compiling Agents
 
-Agents that compile (Rust `cargo`, Python editable installs at scale) MUST use the CLI's worktree-isolation primitive to avoid build-directory lock contention.
-
-(See **Example 6** in the examples slot below for the worktree-isolation invocation pattern.)
-
-**Why:** Cargo holds an exclusive filesystem lock on `target/`. Worktrees give each agent its own `target/`. See `skills/30-claude-code-patterns/worktree-orchestration.md` for the full 5-layer protocol — worktree isolation is necessary but not sufficient.
+Agents that compile (Rust `cargo`, Python editable installs at scale) MUST use the CLI's worktree-isolation primitive — cargo holds an exclusive lock on `target/`, so each agent needs its own. See **Example 6**; `skills/30-claude-code-patterns/worktree-orchestration.md` (full 5-layer protocol — isolation is necessary but not sufficient).
 
 ## MUST: Worktree-Isolate Parallel Agents That Edit Shared Source; Concurrent Readers Read Committed HEAD
 
@@ -120,50 +129,23 @@ The clause above generalizes beyond compilation: ANY background/parallel agent t
 
 ## MUST: Worktree Prompts Use Relative Paths Only
 
-When prompting an agent with worktree isolation, the orchestrator MUST reference files via paths RELATIVE to the repo root — never absolute paths starting with `/Users/` or `/home/`.
-
-(See **Example 7** in the examples slot below for relative-path discipline.)
+When prompting a worktree-isolated agent, the orchestrator MUST use paths RELATIVE to the repo root — absolute `/Users/`/`/home/` paths point back to the parent checkout and silently defeat isolation (2026-04-19: 300+ LOC lost).
 
 **BLOCKED rationalizations:** "Absolute paths are unambiguous" / "The agent should figure out its own cwd" / "This worked the one time I tested it".
 
-**Why:** Worktree isolation sets cwd to the worktree; absolute paths point back to the parent checkout, silently defeating isolation. See guide for 2026-04-19 post-mortem (300+ LOC lost).
+(See **Example 7**; `worktree-orchestration.md` Rule 2.)
 
 ## MUST: Recover Orphan Writes From Zero-Commit Worktree Agents
 
-When a worktree-isolated agent reports completion but the branch has zero commits AND the worktree has been auto-cleaned, the parent MUST inspect the MAIN checkout for orphaned untracked files BEFORE concluding the work was lost. Absolute-path writes from the agent resolve to the MAIN checkout cwd — the files are NOT lost; they are orphaned, uncommitted, and reachable via `git status` on the parent.
-
-```bash
-git worktree list | grep <expected-branch>     # empty if cleaned
-git status --short                             # "??" entries surface the orphans
-# → git checkout -b recovery/<original-branch> && git add <orphans> && git commit
-```
-
-**BLOCKED rationalizations:** "The agent said it was done, the work must be committed somewhere" / "Re-launching is cleaner" / "If the branch has zero commits, the work is gone" / "The main checkout is clean" / "recovery/ branches are a workaround; feat/ is more correct".
-
-**Why:** Re-launching abandons real work every time an absolute-path agent truncates. `git status` reveals the orphans; `recovery/` grep surfaces this class of rescue across history. See guide for full 4-step protocol + PR #574 evidence (1129 LOC of `alignment.py` recovered).
+When a worktree agent reports done but its branch has zero commits and the worktree was auto-cleaned, the parent MUST check the MAIN checkout for orphaned untracked files (`git status`) and recover them on a `recovery/<branch>` branch before concluding work was lost — absolute-path writes resolve to main. Protocol + PR #574 evidence: `skills/30-claude-code-patterns/worktree-orchestration.md` Rule 4a.
 
 ## MUST: Worktree Agents Commit Incremental Progress
 
-Every worktree-isolated agent MUST receive an explicit instruction in its prompt to `git commit` after each milestone. The orchestrator MUST verify the branch has ≥1 commit before declaring the agent's work landed.
-
-(See **Example 8** in the examples slot below for the commit-discipline prompt fragment.)
-
-**BLOCKED rationalizations:** "The agent will commit at the end" / "Splitting adds overhead" / "The parent can recover from the worktree after exit".
-
-**Why:** Worktrees with zero commits are silently deleted. See guide for 2026-04-19 three-shard post-mortem.
+Every worktree agent's prompt MUST instruct `git commit` per milestone; the orchestrator MUST verify ≥1 commit before declaring work landed (zero-commit worktrees are auto-deleted). See **Example 8**; `worktree-orchestration.md` Rule 3.
 
 ## MUST: Verify Agent Deliverables Exist After Exit
 
-When an agent reports completion of a file-writing task, the parent MUST `ls` or `Read` the claimed file before trusting the completion claim.
-
-```text
-result = delegate(prompt="Write src/feature.py with ...")
-read_file("src/feature.py")  # raises if missing → retry
-```
-
-**BLOCKED rationalizations:** "The agent said 'done', that's good enough" / "Now let me write the file…" (with no subsequent tool call).
-
-**Why:** Budget exhaustion truncates writes mid-message. The `ls` check is O(1) and converts silent no-op into loud retry.
+After an agent reports a file-writing task done, the parent MUST `ls`/`Read` the claimed file before trusting it — budget exhaustion truncates writes mid-message. `worktree-orchestration.md` Rule 4.
 
 ## MUST: Parallel-Worktree Package Ownership Coordination
 

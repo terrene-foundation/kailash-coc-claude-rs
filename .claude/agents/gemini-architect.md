@@ -3,6 +3,13 @@ name: gemini-architect
 description: Gemini artifact architect. Use for .gemini/**, GEMINI.md, @agent delegation, hooks, skills, commands.
 tools: Read, Write, Edit, Grep, Glob, Bash, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # Gemini CLI Architecture Specialist

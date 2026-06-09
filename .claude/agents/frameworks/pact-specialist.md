@@ -3,6 +3,13 @@ name: pact-specialist
 description: "PACT specialist. Use for governance, RBAC, policy, access control, envelopes, audit — custom authz BLOCKED."
 tools: Read, Write, Edit, Bash, Grep, Glob, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # PACT Specialist Agent

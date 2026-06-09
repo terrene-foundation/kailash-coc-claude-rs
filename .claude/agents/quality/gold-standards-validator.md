@@ -3,6 +3,13 @@ name: gold-standards-validator
 description: "Documentation quality and cross-reference validator. Use for content-quality, terminology-consistency, and cross-reference compliance checks."
 tools: Read, Glob, Grep
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # Knowledge Base Compliance Validator

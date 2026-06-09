@@ -3,6 +3,13 @@ name: codex-architect
 description: Codex artifact architect. Use for .codex/**, MCP guard, hooks, AGENTS.md emission, skills, slash commands.
 tools: Read, Write, Edit, Grep, Glob, Bash, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # Codex CLI Architecture Specialist

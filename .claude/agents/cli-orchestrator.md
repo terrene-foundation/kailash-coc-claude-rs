@@ -3,6 +3,13 @@ name: cli-orchestrator
 description: Multi-CLI dispatcher. Use for /cli-audit, cross-CLI drift, variant arbitration, matrix emission across CC/Codex/Gemini.
 tools: Read, Write, Edit, Grep, Glob, Bash, Task
 model: opus
+hooks:
+  PreToolUse:
+    - matcher: "*"
+      hooks:
+        - type: command
+          command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/provenance-capture-tool.js"'
+          timeout: 5
 ---
 
 # CLI Orchestrator
