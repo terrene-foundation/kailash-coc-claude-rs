@@ -1,17 +1,19 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-06-09T11:20:47Z
+timestamp: 2026-06-10T02:58:20Z
 source: loom/.claude
-loom_sha: 4a12b9c
+loom_sha: 1daa45b
 loom_version: 2.39.0
+template_version: 2.23.4
 variant: rs
 template_type: cc-only-legacy
 clis: ["claude"]
 stats:
   copied: 1290
   byte_verified: 1290
-  composed: 6           # slot-keyed rs overlays via compose.mjs
-  legacy_overlay: 90    # legacy full-file rs overlays copied as-is (incl. 1 rename)
-  rename: 1             # python-version-bump.md -> rust-version-bump.md (global orphan purged)
+  variant_only: 210     # variant_only.rs raw-copied, byte-verified 210/210
+  composed: 6           # slot-keyed rs overlays via compose.mjs (Step 2.5)
+  legacy_overlay: 89    # legacy full-file rs overlays via strip-build-internal.mjs --apply
+  rename: 1             # python-version-bump.md -> rust-version-bump.md
   preserved: 1          # CLAUDE.md (template-owned)
   obsoleted_purged: 0   # all obsoleted paths already absent
   baselines_emitted:
@@ -19,6 +21,7 @@ stats:
   cli_artifacts: null   # cc-only-legacy — no codex/gemini emission
 verify_overlays:
   lang: rs
-  passing: 190
+  passing: 305          # this template's rows within the 610 rs-lane total (both templates)
   failing: 0
-sdk_pins: no_delta      # no Cargo.toml at target; upstream.sdk_packages unchanged
+sdk_pins: no_delta      # no Cargo.toml at target; pyproject kailash-enterprise>=4.3.3 floor satisfied by 4.4.0; upstream.sdk_packages.kailash-rs=4.4.0
+note: "#427 redistribution — closed 16 pre-sync rs variant_only drifts (8 per template) + transient 168 global-over-overlay clobbers (sync-tier-aware raw-copy of globals over overlay paths, corrected by Step 2.5 overlay-apply). loom_sha 4a12b9c -> 1daa45b, loom VERSION unchanged 2.39.0."
