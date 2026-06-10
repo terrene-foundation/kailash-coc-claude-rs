@@ -121,8 +121,8 @@ All converters handle categoricals, nulls, and dtype preservation.
 
 ## Cross-References
 
-- `packages/kailash-ml/src/kailash_ml/engines/feature_store.py` -- FeatureStore implementation
-- `packages/kailash-ml/src/kailash_ml/engines/_feature_sql.py` -- All SQL in one module
-- `packages/kailash-ml/src/kailash_ml/interop.py` -- Polars conversion module
+- the ml package (`src/kailash_ml/engines/feature_store.py`) -- FeatureStore implementation
+- the ml package (`src/kailash_ml/engines/_feature_sql.py`) -- All SQL in one module
+- the ml package (`src/kailash_ml/interop.py`) -- Polars conversion module
 - `rules/infrastructure-sql.md` -- SQL safety patterns (identifier validation, transactions)
 - `rules/dataflow-pool.md` -- Connection pool rules (no separate ConnectionManagers)

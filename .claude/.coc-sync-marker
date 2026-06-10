@@ -1,27 +1,41 @@
 # COC Sync Marker — kailash-coc-claude-rs
-timestamp: 2026-06-10T02:58:20Z
+timestamp: 2026-06-10T15:34:39Z
 source: loom/.claude
-loom_sha: 1daa45b
+loom_sha: 3880c5f
 loom_version: 2.39.0
-template_version: 2.23.4
+pre_sync_version: 2.23.4
+template_version: 2.23.5
 variant: rs
 template_type: cc-only-legacy
 clis: ["claude"]
 stats:
-  copied: 1290
-  byte_verified: 1290
-  variant_only: 210     # variant_only.rs raw-copied, byte-verified 210/210
-  composed: 6           # slot-keyed rs overlays via compose.mjs (Step 2.5)
-  legacy_overlay: 89    # legacy full-file rs overlays via strip-build-internal.mjs --apply
-  rename: 1             # python-version-bump.md -> rust-version-bump.md
+  copied: 1151
+  verified: 1151        # 1151/1151 delivered — 41 content-equal after BUILD-internal strip, 1110 byte-equal
+  stripped: 41          # BUILD-internal refs stripped at write time (strip-build-internal.mjs)
+  variant_only: 164     # variant_only.rs raw-copied, byte-verified 164/164
+  overlays: 141         # variants: REPLACEMENT overlays applied, byte-verified 141/141
+  rename: 1             # python-version-bump.md -> rust-version-bump.md (rs overlay rename)
   preserved: 1          # CLAUDE.md (template-owned)
-  obsoleted_purged: 0   # all obsoleted paths already absent
+  purged: 0             # all obsoleted paths already absent
+  skipped:
+    loom_local: 2
+    exclude: 865
+    use_exclude: 29
+    no_tier_match: 43
   baselines_emitted:
     cc: 0               # CLAUDE.md preserved, not emitted
   cli_artifacts: null   # cc-only-legacy — no codex/gemini emission
+content_change:
+  file: .claude/skills/18-security-patterns/SKILL.md
+  before_bytes: 9563
+  before_sha256: "0429d35be48a38e0ea3eeaa8ef3b9e401ddd546345b636abd6d98cada3297bbf"  # generic global — 'Kailash security'
+  after_bytes: 11287
+  after_sha256: "baba7e38a2ab094cd4f165b0f8397c4761fbb5bd0312a8e2f5a8e9b180608736"   # rs overlay — 'Kailash Rust security ... Hardcoded secrets BLOCKED'
+  delta_bytes: 1724
+  note: "rs lane REGAINS the 18-security SKILL overlay dropped by the pre-#477 duplicate-variants-key bug (R1 reviewer MED)"
 verify_overlays:
   lang: rs
-  passing: 305          # this template's rows within the 610 rs-lane total (both templates)
-  failing: 0
-sdk_pins: no_delta      # no Cargo.toml at target; pyproject kailash-enterprise>=4.3.3 floor satisfied by 4.4.0; upstream.sdk_packages.kailash-rs=4.4.0
-note: "#427 redistribution — closed 16 pre-sync rs variant_only drifts (8 per template) + transient 168 global-over-overlay clobbers (sync-tier-aware raw-copy of globals over overlay paths, corrected by Step 2.5 overlay-apply). loom_sha 4a12b9c -> 1daa45b, loom VERSION unchanged 2.39.0."
+  failing: 0            # tools/verify-overlays.sh rs — Failing 0 across both rs templates (gate)
+sdk_pins: no_delta      # no Cargo.toml at target (CC-only artifact template); kailash-rs workspace 4.4.0 unchanged; cargo check n/a
+hook_integrity: "28/28 settings.json hooks present on disk; 0 stale scripts/hooks; 0 operator-PII path tokens"
+note: "loom 2.39.0 @ 3880c5f redistribution — PR #479 (#477) strip-pattern extension + 45 rs-lane variant_only->variants: REPLACEMENT reclassifications + rs lane regains skills/18-security-patterns/SKILL.md overlay. loom_sha 1daa45b -> 3880c5f, loom VERSION unchanged 2.39.0. Pre-sync freshness PASS (claude-rs cfc179c0; rs 4d04df02). Gate 1 SKIPPED (proposal status: distributed). Receipts: loom journal/0262 + 0263."

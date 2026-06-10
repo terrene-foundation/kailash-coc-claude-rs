@@ -27,7 +27,7 @@ agent.set_governance(engine)  # Agent can call engine.update_envelope() on itsel
 
 The `envelope` property returns `copy.deepcopy()` — never a reference to the internal dict.
 
-**Source**: `packages/kaizen-agents/src/kaizen_agents/supervisor.py`
+**Source**: the kaizen-agents package (`src/kaizen_agents/supervisor.py`)
 
 ## NaN/Inf Defense (Pervasive)
 
@@ -134,7 +134,7 @@ if stored_hash != computed_hash:  # Leaks information byte-by-byte
     raise IntegrityError("Hash chain broken")
 ```
 
-**Source**: `packages/kaizen-agents/src/kaizen_agents/audit/trail.py`
+**Source**: the kaizen-agents package (`src/kaizen_agents/audit/trail.py`)
 
 ## Frozen Value Types
 

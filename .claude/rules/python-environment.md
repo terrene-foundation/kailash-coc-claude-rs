@@ -75,7 +75,7 @@ uv pip install \
   -e packages/kailash-kaizen
 
 # DO NOT — PYTHONPATH prefix workaround
-PYTHONPATH=packages/kailash-dataflow/src:packages/kailash-nexus/src \
+PYTHONPATH=the dataflow package directory src:the nexus package directory src \
   .venv/bin/python -m pytest tests/
 ```
 
@@ -111,7 +111,7 @@ A dev dependency declared by a sub-package (`packages/*/pyproject.toml`) MUST NO
 
 ```toml
 # DO — sub-packages own their test deps
-# packages/kailash-pact/pyproject.toml:
+# the pact package directory pyproject.toml:
 [project.optional-dependencies]
 test = ["hypothesis>=6.98"]
 # root pyproject.toml [dev]: (no hypothesis entry)

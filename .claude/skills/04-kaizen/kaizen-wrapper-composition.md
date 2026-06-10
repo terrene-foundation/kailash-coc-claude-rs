@@ -16,12 +16,12 @@ BaseAgent -> L3GovernedAgent -> MonitoredAgent -> StreamingAgent
 
 ### Key files
 
-- `packages/kaizen-agents/src/kaizen_agents/wrapper_base.py` -- `WrapperBase` with stack ordering + duplicate detection
-- `packages/kaizen-agents/src/kaizen_agents/governed_agent.py` -- `L3GovernedAgent` with `ConstraintEnvelope` enforcement (Financial, Operational, Temporal, Data Access, Communication, Posture ceiling). Rejects BEFORE LLM cost is incurred. Uses `_ProtectedInnerProxy` to block governance bypass via `.inner._inner`.
-- `packages/kaizen-agents/src/kaizen_agents/monitored_agent.py` -- `MonitoredAgent` with `CostTracker`, budget enforcement via `BudgetExhaustedError`, NaN/Inf defense on budget values
-- `packages/kaizen-agents/src/kaizen_agents/streaming_agent.py` -- `StreamingAgent` with `run_stream()` async iterator, typed `StreamEvent` events, buffer overflow protection, timeout enforcement. Falls back to batch when provider lacks `StreamingProvider`.
-- `packages/kaizen-agents/src/kaizen_agents/events.py` -- Frozen dataclass events: `TextDelta`, `ToolCallStart`, `ToolCallEnd`, `TurnComplete`, `BudgetExhausted`, `ErrorEvent`, `StreamBufferOverflow`
-- `packages/kaizen-agents/src/kaizen_agents/supervisor_wrapper.py` -- `SupervisorWrapper` for task delegation to worker pool via `LLMBased` routing
+- the kaizen-agents package (`src/kaizen_agents/wrapper_base.py`) -- `WrapperBase` with stack ordering + duplicate detection
+- the kaizen-agents package (`src/kaizen_agents/governed_agent.py`) -- `L3GovernedAgent` with `ConstraintEnvelope` enforcement (Financial, Operational, Temporal, Data Access, Communication, Posture ceiling). Rejects BEFORE LLM cost is incurred. Uses `_ProtectedInnerProxy` to block governance bypass via `.inner._inner`.
+- the kaizen-agents package (`src/kaizen_agents/monitored_agent.py`) -- `MonitoredAgent` with `CostTracker`, budget enforcement via `BudgetExhaustedError`, NaN/Inf defense on budget values
+- the kaizen-agents package (`src/kaizen_agents/streaming_agent.py`) -- `StreamingAgent` with `run_stream()` async iterator, typed `StreamEvent` events, buffer overflow protection, timeout enforcement. Falls back to batch when provider lacks `StreamingProvider`.
+- the kaizen-agents package (`src/kaizen_agents/events.py`) -- Frozen dataclass events: `TextDelta`, `ToolCallStart`, `ToolCallEnd`, `TurnComplete`, `BudgetExhausted`, `ErrorEvent`, `StreamBufferOverflow`
+- the kaizen-agents package (`src/kaizen_agents/supervisor_wrapper.py`) -- `SupervisorWrapper` for task delegation to worker pool via `LLMBased` routing
 
 ### Building a wrapper stack
 

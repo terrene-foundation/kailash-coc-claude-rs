@@ -114,7 +114,7 @@ grep -E "from app.v2.handler import|warnings.warn.*Deprecat" app/legacy/handler.
 For every new module the spec creates, grep the test directory for an import of that module. Zero importing tests = HIGH finding regardless of "tests pass".
 
 ```bash
-grep -rln "from kaizen_agents.wrapper_base\|import wrapper_base" packages/kaizen-agents/tests/
+grep -rln "from kaizen_agents.wrapper_base\|import wrapper_base" the kaizen-agents package directory tests/
 # Empty → HIGH: new module has zero test coverage
 ```
 
@@ -135,7 +135,7 @@ grep -rln "test.*prompt.*injection\|test.*tool.*description.*injection" tests/
 For every "consumer X migrates to import from Y" task, grep the consumer file for the OLD import path. Hits = FAIL (migration didn't happen).
 
 ```bash
-grep -rn "from kailash_mcp.client\|import kailash_mcp.client" packages/kaizen-agents/src/
+grep -rn "from kailash_mcp.client\|import kailash_mcp.client" the kaizen-agents package directory src/
 # Any hits → FAIL: migration incomplete
 ```
 

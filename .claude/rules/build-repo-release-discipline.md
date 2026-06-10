@@ -97,7 +97,7 @@ gh pr merge 824 --admin --merge && echo "done"   # but PR also touched src/kaize
 
 **Why:** PyPI ships wheels, not git trees — a test-only / docs-only / workspace-only diff produces zero wheel-content change (tests aren't packaged in wheels; `workspaces/` and `docs/` are excluded from `pyproject.toml::include`). Forcing `/release` on a no-op diff burns ~5 minutes of CI per PR for zero consumer benefit; the explicit allowlist + exclusions above is the structural defense against rationalization.
 
-Origin: kailash-kaizen #821 (2026-05-05) — PR #824 (test parity for `kaizen-agents/research_patterns/*`) merged via admin without `/release`; user approved option A because the diff was strictly under `packages/kaizen-agents/tests/unit/`. Carve-out codified to prevent re-deriving the same A/B decision next BUILD-repo session.
+Origin: kailash-kaizen #821 (2026-05-05) — PR #824 (test parity for `kaizen-agents/research_patterns/*`) merged via admin without `/release`; user approved option A because the diff was strictly under the kaizen-agents package (`tests/unit/`). Carve-out codified to prevent re-deriving the same A/B decision next BUILD-repo session.
 
 ### 2. PyPI Installability Is The Done Gate, Not Merge
 
@@ -190,7 +190,7 @@ for pkg_dir in packages/*/; do
 done
 
 # DO NOT — defer the check to /release
-# (Wave 4 PR #632 modified packages/kailash-mcp/src/.../auth/{providers,oauth}.py
+# (Wave 4 PR #632 modified the mcp package directory src/.../auth/{providers,oauth}.py
 #  but mcp pyproject stayed at 0.2.9. Caught only at /release-time enumeration,
 #  required a separate fix-PR #634 to bump mcp 0.2.9 → 0.2.10. Net cost:
 #  one extra PR, one extra CI cycle, one extra admin merge, ~15min of pacing.)

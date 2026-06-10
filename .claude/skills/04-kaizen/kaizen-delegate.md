@@ -94,5 +94,5 @@ delegate = Delegate(model=os.environ["LLM_MODEL"], budget_usd=5.0)
 
 ## Source Files
 
-- `packages/kaizen-agents/src/kaizen_agents/delegate/delegate.py`
-- `packages/kaizen-agents/src/kaizen_agents/delegate/events.py`
+- the kaizen-agents package (`src/kaizen_agents/delegate/delegate.py`)
+- the kaizen-agents package (`src/kaizen_agents/delegate/events.py`)

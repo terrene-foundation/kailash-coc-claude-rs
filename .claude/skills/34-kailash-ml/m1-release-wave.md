@@ -90,7 +90,7 @@ Origin: W33b shard, spec §16.3 fingerprint contract.
 
 ## MIGRATION.md Sunset Contract (W33b)
 
-W33b landed `packages/kailash-ml/MIGRATION.md` documenting the 0.x → 1.0.0 breaking surface:
+W33b landed the ml package (`MIGRATION.md`) documenting the 0.x → 1.0.0 breaking surface:
 
 - Legacy status vocabulary (`SUCCESS`, `COMPLETED`) hard-migrated to `FINISHED` at install (Decision 1)
 - Raw sklearn/torch training loops blocked via `UnsupportedTrainerError` (Decision 8)

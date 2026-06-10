@@ -65,7 +65,7 @@ After distribution, `/sync` MUST emit a verification table to the user with one 
 | kailash-coc-claude-py   | 2.19 | 2.20 | b4d2933  | 2026-05-06T14:22:00Z | 16.93 / 16.87      | ✓ |
 | kailash-coc-claude-rb   | 2.18 | 2.18 | b4d2933  | (skipped)            | n/a                | ✗ |
 | kailash-coc-rs          | 2.21 | 2.21 | def4567  | (emit-blocked)       | 9.81 / 9.85        | ✗ |
-ERROR: ✗ rows halt sync — version-stale (rb) OR headroom-floor breach (rs, v6.2 Shard 2 — see workspaces/multi-cli-coc/02-plans/08-loom-v6.2-headroom-validator.md).
+ERROR: ✗ rows halt sync — version-stale (rb) OR headroom-floor breach (rs, v6.2 Shard 2 — see (loom-internal reference)).
 
 # DO NOT — single-line completion claim, OR table missing landed/hr% column
 ✓ /sync py complete (kailash-coc-claude-py at 2.20.0)
@@ -169,7 +169,7 @@ The four MUST Rules above carry three independent Trust Posture Wiring profiles,
 
 ### Rule 2 (headroom-floor ✗ row) — v6.2 BLOCK condition
 
-The v6.2 plan (`workspaces/multi-cli-coc/02-plans/08-loom-v6.2-headroom-validator.md`) Shards 1+2 (merged PR #218, commit `75352dd`, 2026-05-15) added a `headroom_pct` column to Rule 2's verification table AND wired the per-CLI `headroom_floor_pct` as a BLOCK condition. F5 binds that structural defense to the Trust Posture system.
+The v6.2 plan ((loom-internal reference)) Shards 1+2 (merged PR #218, commit `75352dd`, 2026-05-15) added a `headroom_pct` column to Rule 2's verification table AND wired the per-CLI `headroom_floor_pct` as a BLOCK condition. F5 binds that structural defense to the Trust Posture system.
 
 - **Severity:** `block` — structural signal (`emit.mjs` in default strict mode returns non-zero on breach; the exit code IS the signal, not a regex match). Per `hook-output-discipline.md` MUST-2, the structural exit is the correct carrier of `block` severity.
 - **Grace period:** 7 days from PR #218 merge (2026-05-15 → 2026-05-22). During grace, the validator emits structured `headroom_floor_violations[]`; `coc-sync.md`'s `node …/emit.mjs --all --lang <py|rs>` invocations (Shard 2 wiring; cycle-2 dropped the explicit `--strict-headroom` opt-in; cycle-3 removed the legacy no-op accepting) propagate non-zero exit unconditionally for py/rs. Grace applies to operators running `emit.mjs` directly OUTSIDE `/sync`. The opt-in→opt-out flip (cycle-2) shipped 2026-05-15 (PR #230); cycle-3 (a) removed the legacy `--strict-headroom` accepting after a callsite sweep confirmed zero references.

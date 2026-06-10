@@ -109,5 +109,5 @@ The `on_source_change` refresh mode subscribes to all 8 WRITE_OPERATIONS for eac
 
 ## Source Code
 
-- `packages/kailash-dataflow/src/dataflow/core/events.py` -- DataFlowEventMixin, WRITE_OPERATIONS
-- `packages/kailash-dataflow/tests/unit/features/test_dataflow_events.py` -- Unit tests
+- the dataflow package (`src/dataflow/core/events.py`) -- DataFlowEventMixin, WRITE_OPERATIONS
+- the dataflow package (`tests/unit/features/test_dataflow_events.py`) -- Unit tests
