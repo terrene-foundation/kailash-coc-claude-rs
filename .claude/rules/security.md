@@ -87,9 +87,7 @@ All user-generated content MUST be encoded before display in HTML templates, JSO
 
 ## Sanitizer Contract — DataFlow Display Hygiene
 
-DataFlow's input sanitizer is a defense-in-depth display-path safety net, NOT the primary SQLi defense. Parameter binding (`$N` / `%s` / `?`) is the primary defense — see § Parameterized Queries above.
-
-The sanitizer's contract is fixed:
+DataFlow's input sanitizer is a defense-in-depth display-path safety net, NOT the primary SQLi defense — parameter binding is (§ Parameterized Queries above). The contract is fixed:
 
 ### 1. String Inputs MUST Be Token-Replaced, Not Quote-Escaped
 
@@ -144,9 +142,9 @@ When a security-relevant kwarg (classification policy, tenant scope, clearance c
 - "Test coverage will catch divergence later"
 - "The kwarg has a safe default — siblings still get baseline behaviour"
 
-**Why:** A helper takes a security-relevant kwarg precisely because the unqualified call leaks or misbehaves, so any sibling left on the unqualified signature ships the exact failure mode the kwarg fixes (the "safe default" is the insecure default). Fix is mechanical: `grep -rn 'helper_name(' .` + patch every hit.
+**Why:** A sibling left on the unqualified signature ships the exact failure mode the kwarg fixes (the "safe default" is the insecure default). Fix is mechanical: `grep -rn 'helper_name(' .` + patch every hit.
 
-Origin: cross-SDK — BP-049 (2026-04-19) landed `validate_model(policy=..., model_name=...)` plumbing in kailash-py PR #522 but left one sibling unqualified; post-release reviewer caught it; fast-patched in PR #529.
+Origin: cross-SDK BP-049 (2026-04-19) — kailash-py PR #522 left one sibling unqualified; fast-patched in PR #529.
 
 ## MUST NOT
 
@@ -233,7 +231,7 @@ if !self.allowed_origins.contains(origin) {
 dispatch(req).await
 ```
 
-**Why:** Local-only MCP servers bind to 127.0.0.1 and assume localhost = trusted. DNS rebinding defeats this — a website the operator visits while the MCP server runs can invoke local MCP tools via the browser. Stdio spawn without allowlist gives the JSON-RPC caller arbitrary code execution via `sh -c`, `LD_PRELOAD`, or argv injection. Log content without sanitization is a log-poisoning + secret-exfiltration vector. Origin: R3 commits `173d054b`, `0d4ebd12`. Full pattern: `skills/18-security-patterns/network-security-rs.md`.
+**Why:** DNS rebinding defeats the localhost-is-trusted assumption — a website the operator visits can invoke local MCP tools via the browser; stdio spawn without allowlist is arbitrary code execution; unsanitized log content is a secret-exfiltration vector. Origin: R3 commits `173d054b`, `0d4ebd12`. Full pattern: `skills/18-security-patterns/network-security-rs.md`.
 
 **BLOCKED rationalizations:**
 
