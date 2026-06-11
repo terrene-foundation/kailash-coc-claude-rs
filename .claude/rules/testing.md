@@ -70,6 +70,20 @@ Numerical claims (test counts, file counts, coverage) in session notes MUST be p
 
 **Why:** "Claim a number, never verify" produces multi-test discrepancies; 2-second command converts memory bug into script.
 
+### MUST: Deferred-Implementation Conformance Vectors Use xfail-Strict, Not Skip
+
+When a conformance vector (canonical fixture, cross-impl spec test, integration receipt) pins a contract the implementation does NOT yet enforce, the test MUST carry a STRICT-xfail marker (`@pytest.mark.xfail(strict=True, reason=...)`) — NOT skip, NOT delete, NOT comment-out. Strict-xfail surfaces an XPASS failure the moment the implementation catches up, forcing the author to remove the marker same-shard.
+
+```python
+# DO — strict-xfail; auto-fails (XPASS) when the impl catches up
+@pytest.mark.xfail(strict=True, reason="single-shot consumption not yet enforced")
+def test_phase_monotonicity(): ...
+# DO NOT — skip silently stays skipped after closure; deletion loses the contract pin
+@pytest.mark.skip(reason="impl not ready")
+```
+
+**Why:** Skip stays green-and-silent after the impl lands, so the deferred contract is never re-verified; deletion loses the pin entirely. Strict-xfail converts honest deferral from a silent ratchet into a self-clearing tripwire. The pytest marker is the Python form; the principle (strict failure on unexpected pass) maps to Rust `#[ignore]` + a CI job asserting ignored tests STILL fail, and equivalents in every runner. See `.claude/guides/rule-extracts/testing.md` § xfail-strict.
+
 ### MUST: `__all__` / Re-export Symbol Counts Use Structural Enumeration, Not Grep
 
 Counts of `__all__` entries (Python) or re-exports (Rust `pub use ...`) used in spec authority, docstrings, audit findings, or CHANGELOG claims MUST be produced by structural enumeration of the language's parser AST — NOT `grep -c` / `wc -l`. See guide for canonical Python (`ast.parse()`) and Rust (`syn::parse_file` / `cargo doc --document-private-items`) snippets.
@@ -329,6 +343,8 @@ let result = DriftMonitor::from_reference(&d,&n,DriftConfig::default()).unwrap()
 When a wiring test cannot construct or observe a `pub use`-exported type because it has NO public constructor AND NO public accessor on any owning facade, the disposition per `rules/autonomous-execution.md` Rule 4 is to add the missing accessor IN THE SAME SHARD — typically a one-line `pub fn <field>(&self) -> &<Type> { &self.<field> }` mirroring the existing accessor pattern. Removing the type from `pub use` is also acceptable; leaving it `pub use`-exported but unreachable is BLOCKED.
 
 **Why:** A `pub use`-exported type with no public construction/observation path is the orphan failure mode at the type-export level. Origin: 2026-05-06 RT-1/2/3 (PRs #816/#817/#818) — `tools/sweep-redteam.py` flagged 22 HIGH gaps whose types had inline-test exercise but no literal-identifier binding; RT-2 surfaced the orphan-accessor variant (`DriftSnapshot` `pub use`-exported, no accessor; same-shard `reference_snapshot()` added).
+
+**Sequencing corollary (2026-05-26, kailash-rs PRs #1114/#1115/#1116).** The E2E happy-path regression test that closes a workstream's load-bearing acceptance criterion does NOT obviate the per-symbol Tier-2 wiring this rule mandates — the E2E test exercises ONE happy-path composition; the per-`pub use`-type contract surface the wiring tests pin is a STRICT SUPERSET. After a workstream's load-bearing shard lands, the structural defense is to invoke `tools/sweep-redteam.py <workspace>/specs/*.md` against the workspace's own specs — the gap count is the institutional measurement of how much per-symbol contract surface remains uncovered. Sequencing pattern: (i) implement the load-bearing shard with its E2E test, (ii) merge, (iii) sweep the workspace specs, (iv) shard gap-closure by crate boundary (one shard per crate), (v) /redteam at parallel-wave convergence — NOT (i) implement + E2E + declare done. Evidence: a 2026-05-26 sweep against a converged workstream's 15 specs surfaced 38–39 per-symbol coverage gaps the E2E test alone left open — production types with 6–10 hits in src/ but zero literal-identifier references in any test; 3 parallel worktree shards (PRs #1114/#1115/#1116) landed 74 wiring tests closing all gaps to 0 in one /redteam round (0 CRIT/HIGH/MED, 0 FORWARDED).
 
 **Trust Posture Wiring (this section):** `halt-and-report` (lexical regex against `let result = ` with no typed binding cannot ship `block` per `hook-output-discipline.md` MUST-2; structural AST walk required to upgrade). Grace 7d. Cumulative 3×/30d → posture drop per `trust-posture.md` §4. Detection: `tools/sweep-redteam.py --json` HIGH gap on `pub use`-exported type with zero literal-identifier hits, OR `find crates/*/tests/ -name 'test_*_wiring.rs' | xargs grep -L "let .*: <Type>"`.
 

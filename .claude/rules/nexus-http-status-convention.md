@@ -9,7 +9,6 @@ paths:
 
 # Nexus HTTP Status Convention
 
-
 <!-- slot:neutral-body -->
 
 Every response a Nexus handler emits carries an HTTP status code that operators read as a triage signal at 03:00. The status taxonomy below is a contract: a handler returning the wrong code sends the operator to the wrong on-call page. This rule freezes the mapping from `NexusError` variants and handler-side errors to HTTP status codes, plus the JSON error body shape that rides on every 4xx/5xx response.
@@ -47,6 +46,18 @@ return (422, {"error": "bad input"})  # drifts from the SDK taxonomy
 ```
 
 **Why:** Once the taxonomy drifts between handlers and the SDK's error type, operators lose the "status-alone tells me which class of failure" property. The mapping is intentionally narrow so that every future addition goes through one file and shows up in every binding at once.
+
+**SDK scope qualifier (MUST).** The frozen enum-variant taxonomy above and the `{"error", "code"}` body shape are the **Rust SDK contract** (`NexusError` / `NexusApiError`). The **Python kailash-nexus** package implements a CLASS HIERARCHY instead (`NotFoundError` / `ValidationError` / `ForbiddenError` / ... in `nexus/errors.py`) whose `to_response_dict()` emits `{"error": <error_code>, "detail": <message>}`. Python handlers MUST follow the Python class hierarchy + `to_response_dict()` shape — coding a Python handler against the Rust enum table is BLOCKED (the API does not exist there), and porting one SDK's shape into the other is BLOCKED without an SDK version bump on the destination. This rule's `paths:` scoping is per-SDK: each variant lane carries its own SDK's contract as the normative table.
+
+```python
+# DO — Python: raise the typed class; to_response_dict() emits {"error", "detail"}
+raise ValidationError("payload is not an object")
+
+# DO NOT — Python handler coded against the Rust enum table
+raise NexusError.InvalidInput("...")   # non-existent API in kailash-nexus (Python)
+```
+
+**Why:** A Python handler "following the rule" against the Rust enum table codes against a non-existent API; the two SDKs froze different (each internally consistent) error contracts, and the rule's job is to pin each, not to merge them. Origin: cross-SDK error-taxonomy divergence surfaced and closed via issue #937 (the missing-handler half shipped as `add_exception_handler`; #937 CLOSED).
 
 ### 2. Canonical JSON Error Body Shape Is Bit-For-Bit Preserved
 

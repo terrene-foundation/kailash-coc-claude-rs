@@ -215,3 +215,70 @@ cargo check -p <crate> && gh pr merge <N> --admin --merge --delete-branch
 **Why:** Three v3.23 PRs (#566/#596/#597) admin-merged with `cargo check` clean but `cargo +nightly fmt --check` dirty AND `RUSTDOCFLAGS=-Dwarnings cargo doc --no-default-features` failing. PR #598 inherited all three classes via rebase; three fix-up commits cost three CI cycles + orchestrator turns. The Documentation job has TWO invocations because feature-gated paths surface different intra-doc-link graphs — admin-merge without the slim-build check leaves them latent. The first-push gate is structurally cheaper than the admin-merge gate at preventing fix-up cycles. `gh pr merge --admin --merge` bypasses branch protection's CI-green gate; the merger MUST run the same job-set locally first.
 
 Origin: 2026-04-25 v3.23 sprint codify — admin-merging #596 + #597 propagated nightly-fmt drift + rustdoc `-Dwarnings` failures onto main; #598 inherited all three classes; PR #598 cycle of 5 sequential pushes (08:43Z → 10:14Z) caused 71 min of cancelled-but-billed Workspace Tests. Cross-references `git.md` § "Pre-FIRST-Push CI Parity Discipline" (always-loaded baseline) for branch-time visibility.
+
+## MUST: kailash-capi Pre-Flight MUST Use `--all-features`
+
+The kailash-capi crate has TWO CI gates that regenerate state under `cargo build --all-features` and diff against the committed tree: (a) the **C ABI header + binding-decl diff gate (BP-091)** re-emits `include/kailash.h` via cbindgen and fails on any drift, (b) the **Workspace Tests** `header_gate::header_gate_no_drift_on_current_checkout` test does the same drift check at test time. A local pre-flight that uses a feature SUBSET silently masks two failure classes that only `--all-features` surfaces:
+
+1. **Feature-gated nested-module compile errors** — code inside `#[cfg(feature = "X")] mod inner { ... }` referencing a parent-module-private helper without an explicit `use super::<helper>;` import. The subset omits X; the inner module never compiles; the unresolved reference never surfaces locally. CI enables X via `--all-features` and the resolution failure surfaces at every push.
+2. **`kailash.h` regenerated under subset** — cbindgen writes a header containing ONLY the subset's symbols; CI's `--all-features` regen then drifts byte-by-byte from the committed header; both BP-091 and `header_gate_no_drift_on_current_checkout` fail on every push.
+
+Every kailash-capi local pre-flight (clippy / test / header regen) MUST use `cargo (build|clippy|test) -p kailash-capi --all-features` — matching the CI gates' regeneration command. Subset-feature pre-flights for kailash-capi are BLOCKED unless the change is provably scoped to a non-FFI surface (no header impact, no extern-fn signature change).
+
+```bash
+# DO — pre-flight uses --all-features, matches the CI gate
+cargo build -p kailash-capi --all-features                   # regen header + verify compile
+cargo clippy -p kailash-capi --all-features --tests -- -D warnings
+cargo test   -p kailash-capi --all-features --test header_gate
+# Commit include/kailash.h as regenerated; CI's --all-features regen matches → no drift.
+
+# DO NOT — feature-subset pre-flight masks both failure classes
+cargo build -p kailash-capi --features mcp,pact,capi-test-canary   # subset
+# ↑ misses feature-gated nested-module compile errors AND regenerates kailash.h
+#   with subset-only symbols → BP-091 + header_gate both red on every push.
+```
+
+**BLOCKED rationalizations:**
+
+- "I'm only touching one feature, why compile the others"
+- "The header subset is fine, cbindgen is idempotent across features"
+- "The CI gate will catch any drift; I'll fix-up if needed"
+- "`--all-features` is slower; the subset gets me through faster"
+- "The nested module is feature-gated, it can't affect my changes"
+- "I'll re-regen the header with `--all-features` at the end"
+- "My change is small; subset pre-flight is good enough for small changes"
+- "BP-091 + header_gate are paranoia gates; subset compile cleanly proves my code is correct"
+
+**Why:** Both kailash-capi CI gates regenerate state under `--all-features` and diff against the committed tree; a subset pre-flight produces a header byte-different from CI's regen AND skips compilation of every feature-gated nested module the subset omits. Matching the gate's command at pre-flight is the structural defense — second-guessing which features a change "could affect" is exactly the rationalization that produces fix-up cycles (≥45 min wall-clock + orchestrator turn each).
+
+### Default-Features Workspace Companion (MUST)
+
+CI runs the Rust workspace clippy / unit-tests / MSRV-check WITHOUT `--all-features` — the `--all-features` pre-flight is structurally blind to default-features `dead_code` lints and feature-gated test-import resolution. The pre-flight matrix is BOTH halves, not either-or:
+
+```bash
+# Half 1 (per-crate, matches header_gate + BP-091):
+cargo build  -p kailash-capi --all-features
+cargo clippy -p kailash-capi --all-features --tests -- -D warnings
+cargo test   -p kailash-capi --all-features
+
+# Half 2 (workspace default-features, matches CI workspace clippy + unit-tests + MSRV):
+cargo clippy --workspace --exclude kailash-ruby --all-targets -- -D warnings
+cargo check  --workspace --exclude kailash-ruby
+```
+
+Either alone is incomplete: per-crate `--all-features` catches header regen + nested-module resolution; workspace default-features catches `dead_code` on feature-gated callers + feature-gated test imports.
+
+**Why:** Second instance within 3 days — PR #1099 (2026-05-25) codified the `--all-features`-required failures; PR #1159's fix-up (2026-05-28, commit f187c0f8) surfaced the dual class (default-features `dead_code` on saturation helpers + `kailash_mcp_oauth2_*` test import unresolved without a feature gate) that the local `--all-features` pre-flight could not see. Extended same-cycle per `rules/autonomous-execution.md` MUST Rule 4 (same-class gap within shard budget).
+
+### Trust Posture Wiring (kailash-capi pre-flight matrix)
+
+- **Severity:** `halt-and-report` at gate-review (cc-architect at `/codify` + reviewer at `/implement` confirm any kailash-capi-touching PR receipt cites BOTH halves of the pre-flight matrix; no structural hook-level signal exists for the feature-flag set of a local cargo invocation, so `block` is not warranted per `hook-output-discipline.md` MUST-2).
+- **Grace period:** 7 days from rule landing (`--all-features` half 2026-05-25 → 2026-06-01; default-features companion 2026-05-28 → 2026-06-04).
+- **Cumulative posture impact:** same-class violations contribute per `trust-posture.md` MUST-4 (3× same-rule in 30d → drop 1 posture; 5× total in 30d → drop 1 posture).
+- **Regression-within-grace:** emergency downgrade L5→L4 per `trust-posture.md` MUST-4; proposed trigger key `capi_subset_preflight_bypass` (1× = drop 1 posture).
+- **Receipt requirement:** SessionStart MUST require `[ack: build-speed]` IF `posture.json::pending_verification` includes this rule_id.
+- **Detection mechanism:** Phase 1 — cc-architect mechanical sweep at `/codify`: for any PR touching `crates/kailash-capi/**`, grep the PR description / receipt / commit body for both pre-flight halves; absent evidence AND CI red on BP-091 / `header_gate_no_drift_on_current_checkout` / workspace clippy = finding. Phase 2 (deferred per `trust-posture.md` Two-Phase Rollout, gated on ≥3 real Phase-1 invocations): a `validate-capi-preflight` script parsing session bash history pre-push.
+- **Violation scope:** rule + lane (kailash-capi crate + the specific CI gate that surfaced the failure — BP-091 vs header_gate vs workspace clippy).
+- **Origin:** 2026-05-25 PR #1099 fix-up cycle (commit ded749cd: nested-module `use super::{...}` import + `--all-features` header regen) + 2026-05-28 PR #1159 fix-up (commit f187c0f8: default-features dual class).
+
+**Length rationale** (per `rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines"). This variant body exceeds the 200-line guidance. Named rationale: **CI-parity cohesion** — every MUST clause in this file codifies one structural defense against a billed fix-up cycle caused by local-vs-CI command divergence (nightly rustfmt, pinned clippy, full job-set pre-flight, the kailash-capi pre-flight matrix). Splitting into sibling rules would fragment the CI-parity contract across files and force cross-rule lookups for every pre-push decision — the load-failure mode `cc-artifacts.md` Rule 6 warns against. Sibling precedent: `user-flow-validation.md` + `multi-operator-coordination.md` Origins carry the same length-rationale shape.

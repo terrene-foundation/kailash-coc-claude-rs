@@ -218,7 +218,7 @@ validates the COC design; no COC artifact change is implied by the mapping.
 | Memory stores (persistent, redaction, versions)                  | loom auto-memory + team-memory split rule (`rules/knowledge-convergence.md` MUST-4)                                                                      |
 | Outcomes (deliverable ≠ event trace)                             | journal DECISION receipts (deliverable) vs coordination-log events (trace)                                                                               |
 | Subagents / coordinator threads                                  | parallel-worktree wave orchestration (`rules/agents.md`; `rules/governed-throughput.md`)                                                                 |
-| Session state machine (rescheduling vs terminated)               | durable-execution retry discipline (`skills/15-enterprise-infrastructure`; `rules/observability.md`)                                                     |
+| Session state machine (rescheduling vs terminated)               | durable-execution retry discipline (`skills/15-enterprise-infrastructure/SKILL.md`; `rules/observability.md`)                                            |
 | Webhooks on `session.status_idled`                               | the session-start / session-end lifecycle hooks                                                                                                          |
 
 ## Sources

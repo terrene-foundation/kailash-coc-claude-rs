@@ -1,20 +1,21 @@
 # COC Sync Marker — kailash-coc-claude-rs
 visibility: public
-timestamp: 2026-06-11T10:30:23Z
+timestamp: 2026-06-11T23:00:00Z
 source: loom/.claude
-loom_sha: bbfa970
-loom_version: 2.41.0
+loom_sha: 036c8ff
+loom_version: 2.42.0
 variant: rs
 clis: ["claude"]
 stats:
-  copied: 1153
+  copied: 1175
   variant_only: 164
   overlays: 141
   composed: 0
   preserved: 1   # CLAUDE.md
   purged: 0
-  skipped: { loom_local: 2, exclude: 869, use_exclude: 29, no_tier_match: 43 }
-  baselines_emitted: { cc: 0 }
-  cli_artifacts: null   # cc-only template
-  sdk_pins_changed: { kailash-rs: "4.4.0 -> 4.5.0" }
-headline: "NEW skill 36-claude-managed-agents (CMA hosted-harness integration reference)"
+  skipped: { loom_local: 2, exclude: 8000, use_exclude: 29, no_tier_match: 43 }
+  baselines_emitted: { cc: 0 }   # CC-only template; CLAUDE.md preserved, no AGENTS/GEMINI emit
+  cli_artifacts: null            # cc-only template
+  sdk_pins_changed: { kailash-rs: "4.5.0 -> 4.6.0" }
+headline: "loom 2.42.0 Gate-1 ingest cycle; rs build-speed.md variant_only ADDITION + testing.md overlay edit"
+notes: "verify-overlays.sh rs 610/610 Failing:0. Sister multi-CLI template kailash-coc-rs HALTED at baseline emit (strict-headroom floor breach, codex 8.58% + gemini 9.01% < 10%); requires upstream loom remediation."
