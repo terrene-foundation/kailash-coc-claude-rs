@@ -30,6 +30,8 @@ Call `acquireCodifyLease({ scopeFiles, displayId })` from `.claude/hooks/lib/cod
 
 On `{ ok: false, reason: "conflict" }`: STOP, surface the conflicting `display_id` + acquired_at + scope overlap to the user verbatim. Silent proceed is BLOCKED (`rules/zero-tolerance.md` Rule 3).
 
+The acquire result carries `record_emit` — the signed `codify-lease` coordination-log record that makes the lease visible to sibling clones via the fold (FSUB, `rules/knowledge-convergence.md` MUST-3; `releaseCodifyLease` emits the paired `codify-lease-release`). `record_emit.ok: false` does NOT void the lease (the on-disk mutex landed), but the failure MUST be surfaced to the user with its `reason` — a lease invisible to siblings is the cross-clone clobber surface this record exists to close.
+
 On `{ ok: true, lease, branch }`: create/switch to `codify/<display_id>-<date>`; all edits this session lands there; end-of-session opens a PR + admin-merge per `coc-sync-landing.md` MUST-3; then `releaseCodifyLease({ repoDir, displayId })` (the helper derives the leasePath from `repoDir` internally per Sec-MED-3 — callers cannot misroute the release write). For MUST-clause rule changes the orchestrator additionally requires a signed `[ack: <rule-id>]` from the user before merge (consumed by `multi-operator-sessionstart.js`).
 
 ### 1. Consume learning digest
