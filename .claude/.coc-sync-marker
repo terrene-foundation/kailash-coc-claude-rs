@@ -1,31 +1,20 @@
 # COC Sync Marker — kailash-coc-claude-rs
 visibility: public
-timestamp: 2026-06-11T01:58:28Z
+timestamp: 2026-06-11T10:30:23Z
 source: loom/.claude
-loom_sha: 57c88cc
-loom_version: 2.40.0
+loom_sha: bbfa970
+loom_version: 2.41.0
 variant: rs
-template_type: cc-only-legacy
 clis: ["claude"]
 stats:
-  copied: 1152
+  copied: 1153
   variant_only: 164
-  overlays_applied: 141
-  stripped: 41
+  overlays: 141
+  composed: 0
+  preserved: 1   # CLAUDE.md
   purged: 0
-  preserved: ["CLAUDE.md", "Gemfile.user", "Docker/dev-container scaffold (F78)", "settings.local.json", "learning/", ".proposals/", ".env"]
-  baselines_emitted: { cc: 0, codex: 0, gemini: 0 }
-fsub_delta:
-  - .claude/hooks/lib/coc-emit.js (new)
-  - .claude/hooks/lib/codify-lease.js
-  - .claude/hooks/lib/coordination-log.js
-  - .claude/hooks/lib/journal-body-anchor.js
-  - .claude/hooks/lib/journal-reserve.js
-  - .claude/hooks/lib/operator-id.js (full-diff carry)
-  - .claude/commands/codify.md
-  - .claude/commands/journal.md
-  - .claude/rules/knowledge-convergence.md
-  - .claude/rules/self-referential-codify.md
-verify_overlays: "610/610 Failing:0"
-hooks_resolve: "38/38"
-sdk_pins: "kailash-rs 4.4.0 CURRENT vs BUILD; no drift"
+  skipped: { loom_local: 2, exclude: 869, use_exclude: 29, no_tier_match: 43 }
+  baselines_emitted: { cc: 0 }
+  cli_artifacts: null   # cc-only template
+  sdk_pins_changed: { kailash-rs: "4.4.0 -> 4.5.0" }
+headline: "NEW skill 36-claude-managed-agents (CMA hosted-harness integration reference)"
