@@ -2,20 +2,20 @@
 visibility: public
 timestamp: 2026-06-12T00:00:00Z
 source: loom/.claude
-loom_sha: d7ec0d2
-loom_version: 2.43.0
+loom_sha: 1b26e91
+loom_version: 2.44.0
 variant: rs
 clis: ["claude"]
 stats:
   copied: 1175
-  variant_only: 164
+  variant_only: 165   # +1 NEW ffi-handle-lifecycle.md (variant_only.rs ADDITION)
   overlays: 141
   composed: 0
   preserved: 1   # CLAUDE.md
-  purged: 0      # no new obsoleted paths this cycle (.claude/skills/management/ already absent)
+  purged: 0      # no new obsoleted paths this cycle
   skipped: { loom_local: 2, exclude: 880, use_exclude: 29, no_tier_match: 43 }
   baselines_emitted: { cc: 0 }   # CC-only template; CLAUDE.md preserved, no AGENTS/GEMINI emit
   cli_artifacts: null            # cc-only template
-  sdk_pins_changed: {}           # kailash-rs 4.6.0 unchanged from 2.42.1 cycle
-headline: "loom 2.43.0 sync (#491) — agents.md worktree-cluster extraction + security.md global slot-partition (rs extensions-only overlay)"
-notes: "verify-overlays.sh rs Failing:0 (this template). #491 content check: .claude/rules/security.md carries the global Redactor Contract (grep=1) + all 3 Rust MUST sections (Credential Comparison, Fail-Closed Security Defaults, Network Transport Hardening). variants/rs/rules/security.md retired the whole-body replacement overlay; now extensions-only composed over the global slot-partitioned body. NO Cargo.toml at template (CC-only) -> no cargo check. 0 operator-PII tokens in settings.json; (Rust) description label preserved."
+  sdk_pins_changed: {}           # kailash-rs 4.6.0 unchanged from 2.43.0 cycle (no BUILD release this morning)
+headline: "loom 2.44.0 sync (Gate-1 rs ingest, PR #496) — rule extensions (zero-tolerance 3e binding-inheritance, testing ×3, value-prioritization MUST-2, worktree-isolation 2a) + rs variants (testing/patterns overlays) + NEW ffi-handle-lifecycle skill"
+notes: "verify-overlays.sh rs Failing:0 (this template). CONTENT CHECK: .claude/skills/project/ffi-handle-lifecycle.md materialized + BYTE-EQUAL to loom variants/rs source (4840 B). Section greps: testing.md carries 'One Lock Domain' + 'Self-Normalizing Ratios' + 'Concurrent-Close' + 'Every Test-Only' (1 each); patterns.md carries 'Feature-Gated Modules' (1). NO Cargo.toml at template (CC-only) -> no cargo check. 0 operator-PII tokens in settings.json; (Rust) description label preserved; 38/38 hooks present."

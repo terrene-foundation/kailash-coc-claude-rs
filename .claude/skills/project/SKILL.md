@@ -1,6 +1,6 @@
 ---
 name: project
-description: "Project Skills (rs variant): cross-cutting patterns spanning Rust crates and PyO3/Magnus/napi-rs bindings. See enterprise-infra-bindings.md and l3-binding-parity.md."
+description: "Project Skills (rs variant): cross-cutting patterns spanning Rust crates and PyO3/Magnus/napi-rs bindings. See enterprise-infra-bindings.md, l3-binding-parity.md, and ffi-handle-lifecycle.md."
 ---
 
 # Project Skills
@@ -9,10 +9,11 @@ Cross-cutting project patterns that span multiple crates or binding languages.
 
 ## Skills Index
 
-| Skill                     | File                           | Purpose                                                         |
-| ------------------------- | ------------------------------ | --------------------------------------------------------------- |
-| Enterprise Infra Bindings | `enterprise-infra-bindings.md` | v2.8.0 infra binding patterns (Saga, TaskQueue, IdempotencyKey) |
-| L3 Binding Parity         | `l3-binding-parity.md`         | v3.2.0 L3 Agent Autonomy binding patterns across 7 languages    |
+| Skill                     | File                           | Purpose                                                                                  |
+| ------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
+| Enterprise Infra Bindings | `enterprise-infra-bindings.md` | v2.8.0 infra binding patterns (Saga, TaskQueue, IdempotencyKey)                          |
+| L3 Binding Parity         | `l3-binding-parity.md`         | v3.2.0 L3 Agent Autonomy binding patterns across 7 languages                             |
+| FFI Handle Lifecycle      | `ffi-handle-lifecycle.md`      | Check-then-use UAF class, mutex-serialized close window, concurrent-close stress fixture |
 
 ## Redirects (moved to numbered directories)
 

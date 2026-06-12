@@ -150,6 +150,46 @@ Any two tests mutating SAME env var MUST serialize through a module-scope `threa
 
 **Why:** `monkeypatch.setenv` restores at fixture teardown — AFTER the test body — so sibling tests observe either value depending on xdist scheduling. Classic "passes locally, fails CI".
 
+### MUST: One Lock Domain Per Env Surface Per Test Binary
+
+Serialization only works when every env-mutating test sharing one env surface holds the SAME lock. Two locking mechanisms over one surface — e.g. a module-local `threading.Lock` in one module and a pytest-xdist group lock (`@pytest.mark.xdist_group`) in another — do NOT exclude each other: a test holding one can interleave with a test holding only the other, racing on the shared vars exactly as if neither were locked. When a suite adopts one lock domain for an env surface, EVERY env-mutating test touching that surface MUST join that SAME domain; introducing a second mechanism is BLOCKED. (Rust sibling: a module-local `static ENV_MUTEX: Mutex<()>` and `#[file_serial(<key>)]` over one env surface are non-interlocking — unify on one domain.)
+
+```python
+# DO — every env-mutating test on this surface joins ONE module-scope lock
+_LLM_ENV_LOCK = threading.Lock()
+def test_reads_openai_key(monkeypatch):
+    with _LLM_ENV_LOCK:
+        monkeypatch.setenv("OPENAI_API_KEY", "k"); assert client().key == "k"
+
+# DO NOT — a second, non-interlocking mechanism in a sibling module
+@pytest.mark.xdist_group("llm_env")   # group lock — does NOT exclude _LLM_ENV_LOCK holders
+def test_reads_bedrock_token(monkeypatch):
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "t")  # races the _LLM_ENV_LOCK tests
+```
+
+**BLOCKED rationalizations:** "each module serializes its own tests, that's enough" / "the lock has worked for months" (intermittent — fails only when the scheduler interleaves across modules) / "the group lock is for cross-worker, the in-process lock covers the rest" (one surface needs ONE domain, whichever primitive it is).
+
+**Why:** Lock domains don't compose — mutual exclusion holds only among holders of the SAME lock. The failure is probabilistic and module-boundary-shaped, so it looks like a flaky single test rather than a structural race. Evidence: kailash-rs PR #1283 (2026-06-11) — a `file_serial(llm_env)` test failed 2 of 3 main runs because sibling tests guarded the same `AWS_BEARER_TOKEN_BEDROCK`/`OPENAI_API_KEY` surface with a module-local mutex; unifying all 22 sites onto one domain closed it.
+
+### MUST: Complexity Bounds Use Self-Normalizing Ratios, Not Absolute Wall-Clock Thresholds
+
+A stress test asserting algorithmic behavior MUST measure an in-process baseline at 1/N scale in the same run and assert the N-scale cost as a RATIO of that baseline (linear ≈ N×, quadratic ≈ N²× — pick the bound between them) — NOT an absolute wall-clock threshold. Bumping an absolute threshold in response to a stress-test "flake" is BLOCKED until the ratio has been checked: a threshold bump on a super-linear ratio is burying a complexity-class regression, not fixing a flake.
+
+```python
+# DO — self-normalizing ratio: machine- and load-independent
+base = timeit(lambda: validate(graph(1_000)))    # in-process baseline, same run
+big  = timeit(lambda: validate(graph(10_000)))    # 10x the nodes
+ratio = big / base
+assert ratio < 40, f"validation scaled {ratio:.0f}x for 10x nodes (linear ~10x, quadratic ~100x)"
+
+# DO NOT — absolute bound; ratchets upward under load until it masks O(n^2)
+assert big < 60.0    # was 30s, bumped once already
+```
+
+**BLOCKED rationalizations:** "the runner was loaded, bump the bound" / "60s is generous, real users never hit 10K nodes" / "the test is flaky, widen it" / "we'll profile it later if someone complains".
+
+**Why:** Absolute bounds ratchet — each load-driven bump widens the window an algorithmic regression hides in, and the bump itself is the institutional tell. The ratio assert is a pure function of the algorithm, not the machine. Evidence: kailash-rs journal 0177 (2026-06-10) — a 10K-node validation stress bound had been bumped 30s→60s as a "flake"; the replacement ratio test failed deterministically 3/3 (10× nodes costing ~99× time) and surfaced a real O(n²) loop, fixed to O(n+e) in the same shard.
+
 ## 3-Tier Testing
 
 - **Tier 1 (Unit)**: Mocking allowed, <1s per test
@@ -234,6 +274,20 @@ def test_get_raw_success(client):   resp = client.get_raw("/u/42"); assert resp[
 **BLOCKED rationalizations:** "typed calls raw internally, one test covers both" / "shared core" / "integration catches this" / "raw is just less-useful typed".
 
 **Why:** Convergent delegation paths look like one path until they diverge under refactor pressure. `/redteam` MUST mechanically grep each variant pair; any pair with zero direct call site is a finding.
+
+## MUST: FFI Handle Wrappers Ship A Concurrent-Close Stress Test
+
+Every FFI handle wrapper that exposes `Close`/`free` (or a GC finalizer/Cleaner backstop) ALONGSIDE methods that pass the raw handle into native code MUST ship a stress test that races method calls against `Close()` under concurrency (including the finalizer path where the runtime has one). A flag-gated close (a "closed" boolean checked before the native call) is NOT deref-safe — the pointer read and the native call are separated by a window `Close` can free into; only a per-handle mutex serializing the entire read-pointer → native-call → free window closes it, and only the concurrent stress test makes the use-after-free non-silent. Cross-binding depth + per-runtime fix shapes (Go/Java/.NET/Ruby/Python/Node) live in the FFI-handle-lifecycle project skill shipped with the rs all-bindings template.
+
+```text
+# DO — stress test races method calls vs Close (+ force GC for the finalizer racer)
+spawn N concurrent method-call goroutines/threads; concurrently call Close(); force GC
+# DO NOT — flag-gated close validated only by sequential unit tests
+if closed: return ErrClosed   # check
+native_call(ptr)              # Close can free into this window → UAF
+```
+
+**Why:** The check-then-use UAF only crashes under a concurrent closer (often the GC finalizer), so unit tests pass forever while production segfaults under GC pressure. Evidence: kailash-rs journals 0174 + 0178 — a Go `Subscription` UAF crashed 8/8 under stress (SIGSEGV in `runFinalizers → cgocall`); the identical class recurred on a Go `AlignEngine` one wave later and was caught only because the concurrent-stress-test lens existed.
 
 ## Rules
 
@@ -414,5 +468,23 @@ The universal 3-Tier contract applies; the binding boundary sharpens the Tier 2/
 
 - **Tier 2 (Integration), NO mocking:** mocks at the binding boundary bypass the FFI path entirely (connection handling, value serialization, lifetime management) — a passing mock-based test gives zero confidence the binding actually works.
 - **Tier 3 (E2E), read-back MANDATORY:** the binding write path crosses the Python/Ruby→Rust boundary, value serialization, and the DB driver. Any layer can silently succeed without persisting; only a read-back proves the data landed.
+
+## MUST (audit mode): Every Test-Only / Canary Export Greps To A CI Invocation (Rust FFI surface)
+
+When auditing the kailash-rs crate surface the binding sits on, for every `*_test_only` / panic-canary export (`#[no_mangle] pub extern "C" fn *_panic_inject_*_test_only`, feature-gated test surfaces) and every capi `tests/*.rs` file, the audit MUST verify a matching invocation exists in the CI workflow (`grep -- '--test <file>' .github/workflows/rust.yml`, or an unfiltered run whose feature set enables it). An export or test file that compiles clean but is never invoked by ANY CI job advertises coverage that has never executed — orphan-detection at the FFI-export level. Missing invocation = HIGH.
+
+```bash
+# DO — every canary export / capi test file maps to a CI invocation
+grep -l 'panic_inject.*test_only' crates/kailash-capi/src/*.rs    # exports
+grep -- '--test align_panic_canaries' .github/workflows/rust.yml  # invocation exists
+
+# DO NOT — export compiles, no CI job ever runs it
+# crates/kailash-capi/tests/ml_pipeline_canary.rs exists;
+# grep -- '--test ml_pipeline_canary' .github/workflows/rust.yml → no match (HIGH)
+```
+
+**BLOCKED rationalizations:** "it compiles, so it's covered" / "the catch-all job runs everything" (not under per-`--test`-filtered, feature-gated CI) / "we'll wire it when the next test lands".
+
+**Why:** The `capi-test-canary`-gated, per-`--test`-filtered CI pattern makes every new test file a hand-wiring obligation; forgetting it is silent (compiles, never runs). The detection grep is rs-specific; the principle (an export with no CI invocation advertises unexecuted coverage) is global. Evidence: kailash-rs journals 0165 + 0169 (2026-06-08) — 5 capi ML test files plus an `ml_pipeline` canary export had zero CI invocations while appearing covered; recurred 3× across one wave.
 
 <!-- /slot:lang-testing-extensions -->
