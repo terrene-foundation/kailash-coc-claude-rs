@@ -1,5 +1,15 @@
+---
+priority: 0
+scope: baseline
+---
+
+# Security Rules
 
 ALL code changes in the repository.
+
+See `.claude/guides/rule-extracts/security.md` for extended examples, exhaustive sanitizer contract examples, and multi-site kwarg plumbing full post-mortem.
+
+<!-- slot:neutral-body -->
 
 ## No Hardcoded Secrets
 
@@ -41,16 +51,18 @@ Connection strings carry credentials URL-encoded; every decode site MUST route t
 Every URL parsing site that extracts `user`/`password` from `urlparse(connection_string)` MUST route through a single shared helper that rejects null bytes after percent-decoding. Hand-rolled `unquote(parsed.password)` at a call site is BLOCKED.
 
 ```python
-# DO     user, password = decode_userinfo_or_raise(urlparse(cs))  # shared helper; raises on \x00
-# DO NOT password = unquote(parsed.password or "")                # hand-rolled; no null-byte check
+# DO — route through the shared helper
+from kailash.utils.url_credentials import decode_userinfo_or_raise
+parsed = urlparse(connection_string)
+user, password = decode_userinfo_or_raise(parsed)  # raises on \x00 after unquote
+
+# DO NOT — hand-rolled at the call site
+from urllib.parse import unquote
+user = unquote(parsed.username or "")
+password = unquote(parsed.password or "")  # no null-byte check
 ```
 
-**BLOCKED rationalizations:**
-
-- "The existing site already has the check"
-- "This is a new dialect, the rule doesn't apply yet"
-- "We'll consolidate later"
-- "The URL comes from a trusted config file, null bytes can't happen"
+**BLOCKED rationalizations:** "The existing site already has the check" / "This is a new dialect, the rule doesn't apply yet" / "We'll consolidate later" / "The URL comes from a trusted config file, null bytes can't happen".
 
 **Why:** A crafted `mysql://user:%00bypass@host/db` decodes to `\x00bypass`, which the MySQL C client truncates to an empty password. See guide for full evidence.
 
@@ -59,11 +71,20 @@ Every URL parsing site that extracts `user`/`password` from `urlparse(connection
 Password pre-encoding helpers (`quote_plus` of `#$@?` etc.) MUST live in the same shared helper module as the decode path. Per-adapter copies are BLOCKED.
 
 ```python
-# DO     url = preencode_password_special_chars(raw); decode_userinfo_or_raise(urlparse(url))  # one helper, both halves
-# DO NOT pwd = pwd.replace("@","%40").replace(":","%3A")  # inline per-adapter; drifts from decode path
+# DO — single helper module owns both halves
+from kailash.utils.url_credentials import (
+    preencode_password_special_chars, decode_userinfo_or_raise,
+)
+url = preencode_password_special_chars(raw_url)
+user, password = decode_userinfo_or_raise(urlparse(url))
+
+# DO NOT — inline pre-encode in each adapter
+pwd = pwd.replace("@", "%40").replace(":", "%3A")  # drifts from decode path
 ```
 
 **Why:** Encode and decode are dual halves of one contract; splitting them across modules guarantees one half drifts.
+
+Origin: `workspaces/arbor-upstream-fixes/.session-notes` (2026-04-12)
 
 ## Input Validation
 
@@ -85,9 +106,23 @@ All user-generated content MUST be encoded before display in HTML templates, JSO
 ✅ DOMPurify.sanitize(userContent)
 ```
 
+## MUST NOT
+
+- **No eval() on user input**: `eval()`, `exec()`, `subprocess.call(cmd, shell=True)` — BLOCKED
+
+**Why:** `eval()` on user input is arbitrary code execution — the attacker runs whatever they want on the server.
+
+- **No secrets in logs**: MUST NOT log passwords, tokens, or PII
+
+**Why:** Log files are widely accessible (CI, monitoring, support staff) and rarely encrypted, turning every logged secret into a breach.
+
+- **No .env in Git**: .env in .gitignore, use .env.example for templates
+
+**Why:** Once committed, secrets persist in git history even after removal, and are exposed to anyone with repo access.
+
 ## Sanitizer Contract — DataFlow Display Hygiene
 
-DataFlow's input sanitizer is a defense-in-depth display-path safety net, NOT the primary SQLi defense — parameter binding is (§ Parameterized Queries above). The contract is fixed:
+DataFlow's input sanitizer (`dataflow/core/nodes.py::sanitize_sql_input`) is a defense-in-depth display-path safety net, NOT the primary SQLi defense — parameter binding is (§ Parameterized Queries above).
 
 ### 1. String Inputs MUST Be Token-Replaced, Not Quote-Escaped
 
@@ -105,66 +140,69 @@ For declared-string fields, the sanitizer MUST replace dangerous SQL keyword seq
 
 ### 2. Type-Confusion MUST Raise, Not Silently Coerce
 
-For declared-string fields receiving `dict` / `list` / `set` / `tuple` values, the sanitizer MUST raise `ValueError("parameter type mismatch: …")`. Silent coercion via `str(value)` is BLOCKED — it lets a nested structure bypass the string-only sanitizer.
+For declared-string fields receiving `dict` / `list` / `set` / `tuple` values, the sanitizer MUST raise `ValueError("parameter type mismatch: …")`. Silent coercion via `str(value)` is BLOCKED.
 
 ```python
-# DO     if declared_type is str and isinstance(value,(dict,list,set,tuple)): raise ValueError("parameter type mismatch: …")
-# DO NOT value = str(value)   # silent coercion — structural attack left the validation boundary unaudited
+# DO — type-confusion rejected at validate_inputs gate
+if declared_type is str and isinstance(value, (dict, list, set, tuple)):
+    raise ValueError(f"parameter type mismatch: field '{field_name}' declared 'str' but received '{type(value).__name__}'")
+
+# DO NOT — silent str() coercion (the dict's contents get sanitized but the structure escaped earlier)
+value = str(value)
 ```
+
+**BLOCKED rationalizations:** "Token-replace is weaker than quote-escape, we should switch" / "We should silently coerce dict to JSON for safety" / "Type-confusion is an upstream concern, not the sanitizer's job" / "The integration tests can catch these".
 
 **Why:** A malicious upstream node passing `{"injection": "'; DROP TABLE …"}` for a str-declared field bypasses every string-only check; raising at the type-confusion boundary closes the bypass. See guide for exhaustive examples.
 
 ### 3. Safe Types Are Returned As-Is
 
-Values of declared-safe types (`int`, `float`, `bool`, `Decimal`, `datetime`, `date`, `time`) MUST pass through unchanged. `dict` and `list` MUST also pass through unchanged when the field's declared type is `dict` or `list` (JSON / array columns).
+Values of declared-safe types (`int`, `float`, `bool`, `Decimal`, `datetime`, `date`, `time`) MUST pass through unchanged. `dict` and `list` MUST also pass through unchanged when the field's declared type is `dict` or `list` (JSON / array columns). Bug #515: premature `json.dumps()` on dict/list breaks parameter binding.
 
-**BLOCKED rationalizations:**
-
-- "Token-replace is weaker than quote-escape, we should switch"
-- "We should silently coerce dict to JSON for safety"
-- "Type-confusion is an upstream concern, not the sanitizer's job"
-- "The integration tests can catch these"
+Origin: GitHub issues #492 (bulk_upsert SQLi via string-escape) + #493 (sanitizer contract drift). See guide for exhaustive examples.
 
 ## Multi-Site Kwarg Plumbing
 
 When a security-relevant kwarg (classification policy, tenant scope, clearance context, audit correlation ID) is plumbed through a helper, EVERY call site of that helper MUST be updated in the SAME PR. Updating the "primary" call site and deferring siblings is BLOCKED.
 
 ```python
-# DO     grep -rn 'validate_model(' .  → patch EVERY call site with policy=…, model_name=… in this PR
-# DO NOT patch the primary call site, leave the sibling on validate_model(instance)  # sibling bypasses sanitiser
+# DO — grep every caller, update every sibling, same PR
+# $ grep -rn 'validate_model(' src/ packages/
+# → both production call sites get policy+model_name in this PR
+engine.validate_record(instance) -> validate_model(instance, policy=..., model_name=...)
+express._validate_if_enabled(...) -> validate_model(instance, policy=..., model_name=...)
+
+# DO NOT — update primary site, skip the sibling
+# (unpatched sibling still leaks classified field names in error messages)
+engine.validate_record(instance) -> validate_model(instance)   # bypasses sanitiser
 ```
 
-**BLOCKED rationalizations:**
-
-- "The primary call site is the one users hit 99% of the time"
-- "The sibling is rarely used; we'll patch it in a follow-up"
-- "The helper signature is backwards-compatible, sibling can stay as-is"
-- "Test coverage will catch divergence later"
-- "The kwarg has a safe default — siblings still get baseline behaviour"
+**BLOCKED rationalizations:** "The primary call site is the one users hit 99% of the time" / "The sibling is rarely used; we'll patch it in a follow-up" / "The helper signature is backwards-compatible, sibling can stay as-is" / "Test coverage will catch divergence later" / "The kwarg has a safe default — siblings still get baseline behaviour".
 
 **Why:** A sibling left on the unqualified signature ships the exact failure mode the kwarg fixes (the "safe default" is the insecure default). Fix is mechanical: `grep -rn 'helper_name(' .` + patch every hit.
 
-Origin: cross-SDK BP-049 (2026-04-19) — kailash-py PR #522 left one sibling unqualified; fast-patched in PR #529.
+Origin: PR #522 / PR #529 (2026-04-19) — BP-049 validation sanitiser plumbing missed one sibling. See guide for full evidence.
 
-## MUST NOT
+## Redactor Contract
 
-- **No eval() on user input**: `eval()`, `exec()`, `subprocess.call(cmd, shell=True)` — BLOCKED
+Subject-keyed redactors (primitives scrubbing every string containing a `subject_id` substring) MUST enforce a minimum subject-id length floor (≥8 chars), failing closed with a typed error naming the floor and the received length. When a matching object KEY is scrubbed, BOTH key and value MUST be scrubbed — the key replaced with a numbered sentinel (`[REDACTED_KEY_N]`) preserving audit shape; the byte-level audit trail survives via the original-hash return.
 
-**Why:** `eval()` on user input is arbitrary code execution — the attacker runs whatever they want on the server.
-
-- **No secrets in logs**: MUST NOT log passwords, tokens, or PII
-
-**Why:** Log files are widely accessible (CI, monitoring, support staff) and rarely encrypted, turning every logged secret into a breach.
-
-- **No .env in Git**: .env in .gitignore, use .env.example for templates
-
-**Why:** Once committed, secrets persist in git history even after removal, and are exposed to anyone with repo access.
+**Why:** 1–7-char ids substring-match benign strings ("alice" → "malice"); a preserved matching key under a `[REDACTED]` value leaks the subject's identity as audit metadata. See guide for kailash-rs PR #1123 evidence + cross-SDK landing requirement.
 
 ## Kailash-Specific Security
 
 - **DataFlow**: Access controls on models, validate at model level, never expose internal IDs
 - **Nexus**: Authentication on protected routes, rate limiting, CORS configured
 - **Kaizen**: Prompt injection protection, sensitive data filtering, output validation
+
+## Exceptions
+
+Security exceptions require: written justification, security-reviewer approval, documentation, and time-limited remediation plan.
+
+<!-- /slot:neutral-body -->
+
+<!-- slot:lang-security-extensions -->
+
 
 ## Rust: Credential Comparison (MUST)
 
@@ -239,6 +277,4 @@ dispatch(req).await
 - "The caller specifies the command, we just run it"
 - "Logging the rejected token helps debugging"
 
-## Exceptions
-
-Security exceptions require: written justification, security-reviewer approval, documentation, and time-limited remediation plan.
+<!-- /slot:lang-security-extensions -->

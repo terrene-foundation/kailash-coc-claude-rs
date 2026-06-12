@@ -1,9 +1,9 @@
 # COC Sync Marker — kailash-coc-claude-rs
 visibility: public
-timestamp: 2026-06-11T23:30:00Z
+timestamp: 2026-06-12T00:00:00Z
 source: loom/.claude
-loom_sha: 1d6968e
-loom_version: 2.42.1
+loom_sha: d7ec0d2
+loom_version: 2.43.0
 variant: rs
 clis: ["claude"]
 stats:
@@ -12,10 +12,10 @@ stats:
   overlays: 141
   composed: 0
   preserved: 1   # CLAUDE.md
-  purged: 1      # .claude/skills/management/ (obsoleted)
-  skipped: { loom_local: 2, exclude: 8000, use_exclude: 29, no_tier_match: 43 }
+  purged: 0      # no new obsoleted paths this cycle (.claude/skills/management/ already absent)
+  skipped: { loom_local: 2, exclude: 880, use_exclude: 29, no_tier_match: 43 }
   baselines_emitted: { cc: 0 }   # CC-only template; CLAUDE.md preserved, no AGENTS/GEMINI emit
   cli_artifacts: null            # cc-only template
-  sdk_pins_changed: {}           # kailash-rs 4.6.0 unchanged from 2.42.0 cycle
-headline: "loom 2.42.1 Gate-2 completion re-sync; idempotent re-apply (PR #489 prose trims) + VERSION corruption repair"
-notes: "verify-overlays.sh rs Failing:0. .claude/VERSION corruption (duplicate changes: array, HALT residue) repaired. Sister multi-CLI template kailash-coc-rs HALT (2.42.0 headroom floor breach) RESOLVED at 2.42.1 — both rs templates now at 2.42.1."
+  sdk_pins_changed: {}           # kailash-rs 4.6.0 unchanged from 2.42.1 cycle
+headline: "loom 2.43.0 sync (#491) — agents.md worktree-cluster extraction + security.md global slot-partition (rs extensions-only overlay)"
+notes: "verify-overlays.sh rs Failing:0 (this template). #491 content check: .claude/rules/security.md carries the global Redactor Contract (grep=1) + all 3 Rust MUST sections (Credential Comparison, Fail-Closed Security Defaults, Network Transport Hardening). variants/rs/rules/security.md retired the whole-body replacement overlay; now extensions-only composed over the global slot-partitioned body. NO Cargo.toml at template (CC-only) -> no cargo check. 0 operator-PII tokens in settings.json; (Rust) description label preserved."
