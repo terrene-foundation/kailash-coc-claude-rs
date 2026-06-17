@@ -1,23 +1,18 @@
-# COC Sync Marker — kailash-coc-claude-rs
-visibility: public
-timestamp: 2026-06-12T12:00:00Z
+# COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
+timestamp: 2026-06-17T13:51:33Z
 source: loom/.claude
-loom_sha: 6d18fe9
-loom_version: 2.45.0
+loom_sha: c1e52a62
 variant: rs
-clis: ["claude"]
+clis: [claude]
+visibility: public
 stats:
-  copied: 1175
+  copied: 1205
   variant_only: 165
-  overlays: 141
-  composed: 0
-  preserved: 1   # CLAUDE.md
-  purged: 0      # use_obsoleted union already-absent / re-emitted; no new obsoleted dirs
-  settings_canonicalized: 1   # settings.json: 10 MultiEdit deny entries removed + 2 matchers Edit|Write|MultiEdit|NotebookEdit -> Edit|Write|NotebookEdit (PR #500)
-  skipped: { loom_local: 2, exclude: 885, use_exclude: 29, no_tier_match: 43, loom_only: 9 }
-  baselines_emitted: { cc: 0 }   # CC-only template; CLAUDE.md preserved, no AGENTS/GEMINI emit
-  cli_artifacts: null            # cc-only template
-  sdk_pins_changed: {}           # artifact-only metadata cycle — kailash-rs 4.6.0 + full sdk_packages map unchanged
-manften_note: ".claude/skills/management/ (obsoleted:) intersect variant_only.rs skills/management/* — documented purge-restore churn; net end-state = 3 rs-management skills present (build-reference, cargo-reference, release-workflow); manifest NOT edited this cycle per MANIFTEN deferral"
-headline: "loom 2.45.0 sync (rs CC-only) — MultiEdit-removal canonicalization (PR #500, journals 0276+0277): settings.json deny-matrix + matchers canonicalized, codex-mcp-guard regenerated, multi-operator-coordination + self-referential-codify prose; artifact-only metadata cycle (SDK pins unchanged)"
-notes: "PRE-SYNC FRESHNESS PASS (loom 6d18fe99==remote; claude-rs 39fc4aa8==remote; rs 5a498067==remote). HALT-on-dirty clean. verify-overlays.sh rs Failing:0. SETTINGS POST-WRITE: target carried PRE-#500 settings.json (10 stale MultiEdit deny entries + 2 MultiEdit matchers); Step 6 distributed loom-canonicalized source with (Rust) Step-6b label. Post-write: 0 MultiEdit refs, 0 scripts/hooks refs, 0 operator-PII tokens, all hook command files resolve on disk. NO Cargo.toml at template (CC-only) -> no cargo check. Step 7.5 allowlist idempotent (0 new)."
+  overlay_applied: 142
+  verify_failures: 0
+  purged: 0
+  preserved: [CLAUDE.md, .proposals/, learning/, settings.local.json]
+  baselines_emitted:
+    cc: 0          # CLAUDE.md preserved, not emitted
+wave: sync-upflow-wave-3-todo-14
+note: FIRST real /sync-to-use of the Wave-1/2 sync-family artifacts; loom 2.45.0 unchanged (artifact wave).

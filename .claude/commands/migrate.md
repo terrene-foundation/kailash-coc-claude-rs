@@ -55,7 +55,7 @@ Run downstream-sync semantics against the sister (skill § Downstream Sync). The
 
 ### Step 4a — Transition fallback for pre-structural-fix sister templates
 
-Post-#184 structural fix, sister templates ship the `.claude/codex-mcp-guard` symlink and `.claude/sync-manifest.yaml` natively. **Drop this section after 2026-06-15** once every sister template has been `/sync`'d post-#184. For pre-fix sisters, idempotent guards substitute the missing artifacts: `[ -e .claude/codex-mcp-guard ] || ln -sfn ../.codex-mcp-guard .claude/codex-mcp-guard` and `[ -f .claude/sync-manifest.yaml ] || cp "$LOOM_PATH/.claude/sync-manifest.yaml" .claude/sync-manifest.yaml`. `$LOOM_PATH` is superseded by the resolver — prefer `resolveRepo("loom").value` per `cross-repo.md` MUST-1. Surface a clear error if neither resolver nor `$LOOM_PATH` yields a path (no positional guessing).
+Post-#184 structural fix, sister templates ship the `.claude/codex-mcp-guard` symlink and `.claude/sync-manifest.yaml` natively. **Drop this section after 2026-06-15** once every sister template has been `/sync-to-use`'d post-#184. For pre-fix sisters, idempotent guards substitute the missing artifacts: `[ -e .claude/codex-mcp-guard ] || ln -sfn ../.codex-mcp-guard .claude/codex-mcp-guard` and `[ -f .claude/sync-manifest.yaml ] || cp "$LOOM_PATH/.claude/sync-manifest.yaml" .claude/sync-manifest.yaml`. `$LOOM_PATH` is superseded by the resolver — prefer `resolveRepo("loom").value` per `cross-repo.md` MUST-1. Surface a clear error if neither resolver nor `$LOOM_PATH` yields a path (no positional guessing).
 
 ## Step 5 — CLAUDE.md 3-way reconciliation
 

@@ -40,9 +40,9 @@ Specify scope: `all`, `fidelity` (quality only), `sync` (template alignment only
 
 ## Phase 2: Template Alignment
 
-5. **Freshness**: Check `.coc-sync-marker` — when was the last sync from the upstream template? If stale, recommend running `/sync`.
+5. **Freshness**: Check `.coc-sync-marker` — when was the last sync from the upstream template? If stale, recommend running `/sync-from-template`.
 
-6. **Shared artifact integrity**: Are shared artifacts (from template) still intact, or have they been locally modified? Local modifications to shared files will be overwritten on next `/sync`.
+6. **Shared artifact integrity**: Are shared artifacts (from template) still intact, or have they been locally modified? Local modifications to shared files will be overwritten on next `/sync-from-template`.
 
 7. **Hook integrity**: Every hook in settings.json has a script on disk.
 
