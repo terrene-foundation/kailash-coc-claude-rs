@@ -437,6 +437,94 @@ done
 
 Origin: 2026-04-22 kailash-rs session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min `<runner-host>` + bindings).
 
+### 12. Docker-Based Jobs MUST Run On Linux Runners
+
+Every job that invokes `docker run` / `docker build` / `docker compose` / `docker exec` or depends on a Docker-managed service container MUST set `runs-on:` to a Linux runner (`ubuntu-latest`, the org's `<runner-label-arm>`, or any other Linux self-hosted). Routing Docker workloads to macOS runners is BLOCKED.
+
+```yaml
+# DO — Docker workload on Linux
+test-integration:
+  runs-on: ubuntu-latest
+  services:
+    postgres:
+      image: postgres:16
+      ...
+  steps:
+    - run: docker compose up -d redis
+
+# DO NOT — Docker workload on macOS (Docker Desktop adds a Linux VM mid-flight)
+test-integration:
+  runs-on: [self-hosted, macos, <runner-label>]
+  services:
+    postgres:
+      image: postgres:16
+      ...
+```
+
+**BLOCKED rationalizations:**
+
+- "Docker Desktop on macOS works fine, the Linux requirement is dogma"
+- "We have a fast Mac Studio, ubuntu-latest 2-core is slower"
+- "This one job's flake rate is acceptable, codifying is overkill"
+- "Native arm64 Mac mini runs Docker fine, only Intel Mac is the problem"
+- "We'll route to Linux when we add more services"
+
+**Why:** Docker Desktop on macOS interposes a Linux VM between the job and the container; Postgres / Redis / MySQL startup races flake ~75% of the time on this surface (verified by a Mac runner audit), versus <1% on native Linux. The wall-clock difference between Mac M-series and `ubuntu-latest` 2-core is measured in tens of seconds; the cost of a single flake is a full re-run (tens of minutes plus operator triage). Routing Docker to Linux is a permanent architectural decision, not a per-job judgment call. Mechanical gate: `/redteam` MUST grep every workflow for `docker (run|build|compose|exec)` AND `services:` blocks; any hit on a non-Linux `runs-on:` is a HIGH finding.
+
+Origin: kailash-rs 2026-04-22 — user restated the principle ("docker one goes to ubuntu-latest please") after a PR #527 revert cycle showed how easily runner routing drifts.
+
+### 13. PR-Gate Jobs MUST Be Event-Gated To `pull_request`; Push-Triggered Jobs MUST Be Main-Only
+
+Under the admin-merge flow (this repo's exclusive merge path), the merge commit's tree equals the PR head's tree. Re-running PR-gate CI on the merge-commit push therefore re-exercises the same surface the PR CI already verified — a 100% redundant ~45 min of runner wall-clock per merge. Every workflow MUST partition jobs into PR-gate (fires only on `pull_request`) and main-only (fires only on `push` to `refs/heads/main`); workflows with no main-only jobs MUST drop the `push:` trigger entirely.
+
+```yaml
+# DO — PR-gate jobs explicitly conditioned on pull_request event
+fmt:
+  if: github.event_name == 'pull_request'
+  runs-on: ubuntu-latest
+  ...
+
+clippy:
+  if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/')
+  runs-on: ubuntu-latest
+  ...
+
+# DO — main-only job conditioned on push to main
+test-integration:
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  ...
+
+# DO — workflow with zero main-only jobs drops push: trigger entirely
+on:
+  pull_request:
+    paths: ['bindings/python/**']
+# (no `push:` block — bindings have no main-only matrix)
+
+# DO NOT — every job fires on every event, doubling runner cost per merge
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    # ↑ no `if:`; runs on PR event AND merge-commit push event = 2× cost per merge
+```
+
+**BLOCKED rationalizations:**
+
+- "Defense in depth — running it twice catches race conditions"
+- "The merge commit's tree might differ from the PR head if rebase happened mid-merge"
+- "Disabling push-event jobs makes me nervous"
+- "We're paying for the runners anyway, the wall-clock isn't free but it's not blocking"
+- "If we ever stop using admin-merge, the partition will need to be reverted"
+- "Main-branch CI is the canonical signal; PR CI is convenience"
+
+**Why:** With `cancel-in-progress: true` plus admin-merge flow, the merge commit's tree is identical to the PR head's tree by git construction — re-running every PR-gate job on the push event provides zero additional coverage and burns ~45 min per merge across the matrix. The partition is reversible: if direct-push to main becomes possible (e.g., emergency hotfix protocol), the `if:` clauses convert to `pull_request OR push-to-main`. Mechanical gate: `/redteam` MUST audit every workflow for `on: push:` + `on: pull_request:` pairs and verify every non-main-only job has `if: github.event_name == 'pull_request'` (or the release-skip clause from §11).
+
+Origin: kailash-rs 2026-04-22 — user observed PR #528 running the full CI matrix twice (PR event then merge-commit push event) and asked "isn't that very wasteful?" Codified the partition; PR #529 implemented it across all workflows. Same root cause as §11 but at the event-gating layer instead of the branch-prefix layer.
+
 ## MUST NOT Rules
 
 ### 1. Never Commit Registration Tokens
