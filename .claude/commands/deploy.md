@@ -37,19 +37,29 @@ This repo is an SDK. Run `/release` instead — it handles version bumping, PyPI
 
 Read the config and execute. **Print the 10-step DEPLOY CHECKLIST at the start of the response and check off boxes as each step passes. Do NOT report deploy as complete until every box is checked.** The full checklist text and per-step guidance lives in `rules/deploy-hygiene.md` Rule 8 and `skills/10-deployment-git/application-deployment.md`. If any step fails, say "DEPLOY FAILED AT STEP N: <reason>" — NOT "build succeeded, will redeploy soon".
 
-#### Step 0: Pre-Deploy Verification
+#### Step 0: Ecosystem Resolution (ecosystem-relative deploy)
+
+Resolve the effective deploy target FIRST, so every later step runs against the resolved ecosystem infra — never a canon-hardcoded default. Full model: `specs/07-deploy.md` in the ecosystem-operating-model workspace.
+
+1. **Resolve the target** — pass the project's `deployment-config.md` deploy values (as JSON) through the resolver:
+   `node .claude/bin/deploy-config.mjs --key <project-resolver-key> --config <deploy-values.json>`
+   It composes `ecosystem.json::deploy` (`default_targets` ⊕ `per_project[<key>]`) under the project values and substitutes every `${ecosystem.deploy.<field>}` token. No `ecosystem.json` (canon / pre-fork / plain consumer) → the project values pass through unchanged (today's behavior). An unresolvable token fails CLOSED (exit 1, named field) — NEVER a silent canon fallback.
+2. **Dispatch by provider** — ship via the resolved provider using the shipped VCS write-surface `applyDeployTarget(transport, descriptor)` (`.claude/hooks/lib/vcs-github-adapter.js` / `vcs-azure-adapter.js`): GitHub → `workflow_dispatch` the deploy workflow; Azure DevOps → run the Azure Pipelines deploy (`unverified`-flagged until a live ADO org). REUSE this actuator — do NOT author a second deploy path. Note: the resolver's output is a FLAT merged config, NOT the actuator's descriptor — map its fields (provider, registry org, env, workflow id) into the `applyDeployTarget` descriptor `{repoRef, workflow, ref?, inputs?}` before the call; do not pass the resolver JSON verbatim.
+3. Carry the resolved target into Step 1+ — verification and gates run against the resolved ecosystem target.
+
+#### Step 1: Pre-Deploy Verification
 
 1. **Drift check** — run `deploy_check_command` from config. Compare current deployed commit/revision against `git rev-parse HEAD`.
 2. **Production paths diff** — `git diff <last_deployed_commit> HEAD -- <production_paths>` to confirm what's actually being shipped.
 3. **Present diff summary to human and STOP for approval** if any of: untested changes, schema migrations, secret/config changes, breaking API changes.
 
-#### Step 1: Pre-Deploy Gates
+#### Step 2: Pre-Deploy Gates
 
 Run the gate commands from config (typically: tests, lint, security scan). Block on failure unless `--skip-gates` is explicitly set with a documented reason.
 
 **Why each gate exists is documented in `deployment-config.md`. Do not skip gates without reading why they're there.**
 
-#### Step 2: Execute deploy_command
+#### Step 3: Execute deploy_command
 
 Run the `deploy_command` from config. Stream output. Capture exit status.
 
@@ -58,9 +68,9 @@ If deploy fails:
 1. Read the error
 2. Diagnose root cause
 3. Fix the underlying issue (do NOT retry blindly)
-4. Re-run from Step 0
+4. Re-run from Step 1
 
-#### Step 3: Post-Deploy Verification (THE MOST IMPORTANT STEP)
+#### Step 4: Post-Deploy Verification (THE MOST IMPORTANT STEP)
 
 **"Deploy command exited 0" is NOT verification.** Users do not interact with your deploy command. They interact with whatever HTTP/CLI/binary surface is in front of the new revision. That is what MUST be verified.
 
@@ -70,18 +80,7 @@ Run ALL of these checks. Each one failing means deploy is NOT done.
 
 2. **Traffic check** — Confirm the new revision is receiving 100% of traffic (or whatever the deploy strategy declares). For platforms with traffic splitting (Container Apps, Cloud Run, k8s): query the active traffic distribution, not just the "latest revision". (Catches: new revision exists but old revision still serves all traffic.)
 
-3. **User-visible asset check** — Run `user_visible_check` from config. This MUST fetch the live URL with a fresh, uncached client and verify users see the new code:
-
-   ```bash
-   # Example: fetch live HTML, extract JS bundle hash, compare to expected
-   LIVE_HTML=$(curl -fsSL -H "Cache-Control: no-cache" -H "Pragma: no-cache" "$LIVE_URL")
-   LIVE_BUNDLE=$(echo "$LIVE_HTML" | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
-   EXPECTED_BUNDLE=$(cat dist/index.html | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1)
-   if [ "$LIVE_BUNDLE" != "$EXPECTED_BUNDLE" ]; then
-     echo "✗ CACHE/ROUTING FAILURE: live=$LIVE_BUNDLE expected=$EXPECTED_BUNDLE"
-     exit 1
-   fi
-   ```
+3. **User-visible asset check** — Run `user_visible_check` from config. This MUST fetch the live URL with a fresh, uncached client and verify users see the new code (the live-bundle-hash-vs-expected comparison snippet + per-framework detection live in `skills/10-deployment-git/application-deployment.md` § deployment-config.md Schema (`user_visible_check`) + § Quick Reference: Bundle Hash Detection By Framework).
 
    Catches: CDN cache, browser cache headers wrong, service worker stale, traffic split misconfigured, wrong revision activated.
 
@@ -95,7 +94,7 @@ Run ALL of these checks. Each one failing means deploy is NOT done.
 
 If `user_visible_check` fails after cache invalidation, deploy is NOT done. See `skills/10-deployment-git/application-deployment.md` § Cache Layers To Check for the L1-L7 troubleshooting flow.
 
-#### Step 4: Document
+#### Step 5: Document
 
 Add a `DEPLOY` journal entry: what was deployed, smoke test result, any cache invalidations performed.
 
@@ -135,3 +134,4 @@ The hygiene rule loads automatically when production code is touched. Key princi
 - `skills/10-deployment-git/application-deployment.md` — onboarding flow + deployment-config.md schema
 - `skills/10-deployment-git/deployment-cloud.md` — cloud platform patterns (Container Apps, Cloud Run, Fly, Vercel, k8s)
 - `rules/deploy-hygiene.md` — the "committed ≠ deployed" rule
+- `.claude/bin/deploy-config.mjs` — the Step-0 ecosystem-relative deploy-target resolver (composes `ecosystem.json::deploy`; fail-closed on unresolvable `${ecosystem.deploy.*}` tokens)
