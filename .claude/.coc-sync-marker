@@ -1,18 +1,31 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-06-23T06:16:50Z
+timestamp: 2026-06-25T07:10:00Z
 source: loom/.claude
-loom_sha: c9d7f17
+loom_sha: 8197257
 variant: rs
 clis: [claude]
 visibility: public
 stats:
-  copied: 1277
+  copied: 1278
+  verified: 1278
+  verify_failures: 0
   variant_only: 170
   overlay_applied: 142
-  verify_failures: 0
-  purged: 0
-  preserved: [CLAUDE.md, .proposals/, learning/, settings.local.json]
+  overlay_verify_failures: 0
+  stripped: 39
+  purged: 3          # obsoleted commands: cli-audit, sync-from-build, sync-from-use
+  preserved: [CLAUDE.md, Gemfile, .proposals/, learning/, settings.local.json]
   baselines_emitted:
-    cc: 0          # CLAUDE.md preserved, not emitted
-wave: f22-ci-runners-reverse-flow
-note: ci-runners.md §12 Docker-on-Linux + §13 PR-gate event-gating reverse-flow (loom PR #629 @ c9d7f17); loom 2.45.0 unchanged (content-refresh). ci-runners.md is scope:path-scoped — not in the codex/gemini baseline.
+    cc: 0            # CLAUDE.md preserved, not emitted
+obsoleted_manifest_paths: 64   # .coc-obsoleted = obsoleted + use_obsoleted union
+verify_overlays: { langs: rs, total: 624, passing: 624, failing: 0 }
+wave: mo-opt-w1-coordination-opt-in
+note: >-
+  MO-OPT W1 — coordination substrate made OPT-IN. New .claude/hooks/lib/coordination-mode.js
+  (isCoordinationEnabled predicate) + early-return passthrough hoists in integrity-guard.js,
+  journal-write-guard.js, signing-mutation-guard.js, lib/codify-lease.js, lib/operator-id.js,
+  adjacency-leasecheck.js. All GLOBAL hooks (no rs overlay). Un-enrolled/solo consumers get
+  clean passthrough instead of unconditional coordination-guard disruption. loom 2.45.0
+  unchanged (W1 is unreleased loom-main drift @ 8197257). SDK pins preserved (kailash-rs
+  4.13.0 — BUILD on mid-feature branch). cargo check skipped (no Cargo.toml). Receipt: loom
+  journal/0330 + 0331.

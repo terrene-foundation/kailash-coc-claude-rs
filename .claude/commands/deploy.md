@@ -35,7 +35,7 @@ This repo is an SDK. Run `/release` instead — it handles version bumping, PyPI
 
 ### If `deploy/deployment-config.md` declares `type: application` → Execute Mode
 
-Read the config and execute. **Print the 10-step DEPLOY CHECKLIST at the start of the response and check off boxes as each step passes. Do NOT report deploy as complete until every box is checked.** The full checklist text and per-step guidance lives in `rules/deploy-hygiene.md` Rule 8 and `skills/10-deployment-git/application-deployment.md`. If any step fails, say "DEPLOY FAILED AT STEP N: <reason>" — NOT "build succeeded, will redeploy soon".
+Read the config and execute. **Print the 6-step DEPLOY CHECKLIST (Step 0–5) at the start of the response and check off boxes as each step passes. Do NOT report deploy as complete until every box is checked.** The checklist IS the Step 0–5 sequence enumerated below (this command is its single source of truth); the print-and-follow mandate is `rules/deploy-hygiene.md` Rule 8, and deep per-step guidance lives in `skills/10-deployment-git/application-deployment.md`. If any step fails, say "DEPLOY FAILED AT STEP N: <reason>" — NOT "build succeeded, will redeploy soon".
 
 #### Step 0: Ecosystem Resolution (ecosystem-relative deploy)
 

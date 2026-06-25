@@ -195,16 +195,16 @@ Wait for explicit approval before treating onboarding as complete.
 
 ## The Six Levels Of Deploy Failure (and how the schema catches each)
 
-| Level | Failure                                                                        | Schema field / mechanism that catches it            |
-| ----- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
-| L1    | Code committed but never deployed                                              | `production_paths` + `/wrapup` deploy state check   |
-| L2    | Deploy command ran but new revision didn't take traffic                        | `traffic_check_command`                             |
-| L3    | New revision live, users still see old assets (cache, SW, etc.)                | `user_visible_check`                                |
-| L4    | Build "succeeded" by bypassing gates (`vite build` not `tsc -b && vite build`) | `gates` (declared build command must run as-is)     |
-| L5    | Dockerfile ships stale local `dist/` instead of rebuilding                     | Dockerfile lint in `gates` (forbid `COPY dist/`)    |
-| L6    | "BUILD SUCCEEDED" reported, no deploy ever ran                                 | `/deploy` 10-step checklist (build is step 2 of 10) |
+| Level | Failure                                                                        | Schema field / mechanism that catches it                          |
+| ----- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| L1    | Code committed but never deployed                                              | `production_paths` + `/wrapup` deploy state check                 |
+| L2    | Deploy command ran but new revision didn't take traffic                        | `traffic_check_command`                                           |
+| L3    | New revision live, users still see old assets (cache, SW, etc.)                | `user_visible_check`                                              |
+| L4    | Build "succeeded" by bypassing gates (`vite build` not `tsc -b && vite build`) | `gates` (declared build command must run as-is)                   |
+| L5    | Dockerfile ships stale local `dist/` instead of rebuilding                     | Dockerfile lint in `gates` (forbid `COPY dist/`)                  |
+| L6    | "BUILD SUCCEEDED" reported, no deploy ever ran                                 | `/deploy` Step 0–5 checklist (build/gates Step 2; execute Step 3) |
 
-`user_visible_check` is critical for L3. The 10-step `/deploy` checklist (see `commands/deploy.md`) is critical for L6 — it forbids reporting any partial step as completion.
+`user_visible_check` is critical for L3. The Step 0–5 `/deploy` checklist (see `commands/deploy.md`) is critical for L6 — it forbids reporting any partial step as completion.
 
 The agent's repeated failure mode is treating "command exited 0" as evidence of "users see new code". None of the six layers' commands return non-zero on the failure they map to:
 
@@ -215,7 +215,7 @@ The agent's repeated failure mode is treating "command exited 0" as evidence of 
 - L5: `docker build` returns 0 even if it copies a 2-day-old `dist/`
 - L6: `npm run build` returns 0 — and the agent reports this as deploy success while the freshly-built artifact sits on local disk untouched
 
-Every layer needs its own external check. The 10-step checklist exists because you cannot rely on any single command's exit code to mean what the agent thinks it means.
+Every layer needs its own external check. The Step 0–5 checklist exists because you cannot rely on any single command's exit code to mean what the agent thinks it means.
 
 ## Cache Layers To Check
 
