@@ -1,30 +1,33 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-06-26T14:13:12Z
+timestamp: 2026-06-27T00:00:00Z
 source: loom/.claude
-loom_sha: 9755c2d
+loom_sha: 9101e34
 variant: rs
 clis: [claude]
 visibility: public
 stats:
-  copied: 1286
-  variant_only: 170
-  overlay_applied: 142
+  copied: 0          # narrow propagation: content CONSISTENT, no re-emit
+  variant_only: 0
+  overlay_applied: 0
   purged: 0
   verify: CONSISTENT   # sync-tier-aware.mjs --target rs --all-templates --verify
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted
-obsoleted_manifest_paths: 64   # .coc-obsoleted = obsoleted + use_obsoleted union
+obsoleted_manifest_paths: 69   # .coc-obsoleted = obsoleted + use_obsoleted union (was 64)
 verify_overlays: { langs: rs, total: 624, passing: 624, failing: 0 }
-wave: f1-distribution
+wave: f1-685-followup
 note: >-
-  F1 distribution — Shard-A/B/C rule narrowing+extraction, F5 base re-tier,
-  claude-rb retirement, dogfood catch-up. Content distribution applied + verified
-  CONSISTENT via sync-tier-aware.mjs --target rs --all-templates --verify
-  (1286 copied, 142 overlays, 170 variant_only, 0 purged). SDK PIN: kailash-rs
-  4.13.0->4.21.0 (BUILD kailash-rs origin/main Cargo workspace.package.version =
-  4.21.0; released tag v4.21.0 confirmed); other sdk_packages unchanged. NO
-  Cargo.toml at this CC-only artifact template -> cargo check n/a. PII: one
-  operator-home abs-path token genericized in historical 2.23.x changelog prose;
-  this cycle's diff adds zero PII; live settings.json 0 tokens. PRESERVED:
-  CLAUDE.md, settings.json. loom 2.45.0 unchanged (W1+F1 are loom-main drift @
-  9755c2d). BUMP: template 2.23.16->2.23.17; loom_sha 8197257->9755c2d.
+  Narrow propagation of #685 obsoletion (F1 follow-up). The ONLY loom change
+  since 9755c2d is a 13-line addition to sync-manifest.yaml::obsoleted adding
+  .claude/codex-templates/ + .claude/gemini-templates/ (loom now HEAD 9101e34).
+  CONTENT UNCHANGED: sync-tier-aware.mjs --target rs --all-templates --verify =
+  CONSISTENT (1598 in-plan files, no obsoleted path present). REGENERATED
+  .coc-obsoleted (Step 4.5 union) — additive proof PASS (0 existing entries
+  dropped); 5 net-new entries: .claude/codex-templates/, .claude/gemini-templates/
+  (#685), plus the previously-missed retired-/sync triple .claude/commands/sync.md
+  + .codex/prompts/sync.md + .gemini/commands/sync.toml (already in manifest
+  obsoleted:). Union 64->69 data paths (file 67->72 lines incl. 3-line header).
+  NO content re-emit, NO baseline re-emit (CC-only template), NO SDK pin change
+  (kailash-rs already 4.21.0). NO Cargo.toml at this CC-only template -> cargo
+  check n/a. PRESERVED: CLAUDE.md, settings.json. visibility:public preserved.
+  BUMP: template 2.23.17->2.23.18; loom_sha 9755c2d->9101e34. loom 2.45.0 unchanged.

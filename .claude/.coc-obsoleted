@@ -6,11 +6,14 @@
 .claude/agents/management/posture-auditor.md
 .claude/agents/management/todo-manager.md
 .claude/agents/open-source-strategist.md
+.claude/codex-templates/
 .claude/commands/cli-audit.md
 .claude/commands/decisive.md
 .claude/commands/send-it.md
 .claude/commands/sync-from-build.md
 .claude/commands/sync-from-use.md
+.claude/commands/sync.md
+.claude/gemini-templates/
 .claude/guides/automated-maintenance.md
 .claude/guides/co-setup/
 .claude/guides/deterministic-quality/
@@ -52,6 +55,7 @@
 .codex/prompts/settings.md
 .codex/prompts/sync-from-build.md
 .codex/prompts/sync-from-use.md
+.codex/prompts/sync.md
 .codex/prompts/test-harness-probe.md
 .gemini/agents/open-source-strategist.md
 .gemini/commands/cli-audit.toml
@@ -62,6 +66,7 @@
 .gemini/commands/settings.toml
 .gemini/commands/sync-from-build.toml
 .gemini/commands/sync-from-use.toml
+.gemini/commands/sync.toml
 .gemini/commands/test-harness-probe.toml
 scripts/hooks/
 scripts/resolve-template.js
