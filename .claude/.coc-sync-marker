@@ -1,31 +1,30 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-06-25T07:10:00Z
+timestamp: 2026-06-26T14:13:12Z
 source: loom/.claude
-loom_sha: 8197257
+loom_sha: 9755c2d
 variant: rs
 clis: [claude]
 visibility: public
 stats:
-  copied: 1278
-  verified: 1278
-  verify_failures: 0
+  copied: 1286
   variant_only: 170
   overlay_applied: 142
-  overlay_verify_failures: 0
-  stripped: 39
-  purged: 3          # obsoleted commands: cli-audit, sync-from-build, sync-from-use
-  preserved: [CLAUDE.md, Gemfile, .proposals/, learning/, settings.local.json]
+  purged: 0
+  verify: CONSISTENT   # sync-tier-aware.mjs --target rs --all-templates --verify
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted
 obsoleted_manifest_paths: 64   # .coc-obsoleted = obsoleted + use_obsoleted union
 verify_overlays: { langs: rs, total: 624, passing: 624, failing: 0 }
-wave: mo-opt-w1-coordination-opt-in
+wave: f1-distribution
 note: >-
-  MO-OPT W1 — coordination substrate made OPT-IN. New .claude/hooks/lib/coordination-mode.js
-  (isCoordinationEnabled predicate) + early-return passthrough hoists in integrity-guard.js,
-  journal-write-guard.js, signing-mutation-guard.js, lib/codify-lease.js, lib/operator-id.js,
-  adjacency-leasecheck.js. All GLOBAL hooks (no rs overlay). Un-enrolled/solo consumers get
-  clean passthrough instead of unconditional coordination-guard disruption. loom 2.45.0
-  unchanged (W1 is unreleased loom-main drift @ 8197257). SDK pins preserved (kailash-rs
-  4.13.0 — BUILD on mid-feature branch). cargo check skipped (no Cargo.toml). Receipt: loom
-  journal/0330 + 0331.
+  F1 distribution — Shard-A/B/C rule narrowing+extraction, F5 base re-tier,
+  claude-rb retirement, dogfood catch-up. Content distribution applied + verified
+  CONSISTENT via sync-tier-aware.mjs --target rs --all-templates --verify
+  (1286 copied, 142 overlays, 170 variant_only, 0 purged). SDK PIN: kailash-rs
+  4.13.0->4.21.0 (BUILD kailash-rs origin/main Cargo workspace.package.version =
+  4.21.0; released tag v4.21.0 confirmed); other sdk_packages unchanged. NO
+  Cargo.toml at this CC-only artifact template -> cargo check n/a. PII: one
+  operator-home abs-path token genericized in historical 2.23.x changelog prose;
+  this cycle's diff adds zero PII; live settings.json 0 tokens. PRESERVED:
+  CLAUDE.md, settings.json. loom 2.45.0 unchanged (W1+F1 are loom-main drift @
+  9755c2d). BUMP: template 2.23.16->2.23.17; loom_sha 8197257->9755c2d.

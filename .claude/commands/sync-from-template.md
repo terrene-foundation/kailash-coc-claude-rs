@@ -45,7 +45,7 @@ Check `.claude/.coc-sync-marker` for the template. If missing, auto-detect:
    - `pyproject.toml` has `kailash` dependency → `kailash-coc-py`
 2. **Legacy CC-only consumers** (only `CLAUDE.md` at repo root):
    - `pyproject.toml` has `kailash-enterprise` → `kailash-coc-claude-rs`
-   - `Gemfile` has `kailash` gem → `kailash-coc-claude-rb` (Ruby projects; legacy mappings to `kailash-coc-claude-rs` predated the rb USE template — see issue #140)
+   - `Gemfile` has `kailash` gem → `kailash-coc-claude-rs` (Ruby projects consume kailash-rs via Magnus bindings; the standalone rb USE template was retired in #423 Phase 1 — Ruby depth ships in the rs all-bindings template's 28-ruby-bindings skill)
    - `pyproject.toml` has `kailash` dependency → `kailash-coc-claude-py`
 
 If detection is ambiguous (e.g., the consumer migrated CC-only → multi-CLI without updating the marker), set `KAILASH_COC_TEMPLATE_PATH` or write the correct template name to `.claude/.coc-sync-marker` before re-running.
