@@ -1,33 +1,34 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-06-27T00:00:00Z
+timestamp: 2026-06-29T00:00:00Z
 source: loom/.claude
-loom_sha: 9101e34
+loom_sha: e2ac475
 variant: rs
 clis: [claude]
 visibility: public
 stats:
-  copied: 0          # narrow propagation: content CONSISTENT, no re-emit
-  variant_only: 0
-  overlay_applied: 0
+  copied: 1289
+  verified: 1289   # 39 content-equal after BUILD-internal strip, 1250 byte-equal
+  variant_only: 170
+  overlay_applied: 142
   purged: 0
-  verify: CONSISTENT   # sync-tier-aware.mjs --target rs --all-templates --verify
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted
-obsoleted_manifest_paths: 69   # .coc-obsoleted = obsoleted + use_obsoleted union (was 64)
+obsoleted_manifest_paths: 69   # .coc-obsoleted = obsoleted + use_obsoleted union
+gitignore: { managed_entries: 24, bytes_before: 1455, bytes_after: 1843 }
 verify_overlays: { langs: rs, total: 624, passing: 624, failing: 0 }
-wave: f1-685-followup
+sdk_pins: { kailash-rs: 4.21.0 }   # matches BUILD workspace.package; no drift
+wave: gitignore-additions-trust-state
 note: >-
-  Narrow propagation of #685 obsoletion (F1 follow-up). The ONLY loom change
-  since 9755c2d is a 13-line addition to sync-manifest.yaml::obsoleted adding
-  .claude/codex-templates/ + .claude/gemini-templates/ (loom now HEAD 9101e34).
-  CONTENT UNCHANGED: sync-tier-aware.mjs --target rs --all-templates --verify =
-  CONSISTENT (1598 in-plan files, no obsoleted path present). REGENERATED
-  .coc-obsoleted (Step 4.5 union) — additive proof PASS (0 existing entries
-  dropped); 5 net-new entries: .claude/codex-templates/, .claude/gemini-templates/
-  (#685), plus the previously-missed retired-/sync triple .claude/commands/sync.md
-  + .codex/prompts/sync.md + .gemini/commands/sync.toml (already in manifest
-  obsoleted:). Union 64->69 data paths (file 67->72 lines incl. 3-line header).
-  NO content re-emit, NO baseline re-emit (CC-only template), NO SDK pin change
-  (kailash-rs already 4.21.0). NO Cargo.toml at this CC-only template -> cargo
-  check n/a. PRESERVED: CLAUDE.md, settings.json. visibility:public preserved.
-  BUMP: template 2.23.17->2.23.18; loom_sha 9755c2d->9101e34. loom 2.45.0 unchanged.
+  Full redistribution from loom@e2ac475 (loom 2.45.0 unchanged). Driving change:
+  sync-manifest.yaml::gitignore_additions gained 8 per-clone trust-state entries
+  (coordination-log.jsonl* + provenance/ + posture.json + .initialized +
+  learning-codified.json + learning-digest.json + .heartbeat-cache* +
+  .session-end-cache*); managed .gitignore block 1455B->1843B (+388B).
+  sync-tier-aware --target rs --all-templates: 1289/1289 delivered+verified,
+  170/170 variant_only byte-equal, 142/142 overlays byte-equal, 0 purged;
+  Rule-6 swallowed-artifact gate PASS (loom working tree junk-free, #710 cleared).
+  verify-overlays.sh rs: 624/624 passing, 0 failing. SDK pin kailash-rs 4.21.0
+  unchanged (matches BUILD workspace.package). No Cargo.toml at this CC-only
+  template -> cargo check n/a. PRESERVED: CLAUDE.md, settings.json. No multi-CLI
+  emission (clis=[claude]). visibility:public preserved.
+  BUMP: template 2.23.18->2.23.19; loom_sha 9101e34->e2ac475.
