@@ -1,9 +1,9 @@
 ---
 name: nexus-config-options
-description: "NexusConfig fields, Preset system, MiddlewareConfig for kailash-rs Nexus."
+description: "NexusConfig fields, Preset system, MiddlewareConfig for the Rust SDK Nexus."
 ---
 
-# Nexus Configuration Options (kailash-rs)
+# Nexus Configuration Options (the Rust SDK)
 
 Configuration is object-based using `NexusConfig`, `Preset`, and `MiddlewareConfig`.
 
@@ -112,7 +112,7 @@ config = NexusConfig()  # enable_api=True, enable_cli=True, enable_mcp=True
 
 ## Key Differences from kailash-py
 
-| Aspect          | kailash-py                          | kailash-rs                                                 |
+| Aspect          | kailash-py                          | the Rust SDK                                               |
 | --------------- | ----------------------------------- | ---------------------------------------------------------- |
 | Config style    | Flat kwargs: `Nexus(api_port=8000)` | Object: `NexusConfig(port=3000)`                           |
 | Default port    | 8000                                | 3000                                                       |

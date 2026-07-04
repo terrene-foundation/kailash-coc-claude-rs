@@ -2,7 +2,15 @@
 name: header-validation-at-construction
 description: "Validate HTTP header names and values at construction time, not at first request. Builder methods accepting headers MUST return Result so a CRLF-injected token fails in the constructor, not on the first .get() call. Use for any HTTP client that accepts caller-supplied header content."
 priority: HIGH
-tags: [http-client, security, header-injection, crlf, ssrf-adjacent, eager-validation]
+tags:
+  [
+    http-client,
+    security,
+    header-injection,
+    crlf,
+    ssrf-adjacent,
+    eager-validation,
+  ]
 paths:
   - "bindings/kailash-python/**"
   - "crates/kailash-nexus/**"
@@ -12,13 +20,13 @@ paths:
 
 # Header Validation At Construction
 
-When an HTTP client builder accepts caller-supplied header names and values — including the bearer token convenience method — the validation of those headers MUST run at *construction time*, not at first request time. Late validation is a security bug class: a CRLF-injected value that gets stored in a builder and only fails on the first `.get()` call has already been written into a `HeaderMap`, exists in memory, and may have leaked into logs or other code paths before it surfaces.
+When an HTTP client builder accepts caller-supplied header names and values — including the bearer token convenience method — the validation of those headers MUST run at _construction time_, not at first request time. Late validation is a security bug class: a CRLF-injected value that gets stored in a builder and only fails on the first `.get()` call has already been written into a `HeaderMap`, exists in memory, and may have leaked into logs or other code paths before it surfaces.
 
 The pattern: every header-accepting builder method returns `Result<Self, ServiceClientError>` (in Rust) or raises a typed exception in `__init__` (in Python bindings). The validation runs through the same `try_with_header` helper that the typed `with_bearer_token` convenience routes through, so there is exactly one validation site for every header that ever enters the builder.
 
 ## Scope — Why "At Construction" Matters
 
-**Header injection (CRLF) attack:** an attacker who controls *part of* a header value can inject `\r\n` followed by additional header lines, request smuggling payloads, or fake response splitting. The classic case is an authenticated endpoint that does `bearer_token = format!("Bearer {}", user_supplied_token)` and accepts a token containing `\r\nX-Admin: 1`. If the validator runs at first request, the bad value sits in the builder until then; if the validator runs at construction, the builder fails immediately and the attacker's payload never reaches the request layer.
+**Header injection (CRLF) attack:** an attacker who controls _part of_ a header value can inject `\r\n` followed by additional header lines, request smuggling payloads, or fake response splitting. The classic case is an authenticated endpoint that does `bearer_token = format!("Bearer {}", user_supplied_token)` and accepts a token containing `\r\nX-Admin: 1`. If the validator runs at first request, the bad value sits in the builder until then; if the validator runs at construction, the builder fails immediately and the attacker's payload never reaches the request layer.
 
 **Why "convenience methods route through the validator":** a common bug is exposing a strict `try_with_header` AND a "convenient" `with_bearer_token(token: &str) -> Self` that bypasses the validator. The convenience method becomes the actual call site for 99% of bearer-token uses, and the strict validator never runs. The fix is the v3.16.1 hotfix below: every convenience method is itself fallible and routes through the strict validator.
 
@@ -200,7 +208,7 @@ pub fn with_bearer_token(self, token: &str) -> Self {
 
 - "Bearer tokens are usually JWTs without CRLF, so validation is overkill"
 - "We trust the caller to sanitize"
-- "The convenience method exists *because* it's quick — adding `?` defeats the purpose"
+- "The convenience method exists _because_ it's quick — adding `?` defeats the purpose"
 - "We'll add validation in v2"
 
 **Why:** The convenience method becomes the dominant call site (≥95% of bearer-token uses); the strict path becomes the exception. Routing the convenience method through the strict path is the only way to ensure validation actually runs in production.
@@ -243,4 +251,4 @@ let value = HeaderValue::from_str(v).unwrap();
 - `skills/18-security-patterns/network-security-rs.md` — broader Rust network-hardening patterns (DNS rebinding, allowlists, TLS verification)
 - `skills/18-security-patterns/fail-closed-defaults-rs.md` — the construction-time validation pattern is a specific case of "fail closed at the earliest possible moment"
 
-Origin: BP-042 (kailash-rs ServiceClient header validation, 2026-04-14, commits `d3a14a73` + `18bb703b` + v3.16.1 hotfix). The v3.16.0 cut initially documented `with_bearer_token` as "routed through `try_with_header`", but the Rust implementation still called the infallible `with_header` — a fake-security claim. The v3.16.1 hotfix made `with_bearer_token` return `Result<Self, ServiceClientError>` and delegate to `try_with_header`. The skill codifies the actual shipped pattern: every header-accepting method is fallible, and every convenience method routes through the strict validator. Tier set to variant-rs because the Rust signature (`Result<Self, _>` builder chain with double-`?`) is idiomatic Rust; the Python and Ruby bindings inherit the validation by calling through `__init__`.
+Origin: BP-042 (the Rust SDK ServiceClient header validation, 2026-04-14, commits `d3a14a73` + `18bb703b` + v3.16.1 hotfix). The v3.16.0 cut initially documented `with_bearer_token` as "routed through `try_with_header`", but the Rust implementation still called the infallible `with_header` — a fake-security claim. The v3.16.1 hotfix made `with_bearer_token` return `Result<Self, ServiceClientError>` and delegate to `try_with_header`. The skill codifies the actual shipped pattern: every header-accepting method is fallible, and every convenience method routes through the strict validator. Tier set to variant-rs because the Rust signature (`Result<Self, _>` builder chain with double-`?`) is idiomatic Rust; the Python and Ruby bindings inherit the validation by calling through `__init__`.

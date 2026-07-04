@@ -1,11 +1,11 @@
 ---
 name: kailash-rs-alignment
-description: "Kailash RS alignment reference — 20-crate workspace layout, ML crate patterns, PyO3 bindings, transport parity, cross-SDK feature table for kailash-rs contributors."
+description: "Kailash RS alignment reference — 20-crate workspace layout, ML crate patterns, PyO3 bindings, transport parity, cross-SDK feature table for Rust SDK contributors."
 ---
 
 # Kailash RS Alignment — Cross-SDK Reference
 
-Workspace architecture, ML crate patterns, binding conventions, and cross-SDK parity reference for kailash-rs contributors.
+Workspace architecture, ML crate patterns, binding conventions, and cross-SDK parity reference for Rust SDK contributors.
 
 ## Skill Index
 

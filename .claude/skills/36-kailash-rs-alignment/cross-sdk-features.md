@@ -4,7 +4,7 @@
 
 Features are classified by which SDK leads implementation:
 
-### Rust-First (implemented in kailash-rs, Python bindings follow)
+### Rust-First (implemented in the Rust SDK, Python bindings follow)
 
 | Feature              | Rust Crate              | Python Binding          | Status                        |
 | -------------------- | ----------------------- | ----------------------- | ----------------------------- |

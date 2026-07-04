@@ -3,7 +3,7 @@ name: nexus-quickstart
 description: "Zero-config NexusApp setup and basic handler/workflow registration. Start here for all Nexus applications."
 ---
 
-# Nexus Quickstart (kailash-rs)
+# Nexus Quickstart (the Rust SDK)
 
 Zero-configuration platform deployment. Get running in 30 seconds.
 
@@ -93,7 +93,7 @@ app.start()
 ### Import Errors
 
 ```bash
-pip install kailash-enterprise  # kailash-rs bundles Nexus
+pip install kailash-enterprise  # the Rust SDK bundles Nexus
 ```
 
 ### Port Conflicts
@@ -104,7 +104,7 @@ app = NexusApp(config=NexusConfig(port=8001))
 
 ## Key Differences from kailash-py
 
-| Aspect                | kailash-py                               | kailash-rs                                                       |
+| Aspect                | kailash-py                               | the Rust SDK                                                     |
 | --------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
 | Recommended entry     | `from nexus import Nexus`                | `from kailash.nexus import NexusApp`                             |
 | Import path           | `nexus` (standalone package)             | `kailash.nexus` (bundled)                                        |

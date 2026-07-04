@@ -2,7 +2,8 @@
 name: annotation-resolution-fallback
 description: "When `typing.get_type_hints(cls)` raises a bare `NameError` on a `@db.model`-decorated class, fall back to `annotationlib.get_annotations(cls, format=Format.FORWARDREF)` on Python 3.14+ to produce a per-field diagnostic. Use when any PyO3 binding or Python wrapper reads class type hints via `typing.get_type_hints` and needs actionable errors for unresolvable forward refs, TYPE_CHECKING-guarded imports, or circular imports."
 priority: HIGH
-tags: [pyo3, python-binding, dataflow, type-hints, python-314, pep-749, diagnostics]
+tags:
+  [pyo3, python-binding, dataflow, type-hints, python-314, pep-749, diagnostics]
 paths:
   - "bindings/kailash-python/**"
 ---
@@ -15,16 +16,16 @@ The raw `NameError` is the worst possible UX: there is no indication that DataFl
 
 The fix is a two-tier fallback. On Python 3.14+, `annotationlib.get_annotations(cls, format=Format.FORWARDREF)` returns unresolvable names as plain strings instead of raising — so we can identify exactly which fields are broken and emit a `RuntimeError` naming the `@db.model` class, the offending fields, and the three causes with concrete remediation for each. On Python <3.14 we cannot list the broken fields, but we can still raise a clearer `RuntimeError` that names the class and the causes rather than surfacing the raw `NameError`.
 
-This pattern applies to any kailash-rs Python binding that reads class type hints via `typing.get_type_hints`. Currently only DataFlow `@db.model` does this; Kaizen `Signature` uses attribute-value inspection (`dir(cls)` + `getattr` + `isinstance`) and is architecturally immune. The pattern is Rust-SDK-specific because `kailash-py`'s pure-Python decorators have different hint-resolution paths.
+This pattern applies to any Rust SDK Python binding that reads class type hints via `typing.get_type_hints`. Currently only DataFlow `@db.model` does this; Kaizen `Signature` uses attribute-value inspection (`dir(cls)` + `getattr` + `isinstance`) and is architecturally immune. The pattern is Rust-SDK-specific because `kailash-py`'s pure-Python decorators have different hint-resolution paths.
 
 ## When To Use
 
-| Binding reads class hints via…                               | Use this pattern? |
-| ------------------------------------------------------------ | ----------------- |
-| `typing.get_type_hints(cls)`                                 | **Yes**           |
-| `cls.__annotations__` (raw, no resolution)                   | No — no NameError possible, strings are fine |
+| Binding reads class hints via…                                | Use this pattern?                            |
+| ------------------------------------------------------------- | -------------------------------------------- |
+| `typing.get_type_hints(cls)`                                  | **Yes**                                      |
+| `cls.__annotations__` (raw, no resolution)                    | No — no NameError possible, strings are fine |
 | Attribute-value inspection (`dir` + `getattr` + `isinstance`) | No — immune, values are already materialised |
-| `inspect.signature(cls)` for dataclass fields                | Yes (same failure mode) |
+| `inspect.signature(cls)` for dataclass fields                 | Yes (same failure mode)                      |
 
 ## The Pattern
 
@@ -148,11 +149,11 @@ raw = annotationlib.get_annotations(cls, format=annotationlib.Format.FORWARDREF)
 
 ## Gotchas (non-obvious bits a future engineer will re-discover without this skill)
 
-- **`typing.get_type_hints(cls)` IS PEP 749-compliant on Python 3.14.** Verified at runtime on 3.14.3. There is no need to switch to `annotationlib` as the primary API — resolvable annotations still work through `typing.get_type_hints`. `annotationlib` is only useful as the fallback for *unresolvable* names.
+- **`typing.get_type_hints(cls)` IS PEP 749-compliant on Python 3.14.** Verified at runtime on 3.14.3. There is no need to switch to `annotationlib` as the primary API — resolvable annotations still work through `typing.get_type_hints`. `annotationlib` is only useful as the fallback for _unresolvable_ names.
 
 - **`annotationlib.get_annotations(cls, format=Format.FORWARDREF)` returns plain `str`, not `ForwardRef`.** Despite the `FORWARDREF` name, unresolvable names come back as `str` values in the dict. The `isinstance(value, str)` check is what isolates the broken fields. `ForwardRef` objects are not involved.
 
-- **`from __future__ import annotations` poisons annotationlib FORWARDREF mode.** When the user's module uses PEP 563 string annotations, `annotationlib.get_annotations(..., format=FORWARDREF)` returns *every* annotation as a string — even ones that would resolve cleanly. Callers MUST try `typing.get_type_hints` first and fall back to `annotationlib` only on `NameError`. Starting with `annotationlib` would flag every field as "unresolved" on any module that uses PEP 563.
+- **`from __future__ import annotations` poisons annotationlib FORWARDREF mode.** When the user's module uses PEP 563 string annotations, `annotationlib.get_annotations(..., format=FORWARDREF)` returns _every_ annotation as a string — even ones that would resolve cleanly. Callers MUST try `typing.get_type_hints` first and fall back to `annotationlib` only on `NameError`. Starting with `annotationlib` would flag every field as "unresolved" on any module that uses PEP 563.
 
 - **Pyright flags `if sys.version_info >= (3, 14):` as "Code is unreachable"** when statically checking against a Python version older than 3.14. This is a Pyright limitation (single-target static analysis), not a code bug. The package supports Python 3.10+ so the runtime guard is necessary. Suppress with `# pyright: ignore[reportUnnecessaryComparison]` on the `if`, and `# pyright: ignore[reportMissingImports, reportUnreachable]` on the `import annotationlib` inside the branch.
 
@@ -208,7 +209,7 @@ Every `RuntimeError` message raised by this pattern MUST list the three common c
 
 ## Scope
 
-This pattern applies to any kailash-rs Python binding that reads class type hints via `typing.get_type_hints`. Currently the known surface is:
+This pattern applies to any Rust SDK Python binding that reads class type hints via `typing.get_type_hints`. Currently the known surface is:
 
 - **DataFlow `@db.model`** (`bindings/kailash-python/python/kailash/dataflow/model.py`) — uses `typing.get_type_hints(cls)` to build SQL schemas from Python class annotations. Fixed in commit `5f405574`.
 
@@ -224,4 +225,4 @@ When a new binding is added that reads class type hints, the author MUST apply t
 - `skills/06-python-bindings/layered-truncation.md` — unrelated but the closest precedent for "Python-binding-specific diagnostic pattern that improves UX at the FFI boundary"
 - `skills/06-python-bindings/SKILL.md` — overview of Python binding patterns
 
-Origin: kailash-rs commit 5f405574 (2026-04-15) — DataFlow @db.model per-field diagnostic for unresolvable type hints.
+Origin: the Rust SDK commit 5f405574 (2026-04-15) — DataFlow @db.model per-field diagnostic for unresolvable type hints.

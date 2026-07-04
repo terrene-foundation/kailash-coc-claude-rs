@@ -10,7 +10,7 @@ paths:
 
 # Layered Truncation For PyO3 Error Bodies
 
-When a Rust error type carries a body field (HTTP response body, file content, command output, deserialization input), that body can be arbitrarily large. The Rust layer wants the *full* body for forensic logging and incident analysis. The Python binding layer wants the body *short* because it ends up inside an exception message that gets formatted into a traceback that gets logged, alerted, and displayed in stack traces — and a 4KB body inside a Python `__str__` produces 400-line traceback output that drowns the actual error signal.
+When a Rust error type carries a body field (HTTP response body, file content, command output, deserialization input), that body can be arbitrarily large. The Rust layer wants the _full_ body for forensic logging and incident analysis. The Python binding layer wants the body _short_ because it ends up inside an exception message that gets formatted into a traceback that gets logged, alerted, and displayed in stack traces — and a 4KB body inside a Python `__str__` produces 400-line traceback output that drowns the actual error signal.
 
 The right answer is **two truncation boundaries**:
 
@@ -83,7 +83,7 @@ fn service_client_err_to_pyerr(err: ServiceClientError) -> PyErr {
 }
 ```
 
-The `body` field stored inside `ServiceClientError` itself remains the Rust-side `truncate_body` result (~4KB) — that's what gets logged via `tracing::warn!(?err)` for forensics. Only the *Python exception message* gets the tighter 512-byte version.
+The `body` field stored inside `ServiceClientError` itself remains the Rust-side `truncate_body` result (~4KB) — that's what gets logged via `tracing::warn!(?err)` for forensics. Only the _Python exception message_ gets the tighter 512-byte version.
 
 ### Step 3: What Python Sees
 
@@ -167,11 +167,11 @@ The Rust forensic limit and the Python user-facing limit MUST be separate consta
 
 - Truncate the body INSIDE the Rust error variant before storing it
 
-**Why:** That would lose the forensic data permanently. The Rust error must keep the larger body; only the *PyErr message* gets the tighter version.
+**Why:** That would lose the forensic data permanently. The Rust error must keep the larger body; only the _PyErr message_ gets the tighter version.
 
 - Use `.chars().take(N).collect()` instead of byte-based truncation
 
-**Why:** Slow (O(N) walk) and produces a string of N *characters* rather than N *bytes*, making the actual byte limit unpredictable for log-aggregator field-size limits.
+**Why:** Slow (O(N) walk) and produces a string of N _characters_ rather than N _bytes_, making the actual byte limit unpredictable for log-aggregator field-size limits.
 
 - Skip the truncation helper for "small bodies that probably fit"
 
@@ -183,4 +183,4 @@ The Rust forensic limit and the Python user-facing limit MUST be separate consta
 - `skills/18-security-patterns/header-validation-at-construction.md` — the `InvalidHeader` variant returns a short error string that does NOT need truncation, so the helper is not called for that variant
 - `rules/observability.md` — broader logging rules; layered truncation is the binding-layer corollary of "structured log fields, not f-string interpolation"
 
-Origin: BP-043 (kailash-rs ServiceClient Python binding, 2026-04-14, commits `d3a14a73` + `18bb703b`). Pre-fix, the PyO3 wrapper formatted the full 4KB Rust-side body into the Python exception message, producing 400-line tracebacks that drowned the real error signal. The fix introduced `PY_SERVICE_CLIENT_ERROR_BODY_BYTES = 512` plus `truncate_py_error_body` called at the PyErr conversion site, while the Rust crate kept its 4KB `MAX_ERROR_BODY_BYTES` for forensic logging. Generalises to any PyO3 wrapper of a Rust error type with body fields.
+Origin: BP-043 (the Rust SDK ServiceClient Python binding, 2026-04-14, commits `d3a14a73` + `18bb703b`). Pre-fix, the PyO3 wrapper formatted the full 4KB Rust-side body into the Python exception message, producing 400-line tracebacks that drowned the real error signal. The fix introduced `PY_SERVICE_CLIENT_ERROR_BODY_BYTES = 512` plus `truncate_py_error_body` called at the PyErr conversion site, while the Rust crate kept its 4KB `MAX_ERROR_BODY_BYTES` for forensic logging. Generalises to any PyO3 wrapper of a Rust error type with body fields.

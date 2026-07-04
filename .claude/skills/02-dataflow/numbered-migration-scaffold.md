@@ -1,8 +1,8 @@
-# Numbered Migration Scaffold (kailash-rs Python Bindings)
+# Numbered Migration Scaffold (the Rust SDK Python Bindings)
 
-Reference scaffold for projects that consume kailash-rs through its Python bindings and need numbered schema migrations. `rules/schema-migration.md` mandates that schema changes MUST live in numbered migration files; this skill provides the starter layout so projects are not reinventing migration frameworks from scratch.
+Reference scaffold for projects that consume the Rust SDK through its Python bindings and need numbered schema migrations. `rules/schema-migration.md` mandates that schema changes MUST live in numbered migration files; this skill provides the starter layout so projects are not reinventing migration frameworks from scratch.
 
-Authoring target: applications using `import kailash` (the Python binding to kailash-rs) and `kailash.dataflow.DataFlow(...)` to open connections. Each migration is a Python module with `up(conn)` and `down(conn)` functions; the `scripts/migrate.py` CLI applies or rolls back migrations by number.
+Authoring target: applications using `import kailash` (the Python binding to the Rust SDK) and `kailash.dataflow.DataFlow(...)` to open connections. Each migration is a Python module with `up(conn)` and `down(conn)` functions; the `scripts/migrate.py` CLI applies or rolls back migrations by number.
 
 ## Directory Layout
 
@@ -139,7 +139,7 @@ def down(conn, *, force_drop: bool = False):
 
 ```python
 #!/usr/bin/env python3
-"""Apply or roll back numbered migrations via the kailash-rs Python binding."""
+"""Apply or roll back numbered migrations via the Rust SDK Python binding."""
 
 import argparse
 import os
@@ -265,7 +265,7 @@ python scripts/migrate.py status
 The scaffold above is minimal — it is the starting point for projects that do not want to adopt a full migration framework. For complex schemas (hundreds of migrations, multi-database, branch-merge resolution), use a framework:
 
 - **Alembic** (SQLAlchemy) — standard in the Python ecosystem; first-class branch/merge support.
-- **sqlx migrate** — if the project is already using sqlx-through-kailash-rs directly.
+- **sqlx migrate** — if the project is already using sqlx through the Rust SDK directly.
 - **Django migrations** — if the project is a Django app.
 
 The scaffold's `schema_migrations` table shape is intentionally compatible with Alembic's `alembic_version` so switching later is mostly a bookkeeping change, not a rewrite.
@@ -277,4 +277,4 @@ The scaffold's `schema_migrations` table shape is intentionally compatible with 
 - `rules/dataflow-identifier-safety.md` — any dynamic identifier in a migration MUST route through the dialect's `quote_identifier()` helper
 - `skills/02-dataflow/SKILL.md` — broader DataFlow binding patterns
 
-Origin: gh-coc-claude-rs#51 item 3b (2026-04-17). Reporter observation that `rules/schema-migration.md` mandates numbered migrations but ships no reference implementation. Python-binding scaffold authored for rs USE template consumers (who write Python apps against the kailash-rs bindings); the scaffold is a starter, not a framework.
+Origin: gh-coc-claude-rs#51 item 3b (2026-04-17). Reporter observation that `rules/schema-migration.md` mandates numbered migrations but ships no reference implementation. Python-binding scaffold authored for rs USE template consumers (who write Python apps against the Rust SDK bindings); the scaffold is a starter, not a framework.

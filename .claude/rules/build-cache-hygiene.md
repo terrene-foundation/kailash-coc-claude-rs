@@ -175,4 +175,4 @@ requires.
   filling the disk to 92%. Directive: "introduce absolute discipline so that we
   don't end up with 600GB of garbage … use hooks to conform … ensure the
   enforcement also do surveillance/maintenance so that all old mistakes are
-  cleared too" across all Rust applications (kailash-rs, csq, aegis, …).
+  cleared too" across all Rust applications (the Rust SDK, csq, aegis, …).

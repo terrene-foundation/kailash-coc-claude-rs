@@ -9,7 +9,7 @@ paths:
 
 ## Scope
 
-These rules apply to Rust projects whose release pipeline builds Python wheels via maturin (typically kailash-rs and projects consuming it). Principles generalize to any multi-platform wheel pipeline built on GitHub Actions.
+These rules apply to Rust projects whose release pipeline builds Python wheels via maturin (typically the Rust SDK and projects consuming it). Principles generalize to any multi-platform wheel pipeline built on GitHub Actions.
 
 ## MUST: NEVER Round-Trip Wheels Through `actions/upload-artifact` In The Release Workflow
 

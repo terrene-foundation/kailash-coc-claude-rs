@@ -1,43 +1,39 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-07-02T00:00:00Z
+timestamp: 2026-07-04T00:00:00Z
 source: loom/.claude
-loom_sha: 618e23d
+loom_sha: f259523
 variant: rs
 clis: [claude]
 visibility: public
+flow: two-phase (deterministic engine compose + agent enrichment)
+distribute:
+  engine: sync-tier-aware.mjs --target rs
+  verify: CONSISTENT           # engine --verify passed before enrichment phase
+  worktree_delta: { modified: 74, deleted: 1, untracked: 6 }   # observed vs prior committed template
 stats:
-  copied: 1390
-  verified: 1390   # 57 content-equal after BUILD-internal strip, 1333 byte-equal
-  variant_only: 170
-  overlay_applied: 142
-  purged: 9         # .claude/bin/*.test.mjs (obsoleted test harness)
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted
-obsoleted_manifest_paths: 69   # .coc-obsoleted = obsoleted + use_obsoleted union (unchanged)
-gitignore: { managed_entries: 25, bytes_before: 1843, bytes_after: 1882 }
-verify_overlays: { langs: rs, total: 624, passing: 624, failing: 0 }
-sdk_pins: { kailash-rs: 4.24.0 }   # 4.21.0->4.24.0, matches BUILD workspace.package.version
-deps_check: { tool: "uv sync", exit: 0, kailash_enterprise: "4.3.3->4.24.0", warnings: 0 }
-hook_integrity: { resolved: 39, total: 39, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
-wave: 743-coherence-layer-item3-detector
+sdk_pins: { kailash-rs: 4.24.2 }   # 4.24.0->4.24.2, matches BUILD kailash-rs Cargo [workspace.package].version
+pyproject_pin: { kailash-enterprise: ">=4.24.2" }   # was >=4.24.0; PyPI confirmed has 4.24.2
+install_verify:
+  cargo_check: n/a             # no Cargo.toml (CC-only artifact template — serves Python/Ruby binding consumers)
+  uv_sync: { exit: 0, installed: "kailash-enterprise==4.24.2", packages: 74, warnings: 0 }
+hook_integrity: { resolved: 39, total: 39, unique_files: 29, lib_requires_resolved: 17, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
+multi_cli: n/a                 # clis=[claude], CC-only legacy — no symlink/manifest/codex-mcp-guard scaffold
+inbox: present                 # .claude/.proposals/inbox/{README.md,.gitkeep} (ensure-exists no-op)
+flagged:
+  - build-cache-guard.js + build-cache-gc.js on disk (variant_only.rs) but NOT wired in settings.json —
+    consumer-side SessionStart/SessionEnd wiring concern flagged by the manifest itself (mirrors py
+    detect-package-manager.js); out of enrichment scope, not acted on.
 note: >-
-  Content redistribution from loom@618e23d (loom 2.45.0 unchanged). Driving
-  change: #743 coherence layer + item-3 detector — 50 rules/commands/hooks/skills
-  modified + 10 net-new (session-notes-incorporation-guard.js, symbol-anchored-
-  citations.md rule, cross-ecosystem-disclosure-scanfn.js, open-pr-surface.js,
-  pending-dedup.js, lint-prose-drift.mjs + audit-fixtures). sync-tier-aware
-  --target rs --all-templates + --verify CONSISTENT: 1390/1390 delivered+verified
-  (57 content-equal after BUILD-internal strip, 1333 byte-equal), 170/170
-  variant_only byte-equal, 142/142 overlays byte-equal, 9 purged
-  (.claude/bin/*.test.mjs — obsoleted test harness). verify-overlays.sh rs:
-  624/624 passing, 0 failing (HARD GATE PASS). SDK pin kailash-rs 4.21.0->4.24.0
-  (matches BUILD kailash-rs Cargo workspace.package.version = 4.24.0);
-  pyproject.toml kailash-enterprise >=4.13.0 -> >=4.24.0. DEPS CHECK: uv sync
-  exit 0 — resolved 74 packages, kailash-enterprise 4.3.3->4.24.0 (also fixed
-  pre-existing uv.lock floor drift 4.3.3 < 4.13.0), 0 warnings. HOOKS: 39/39
-  settings.json commands resolve on disk (up from 28 — #743 coherence hooks); 0
-  scripts/hooks refs; 0 operator-PII tokens; (Rust) description correct. INBOX:
-  .claude/.proposals/inbox/{README.md,.gitkeep} present (ensure-exists
-  idempotent). PRESERVED: CLAUDE.md, settings.json, visibility:public. No
-  multi-CLI emission (clis=[claude]). BUMP: template 2.23.19->2.23.20; loom_sha
-  e2ac475->618e23d. upstream.version 2.45.0 unchanged.
+  Enrichment phase of the two-phase Gate-2 /sync-to-use rs (engine-primary). Content redistribution
+  from loom@f259523 (loom 2.45.0 unchanged) was composed + --verify CONSISTENT by sync-tier-aware.mjs
+  before this phase; enrichment (in an isolated throwaway worktree) refreshed VERSION + marker + SDK
+  pins + install-verify + hook/inbox checks only. SDK pin kailash-rs 4.24.0->4.24.2 (BUILD kailash-rs
+  Cargo workspace.package.version = 4.24.2); pyproject.toml kailash-enterprise >=4.24.0 -> >=4.24.2
+  (PyPI has 4.24.2). INSTALL VERIFY: cargo check n/a (no Cargo.toml at CC-only template); uv sync exit 0
+  (kailash-enterprise==4.24.2, 74 packages, 0 warnings; uv.lock refreshed). HOOKS: 39/39 settings.json
+  commands resolve on disk (29 unique files); 17/17 require('./lib/...') resolve; 0 scripts/hooks refs;
+  0 operator-PII tokens; (Rust) description label preserved. INBOX present (no-op). Multi-CLI N/A.
+  PRESERVED: CLAUDE.md, settings.json, visibility:public. BUMP: template 2.23.20->2.23.21;
+  loom_sha 618e23d->f259523. upstream.version 2.45.0 unchanged.

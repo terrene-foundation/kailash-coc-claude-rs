@@ -10,7 +10,7 @@ paths:
 
 # Typed Exception Hierarchy For PyO3 Wrappers
 
-When a Rust function returns `Result<T, MyError>` and `MyError` is an enum with multiple variants, the naive PyO3 wrapper raises a single Python exception type for every variant — forcing Python callers to either catch everything with one `except` and lose information, or `str(e)`-match exception messages and bind their code to the *exact wording* of error messages. Both are wrong.
+When a Rust function returns `Result<T, MyError>` and `MyError` is an enum with multiple variants, the naive PyO3 wrapper raises a single Python exception type for every variant — forcing Python callers to either catch everything with one `except` and lose information, or `str(e)`-match exception messages and bind their code to the _exact wording_ of error messages. Both are wrong.
 
 The correct pattern is a **typed exception hierarchy**: one base class per Rust error enum, plus one PyO3 subclass per error variant. The conversion function dispatches each Rust variant to its corresponding Python subclass. Python callers then `except SubclassName` for the specific failure mode they care about, and `except BaseClass` for "anything from this subsystem".
 
@@ -18,11 +18,11 @@ This is the canonical pattern for wrapping any Rust error enum with ≥3 variant
 
 ## When To Use
 
-| Variants in the Rust enum | Use this pattern? |
-| --- | --- |
-| 1 (single failure mode) | No — a single exception type is fine |
-| 2 (e.g., `Timeout` / `Other`) | Optional — only if the two are semantically distinct enough that callers want to handle them differently |
-| 3+ (typed errors with distinct call-site reactions) | **Yes — mandatory** |
+| Variants in the Rust enum                           | Use this pattern?                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 1 (single failure mode)                             | No — a single exception type is fine                                                                     |
+| 2 (e.g., `Timeout` / `Other`)                       | Optional — only if the two are semantically distinct enough that callers want to handle them differently |
+| 3+ (typed errors with distinct call-site reactions) | **Yes — mandatory**                                                                                      |
 
 ## The Pattern
 
@@ -208,7 +208,7 @@ match &err {
 
 ### 2. Subclass Per Variant, Not Subclass Per Severity
 
-The hierarchy MUST follow the *Rust enum's variant structure*, not a hand-designed severity taxonomy. One subclass per variant, named after the variant.
+The hierarchy MUST follow the _Rust enum's variant structure_, not a hand-designed severity taxonomy. One subclass per variant, named after the variant.
 
 ```rust
 // DO — variant-shaped hierarchy
@@ -282,4 +282,4 @@ except kailash.ServiceClientError as e:
 - `skills/18-security-patterns/header-validation-at-construction.md` — pairs with this skill: the `InvalidHeader` variant in the example above is what makes constructor-time header validation surfaceable to Python callers
 - `skills/06-python-bindings/SKILL.md` — overview of Python binding patterns
 
-Origin: BP-041 (kailash-rs ServiceClient Python binding hardening, 2026-04-14, commits `d3a14a73` + `18bb703b`). The pre-fix `PyServiceClient` raised a single `ServiceClientError` for 6 distinct failure modes, forcing Python callers to parse exception messages. The fix introduced a base class plus 6 typed subclasses with dispatched conversion. The pattern is reusable for every PyO3 wrapper of a Rust error enum with ≥3 variants.
+Origin: BP-041 (the Rust SDK ServiceClient Python binding hardening, 2026-04-14, commits `d3a14a73` + `18bb703b`). The pre-fix `PyServiceClient` raised a single `ServiceClientError` for 6 distinct failure modes, forcing Python callers to parse exception messages. The fix introduced a base class plus 6 typed subclasses with dispatched conversion. The pattern is reusable for every PyO3 wrapper of a Rust error enum with ≥3 variants.

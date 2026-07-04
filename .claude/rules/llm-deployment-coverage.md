@@ -42,10 +42,10 @@ Every PR that modifies a spec, ADR, or template document referencing `LlmDeploym
 
 ```bash
 # Extract preset names from cite lines, EXCLUDING lines annotated as future-work per MUST Rule 3.
-# A cite is exempt from this gate when the SAME line carries `<!-- requires kailash-rs#NNN -->`.
+# A cite is exempt from this gate when the SAME line carries `<!-- requires rust-sdk#NNN -->`.
 # Uses POSIX bracket classes (`[a-zA-Z_][a-zA-Z0-9_]*`) instead of `\w` for BSD-sed portability.
 CITED=$(rg --no-line-number "LlmDeployment::[a-zA-Z_][a-zA-Z0-9_]*\(" docs/ADRs specs \
-  | grep -v '<!-- requires kailash-rs#' \
+  | grep -v '<!-- requires rust-sdk#' \
   | grep -oE 'LlmDeployment::[a-zA-Z_][a-zA-Z0-9_]*\(' \
   | sed -E 's/LlmDeployment::([a-zA-Z_][a-zA-Z0-9_]*)\(/\1/' \
   | LC_ALL=C sort -u)
@@ -59,29 +59,29 @@ LC_ALL=C comm -23 <(echo "$CITED") <(echo "$IMPLEMENTED")
 # Output MUST be empty. Any line output = BLOCKED.
 ```
 
-**Why:** Without the grep gate, template drift is discovered only when a downstream CI pipeline fails, turning a one-line fix into a cross-repo incident. The `grep -v '<!-- requires kailash-rs#'` filter honors MUST Rule 3 — annotated future-work cites have a corresponding tracking issue, so flagging them in the gate would force false-positive removal of legitimately-tracked design intent. `LC_ALL=C sort` guarantees byte-collation determinism across macOS / Linux runners (locale-default sort treats `_` differently and breaks `comm`).
+**Why:** Without the grep gate, template drift is discovered only when a downstream CI pipeline fails, turning a one-line fix into a cross-repo incident. The `grep -v '<!-- requires rust-sdk#'` filter honors MUST Rule 3 — annotated future-work cites have a corresponding tracking issue, so flagging them in the gate would force false-positive removal of legitimately-tracked design intent. `LC_ALL=C sort` guarantees byte-collation determinism across macOS / Linux runners (locale-default sort treats `_` differently and breaks `comm`).
 
 ### 3. New Template Requirements Need a Tracking Issue First
 
-Before any document prescribes an `LlmDeployment::` variant that does not yet exist in `presets.rs`, the author MUST open a kailash-rs GitHub issue with:
+Before any document prescribes an `LlmDeployment::` variant that does not yet exist in `presets.rs`, the author MUST open a Rust SDK GitHub issue with:
 
 - The proposed preset name (exact snake_case)
 - The auth strategy axis (ApiKey / Bearer / SigV4 / OAuth / AzureEntra)
 - The endpoint axis (base URL or region-derived)
 - The target model grammar
 
-The issue number MUST be referenced ON THE SAME LINE as the cite: `LlmDeployment::<name>(...) <!-- requires kailash-rs#NNN -->`. Annotation on a different line (preceding comment, following paragraph, separate `<!-- -->` block) is BLOCKED — the MUST Rule 2 gate filters per-line, so off-line annotations leave the cite flagged as drift.
+The issue number MUST be referenced ON THE SAME LINE as the cite: `LlmDeployment::<name>(...) <!-- requires rust-sdk#NNN -->`. Annotation on a different line (preceding comment, following paragraph, separate `<!-- -->` block) is BLOCKED — the MUST Rule 2 gate filters per-line, so off-line annotations leave the cite flagged as drift.
 
 ```markdown
 // DO — same-line annotation; gate skips this cite
-LlmDeployment::sagemaker_claude(endpoint, model) <!-- requires kailash-rs#501 -->
+LlmDeployment::sagemaker_claude(endpoint, model) <!-- requires rust-sdk#501 -->
 
 // DO — narrative-prose annotation, also same-line
-Future work: `LlmDeployment::sagemaker_claude(endpoint, model)` ships in v3.20. <!-- requires kailash-rs#501 -->
+Future work: `LlmDeployment::sagemaker_claude(endpoint, model)` ships in v3.20. <!-- requires rust-sdk#501 -->
 
 // DO NOT — annotation on preceding line; gate flags the cite as drift
 
-<!-- requires kailash-rs#501 -->
+<!-- requires rust-sdk#501 -->
 
 LlmDeployment::sagemaker_claude(endpoint, model)
 
@@ -150,4 +150,4 @@ Runtime helpers (NOT presets, but required for full deployment surface): `LlmDep
 - `rules/env-models.md` — env var names used by each preset MUST match the canonical list in that rule.
 - `specs/llm-deployments.md` — the authoritative design document for all preset contracts.
 
-Origin: `terrene-foundation/kailash-coc-claude-rs#52` (Bedrock-first ADR with no SDK support), surfaced and closed by kailash-rs#406 S9 (2026-04-18). MUST Rule 2 gate filter + MUST Rule 3 same-line annotation requirement added 2026-05-01 after `/redteam` Round 2 (issue #511 closure-parity) found that the original gate command false-positive'd on every `<!-- requires kailash-rs#NNN -->` annotation, contradicting MUST Rule 3's own carve-out. Tracking issues filed for the four documented but unimplemented presets surfaced by the audit: kailash-rs#717 (`openai_compatible`), #718 (`anthropic_compatible`), #719 (`supports`), #720 (`register_bedrock_region`).
+Origin: `terrene-foundation/kailash-coc-claude-rs#52` (Bedrock-first ADR with no SDK support), surfaced and closed by the Rust SDK's #406 S9 (2026-04-18). MUST Rule 2 gate filter + MUST Rule 3 same-line annotation requirement added 2026-05-01 after `/redteam` Round 2 (issue #511 closure-parity) found that the original gate command false-positive'd on every `<!-- requires rust-sdk#NNN -->` annotation, contradicting MUST Rule 3's own carve-out. Tracking issues filed for the four documented but unimplemented presets surfaced by the audit: the Rust SDK's #717 (`openai_compatible`), #718 (`anthropic_compatible`), #719 (`supports`), #720 (`register_bedrock_region`).

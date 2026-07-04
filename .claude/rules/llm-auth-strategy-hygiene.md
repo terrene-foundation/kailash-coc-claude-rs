@@ -43,6 +43,7 @@ pub struct MyBearerStrategy {
 **Why:** `#[derive(Debug)]` renders every field with its value; a token field prints the raw credential into any log line, span, or structured trace that formats the struct, including default Tokio task panics.
 
 **BLOCKED rationalizations:**
+
 - "The debug output only appears in development"
 - "We control where the logs go"
 - "The token field is marked `#[allow(dead_code)]`"
@@ -68,6 +69,7 @@ async fn apply(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
 **Why:** Structured log fields are shipped verbatim to every log aggregator, distributed trace backend, and third-party observability vendor. A single `tracing::info!(token = ...)` emits the credential to potentially dozens of external sinks.
 
 **BLOCKED rationalizations:**
+
 - "It's at DEBUG level, no one ships DEBUG to prod"
 - "The log aggregator redacts secrets automatically"
 - "tracing::info! is for tracing spans, not persistent logs"
@@ -143,6 +145,7 @@ pub fn custom(strategy: Arc<dyn AuthStrategy>) -> Self {
 **Why:** `Custom` bypasses all SDK-enforced credential hygiene; the WARN creates an audit trail that shows up in any WARN-level log scan, making it impossible to ship custom strategies silently.
 
 **BLOCKED rationalizations:**
+
 - "The caller knows they're using Custom, they don't need a log"
 - "The WARN clutters the startup output"
 - "We'll remove it once the preset lands"
@@ -163,4 +166,4 @@ pub fn custom(strategy: Arc<dyn AuthStrategy>) -> Self {
 - `rules/observability.md` § "Mask HTTP Auth Headers" — masks auth header values on log lines emitted BY the client; this rule prevents credential bytes from reaching loggers via `AuthStrategy` internals.
 - `specs/llm-deployments.md` § 6.7 — normative source for the `AuthStrategy` contract.
 
-Origin: kailash-rs#406 S9 (2026-04-18), derived from red-team findings in § 6 of `specs/llm-deployments.md` during the S4c review cycle.
+Origin: the Rust SDK's #406 S9 (2026-04-18), derived from red-team findings in § 6 of `specs/llm-deployments.md` during the S4c review cycle.
