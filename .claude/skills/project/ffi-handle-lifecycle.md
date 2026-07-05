@@ -25,7 +25,7 @@ func (s *Subscription) Cancel() error {
 }
 ```
 
-Evidence: kailash-rs journal 0174 — `TestSubscription_ConcurrentCancelAndClose`
+Evidence: the Rust SDK journal 0174 — `TestSubscription_ConcurrentCancelAndClose`
 crashed 8/8 under stress (SIGSEGV in `runFinalizers → cgocall`); the identical
 class recurred one wave later on Go `AlignEngine` (journal 0178 R3 HIGH) and would
 have shipped to v4.5.0 had the fresh-eyes round been skipped.

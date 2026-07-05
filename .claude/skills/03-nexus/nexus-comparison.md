@@ -1,11 +1,11 @@
 ---
 name: nexus-comparison
-description: "Nexus vs NexusApp comparison for kailash-rs. When to use each layer."
+description: "Nexus vs NexusApp comparison for the Rust SDK. When to use each layer."
 ---
 
-# Nexus vs NexusApp (kailash-rs)
+# Nexus vs NexusApp (the Rust SDK)
 
-kailash-rs provides two Nexus layers. Default to `NexusApp` for application code.
+The Rust SDK provides two Nexus layers. Default to `NexusApp` for application code.
 
 ## Architecture
 

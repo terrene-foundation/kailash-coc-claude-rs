@@ -12,7 +12,7 @@ paths:
 <!-- slot:neutral-body -->
 
 
-Self-hosted CI runner hygiene for kailash-rs (macOS self-hosted runners, `<org>/<repo>` repo). Language-agnostic MUSTs apply to every project using GitHub Actions self-hosted runners; §6 and §7 below capture kailash-rs-specific dispatcher-state remediation with runner hostnames and `launchctl` invocations.
+Self-hosted CI runner hygiene for the Rust SDK (macOS self-hosted runners, `<org>/<repo>` repo). Language-agnostic MUSTs apply to every project using GitHub Actions self-hosted runners; §6 and §7 below capture Rust-SDK-specific dispatcher-state remediation with runner hostnames and `launchctl` invocations.
 
 For recovery protocols, service-management commands, and step-by-step troubleshooting, see `skills/10-deployment-git/ci-runner-troubleshooting.md`.
 
@@ -43,7 +43,7 @@ steps:
 steps:
   - uses: actions/checkout@v4
   - name: Build
-    run: cargo build --release   # fails if PATH was re-written by an earlier job
+    run: cargo build --release # fails if PATH was re-written by an earlier job
 ```
 
 **Why:** Self-hosted runners do not reset `PATH` between jobs cleanly. A sibling job that reinstalled `rustup` or ran `nvm use` leaves the runner in a state where the proxy binary (`~/.cargo/bin/rustup`, `~/.nvm/...`) may be missing or points to the wrong version. Each job re-establishing its own toolchain is the only structural defense.
@@ -132,7 +132,7 @@ on:
     paths:
       - "bindings/python/**"
       - "crates/kailash-capi/**"
-      - "crates/kailash-ml*/**"  # misses kailash-core, kailash-nexus, etc.
+      - "crates/kailash-ml*/**" # misses kailash-core, kailash-nexus, etc.
 ```
 
 **BLOCKED rationalizations:**
@@ -181,7 +181,7 @@ sudo systemctl restart <runner-service-label>.<runner-name>.service
 
 **Why:** A zombie job holds the runner's dispatcher-side `busy` flag indefinitely. Every queued job assigned to that runner's label waits behind the zombie until either the 6-hour timeout fires or the job is explicitly cancelled. `gh run cancel` frees the slot immediately; if the runner worker is also deadlocked at the OS level (hung test, lock contention, FFI build lock), `launchctl kickstart -k` / `systemctl restart` respawns the agent. Pushing a new commit does NOT help — the new run queues behind the zombie in the same runner's job list.
 
-Origin: kailash-rs 2026-04-20 — `<runner-host-1>` had a phantom "Integration Tests" job from 4h 40m prior blocking the entire PR queue; `gh run cancel` cleared it in <10 seconds.
+Origin: the Rust SDK 2026-04-20 — `<runner-host-1>` had a phantom "Integration Tests" job from 4h 40m prior blocking the entire PR queue; `gh run cancel` cleared it in <10 seconds.
 
 ### 7. Idle-But-Not-Accepting Runner Protocol — De-Register, Don't Restart
 
@@ -229,7 +229,7 @@ gh pr view <PR-NUM> --json statusCheckRollup \
 
 **Relationship to §6:** §6 is "job stuck, runner held busy"; §7 is "runner stuck idle, queue held waiting". Together they cover both failure modes of self-hosted dispatcher state. If you can't tell which state you're in, check `busy:` — `true` → §6, `false` with queue depth → §7.
 
-Origin: kailash-rs 2026-04-20 v3.20.1 release — a runner idled with `busy:false, status:online` while 5 matrix jobs sat queued for 27 minutes; de-registration via `gh api -X DELETE` unblocked redistribution within 3 minutes as the remaining runners absorbed the matrix.
+Origin: the Rust SDK 2026-04-20 v3.20.1 release — a runner idled with `busy:false, status:online` while 5 matrix jobs sat queued for 27 minutes; de-registration via `gh api -X DELETE` unblocked redistribution within 3 minutes as the remaining runners absorbed the matrix.
 
 ### 8. Tag-Gated Release Jobs Require A Non-Tag `workflow_dispatch` Dry-Run Proxy
 
@@ -255,7 +255,7 @@ on:
           - publish-crates
 
 permissions:
-  contents: write        # needed for gh release upload (§5)
+  contents: write # needed for gh release upload (§5)
 
 jobs:
   publish-ruby-gem:
@@ -306,7 +306,7 @@ jobs:
 
 **Enforcement grep:** For every workflow with a `tags:` trigger, assert a `workflow_dispatch:` trigger is declared in the same `on:` block, AND every job gated by `startsWith(github.ref, 'refs/tags/v')` has a sibling `github.event_name == 'workflow_dispatch'` branch that exercises the build steps. Mechanical — the rule is grep-auditable per release-cycle codify pass.
 
-Origin: kailash-rs 2026-04-22 — PR #543 (v3.20.4, rustls-webpki + Docker install-if-missing on `<runner-label-arm>`), PR #545 (v3.20.5, `gh` install-if-missing), PR #551 + #552 (rescue workflow + contents:write follow-up). Three tag-time bugs in three consecutive releases; dispatch-proxy rule codifies Layer 2 of the prevention plan per the session notes' "still unbuilt" observation. Applies to every tag-gated job: `publish-ruby-gem`, `publish-pypi-wheels`, `publish-crates`, and any future release surface.
+Origin: the Rust SDK 2026-04-22 — PR #543 (v3.20.4, rustls-webpki + Docker install-if-missing on `<runner-label-arm>`), PR #545 (v3.20.5, `gh` install-if-missing), PR #551 + #552 (rescue workflow + contents:write follow-up). Three tag-time bugs in three consecutive releases; dispatch-proxy rule codifies Layer 2 of the prevention plan per the session notes' "still unbuilt" observation. Applies to every tag-gated job: `publish-ruby-gem`, `publish-pypi-wheels`, `publish-crates`, and any future release surface.
 
 ### 9. Binding-CI `paths-ignore` Covers ALL Doc-Only Surfaces
 
@@ -371,7 +371,7 @@ on:
 # DO NOT — uncosted high-frequency cron
 on:
   schedule:
-    - cron: "*/5 * * * *"   # silently consumes ~8,640 min/month
+    - cron: "*/5 * * * *" # silently consumes ~8,640 min/month
 ```
 
 **BLOCKED rationalizations:**
@@ -384,7 +384,7 @@ on:
 
 **Why:** GitHub Actions bills a 1-minute minimum per job invocation regardless of actual runtime. A workflow on `*/5 * * * *` consumes a minimum of 8,640 min/month even if every run exits in under 10 seconds. On a 3,000-min/month free tier, a single mis-cadenced cron consumes 280%+ of the budget BEFORE any productive CI runs. The cost footer makes the trade-off explicit at author time and forces an active decision about cadence vs cost.
 
-Origin: 2026-04-25 kailash-rs gh-manager audit — `ci-queue-monitor.yml` configured at `cron: "*/5 * * * *"` consumed 288 min/day. Cadence MUST drop to `*/30` minimum.
+Origin: 2026-04-25 the Rust SDK gh-manager audit — `ci-queue-monitor.yml` configured at `cron: "*/5 * * * *"` consumed 288 min/day. Cadence MUST drop to `*/30` minimum.
 
 ### 11. Release PRs MUST Skip The PR-Gate Suite
 
@@ -435,7 +435,7 @@ for f in .github/workflows/rust.yml .github/workflows/python.yml \
 done
 ```
 
-Origin: 2026-04-22 kailash-rs session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min `<runner-host>` + bindings).
+Origin: 2026-04-22 the Rust SDK session — release PR #531 (pure version bump, 6 files touched, zero code surface) running the full PR-gate suite for the third time on the same code. Codified as a MUST gate; savings are per-release cycle (~45 min `<runner-host>` + bindings).
 
 ### 12. Docker-Based Jobs MUST Run On Linux Runners
 
@@ -471,7 +471,7 @@ test-integration:
 
 **Why:** Docker Desktop on macOS interposes a Linux VM between the job and the container; Postgres / Redis / MySQL startup races flake ~75% of the time on this surface (verified by a Mac runner audit), versus <1% on native Linux. The wall-clock difference between Mac M-series and `ubuntu-latest` 2-core is measured in tens of seconds; the cost of a single flake is a full re-run (tens of minutes plus operator triage). Routing Docker to Linux is a permanent architectural decision, not a per-job judgment call. Mechanical gate: `/redteam` MUST grep every workflow for `docker (run|build|compose|exec)` AND `services:` blocks; any hit on a non-Linux `runs-on:` is a HIGH finding.
 
-Origin: kailash-rs 2026-04-22 — user restated the principle ("docker one goes to ubuntu-latest please") after a PR #527 revert cycle showed how easily runner routing drifts.
+Origin: the Rust SDK 2026-04-22 — user restated the principle ("docker one goes to ubuntu-latest please") after a PR #527 revert cycle showed how easily runner routing drifts.
 
 ### 13. PR-Gate Jobs MUST Be Event-Gated To `pull_request`; Push-Triggered Jobs MUST Be Main-Only
 
@@ -523,7 +523,7 @@ jobs:
 
 **Why:** With `cancel-in-progress: true` plus admin-merge flow, the merge commit's tree is identical to the PR head's tree by git construction — re-running every PR-gate job on the push event provides zero additional coverage and burns ~45 min per merge across the matrix. The partition is reversible: if direct-push to main becomes possible (e.g., emergency hotfix protocol), the `if:` clauses convert to `pull_request OR push-to-main`. Mechanical gate: `/redteam` MUST audit every workflow for `on: push:` + `on: pull_request:` pairs and verify every non-main-only job has `if: github.event_name == 'pull_request'` (or the release-skip clause from §11).
 
-Origin: kailash-rs 2026-04-22 — user observed PR #528 running the full CI matrix twice (PR event then merge-commit push event) and asked "isn't that very wasteful?" Codified the partition; PR #529 implemented it across all workflows. Same root cause as §11 but at the event-gating layer instead of the branch-prefix layer.
+Origin: the Rust SDK 2026-04-22 — user observed PR #528 running the full CI matrix twice (PR event then merge-commit push event) and asked "isn't that very wasteful?" Codified the partition; PR #529 implemented it across all workflows. Same root cause as §11 but at the event-gating layer instead of the branch-prefix layer.
 
 ## MUST NOT Rules
 
@@ -563,6 +563,6 @@ Every `actions/upload-artifact@v*` step across ALL workflows MUST include `conti
 
 **Why:** The failure mode re-surfaces every ~12h on PR CI until someone re-discovers the fix. Codify once, apply everywhere.
 
-Origin: kailash-rs CI cascade waves 6-18 (commits `ecc50c4e..5429928c`, 2026-04-16/17). 12 consecutive waves fixed pre-existing failures hidden by fmt short-circuit. Wave 17 fixup to a shared crate didn't trigger Python/Node/Ruby binding CI because their paths filters excluded the shared-crates tree. Runner auto-update at a trivial commit orphaned one run and required a service restart. Recovery protocols for each MUST rule live in `skills/10-deployment-git/ci-runner-troubleshooting.md`.
+Origin: the Rust SDK CI cascade waves 6-18 (commits `ecc50c4e..5429928c`, 2026-04-16/17). 12 consecutive waves fixed pre-existing failures hidden by fmt short-circuit. Wave 17 fixup to a shared crate didn't trigger Python/Node/Ruby binding CI because their paths filters excluded the shared-crates tree. Runner auto-update at a trivial commit orphaned one run and required a service restart. Recovery protocols for each MUST rule live in `skills/10-deployment-git/ci-runner-troubleshooting.md`.
 
 <!-- /slot:neutral-body -->

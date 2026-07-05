@@ -169,7 +169,7 @@ def test_reads_bedrock_token(monkeypatch):
 
 **BLOCKED rationalizations:** "each module serializes its own tests, that's enough" / "the lock has worked for months" (intermittent — fails only when the scheduler interleaves across modules) / "the group lock is for cross-worker, the in-process lock covers the rest" (one surface needs ONE domain, whichever primitive it is).
 
-**Why:** Lock domains don't compose — mutual exclusion holds only among holders of the SAME lock. The failure is probabilistic and module-boundary-shaped, so it looks like a flaky single test rather than a structural race. Evidence: kailash-rs PR #1283 (2026-06-11) — a `file_serial(llm_env)` test failed 2 of 3 main runs because sibling tests guarded the same `AWS_BEARER_TOKEN_BEDROCK`/`OPENAI_API_KEY` surface with a module-local mutex; unifying all 22 sites onto one domain closed it.
+**Why:** Lock domains don't compose — mutual exclusion holds only among holders of the SAME lock. The failure is probabilistic and module-boundary-shaped, so it looks like a flaky single test rather than a structural race. Evidence: the Rust SDK PR #1283 (2026-06-11) — a `file_serial(llm_env)` test failed 2 of 3 main runs because sibling tests guarded the same `AWS_BEARER_TOKEN_BEDROCK`/`OPENAI_API_KEY` surface with a module-local mutex; unifying all 22 sites onto one domain closed it.
 
 ### MUST: Complexity Bounds Use Self-Normalizing Ratios, Not Absolute Wall-Clock Thresholds
 
@@ -188,7 +188,7 @@ assert big < 60.0    # was 30s, bumped once already
 
 **BLOCKED rationalizations:** "the runner was loaded, bump the bound" / "60s is generous, real users never hit 10K nodes" / "the test is flaky, widen it" / "we'll profile it later if someone complains".
 
-**Why:** Absolute bounds ratchet — each load-driven bump widens the window an algorithmic regression hides in, and the bump itself is the institutional tell. The ratio assert is a pure function of the algorithm, not the machine. Evidence: kailash-rs journal 0177 (2026-06-10) — a 10K-node validation stress bound had been bumped 30s→60s as a "flake"; the replacement ratio test failed deterministically 3/3 (10× nodes costing ~99× time) and surfaced a real O(n²) loop, fixed to O(n+e) in the same shard.
+**Why:** Absolute bounds ratchet — each load-driven bump widens the window an algorithmic regression hides in, and the bump itself is the institutional tell. The ratio assert is a pure function of the algorithm, not the machine. Evidence: the Rust SDK journal 0177 (2026-06-10) — a 10K-node validation stress bound had been bumped 30s→60s as a "flake"; the replacement ratio test failed deterministically 3/3 (10× nodes costing ~99× time) and surfaced a real O(n²) loop, fixed to O(n+e) in the same shard.
 
 ## 3-Tier Testing
 
@@ -287,7 +287,7 @@ if closed: return ErrClosed   # check
 native_call(ptr)              # Close can free into this window → UAF
 ```
 
-**Why:** The check-then-use UAF only crashes under a concurrent closer (often the GC finalizer), so unit tests pass forever while production segfaults under GC pressure. Evidence: kailash-rs journals 0174 + 0178 — a Go `Subscription` UAF crashed 8/8 under stress (SIGSEGV in `runFinalizers → cgocall`); the identical class recurred on a Go `AlignEngine` one wave later and was caught only because the concurrent-stress-test lens existed.
+**Why:** The check-then-use UAF only crashes under a concurrent closer (often the GC finalizer), so unit tests pass forever while production segfaults under GC pressure. Evidence: the Rust SDK journals 0174 + 0178 — a Go `Subscription` UAF crashed 8/8 under stress (SIGSEGV in `runFinalizers → cgocall`); the identical class recurred on a Go `AlignEngine` one wave later and was caught only because the concurrent-stress-test lens existed.
 
 ## Rules
 
@@ -307,7 +307,7 @@ Origin: warnings sweep + test-skip triage + paired-variant coverage + env-var ra
 
 ## rs USE-template testing — binding-consumer context
 
-This variant serves the rs USE templates — **Python and Ruby developers writing applications that consume kailash-rs through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python (or Ruby).
+This variant serves the rs USE templates — **Python and Ruby developers writing applications that consume the Rust SDK through bindings**. You write Python (or Ruby), not Rust. The bindings give you a Pythonic API that maps to the Rust runtime under the hood, but your code, tests, and tools are all Python (or Ruby).
 
 Everything in the universal testing rules above (Probe-Driven Verification, Audit Mode, Regression Testing, Test Resource Cleanup, 3-Tier, Coverage, env-var serialization, plugin/marker pairing, E2E pipeline regression, state-persistence read-back) applies unchanged. The sections below ADD the binding-consumer specializations — they do not replace the universal rules.
 
@@ -362,7 +362,7 @@ done
 
 **Why:** Mechanical grep at audit time catches the regression before it reaches a downstream consumer. Manual "I think I tested both" is not auditable across PyO3/Magnus binding refactors.
 
-Origin: BP-046 (kailash-rs ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`) — Rust `put_raw`/`delete_raw` had wiremock coverage; the Python binding equivalents had none.
+Origin: BP-046 (the Rust SDK ServiceClient binding test coverage, 2026-04-14, commit `d3a14a73`) — Rust `put_raw`/`delete_raw` had wiremock coverage; the Python binding equivalents had none.
 
 ## MUST: Rust `pub use` Result-Type Coverage Pinned By Literal-Identifier Wiring Tests
 
@@ -398,7 +398,7 @@ When a wiring test cannot construct or observe a `pub use`-exported type because
 
 **Why:** A `pub use`-exported type with no public construction/observation path is the orphan failure mode at the type-export level. Origin: 2026-05-06 RT-1/2/3 (PRs #816/#817/#818) — `tools/sweep-redteam.py` flagged 22 HIGH gaps whose types had inline-test exercise but no literal-identifier binding; RT-2 surfaced the orphan-accessor variant (`DriftSnapshot` `pub use`-exported, no accessor; same-shard `reference_snapshot()` added).
 
-**Sequencing corollary (2026-05-26, kailash-rs PRs #1114/#1115/#1116).** The E2E happy-path regression test that closes a workstream's load-bearing acceptance criterion does NOT obviate the per-symbol Tier-2 wiring this rule mandates — the E2E test exercises ONE happy-path composition; the per-`pub use`-type contract surface the wiring tests pin is a STRICT SUPERSET. After a workstream's load-bearing shard lands, the structural defense is to invoke `tools/sweep-redteam.py <workspace>/specs/*.md` against the workspace's own specs — the gap count is the institutional measurement of how much per-symbol contract surface remains uncovered. Sequencing pattern: (i) implement the load-bearing shard with its E2E test, (ii) merge, (iii) sweep the workspace specs, (iv) shard gap-closure by crate boundary (one shard per crate), (v) /redteam at parallel-wave convergence — NOT (i) implement + E2E + declare done. Evidence: a 2026-05-26 sweep against a converged workstream's 15 specs surfaced 38–39 per-symbol coverage gaps the E2E test alone left open — production types with 6–10 hits in src/ but zero literal-identifier references in any test; 3 parallel worktree shards (PRs #1114/#1115/#1116) landed 74 wiring tests closing all gaps to 0 in one /redteam round (0 CRIT/HIGH/MED, 0 FORWARDED).
+**Sequencing corollary (2026-05-26, the Rust SDK PRs #1114/#1115/#1116).** The E2E happy-path regression test that closes a workstream's load-bearing acceptance criterion does NOT obviate the per-symbol Tier-2 wiring this rule mandates — the E2E test exercises ONE happy-path composition; the per-`pub use`-type contract surface the wiring tests pin is a STRICT SUPERSET. After a workstream's load-bearing shard lands, the structural defense is to invoke `tools/sweep-redteam.py <workspace>/specs/*.md` against the workspace's own specs — the gap count is the institutional measurement of how much per-symbol contract surface remains uncovered. Sequencing pattern: (i) implement the load-bearing shard with its E2E test, (ii) merge, (iii) sweep the workspace specs, (iv) shard gap-closure by crate boundary (one shard per crate), (v) /redteam at parallel-wave convergence — NOT (i) implement + E2E + declare done. Evidence: a 2026-05-26 sweep against a converged workstream's 15 specs surfaced 38–39 per-symbol coverage gaps the E2E test alone left open — production types with 6–10 hits in src/ but zero literal-identifier references in any test; 3 parallel worktree shards (PRs #1114/#1115/#1116) landed 74 wiring tests closing all gaps to 0 in one /redteam round (0 CRIT/HIGH/MED, 0 FORWARDED).
 
 **Trust Posture Wiring (this section):** `halt-and-report` (lexical regex against `let result = ` with no typed binding cannot ship `block` per `hook-output-discipline.md` MUST-2; structural AST walk required to upgrade). Grace 7d. Cumulative 3×/30d → posture drop per `trust-posture.md` §4. Detection: `tools/sweep-redteam.py --json` HIGH gap on `pub use`-exported type with zero literal-identifier hits, OR `find crates/*/tests/ -name 'test_*_wiring.rs' | xargs grep -L "let .*: <Type>"`.
 
@@ -434,7 +434,7 @@ async fn test_real_pg_round_trip() {
 
 **BLOCKED rationalizations:** "Tests pass in isolation, CI scheduling is the bug" / "Docker is slow enough that tests don't overlap" / "`cargo nextest` already isolates per-test processes" (only with `test-threads = 1`) / "std::sync::Mutex is faster and the guard is brief" / "`#[serial]` from serial_test is simpler" / "We'll migrate later".
 
-**Why:** `cargo nextest`/`cargo test` default to thread-level parallelism. Two `#[tokio::test]` functions that both `connect_real_pg().await` against the SAME container race on startup; `tokio::sync::Mutex` is the only async-safe primitive; `std::sync::Mutex` deadlocks when the runtime re-schedules the task mid-await; `#[serial]` has worse poisoning errors and doesn't compose with nested serialization domains. Origin: kailash-rs commit `b4ed4cb5` (2026-04-22) — fixed a 75% Mac-runner flake from a Docker Postgres startup race (`specs/ci-infrastructure.md §5.4`).
+**Why:** `cargo nextest`/`cargo test` default to thread-level parallelism. Two `#[tokio::test]` functions that both `connect_real_pg().await` against the SAME container race on startup; `tokio::sync::Mutex` is the only async-safe primitive; `std::sync::Mutex` deadlocks when the runtime re-schedules the task mid-await; `#[serial]` has worse poisoning errors and doesn't compose with nested serialization domains. Origin: the Rust SDK commit `b4ed4cb5` (2026-04-22) — fixed a 75% Mac-runner flake from a Docker Postgres startup race (`specs/ci-infrastructure.md §5.4`).
 
 ## Test-Skip Triage Decision Tree (binding-consumer)
 
@@ -451,7 +451,7 @@ Every skipped / xfailed / deleted test MUST be classified into exactly one tier.
 @pytest.mark.skipif(os.environ.get("POSTGRES_TEST_URL") is None, reason="requires POSTGRES_TEST_URL")
 def test_real_postgres_round_trip(): ...
 # DO — BORDERLINE: xfail with full reason
-@pytest.mark.xfail(strict=False, reason="kailash-rs bindings do not yet surface this edge via PyO3")
+@pytest.mark.xfail(strict=False, reason="Rust SDK bindings do not yet surface this edge via PyO3")
 def test_binding_edge_case(): ...
 # DO NOT — BLOCKED: TODO-style silent skip / empty body
 @pytest.mark.skip(reason="TODO")
@@ -471,7 +471,7 @@ The universal 3-Tier contract applies; the binding boundary sharpens the Tier 2/
 
 ## MUST (audit mode): Every Test-Only / Canary Export Greps To A CI Invocation (Rust FFI surface)
 
-When auditing the kailash-rs crate surface the binding sits on, for every `*_test_only` / panic-canary export (`#[no_mangle] pub extern "C" fn *_panic_inject_*_test_only`, feature-gated test surfaces) and every capi `tests/*.rs` file, the audit MUST verify a matching invocation exists in the CI workflow (`grep -- '--test <file>' .github/workflows/rust.yml`, or an unfiltered run whose feature set enables it). An export or test file that compiles clean but is never invoked by ANY CI job advertises coverage that has never executed — orphan-detection at the FFI-export level. Missing invocation = HIGH.
+When auditing the Rust SDK crate surface the binding sits on, for every `*_test_only` / panic-canary export (`#[no_mangle] pub extern "C" fn *_panic_inject_*_test_only`, feature-gated test surfaces) and every capi `tests/*.rs` file, the audit MUST verify a matching invocation exists in the CI workflow (`grep -- '--test <file>' .github/workflows/rust.yml`, or an unfiltered run whose feature set enables it). An export or test file that compiles clean but is never invoked by ANY CI job advertises coverage that has never executed — orphan-detection at the FFI-export level. Missing invocation = HIGH.
 
 ```bash
 # DO — every canary export / capi test file maps to a CI invocation
@@ -485,6 +485,6 @@ grep -- '--test align_panic_canaries' .github/workflows/rust.yml  # invocation e
 
 **BLOCKED rationalizations:** "it compiles, so it's covered" / "the catch-all job runs everything" (not under per-`--test`-filtered, feature-gated CI) / "we'll wire it when the next test lands".
 
-**Why:** The `capi-test-canary`-gated, per-`--test`-filtered CI pattern makes every new test file a hand-wiring obligation; forgetting it is silent (compiles, never runs). The detection grep is rs-specific; the principle (an export with no CI invocation advertises unexecuted coverage) is global. Evidence: kailash-rs journals 0165 + 0169 (2026-06-08) — 5 capi ML test files plus an `ml_pipeline` canary export had zero CI invocations while appearing covered; recurred 3× across one wave.
+**Why:** The `capi-test-canary`-gated, per-`--test`-filtered CI pattern makes every new test file a hand-wiring obligation; forgetting it is silent (compiles, never runs). The detection grep is rs-specific; the principle (an export with no CI invocation advertises unexecuted coverage) is global. Evidence: the Rust SDK journals 0165 + 0169 (2026-06-08) — 5 capi ML test files plus an `ml_pipeline` canary export had zero CI invocations while appearing covered; recurred 3× across one wave.
 
 <!-- /slot:lang-testing-extensions -->

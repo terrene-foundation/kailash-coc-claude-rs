@@ -3,7 +3,7 @@ name: nexus-production-deployment
 description: "Production deployment patterns: NexusConfig, presets, graceful shutdown, health checks, monitoring."
 ---
 
-# Nexus Production Deployment (kailash-rs)
+# Nexus Production Deployment (the Rust SDK)
 
 Production-ready configuration and deployment patterns.
 
@@ -202,7 +202,7 @@ print(f"Plugins: {nexus.plugin_names()}")
 
 ## Key Differences from kailash-py
 
-| Aspect         | kailash-py                                 | kailash-rs                               |
+| Aspect         | kailash-py                                 | the Rust SDK                             |
 | -------------- | ------------------------------------------ | ---------------------------------------- |
 | Port config    | `Nexus(api_port=8000, api_host="0.0.0.0")` | `NexusConfig(host="0.0.0.0", port=3000)` |
 | Shutdown       | Not explicitly configurable                | `graceful_shutdown_timeout_secs`         |

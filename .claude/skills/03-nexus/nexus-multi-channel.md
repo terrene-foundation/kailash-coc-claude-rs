@@ -3,7 +3,7 @@ name: nexus-multi-channel
 description: "Multi-channel architecture (API + CLI + MCP) via NexusConfig channel flags."
 ---
 
-# Nexus Multi-Channel Architecture (kailash-rs)
+# Nexus Multi-Channel Architecture (the Rust SDK)
 
 Register once, deploy to API + CLI + MCP automatically.
 
@@ -142,7 +142,7 @@ client.call_tool("github-user", {"username": "octocat"})
 
 ## Key Differences from kailash-py
 
-| Aspect        | kailash-py                  | kailash-rs                                         |
+| Aspect        | kailash-py                  | the Rust SDK                                       |
 | ------------- | --------------------------- | -------------------------------------------------- |
 | Channel flags | Implicit (port-based)       | Explicit: `enable_api`, `enable_cli`, `enable_mcp` |
 | MCP config    | `mcp_port=3001`             | `enable_mcp=True` in NexusConfig                   |
