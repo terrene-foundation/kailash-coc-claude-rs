@@ -9,7 +9,7 @@ paths:
 
 # DataFlow NULL Typing Rules (sqlx `Any` driver)
 
-SQL parameter binding requires a logical type for NULL, not just the NULL marker. The sqlx `Any` driver caches prepared statements by SQL text + inferred parameter types; binding every NULL as `None::<String>` (the "default" on kailash-rs prior to #424) silently coerces every NULL parameter to a TEXT slot in the cached statement. The NEXT query that reuses that cached statement against a BYTEA / REAL / DOUBLE PRECISION column path sees a TEXT-typed NULL in the parameter descriptor and corrupts the driver's internal state — the observable signal is `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` emitted on a query hundreds of operations downstream of the NULL bind. The poisoning statement and the failing statement can be far apart; reproducing requires trace-bind-bytes instrumentation.
+SQL parameter binding requires a logical type for NULL, not just the NULL marker. The sqlx `Any` driver caches prepared statements by SQL text + inferred parameter types; binding every NULL as `None::<String>` (the "default" on the Rust SDK prior to #424) silently coerces every NULL parameter to a TEXT slot in the cached statement. The NEXT query that reuses that cached statement against a BYTEA / REAL / DOUBLE PRECISION column path sees a TEXT-typed NULL in the parameter descriptor and corrupts the driver's internal state — the observable signal is `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` emitted on a query hundreds of operations downstream of the NULL bind. The poisoning statement and the failing statement can be far apart; reproducing requires trace-bind-bytes instrumentation.
 
 This rule mandates typed NULL binding via a `SqlTypeHint`-driven helper on every path that constructs a parameter list for `DataFlow`-mediated execution. Violation is a `zero-tolerance.md` Rule 4 failure (workaround for SDK bug = BLOCKED; the fix lives in the helper).
 
@@ -42,7 +42,7 @@ let q = q.bind(None::<String>);
 - "The corruption only happens with the `Any` driver, we can ignore it"
 - "Only a few columns are non-TEXT, the risk is low"
 
-**Why:** The sqlx `Any` driver caches prepared statements keyed by inferred parameter types; a TEXT-typed NULL gets stamped into the cached descriptor and poisons every subsequent reuse against a non-TEXT column. The failure surfaces on a different query than the one that bound the NULL, so the symptom looks like a random UTF-8 error rather than a type-confusion bug. Evidence: kailash-rs#424 — astra reported `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` on a NEXT-query boundary; trace-bind-bytes wheel on `debug/424-trace-bind-bytes` captured the exact mechanism; fixed in PR #435 (SQL-cast path) + PR #437 (FieldType path).
+**Why:** The sqlx `Any` driver caches prepared statements keyed by inferred parameter types; a TEXT-typed NULL gets stamped into the cached descriptor and poisons every subsequent reuse against a non-TEXT column. The failure surfaces on a different query than the one that bound the NULL, so the symptom looks like a random UTF-8 error rather than a type-confusion bug. Evidence: the Rust SDK's #424 — astra reported `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` on a NEXT-query boundary; trace-bind-bytes wheel on `debug/424-trace-bind-bytes` captured the exact mechanism; fixed in PR #435 (SQL-cast path) + PR #437 (FieldType path).
 
 ### 2. sqlx 0.8.6 Real/Double NULL-Type Swap Bug Is Documented Inline At Every Compensation Site
 
@@ -70,7 +70,7 @@ let q = q.bind(None::<f32>);  // (no comment; future reader assumes this is corr
 
 ### 3. SQL-Cast Path + FieldType Path Share One `SqlTypeHint` Enum
 
-Two parallel parameter-binding paths exist in kailash-rs — one parses SQL casts (`$1::integer`, `$2::bytea`) for `execute_raw`-style calls, one reads FieldType metadata for `DataFlowExpress` CRUD. Both MUST derive their NULL type hints from the SAME `SqlTypeHint` enum, and the helper that consumes `SqlTypeHint` MUST be the single point where `bind(None::<T>)` is called.
+Two parallel parameter-binding paths exist in the Rust SDK — one parses SQL casts (`$1::integer`, `$2::bytea`) for `execute_raw`-style calls, one reads FieldType metadata for `DataFlowExpress` CRUD. Both MUST derive their NULL type hints from the SAME `SqlTypeHint` enum, and the helper that consumes `SqlTypeHint` MUST be the single point where `bind(None::<T>)` is called.
 
 ```rust
 // DO — single enum, two adapter functions, one helper
@@ -151,4 +151,4 @@ params.resize(idx, Value::Null);  // $999999999 → 4GB allocation
 - `rules/infrastructure-sql.md` — companion rule for VALUES-path parameter binding (sanitizer contract, parameterized queries).
 - `rules/dataflow-identifier-safety.md` — companion rule for identifier interpolation (DDL path).
 
-Origin: kailash-rs#424 (reporter astra, 2026-04-20) — `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` emitted on a NEXT query after a NULL bind, trace-bind-bytes wheel on `debug/424-trace-bind-bytes` captured the mechanism. Fixed in PR #435 (SQL-cast-parsing path) + PR #437 (FieldType-metadata path, 40+ model-aware bind sites). Both PRs merged v3.20.0.
+Origin: the Rust SDK's #424 (reporter astra, 2026-04-20) — `invalid byte sequence for encoding "UTF8": 0xc7 0x0a` emitted on a NEXT query after a NULL bind, trace-bind-bytes wheel on `debug/424-trace-bind-bytes` captured the mechanism. Fixed in PR #435 (SQL-cast-parsing path) + PR #437 (FieldType-metadata path, 40+ model-aware bind sites). Both PRs merged v3.20.0.

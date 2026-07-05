@@ -3,7 +3,7 @@ name: nexus-api-patterns
 description: "REST API patterns using NexusApp: custom endpoints, handler-based routes, request/response format."
 ---
 
-# Nexus API Patterns (kailash-rs)
+# Nexus API Patterns (the Rust SDK)
 
 REST API patterns using NexusApp handlers and custom endpoints.
 
@@ -135,7 +135,7 @@ class TestNexusAPI:
 
 ## Key Differences from kailash-py
 
-| Aspect                    | kailash-py                  | kailash-rs                                             |
+| Aspect                    | kailash-py                  | the Rust SDK                                           |
 | ------------------------- | --------------------------- | ------------------------------------------------------ |
 | Handler endpoint path     | `/workflows/{name}/execute` | `/api/{name}`                                          |
 | Custom endpoint decorator | `@app.endpoint()` on Nexus  | `@app.endpoint()` on NexusApp                          |

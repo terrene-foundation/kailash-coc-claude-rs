@@ -3,7 +3,7 @@ name: nexus-mcp-channel
 description: "MCP channel configuration and AI agent tool exposure via Nexus handlers."
 ---
 
-# Nexus MCP Channel (kailash-rs)
+# Nexus MCP Channel (the Rust SDK)
 
 AI agent integration via Model Context Protocol (MCP). Handlers registered with Nexus automatically become discoverable MCP tools.
 
@@ -126,7 +126,7 @@ async def analyze_repo(owner: str, repo: str) -> dict:
 
 ## Key Differences from kailash-py
 
-| Aspect             | kailash-py                     | kailash-rs                               |
+| Aspect             | kailash-py                     | the Rust SDK                             |
 | ------------------ | ------------------------------ | ---------------------------------------- |
 | MCP port           | Separate `mcp_port=3001`       | Unified port via `NexusConfig(port=...)` |
 | MCP enable/disable | Implicit (port-based)          | Explicit `enable_mcp=True/False`         |

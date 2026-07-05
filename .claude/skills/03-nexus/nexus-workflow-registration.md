@@ -1,9 +1,9 @@
 ---
 name: nexus-workflow-registration
-description: "Registration patterns for handlers and workflows in kailash-rs Nexus."
+description: "Registration patterns for handlers and workflows in the Rust SDK Nexus."
 ---
 
-# Nexus Workflow Registration (kailash-rs)
+# Nexus Workflow Registration (the Rust SDK)
 
 Register handlers and workflows for multi-channel deployment (API + CLI + MCP) via a single call.
 
@@ -107,7 +107,7 @@ print(nexus.get_registered_handlers())
 
 ## Key Differences from kailash-py
 
-| Aspect                | kailash-py                               | kailash-rs                                                       |
+| Aspect                | kailash-py                               | the Rust SDK                                                     |
 | --------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
 | Preferred method      | `@app.handler()` on `Nexus`              | `@app.handler()` on `NexusApp`                                   |
 | Workflow registration | `app.register("name", workflow.build())` | `nexus.register_workflow("name", workflow)` on low-level `Nexus` |

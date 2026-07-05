@@ -3,7 +3,7 @@ name: nexus-essential-patterns
 description: "Essential patterns: middleware, routers, plugins, event bus on low-level Nexus. NexusApp convenience methods."
 ---
 
-# Nexus Essential Patterns (kailash-rs)
+# Nexus Essential Patterns (the Rust SDK)
 
 Quick-reference code patterns for common Nexus operations across both layers.
 
@@ -181,7 +181,7 @@ print(nexus.plugin_names())
 
 ## Key Differences from kailash-py
 
-| Aspect       | kailash-py                                | kailash-rs                                         |
+| Aspect       | kailash-py                                | the Rust SDK                                       |
 | ------------ | ----------------------------------------- | -------------------------------------------------- |
 | Entry point  | `from nexus import Nexus`                 | `from kailash.nexus import NexusApp` (recommended) |
 | Two layers   | Single `Nexus` class                      | `NexusApp` (high-level) + `Nexus` (low-level)      |

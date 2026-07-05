@@ -145,7 +145,7 @@ def get_settings() -> str:
 
 ## Feature-Gated Modules With Unconditional Call Sites (MUST — Rust crate edits)
 
-When editing the kailash-rs crate itself (not the binding API), a module called unconditionally (`crate::foo::bar()` with no `#[cfg]` on the call site) MUST compile unconditionally. When a module's IMPLEMENTATION genuinely requires a feature (FFI that links a live runtime, an optional dep), gate the implementation INSIDE the module and provide a documented pass-through/fallback for the feature-off build — do NOT gate the `mod` declaration in lib.rs while call sites elsewhere stay unconditional.
+When editing the Rust SDK crate itself (not the binding API), a module called unconditionally (`crate::foo::bar()` with no `#[cfg]` on the call site) MUST compile unconditionally. When a module's IMPLEMENTATION genuinely requires a feature (FFI that links a live runtime, an optional dep), gate the implementation INSIDE the module and provide a documented pass-through/fallback for the feature-off build — do NOT gate the `mod` declaration in lib.rs while call sites elsewhere stay unconditional.
 
 ```rust
 // DO — module always compiles; impl gated inside, pass-through without
@@ -164,4 +164,4 @@ crate::gvl::without_gvl(...)   // nexus.rs, unconditional → E0433 under --no-d
 
 **BLOCKED rationalizations:** "the feature is in defaults, nobody builds without it" (doc builds and feature-matrix checks do) / "gate every call site instead" (N call sites × M features drifts; one module-internal gate doesn't) / "the cfg-split helper in MY module covers it" (sibling modules calling `crate::<mod>` directly still break).
 
-**Why:** The errors surface only under `--no-default-features` (doc builds, feature-matrix CI), far from the edit that introduced the call, and cascade into misleading inference errors at unrelated lines. Evidence: kailash-rs PR #1289 (2026-06-11) — `mod gvl` was `_gvl_release`-gated while nexus.rs called `crate::gvl` at 5 unconditional sites; `--no-default-features` had been broken on main long enough that a Wave-3 shard rediscovered it as "pre-existing sibling drift."
+**Why:** The errors surface only under `--no-default-features` (doc builds, feature-matrix CI), far from the edit that introduced the call, and cascade into misleading inference errors at unrelated lines. Evidence: the Rust SDK PR #1289 (2026-06-11) — `mod gvl` was `_gvl_release`-gated while nexus.rs called `crate::gvl` at 5 unconditional sites; `--no-default-features` had been broken on main long enough that a Wave-3 shard rediscovered it as "pre-existing sibling drift."

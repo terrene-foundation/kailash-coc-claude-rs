@@ -17,7 +17,7 @@ loom/ (source) → USE template → THIS REPO
 
 ## BUILD vs USE Repo Distinction
 
-- **BUILD repos** (kailash-py, kailash-rs, kailash-prism): artifacts live in canonical locations (`agents/frameworks/`, `skills/01-core-sdk/`, `rules/*.md`). `/codify` writes to canonical locations AND creates `.claude/.proposals/latest.yaml` for upstream flow to loom/. No `agents/project/` or `skills/project/`.
+- **BUILD repos** (kailash-py, the Rust SDK, kailash-prism): artifacts live in canonical locations (`agents/frameworks/`, `skills/01-core-sdk/`, `rules/*.md`). `/codify` writes to canonical locations AND creates `.claude/.proposals/latest.yaml` for upstream flow to loom/. No `agents/project/` or `skills/project/`.
 - **Downstream USE repos** (consumer projects): `/codify` writes project-specific artifacts to `.claude/agents/project/` and `.claude/skills/project/`; stays local.
 
 The "Project-specific" preservation rule below applies only to downstream USE repos. In a BUILD repo every artifact is canonical and subject to merge-review.
@@ -45,7 +45,7 @@ Check `.claude/.coc-sync-marker` for the template. If missing, auto-detect:
    - `pyproject.toml` has `kailash` dependency → `kailash-coc-py`
 2. **Legacy CC-only consumers** (only `CLAUDE.md` at repo root):
    - `pyproject.toml` has `kailash-enterprise` → `kailash-coc-claude-rs`
-   - `Gemfile` has `kailash` gem → `kailash-coc-claude-rs` (Ruby projects consume kailash-rs via Magnus bindings; the standalone rb USE template was retired in #423 Phase 1 — Ruby depth ships in the rs all-bindings template's 28-ruby-bindings skill)
+   - `Gemfile` has `kailash` gem → `kailash-coc-claude-rs` (Ruby projects consume the Rust SDK via Magnus bindings; the standalone rb USE template was retired in #423 Phase 1 — Ruby depth ships in the rs all-bindings template's 28-ruby-bindings skill)
    - `pyproject.toml` has `kailash` dependency → `kailash-coc-claude-py`
 
 If detection is ambiguous (e.g., the consumer migrated CC-only → multi-CLI without updating the marker), set `KAILASH_COC_TEMPLATE_PATH` or write the correct template name to `.claude/.coc-sync-marker` before re-running.
@@ -151,7 +151,7 @@ Your artifacts are current with the template.
 
 BUILD repos and downstream USE repos behave differently when `/codify` runs:
 
-- **BUILD repos** (kailash-py, kailash-rs, kailash-prism): `/codify` writes to canonical locations (`agents/frameworks/`, `skills/NN-name/`, `rules/*.md`) AND appends entries to `.claude/.proposals/latest.yaml` for upstream flow to loom/. Then open loom/ and run `/sync-from-build rs` — Gate 1 classifies each change (global vs variant) — followed by `/sync-to-use rs`, which distributes (Gate 2) to USE templates.
+- **BUILD repos** (kailash-py, the Rust SDK, kailash-prism): `/codify` writes to canonical locations (`agents/frameworks/`, `skills/NN-name/`, `rules/*.md`) AND appends entries to `.claude/.proposals/latest.yaml` for upstream flow to loom/. Then open loom/ and run `/sync-from-build rs` — Gate 1 classifies each change (global vs variant) — followed by `/sync-to-use rs`, which distributes (Gate 2) to USE templates.
 - **Downstream USE repos** (consumer projects): `/codify` writes to `.claude/agents/project/` and `.claude/skills/project/` and stays LOCAL. No `.proposals/latest.yaml` is created; no upstream flow. These artifacts are preserved across `/sync-from-template` runs by the "Project-specific" rule above.
 - **COC-artifact improvements** (method/rules/skills/agents/COC-tooling) MAY be proposed at the USE-template repo (`kailash-coc-*`); loom Gate-1 ingests this stream symmetrically with the BUILD stream, and either origin is disclosure-scrubbed on intake. This is the authoritative target flow per `guides/co-setup/09-proposal-protocol.md` Step 7b.
 

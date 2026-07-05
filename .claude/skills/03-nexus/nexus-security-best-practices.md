@@ -1,9 +1,9 @@
 ---
 name: nexus-security-best-practices
-description: "Security in kailash-rs Nexus: NexusAuthPlugin, JWT, RBAC, API keys, CORS, rate limiting."
+description: "Security in the Rust SDK Nexus: NexusAuthPlugin, JWT, RBAC, API keys, CORS, rate limiting."
 ---
 
-# Nexus Security Best Practices (kailash-rs)
+# Nexus Security Best Practices (the Rust SDK)
 
 Security configuration using NexusAuthPlugin, convenience methods, and best practices.
 
@@ -146,7 +146,7 @@ app.add_rate_limit(max_requests=100, window_secs=60)
 
 ## Key Differences from kailash-py
 
-| Aspect           | kailash-py                                      | kailash-rs                                             |
+| Aspect           | kailash-py                                      | the Rust SDK                                           |
 | ---------------- | ----------------------------------------------- | ------------------------------------------------------ |
 | Auth imports     | `from nexus.auth.plugin import NexusAuthPlugin` | `from kailash.nexus import NexusAuthPlugin`            |
 | JWT config class | `JWTConfig`                                     | `JwtConfig`                                            |
