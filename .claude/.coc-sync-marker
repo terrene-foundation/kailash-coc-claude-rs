@@ -1,76 +1,67 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-07-05T00:00:00Z
+timestamp: 2026-07-11T05:06:16Z
 source: loom/.claude
-loom_sha: a674718
-loom_sha_full: a67471822e3d6cde2143a1436bd4ac64fe14dd7c
+loom_sha: 5eea21d3
+loom_sha_full: 5eea21d35393d394b211a6f765b26cdc3aa88346
 variant: rs
 clis: [claude]
 visibility: public
 stats:
   # Content distribution performed by the engine (sync-tier-aware.mjs --target rs)
   # BEFORE this enrichment pass; engine --verify reported CONSISTENT. This
-  # enrichment did NOT re-run the distributor, so per-file delivery counts are
-  # not re-measured here — the git working-tree delta below is the ground truth.
-  worktree_changed_files: 86   # 77 modified, 1 deleted, 8 new (git status --porcelain)
-  claude_tree_changed: 84
+  # enrichment did NOT re-run the distributor; the git working-tree delta below
+  # is the ground truth.
+  worktree_changed_files: 20   # 18 .claude tree + 2 non-.claude (git status --porcelain)
+  claude_tree_changed: 18      # 15 engine-modified + worktree.md (new) + VERSION + this marker
   non_claude_changed: 2        # pyproject.toml + uv.lock (SDK pin surface)
+  engine_manifest: { added: 1, modified: 15, deleted: 0 }   # sync-tier-aware buildReceipt
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted (CC-only template)
 verify_stage: CONSISTENT   # engine sync-tier-aware.mjs --verify (pre-enrichment)
 sdk_pins:
-  kailash-rs: 4.24.2        # 4.24.0->4.24.2
-  kailash: 2.45.3           # 2.28.3->2.45.3
-  kailash-dataflow: 2.13.16 # 2.10.3->2.13.16 (PyPI-resolvable; BUILD 2.13.17 unpublished)
-  kailash-nexus: 2.11.0     # 2.8.0->2.11.0
-  kailash-kaizen: 2.28.0    # 2.24.5->2.28.0
-  kailash-pact: 0.14.3      # 0.12.0->0.14.3
-  kailash-mcp: 0.2.15       # 0.2.14->0.2.15
-  kailash-ml: 2.2.2         # 1.7.4->2.2.2
-  kailash-align: 0.7.4      # 0.7.1->0.7.4
-  kaizen-agents: 0.9.11     # 0.9.8->0.9.11
+  kailash-rs: 4.28.0        # 4.24.2->4.28.0 (rs-native; BUILD Cargo + PyPI kailash-enterprise)
+  kailash: 2.45.3           # unchanged (py-flavored map; refreshed 2026-07-05)
+  kailash-dataflow: 2.13.16 # unchanged
+  kailash-nexus: 2.11.0     # unchanged
+  kailash-kaizen: 2.28.0    # unchanged
+  kailash-pact: 0.14.3      # unchanged
+  kailash-mcp: 0.2.15       # unchanged
+  kailash-ml: 2.2.2         # unchanged
+  kailash-align: 0.7.4      # unchanged
+  kaizen-agents: 0.9.11     # unchanged
 build_source_of_truth:
-  # Every pin verified against BUILD before change (no guessing).
-  kailash-rs: { build_version: 4.24.2, source: "build.rs Cargo.toml [workspace.package].version", pypi_binding: "kailash-enterprise 4.24.2", pinned: 4.24.2 }
-  kailash: { build_version: 2.45.3, pypi: 2.45.3, pinned: 2.45.3 }
-  kailash-dataflow: { build_version: 2.13.17, pypi: 2.13.16, pinned: 2.13.16, note: "BUILD 2.13.17 NOT published on PyPI -> pinned PyPI-resolvable latest 2.13.16" }
-  kailash-nexus: { build_version: 2.11.0, pypi: 2.11.0, pinned: 2.11.0 }
-  kailash-kaizen: { build_version: 2.28.0, pypi: 2.28.0, pinned: 2.28.0 }
-  kailash-pact: { build_version: 0.14.3, pypi: 0.14.3, pinned: 0.14.3 }
-  kailash-mcp: { build_version: 0.2.15, pypi: 0.2.15, pinned: 0.2.15 }
-  kailash-ml: { build_version: 2.2.2, pypi: 2.2.2, pinned: 2.2.2 }
-  kailash-align: { build_version: 0.7.4, pypi: 0.7.4, pinned: 0.7.4 }
-  kaizen-agents: { build_version: 0.9.11, pypi: 0.9.11, pinned: 0.9.11 }
-  build_py_source: "/Users/esperie/repos/kailash/build/kailash-py (packages/*/pyproject.toml)"
-  build_rs_source: "/Users/esperie/repos/kailash/build/kailash-rs/Cargo.toml"
+  # rs-native pin verified against BUILD Cargo.toml + PyPI before change (no guessing).
+  kailash-rs: { build_version: 4.28.0, source: "build.rs Cargo.toml [workspace.package].version", pypi_binding: "kailash-enterprise 4.28.0 (latest, resolvable)", pinned: 4.28.0 }
+  py_flavored_note: "kailash/dataflow/nexus/kaizen/pact/mcp/ml/align/kaizen-agents carried unchanged from 2026-07-05 refresh; loom 2.45.0 unchanged, no py SDK bump this cycle"
 pin_surface:
-  pyproject_toml: "kailash-enterprise>=4.24.0 -> >=4.24.2"
-  uv_lock: "kailash-enterprise 4.24.0 -> 4.24.2 (uv lock --upgrade-package, resolved 74 packages, exit 0)"
+  pyproject_toml: "kailash-enterprise>=4.24.2 -> >=4.28.0"
+  uv_lock: "kailash-enterprise 4.24.2 -> 4.28.0 (uv lock --upgrade-package kailash-enterprise; 74 packages resolved)"
   version_sdk_packages: "authoritative map (above)"
   cargo_toml: "N/A — no Cargo crate at this CC-only artifact template"
-deps_check: { tool: "uv lock --upgrade-package kailash-enterprise", exit: 0, kailash_enterprise: "4.24.0->4.24.2", packages_resolved: 74 }
-cargo_check: "N/A — no Cargo.toml at template (serves Python/Ruby binding consumers, not a Rust crate)"
-hook_integrity: { unique_files: 29, resolved: 29, command_entries: 39, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
+deps_check: { tool: "uv lock --upgrade-package kailash-enterprise", result: "Updated kailash-enterprise v4.24.2 -> v4.28.0", packages_resolved: 74 }
+cargo_check: "N/A — no Cargo.toml at template (serves Python/Ruby binding consumers via kailash-enterprise wheel, not a Rust crate)"
+hook_integrity: { unique_command_scripts: 29, resolved: 29, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
 description_label: "(Rust) — correct"
 headroom: "N/A — CC-only template emits no baseline (clis=[claude]); stage --verify CONSISTENT, no headroom block fired"
 inbox: "present (README.md + .gitkeep) — ensure-exists idempotent, zero diff"
 preserved: [CLAUDE.md, settings.json, "visibility:public"]
-wave: safr-s1-must-8-merge-pr-814
+gate2_receipt: { loom_sha: 5eea21d35393d394b211a6f765b26cdc3aa88346, base_sha: d34173d116f20fe8f77e58345dc663f9ac177aae, target: claude-rs, lane: use }
+wave: f2-re-cut-sync-to-use-rs-2026-07-11
 note: >-
-  Content redistribution from loom@a674718 (loom 2.45.0 unchanged; SAFR S1
-  MUST-8 merge, PR #814). Engine sync-tier-aware.mjs --target rs applied +
-  --verify CONSISTENT BEFORE this enrichment (isolated worktree, ~83-file
-  delta from loom@618e23d). SDK PIN REFRESH (MANDATORY, every pin
-  BUILD-verified): kailash-rs 4.24.0->4.24.2 (BUILD Cargo [workspace.package].
-  version=4.24.2; PyPI kailash-enterprise 4.24.2). py-flavored sdk_packages map
-  refreshed to BUILD-current/PyPI-resolvable (had drifted stale): kailash
-  2.45.3, dataflow 2.13.16 (BUILD 2.13.17 not on PyPI), nexus 2.11.0, kaizen
-  2.28.0, pact 0.14.3, mcp 0.2.15, ml 2.2.2, align 0.7.4, kaizen-agents 0.9.11.
-  PIN SURFACE: pyproject.toml kailash-enterprise>=4.24.0->>=4.24.2 + uv.lock
-  relocked to 4.24.2 (uv lock exit 0). NO Cargo.toml -> cargo check N/A. HOOKS:
-  29/29 unique settings.json hook command files resolve (39 entries); 0
-  scripts/hooks refs; 0 operator-PII tokens; (Rust) description label correct.
-  INBOX: ensure-exists idempotent (zero diff). PRESERVED: CLAUDE.md,
-  settings.json, visibility:public. No multi-CLI emission (clis=[claude]).
-  VERSION SCHEMA: upstream.version 2.45.0 tracks loom platform version
-  (UNCHANGED; NOT BUILD py 2.45.3). BUMP: template 2.23.20->2.23.21; loom_sha
-  618e23d->a674718.
+  F2 RE-CUT of /sync-to-use rs from loom@5eea21d3 (loom 2.45.0 unchanged),
+  replacing the CLOSED stale PR kailash-coc-rs#45 (cut from loom f259523,
+  conflicting). Engine sync-tier-aware.mjs --target rs applied + --verify
+  CONSISTENT in an isolated worktree from target origin/main d34173d1 BEFORE
+  this enrichment (16-file delta loom@a674718..5eea21d3). SDK PIN REFRESH
+  (MANDATORY, BUILD-verified): kailash-rs 4.24.2->4.28.0 (BUILD Cargo
+  [workspace.package].version=4.28.0; PyPI kailash-enterprise 4.28.0 latest,
+  resolvable). PIN SURFACE: pyproject.toml kailash-enterprise>=4.24.2->>=4.28.0
+  + uv.lock relocked to 4.28.0 (uv lock exit clean, 74 packages). py-flavored
+  sdk_packages carried unchanged (loom 2.45.0 unchanged). NO Cargo.toml ->
+  cargo check N/A (uv lock is the rs install-verify). HOOKS: 29/29 settings.json
+  hook command scripts resolve; 0 scripts/hooks refs; 0 operator-PII tokens.
+  INBOX: ensure-exists idempotent. PRESERVED: CLAUDE.md, settings.json,
+  visibility:public. No multi-CLI emission (clis=[claude]). VERSION SCHEMA:
+  upstream.version 2.45.0 tracks loom platform version (UNCHANGED; NOT BUILD py
+  2.45.3). BUMP: template 2.23.21->2.23.22; loom_sha a674718->5eea21d3.
+  Authorization: loom journal/0464.
