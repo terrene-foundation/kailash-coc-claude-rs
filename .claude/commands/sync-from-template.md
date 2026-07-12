@@ -65,7 +65,7 @@ If a local sibling is detected during online resolution but NOT used, emit one-l
 
 ### 2.5. Read obsoleted-paths manifest from the resolved template
 
-Read `<resolved-template>/.claude/.coc-obsoleted` (slim purpose-built file emitted by coc-sync). Each non-comment, non-blank line is a repo-relative path; trailing slash means directory. If the file is missing, the template predates v2.9.1 — log one-line warning, skip the purge, proceed.
+Read `<resolved-template>/.claude/.coc-obsoleted` (slim purpose-built file the engine `sync-tier-aware.mjs` emits during the sync, from the same plan that drove the purge — loom#932). Each non-comment, non-blank line is a repo-relative path; trailing slash means directory. If the file is missing, the template predates v2.9.1 — log one-line warning, skip the purge, proceed.
 
 ### 2.6. Purge obsoleted paths in this consumer (MUST, before merge)
 

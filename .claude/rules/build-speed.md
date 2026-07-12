@@ -139,43 +139,43 @@ cargo fmt --all
 
 **Setup:** `rustup toolchain install nightly --profile minimal --component rustfmt`
 
-Origin: 2026-04-19 /codify — three PRs (#427, #428, #430) failed CI fmt while code was correct. Root cause: toolchain divergence between local stable and CI-pinned nightly. `.github/workflows/rust.yml:44` pins `dtolnay/rust-toolchain@nightly` for Format.
+Origin: 2026-04-19 /codify — three PRs (#427, #428, #430) failed CI fmt while code was correct. Root cause: toolchain divergence between local stable and CI-pinned nightly. `.github/workflows/rust.yml:61` pins `dtolnay/rust-toolchain@nightly` for Format.
 
 ## MUST: Match CI Clippy Toolchain Version
 
-Clippy MUST run against the SAME Rust toolchain version that CI's Clippy job pins — not the local rustup default. Rust 1.95.0 tightens `clippy::doc_markdown` to flag bare technology names (e.g. `PostgreSQL`, `DataFlow`, `GitHub`) in doc comments that must be backticked. Local rustup at 1.93.1 silently misses these lints; CI rejects.
+Clippy MUST run against the SAME Rust toolchain CI's Clippy job uses — NOT a stale local pin, NOT the local rustup default if it lags. CI's Clippy / Workspace-Tests / Documentation jobs pin `dtolnay/rust-toolchain@stable` (`.github/workflows/rust.yml` — clippy is `@stable` at line ~144; Format pins `@nightly`; MSRV pins 1.94 via `@master`). `@stable` is ROLLING: as stable advances, CI enforces the NEW lints. A local `cargo +1.95` (or any pinned-older toolchain) SILENTLY MISSES them; CI rejects.
 
 ```bash
-# DO — match CI's pinned version explicitly
+# DO — match CI's ROLLING stable: keep local stable current, THEN run default
+rustup update stable
+cargo clippy --workspace --exclude kailash-ruby --all-targets -- -D warnings
+# (run the feature-gated cells too — see the full pre-flight matrix below)
+
+# DO NOT — a stale pin lags CI's rolling stable and misses newly-enforced lints
 cargo +1.95 clippy --all-targets -- -D warnings
-
-# DO — or pin the entire repo via rust-toolchain.toml
-# rust-toolchain.toml:
-#   [toolchain]
-#   channel = "1.95"
-
-# DO NOT — trust the local rustup default
-cargo clippy --all-targets -- -D warnings
-# ↑ local 1.93.1 passes; CI 1.95 flags bare `PostgreSQL` in doc comments
+# ↑ local clippy 0.1.95 passes; CI's current stable (0.1.97, 2026-07-07) flags
+#   `useless_borrows_in_formatting` / `for_kv_map` / `question_mark` /
+#   `manual_filter` on pre-existing code → CI red → fix-up cycle
 ```
 
 **BLOCKED rationalizations:**
 
-- "Clippy passed locally, CI will catch anything else"
-- "Doc-markdown is a style lint, not load-bearing"
-- "I'll iterate on CI — faster than installing a second toolchain"
-- "The lint is pedantic; suppress it globally"
-- "My rustup's default is newer than CI anyway"
+- "The rule says pin 1.95, so `+1.95` matches CI" (STALE — CI's clippy job is `@stable`, rolling, not a fixed 1.95)
+- "Clippy passed locally on `+1.95`, CI will catch anything else"
+- "My rustup default is old but close enough"
+- "The new stable lints are pedantic; suppress them"
+- "I'll iterate on CI — faster than updating the toolchain"
 
-**Why:** PR #437 hit two fix-cycles of bare-technology-name flags that passed local 1.93.1 but were rejected by CI 1.95 — each cycle cost one CI run + one local agent turn. The failure mode is identical to the nightly-rustfmt trap: a lint that silently disappears on one toolchain reappears on another, the local agent commits thinking it passed, CI rejects. Pinning `rust-toolchain.toml` OR prefixing every pre-push clippy invocation with `cargo +<ci-version>` is the only structural defense.
+**Why:** CI's clippy/test/doc jobs resolve `@stable` to whatever stable is CURRENT at run time — a moving target. Pinning local clippy to an OLD version (`+1.95`) inverts the original PR #437 failure: instead of local lagging a fixed CI pin, local now lags CI's rolling stable, missing every lint stable added since the pin. The structural defense is `rustup update stable` before the pre-flight (matching the rolling channel), NOT a fixed `+N`. A rolling-stable bump can also red main REPO-WIDE (pre-existing code newly-flagged); those are `zero-tolerance.md` Rule 1 fixes owned by whoever's PR surfaces them, applied via clippy's own `cargo clippy --fix` semantics-preserving autofix.
 
-**Required setup (if not pinning rust-toolchain.toml):**
+**Required setup:**
 
 ```bash
-rustup toolchain install 1.95 --profile minimal --component clippy
+rustup toolchain install stable --profile minimal --component clippy
+rustup update stable   # re-run before each pre-flight — @stable is a moving target
 ```
 
-Origin: 2026-04-20 /codify — PR #437 flagged twice by CI's clippy 1.95 on bare technology names in doc comments; local 1.93.1 produced zero findings on the same diff. Cross-principle with nightly-rustfmt section above: match CI's pinned toolchain version for linters, not just formatters.
+Origin: 2026-04-20 /codify — PR #437 flagged by CI clippy on bare technology names a local OLDER toolchain missed (the original "local LAGS the CI pin" framing, when CI pinned a fixed version). CORRECTED 2026-07-10 /codify: CI's Clippy job is `dtolnay/rust-toolchain@stable` (ROLLING, verified `.github/workflows/rust.yml:144`), NOT a fixed 1.95 — a local `cargo +1.95` pre-flight missed 8 clippy-0.1.97 lints across 6 crates unrelated to the in-flight feature, reddening CI (PR #1710) AND revealing main was repo-wide red from the stable bump. The invariant is "match CI's toolchain CHANNEL"; for a rolling `@stable` job that means keeping local stable UPDATED, not prefixing a stale `+N`.
 
 ## MUST: Run Full CI Job-Set Locally Before FIRST Push AND Before Admin-Merge
 
@@ -184,7 +184,7 @@ Origin: 2026-04-20 /codify — PR #437 flagged twice by CI's clippy 1.95 on bare
 ```bash
 # DO — pre-flight ALL commands BEFORE first push AND BEFORE admin-merge
 cargo +nightly fmt --all --check
-cargo +1.95 clippy --workspace --all-targets -- -D warnings
+rustup update stable && cargo clippy --workspace --exclude kailash-ruby --all-targets -- -D warnings  # CI clippy is @stable (rolling) — see "Match CI Clippy Toolchain Version"
 cargo nextest run --workspace
 RUSTDOCFLAGS="-Dwarnings" cargo doc --workspace \
   --exclude kailash-ruby --exclude kailash-python --no-deps
