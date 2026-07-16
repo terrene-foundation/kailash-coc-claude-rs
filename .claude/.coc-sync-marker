@@ -1,8 +1,8 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-07-12T07:01:34Z
+timestamp: 2026-07-16T16:54:00Z
 source: loom/.claude
-loom_sha: f403a49c
-loom_sha_full: f403a49c055d8a1efafe5a87e2263094590e01b9
+loom_sha: 8b5b6be1
+loom_sha_full: 8b5b6be15d3b6310784310b59a87a65542013412
 variant: rs
 clis: [claude]
 visibility: public
@@ -10,16 +10,17 @@ stats:
   # Content distribution performed by the engine (sync-tier-aware.mjs --target rs)
   # BEFORE this enrichment pass; engine --verify reported CONSISTENT. This
   # enrichment did NOT re-run the distributor; the git working-tree delta below
-  # is the ground truth.
-  worktree_changed_files: 22   # 20 engine .claude delta + VERSION + this marker; non-.claude = 0 (pins unchanged)
-  claude_tree_changed: 22      # 2 added + 18 engine-modified + VERSION + this marker
-  non_claude_changed: 0        # pyproject.toml + uv.lock UNCHANGED this cycle (no SDK pin move)
-  engine_manifest: { added: 2, modified: 18, deleted: 0 }   # sync-tier-aware buildReceipt (incl. rs-specific build-speed.md + sync-from-template.md)
+  # is the ground truth. CONTENT-ONLY cycle: template version + SDK pins UNCHANGED.
+  worktree_changed_files: 99   # 98 engine .claude delta + this marker; non-.claude = 0 (pins/version unchanged)
+  claude_tree_changed: 99      # 26 added + 40 modified + 32 deleted (engine) + this marker
+  non_claude_changed: 0        # no Cargo.toml, no pyproject at this template; VERSION UNCHANGED (no SDK/template bump)
+  engine_manifest: { added: 26, modified: 40, deleted: 32 }   # sync-tier-aware buildReceipt, changed_count=98
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted (CC-only template)
-verify_stage: CONSISTENT   # engine sync-tier-aware.mjs --verify (pre-enrichment); 1568 in-plan files matched
+verify_stage: CONSISTENT   # engine sync-tier-aware.mjs --verify (pre-enrichment); 1747 in-plan files matched
 sdk_pins:
-  kailash-rs: 4.28.0        # UNCHANGED (set prior 2.23.22 cycle; PyPI kailash-enterprise 4.28.0 HTTP 200 re-verified 2026-07-12)
+  # CONTENT-ONLY cycle — all pins CARRIED UNCHANGED from prior cycle (VERSION file byte-identical to origin/main).
+  kailash-rs: 4.28.0        # UNCHANGED — crate 4.35.0 is AHEAD of PyPI 4.34.0; content-only sidesteps (no bump)
   kailash: 2.45.3           # unchanged (py-flavored map)
   kailash-dataflow: 2.13.16 # unchanged
   kailash-nexus: 2.11.0     # unchanged
@@ -29,40 +30,37 @@ sdk_pins:
   kailash-ml: 2.2.2         # unchanged
   kailash-align: 0.7.4      # unchanged
   kaizen-agents: 0.9.11     # unchanged
-build_source_of_truth:
-  # rs-native pin: NOT re-verified against BUILD Cargo this cycle (repo-scope constraint — resolver-mediated tool access only).
-  kailash-rs: { pinned: 4.28.0, pypi_binding: "kailash-enterprise 4.28.0 (HTTP 200 re-verified 2026-07-12)", build_verified_this_cycle: false, rationale: "pin is one day old (set prior cycle from BUILD Cargo 4.28.0) and PyPI-resolvable; no evidence of a BUILD bump in the 5eea21d3->f403a49c COC-only delta; kept as-is (no guessing)" }
-  py_flavored_note: "kailash/dataflow/nexus/kaizen/pact/mcp/ml/align/kaizen-agents carried unchanged; loom platform 2.45.0 unchanged, no py SDK bump this cycle"
 pin_surface:
-  pyproject_toml: "kailash-enterprise>=4.28.0 (UNCHANGED)"
-  uv_lock: "UNCHANGED (pins stable at 4.28.0)"
-  version_sdk_packages: "authoritative map (above)"
   cargo_toml: "N/A — no Cargo crate at this CC-only artifact template"
-deps_check: { tool: "n/a", result: "no-op — pins unchanged from prior 2.23.22 cycle; existing uv.lock resolves 4.28.0", packages_resolved: 0 }
-cargo_check: "N/A — no Cargo.toml at template (serves Python/Ruby binding consumers via kailash-enterprise wheel, not a Rust crate)"
-hook_integrity: { unique_command_scripts: 39, resolved: 39, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
+  version_sdk_packages: "authoritative map (above); VERSION file byte-identical to target origin/main (content-only proof)"
+deps_check: { tool: "n/a", result: "no-op — content-only, pins UNCHANGED, no resolution attempted", packages_resolved: 0 }
+cargo_check: "N/A — no Cargo.toml at template (serves Python/Ruby binding consumers, not a Rust crate)"
+hook_integrity: { unique_command_scripts: 29, resolved: 29, missing: 0, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
 description_label: "(Rust) — correct"
 headroom: "N/A — CC-only template emits no baseline (clis=[claude]); Rule 8 derived-tree re-emit N/A; stage --verify CONSISTENT"
 inbox: "present (README.md + .gitkeep) — ensure-exists idempotent, zero diff"
-preserved: [CLAUDE.md, settings.json, "visibility:public"]
-gate2_receipt: { loom_sha: f403a49c055d8a1efafe5a87e2263094590e01b9, base_sha: 61900c15dcec664be30729a89178c5cbe69ebf01, target: claude-rs, lane: use }
-wave: f9-gate2-re-sync-2026-07-12
+preserved: [CLAUDE.md, settings.json, VERSION, "visibility:public"]
+gate2_receipt: { loom_sha: 8b5b6be15d3b6310784310b59a87a65542013412, base_sha: 09d26cabb6b6f419d9bb402f891a1f115be9c96b, target: claude-rs, lane: use }
+wave: gate2-content-only-re-sync-2026-07-16
 note: >-
-  F9 Gate-2 re-sync of /sync-to-use rs from loom@f403a49c (origin/main, authorized
-  source; loom platform 2.45.0 unchanged), per sync-completeness Rule 8 cascade.
-  Engine sync-tier-aware.mjs --target rs applied + --verify CONSISTENT in an
-  isolated worktree from target origin/main 61900c15 BEFORE this enrichment
-  (20-file delta loom@5eea21d3..f403a49c: 2 added rules/product-completion-first.md
-  + skills/sweep/, 18 modified incl. rs-specific build-speed.md + sync-from-template.md).
-  SDK PINS UNCHANGED: kailash-enterprise>=4.28.0 already current (PyPI HTTP 200
-  re-verified 2026-07-12); BUILD-side Cargo re-verification NOT performed this cycle
-  (repo-scope constraint — resolver-mediated tool access only); pin is one day old +
-  PyPI-resolvable so it stands (no guessing, no bump). py-flavored sdk_packages
-  carried unchanged. NO Cargo.toml -> cargo check N/A (uv.lock is the rs
-  install-verify, unchanged). HOOKS: 39/39 settings.json hook command scripts
-  resolve; 0 scripts/hooks refs; 0 operator-PII tokens. INBOX: ensure-exists
-  idempotent. PRESERVED: CLAUDE.md, settings.json, visibility:public. No multi-CLI
-  emission (clis=[claude]; Rule 8 derived-tree re-emit N/A for CC-only). VERSION
-  SCHEMA: upstream.version 2.45.0 tracks loom platform version (UNCHANGED). BUMP:
-  template 2.23.22->2.23.23; loom_sha 5eea21d3->f403a49c. spec-accuracy/specs-authority
-  + build-speed.md ship at their f403a49c versions; un-merged feat/mesh-d6-d7 edits excluded.
+  CONTENT-ONLY Gate-2 re-sync of /sync-to-use claude-rs from loom origin/main
+  @8b5b6be1 (published freshness anchor; local HEAD 9fa936f5 carries un-synced
+  cross-repo-authz commits and is deliberately NOT the marker anchor). Co-owner
+  ratified Option A: loom platform template semver (2.45.x upstream / 2.23.23
+  template) UNCHANGED and NO SDK pin refresh. VERSION file byte-identical to
+  target origin/main 09d26cab (content-only proof; git diff HEAD -- .claude/VERSION
+  empty). Engine sync-tier-aware.mjs --target rs applied + --verify CONSISTENT
+  (1747 in-plan matched) in an isolated worktree BEFORE this enrichment. Delta
+  = 98 files (26 added incl. mesh-* bin + conformance-walk + cross-repo-authorize;
+  40 modified incl. rules/hooks 2-3wk accumulation; 32 deleted incl. purged fleet-*
+  / loom-links / sync-* bin no longer in the consumer-runtime ALWAYS_INCLUDE
+  allowlist). rs variant overlay applied (142 overlays byte-equal) — expected
+  content, version/pin-neutral. SDK PINS UNCHANGED: kailash-rs 4.28.0 carried
+  (crate 4.35.0 AHEAD of PyPI 4.34.0 — content-only avoids the uv-sync break);
+  py-flavored sdk_packages carried unchanged. NO Cargo.toml -> cargo check N/A.
+  HOOKS: 29/29 settings.json hook command scripts resolve; 0 scripts/hooks refs;
+  0 operator-PII tokens; settings.json clean of /Users//home tokens. INBOX:
+  ensure-exists idempotent (already present). PRESERVED: CLAUDE.md, settings.json,
+  VERSION, visibility:public. No multi-CLI emission (clis=[claude]; Rule 8
+  derived-tree re-emit N/A for CC-only). BUMP: loom_sha f403a49c->8b5b6be1 ONLY;
+  template version NOT bumped (content-only).
