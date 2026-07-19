@@ -1,0 +1,19 @@
+// loom dev-container distribution source (rs) — generated INTO consumer templates by /sync-to-use; do not hand-edit the consumer copy.
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "Kailash COC (rs) — multi-CLI dev (Python + Ruby bindings)",
+  "//": "Editor / Codespaces entry. Delegates to the SAME compose service the terminal uses (no drift). Runtimes live in the Dockerfile, NOT in Features, so plain `docker compose` is equivalent (FR-17 / journal/0005).",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "workspace",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "overrideCommand": false,
+  "//postCreate": "Runtime setup AFTER the bind-mount is in place — installs the MCP guard's deps into the bind-mounted dir (a build-time install would be shadowed; journal/0005).",
+  "postCreateCommand": "bash bin/dev setup",
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "rebornix.ruby"]
+    }
+  }
+}

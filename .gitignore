@@ -115,6 +115,7 @@ secrets/
 !.claude/bin/lib/
 !.claude/hooks/lib/
 !.claude/test-harness/lib/
+!.claude/audit-fixtures/**
 # <<< coc:gitignore_additions <<<
 
 # Never track loom-internal variant overlays or operator-local disclosure companions (PII).
