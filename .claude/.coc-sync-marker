@@ -1,91 +1,86 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, cc-only-legacy)
-timestamp: 2026-07-18T18:48:59Z
+timestamp: 2026-07-19T12:01:37Z
 source: loom/.claude
-loom_sha: 40cf2e6c
-loom_sha_full: 40cf2e6c7e032c4cae1e1b05c0421f3973cb3df9
+loom_sha: 4cb1e6d9
+loom_sha_full: 4cb1e6d9165fde252880bde93902dde568fa25c3
 variant: rs
 clis: [claude]
 visibility: public
 stats:
   # Content distribution performed by the engine (sync-tier-aware.mjs --target rs)
-  # in an isolated worktree from target origin/main BEFORE this enrichment pass;
-  # engine --verify reported CONSISTENT. This enrichment did NOT re-run the
-  # distributor; the git working-tree delta below is the ground truth. PIN-BUMP
-  # cycle: template version + kailash-enterprise install pin BOTH bumped.
-  worktree_changed_files: 36   # 33 engine .claude delta + VERSION + pyproject.toml + uv.lock + this marker
-  claude_tree_changed: 34      # 33 engine (.claude) delta + this marker
-  non_claude_changed: 2        # pyproject.toml (floor) + uv.lock (relock); VERSION bumped separately (.claude tree)
-  engine_manifest: { added: 11, modified: 22, deleted: 0 }   # this-cycle delta since prior real anchor loom@8b5b6be1
+  # in an isolated worktree from target origin/main b6aca83f BEFORE this enrichment
+  # pass; engine --verify reported CONSISTENT. This enrichment did NOT re-run the
+  # distributor; the git working-tree delta below is the ground truth. PIN-HELD
+  # cycle: template version bumped; kailash-enterprise install pin already at BUILD
+  # ground truth 4.38.0 (no pyproject/uv.lock change).
+  worktree_changed_files: 34   # 32 engine git-status entries + VERSION + this marker
+  claude_tree_changed: 33      # 31 engine .claude entries + VERSION + this marker
+  non_claude_changed: 1        # .gitignore (engine); pyproject.toml + uv.lock UNCHANGED (pin held at ground truth)
+  engine_manifest: { added: 22, modified: 18, deleted: 0 }   # 40 files across 32 git entries; 17 modified .claude + .gitignore; delta loom@40cf2e6c..4cb1e6d9
   baselines_emitted:
     cc: 0            # CLAUDE.md preserved, not emitted (CC-only template)
-verify_stage: CONSISTENT   # engine sync-tier-aware.mjs --verify (pre-enrichment); 1766 in-plan files matched, 0 obsoleted present
+verify_stage: CONSISTENT   # engine sync-tier-aware.mjs --verify (pre-enrichment)
 distribution:
-  copied: 1454             # verified 1454/1454 delivered — 60 content-equal after BUILD-internal strip, 1394 byte-equal
-  variant_only: 170        # 170/170 byte-equal
-  overlays: 142            # 142/142 byte-equal (rs axis)
+  # loom@40cf2e6c..4cb1e6d9 = 24 commits; substantive distributed content = sync-from
+  # Wave 1 (eval-harness BUILD-distribution re-arch + F5/#1232 + onboarding coupled
+  # port), eval-harness Tier-1 adoption (F4) + canon rs-variant (F3), sync-from
+  # placement ratified. Remaining commits are authz/wrapup docs (no distributed content).
+  added: 22          # incl. rules/{issue-triage-routing,canon-incorporation,command-skill-parity,handoff-completion,orchestration-launch-ledger}, skills/{issue-triage-routing,37-canon-incorporation}, 18-security-patterns/{path-containment,frontmatter-directive-trust-surface}, commands/canon-incorporate, guides/rule-extracts/handoff-completion, 3 audit-fixture dirs
+  modified: 18       # rules/{security,cc-artifacts,self-referential-codify,enrollment-operations,build-speed}, commands/{certify,claim,enroll,onboard,whoami}, skills/{41-onboard,42-certify,43-ecosystem-init,44-enroll}, bin/{scan-synced-disclosure,validate-emit}, audit-fixtures/scan-synced-disclosure/run.mjs, .gitignore
   purged: 0
 sdk_pins:
-  # PIN-BUMP cycle. kailash-rs/kailash-enterprise refreshed 4.28.0 -> 4.38.0
-  # (evidence-backed, NOT fabricated). The prior HOLD reason (crate 4.35.0
-  # AHEAD of PyPI 4.34.0) is SUPERSEDED: BUILD and PyPI are now ALIGNED at 4.38.0.
-  kailash-rs: 4.38.0        # BUMPED 4.28.0->4.38.0 — BUILD kailash-rs Cargo.toml [workspace.package].version=4.38.0 (on disk) AND PyPI kailash-enterprise 4.38.0 (resolvable; releases 4.34.0..4.38.0). Install-gating pin.
-  kailash: 2.45.3           # py-map CARRIED STALE INTENTIONALLY (metadata-only; PyPI latest 2.54.0; not the rs install-gating pin; separate per-package PyPI verification not performed this pass)
-  kailash-dataflow: 2.13.16 # py-map stale (metadata-only)
-  kailash-nexus: 2.11.0     # py-map stale (metadata-only)
-  kailash-kaizen: 2.28.0    # py-map stale (metadata-only)
-  kailash-pact: 0.14.3      # py-map stale (metadata-only)
-  kailash-mcp: 0.2.15       # py-map stale (metadata-only)
-  kailash-ml: 2.2.2         # py-map stale (metadata-only)
-  kailash-align: 0.7.4      # py-map stale (metadata-only)
-  kaizen-agents: 0.9.11     # py-map stale (metadata-only)
+  # PIN-HELD cycle. kailash-enterprise (the sole Kailash pin THIS rs template declares)
+  # already at BUILD ground truth 4.38.0 — no bump. BUILD kailash-rs Cargo.toml
+  # [workspace.package].version = 4.38.0 (on disk, verified) == PyPI kailash-enterprise
+  # 4.38.0 (uv.lock resolves 4.38.0). No pyproject floor change, no uv.lock change.
+  kailash-rs: 4.38.0        # HELD — install-gating pin; == pyproject kailash-enterprise floor >=4.38.0; == uv.lock 4.38.0
+  # py-flavored metadata map refreshed to claude-py fleet-cycle verified values
+  # (metadata-only; NOT the rs install-gating pin, NOT declared in this pyproject.toml):
+  kailash: 2.55.0           # py-map metadata (BUMP 2.45.3->2.55.0, claude-py fleet-verified)
+  kailash-dataflow: 2.18.0  # py-map metadata (BUMP 2.13.16->2.18.0)
+  kailash-nexus: 2.12.1     # py-map metadata (BUMP 2.11.0->2.12.1)
+  kailash-kaizen: 2.37.0    # py-map metadata (BUMP 2.28.0->2.37.0)
+  kailash-pact: 0.15.0      # py-map metadata (BUMP 0.14.3->0.15.0)
+  kailash-mcp: 0.4.0        # py-map metadata (BUMP 0.2.15->0.4.0)
+  kailash-ml: 2.2.2         # py-map metadata (HELD, PyPI-current)
+  kailash-align: 0.7.4      # py-map metadata (HELD, PyPI-current)
+  kaizen-agents: 0.11.1     # py-map metadata (BUMP 0.9.11->0.11.1)
 pin_surface:
   cargo_toml: "N/A — no Cargo crate at this CC-only artifact template"
-  pyproject_toml: "kailash-enterprise floor >=4.28.0 -> >=4.38.0"
-  uv_lock: "relocked kailash-enterprise 4.28.0 -> 4.38.0 (== VERSION.sdk_packages.kailash-rs 4.38.0)"
-  version_sdk_packages: "sdk_packages.kailash-rs 4.28.0 -> 4.38.0; py-flavored entries carried stale (metadata-only)"
-deps_check: { tool: "uv lock --upgrade-package kailash-enterprise", result: "exit 0 — 74 packages resolved; sole update kailash-enterprise 4.28.0->4.38.0; 0 warnings", packages_resolved: 74 }
+  pyproject_toml: "kailash-enterprise floor >=4.38.0 (UNCHANGED — already at BUILD ground truth)"
+  uv_lock: "kailash-enterprise 4.38.0 (UNCHANGED — uv lock relock no-op)"
+  version_sdk_packages: "sdk_packages.kailash-rs 4.38.0 (held); py-flavored entries refreshed to claude-py fleet-verified values (metadata-only)"
+deps_check: { tool: "uv lock; uv sync", lock_result: "exit 0 — 74 packages resolved, no change", sync_result: "exit 0 — 10 packages installed incl. kailash-enterprise==4.38.0, no transitive-build failure", packages_resolved: 74 }
 cargo_check: "N/A — no Cargo.toml at template (serves Python/Ruby binding consumers, not a Rust crate)"
 hook_integrity: { command_entries: 39, unique_command_scripts: 29, resolved: 29, missing: 0, scripts_hooks_refs: 0, operator_pii_tokens: 0 }
 description_label: "(Rust) — correct"
 headroom: "N/A — CC-only template emits no baseline (clis=[claude]); sync-completeness Rule 8 derived-tree re-emit N/A; stage --verify CONSISTENT"
 inbox: "present (README.md + .gitkeep) — ensure-exists idempotent, zero diff"
 preserved: [CLAUDE.md, settings.json, "visibility:public"]
-gate2_receipt: { loom_sha: 40cf2e6c7e032c4cae1e1b05c0421f3973cb3df9, base_sha: "751029550605 (target origin/main)", target: claude-rs, lane: use }
-authorization: ".claude/cross-repo-authz/2026-07-18-terrene-foundation-kailash-coc-claude-rs-sync-to.md (WRITE receipt, Wave-A fan-out)"
-wave: gate2-pin-bump-re-sync-2026-07-18
+gate2_receipt: { loom_sha: 4cb1e6d9165fde252880bde93902dde568fa25c3, base_sha: "b6aca83f (target origin/main)", target: claude-rs, lane: use }
+wave: gate2-sync-from-wave1-re-sync-2026-07-19
 note: >-
-  PIN-BUMP Gate-2 re-sync of /sync-to-use claude-rs from loom origin/main
-  @40cf2e6c (published freshness anchor; local HEAD ebb79709 is +1 authz-only
-  commit — the Wave-A cross-repo-authz receipts, zero distributed content — and
-  is deliberately NOT the marker anchor). Engine sync-tier-aware.mjs --target rs
-  applied + --verify CONSISTENT (1766 in-plan matched, 0 obsoleted present) in an
-  isolated worktree from target origin/main 751029550605 BEFORE this enrichment.
-  THIS-CYCLE DELTA = 33 files (22 modified + 11 added + 0 deleted) since the prior
-  real sync anchor loom@8b5b6be1; the 26-added/40-modified/32-deleted figure in
-  the superseded 2026-07-16 content-only marker was that earlier cycle, not this
-  one. Modified incl. rules/{agents,wave-loop,zero-tolerance,testing,
-  product-completion-first,self-referential-codify,sweep-completeness,
-  artifact-flow} + commands/{autonomize,redteam,wrapup} + 3 hooks + 3 bin + 2
-  skills + 3 rule-extracts. Added incl. 4 artifact-activation hooks,
-  bin/lib/local-rules.mjs, 5 skills (parallel-dispatch-default, dual-surface-
-  redteam, specialist-delegation-syntax, self-referential-allowlist-provenance,
-  artifact-flow rule-extract), adjacency-domain audit-fixtures. rs variant overlay
-  applied (142 overlays byte-equal). SDK PIN REFRESH (evidence-backed, co-owner
-  decision B): kailash-rs/kailash-enterprise 4.28.0 -> 4.38.0. Prior HOLD reason
-  (crate 4.35.0 AHEAD of PyPI 4.34.0 — content-only sidestep) is SUPERSEDED: BUILD
-  kailash-rs Cargo.toml [workspace.package].version = 4.38.0 (on disk) AND PyPI
-  kailash-enterprise latest 4.38.0 (resolvable; releases 4.34.0..4.38.0 present)
-  are now ALIGNED at 4.38.0 — an authoritative newer release that genuinely
-  exists, not a fabricated bump. PIN SURFACE: pyproject.toml floor >=4.28.0 ->
-  >=4.38.0; uv.lock relocked (uv lock --upgrade-package kailash-enterprise, exit 0,
-  74 packages resolved, sole update kailash-enterprise 4.28.0->4.38.0, no warnings).
-  py-flavored sdk_packages map carried stale (metadata-only; only kailash-enterprise
-  is the rs install-gating pin, refreshed this cycle; py map needs separate
-  per-package PyPI verification not performed this pass). NO Cargo.toml -> cargo
-  check N/A; uv.lock is the rs install-verify. HOOKS: 29/29 settings.json hook
-  command scripts resolve; 0 scripts/hooks refs; 0 operator-PII tokens; settings.json
-  clean of /Users//home tokens. INBOX: ensure-exists idempotent (already present).
-  PRESERVED: CLAUDE.md, settings.json, visibility:public. No multi-CLI emission
-  (clis=[claude]; Rule 8 derived-tree re-emit N/A for CC-only). BUMP: template
-  2.23.23->2.23.24; loom_sha f403a49c->40cf2e6c. Authorization: cross-repo-authz
-  receipt 2026-07-18-terrene-foundation-kailash-coc-claude-rs-sync-to.md.
+  Gate-2 re-sync of /sync-to-use claude-rs from loom origin/main @4cb1e6d9
+  (freshness anchor). Engine sync-tier-aware.mjs --target rs applied + --verify
+  CONSISTENT in an isolated worktree from target origin/main b6aca83f BEFORE this
+  enrichment. THIS-CYCLE DELTA = 40 files across 32 git-status entries (22 added +
+  18 modified [17 .claude + .gitignore] + 0 deleted) since prior anchor loom@40cf2e6c.
+  Distributed content = sync-from Wave 1 (eval-harness BUILD-distribution re-arch +
+  F5/#1232 + onboarding coupled port), eval-harness Tier-1 adoption (F4) + canon
+  rs-variant (F3), sync-from placement ratified. rs variant overlay applied. SDK PIN
+  HELD (verified, NOT a skip): kailash-enterprise — the SOLE Kailash pin this rs
+  template's pyproject.toml declares — already at BUILD ground truth >=4.38.0 (BUILD
+  kailash-rs Cargo.toml [workspace.package].version = 4.38.0 on disk == PyPI
+  kailash-enterprise 4.38.0; uv.lock resolves 4.38.0). No pyproject floor change, no
+  uv.lock change (uv lock relock no-op). INSTALL VERIFY: uv lock exit 0 (74 packages,
+  no change); uv sync exit 0 (10 packages installed incl. kailash-enterprise==4.38.0;
+  no llvmlite/CPython-3.14 transitive-build issue — this template declares no
+  kailash-ml). py-flavored sdk_packages METADATA map refreshed to claude-py
+  fleet-cycle verified values (metadata-only; only kailash-enterprise is the rs
+  install-gating pin). NO Cargo.toml -> cargo check N/A; uv.lock is the rs
+  install-verify. HOOKS: 29/29 settings.json hook command scripts resolve; 0
+  scripts/hooks refs; 0 operator-PII tokens. INBOX: ensure-exists idempotent (already
+  present). PRESERVED: CLAUDE.md, settings.json, visibility:public. No multi-CLI
+  emission (clis=[claude]; Rule 8 derived-tree re-emit N/A for CC-only). BUMP:
+  template 2.23.24->2.23.25; loom_sha 40cf2e6c->4cb1e6d9. upstream.version 2.45.0
+  unchanged (loom platform version).

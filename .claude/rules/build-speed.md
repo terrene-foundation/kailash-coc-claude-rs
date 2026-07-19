@@ -281,4 +281,41 @@ Either alone is incomplete: per-crate `--all-features` catches header regen + ne
 - **Violation scope:** rule + lane (kailash-capi crate + the specific CI gate that surfaced the failure — BP-091 vs header_gate vs workspace clippy).
 - **Origin:** 2026-05-25 PR #1099 fix-up cycle (commit ded749cd: nested-module `use super::{...}` import + `--all-features` header regen) + 2026-05-28 PR #1159 fix-up (commit f187c0f8: default-features dual class).
 
-**Length rationale** (per `rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines"). This variant body exceeds the 200-line guidance. Named rationale: **CI-parity cohesion** — every MUST clause in this file codifies one structural defense against a billed fix-up cycle caused by local-vs-CI command divergence (nightly rustfmt, pinned clippy, full job-set pre-flight, the kailash-capi pre-flight matrix). Splitting into sibling rules would fragment the CI-parity contract across files and force cross-rule lookups for every pre-push decision — the load-failure mode `cc-artifacts.md` Rule 6 warns against. Sibling precedent: `user-flow-validation.md` + `multi-operator-coordination.md` Origins carry the same length-rationale shape.
+## MUST: Inherited-Workspace-Dep `default-features` Is Silently Ignored — Use A Path Dep
+
+`default-features = false` on a member crate's `{ workspace = true }`-INHERITED dependency is SILENTLY IGNORED when the root `[workspace.dependencies]` entry did not itself specify `default-features`. Cargo emits a warning — `` `default-features` is ignored for <dep>, since `default-features` was not specified for `workspace.dependencies.<dep>`, this could become a hard error in the future `` — but it is ONLY a warning, NOT a rustc lint, so `cargo clippy -- -D warnings` does NOT catch it. The member silently keeps the crate's DEFAULT features, and a feature meant to stay OFF a closure ships ON.
+
+```toml
+# DO — declare the dep as an EXPLICIT path dep in the member (matching sibling
+#      crates that already pin it off); the member-level pin is HONORED
+kailash-kaizen = { path = "../kailash-kaizen", optional = true, default-features = false }
+
+# DO NOT — inherit and try to pin off: the pin is DROPPED, default features stay ON
+kailash-kaizen = { workspace = true, optional = true, default-features = false }
+# ↑ Cargo warns "default-features is ignored for kailash-kaizen, since default-features
+#   was not specified for workspace.dependencies.kailash-kaizen" — a WARNING only;
+#   clippy -D warnings never sees it; kaizen's l3 (→ kailash-pact) + governance
+#   (→ kailash-enterprise) DEFAULT features stay enabled in the closure meant to exclude them.
+```
+
+**Detection** (add to the pre-flight for any member pinning an inherited dep's features off):
+
+```bash
+# The unwanted transitive crate MUST NOT resolve into the feature-gated tree:
+cargo tree -p <crate> --features <feat> -i <unwanted-crate>   # MUST print "did not match any packages"
+# AND Cargo MUST NOT be warning that the pin is ignored:
+cargo check 2>&1 | grep "default-features.*ignored"           # MUST be empty
+```
+
+**BLOCKED rationalizations:**
+
+- "`default-features = false` is right there in the member's Cargo.toml, so it applies"
+- "Adding `default-features = false` to the inherited entry fixed it" (NO-OP — an inherited pin is ignored unless the ROOT `[workspace.dependencies]` entry set it)
+- "It's only a warning; `-D warnings` would catch it if it mattered" (it is a CARGO warning, not a rustc lint — `clippy -D warnings` never sees it)
+- "The dep is `optional`, so it can't be pulling anything into the closure"
+
+**Why:** An inherited `{ workspace = true }` dep takes its `default-features` from the ROOT `[workspace.dependencies]` entry; a member-level `default-features = false` on an inherited dep is silently dropped, so a default-off feature's transitive closure (here kaizen's `l3` → kailash-pact and `governance` → kailash-enterprise) ships ENABLED even though the member declared it off — and no `-D warnings` gate catches a Cargo (non-rustc) warning. The explicit path dep is the only member-local form whose `default-features = false` is honored.
+
+Origin: 2026-07-17 — M4 kailash-coc-conformer runtime-compose: a default-off `compose` feature was meant to keep the pact/enterprise closure out, but `kailash-kaizen = { workspace = true, optional = true, default-features = false }` left kaizen's `l3` + `governance` default features enabled. The first fix (adding `default-features = false` to the inherited entry) was a NO-OP; switching to `{ path = "../kailash-kaizen", optional = true, default-features = false }` fixed it.
+
+**Length rationale** (per `rules/rule-authoring.md` MUST NOT § "Rules longer than 200 lines"). This variant body exceeds the 200-line guidance. Named rationale: **CI-parity + silent-build-gotcha cohesion** — every MUST clause in this file codifies one structural defense against a billed fix-up cycle OR a silently-wrong build caused by local-vs-CI command divergence or workspace-inheritance surprise (nightly rustfmt, rolling-stable clippy, full job-set pre-flight, the kailash-capi pre-flight matrix, the inherited-dep `default-features` gotcha). Splitting into sibling rules would fragment the Rust-build-hygiene contract across files and force cross-rule lookups for every pre-push decision — the load-failure mode `cc-artifacts.md` Rule 6 warns against. Sibling precedent: `user-flow-validation.md` + `multi-operator-coordination.md` Origins carry the same length-rationale shape.
