@@ -1,0 +1,47 @@
+# loom dev-container distribution source (rs) — generated INTO consumer templates by /sync-to-use; do not hand-edit the consumer copy.
+# Build-context hygiene + defense-in-depth: nothing secret or heavy enters the
+# build context (the Dockerfile does NOT COPY repo source — it is bind-mounted at
+# runtime — but this keeps the context small and blocks accidental future COPY of
+# secrets). Mirrors .gitignore + the host-config / node_modules surfaces.
+
+# Secrets — never in the build context (public-repo safe)
+.env
+**/.env
+*.pem
+*.key
+secrets/
+
+# Host CLI-config + signing-key dirs — defense-in-depth.
+# The structural defense is already in place: the Dockerfile contains ZERO
+# COPY/ADD directives (source enters at runtime via bind-mount, not build),
+# so these dirs CANNOT enter a layer today. The exclusions below guarantee
+# the safety property holds if a future Dockerfile ever adds a `COPY .` line.
+**/.claude
+**/.codex
+**/.gemini
+**/.gnupg
+
+# VCS + per-session state
+.git
+**/.session-notes
+.claude/learning/
+
+# Installed/generated artifacts (installed at runtime, not baked)
+**/node_modules
+.codex-mcp-guard/node_modules
+**/__pycache__/
+**/.venv/
+**/.mypy_cache/
+**/.pytest_cache/
+
+# Workspace process artifacts (not part of the image)
+workspaces/
+
+# Project-owned populated overlays (defense-in-depth — these never belong in
+# the image build context; populated forms may carry host-specific values).
+compose.override.yml
+*.local
+Gemfile.user.lock
+
+# OS cruft
+**/.DS_Store

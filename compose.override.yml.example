@@ -1,0 +1,84 @@
+# loom dev-container distribution source (rs) — generated INTO consumer templates by /sync-to-use; do not hand-edit the consumer copy.
+# compose.override.yml.example — PROJECT-OWNED override scaffold
+#                                 (template /sync NEVER touches the populated `.yml`)
+#
+# To use, copy this file to `compose.override.yml` (gitignored) and edit it.
+# Docker Compose auto-merges `compose.override.yml` onto `docker-compose.yml`
+# on every `compose up` / `compose build`, so changes you make here apply
+# without touching the template-owned base.
+#
+# Common patterns:
+#   - host CLI-config mounts (carry an existing host login into the container)
+#   - GPG signing-key read-only mount (for `git commit -S`)
+#   - build-arg toggles (`INCLUDE_RUST`, `INCLUDE_ML`)
+#   - extra services your project needs
+#
+# PUBLIC-REPO SAFETY
+# ------------------
+# Never commit a populated `compose.override.yml`. All host paths MUST use the
+# compose-aware `${HOME}` variable interpolation — NEVER a literal
+# `/Users/<name>` or `/home/<name>`. The shipped `.example` carries only
+# placeholders and is safe to commit; the populated `.yml` is not.
+
+services:
+  workspace:
+    # --- Host CLI-config carry-in (OPT-IN — FR-10, both auth paths) -----------
+    # Existing host login sessions (Claude Code, Codex, Gemini CLI) carry into
+    # the container — no in-container OAuth browser callback needed. Mounts
+    # are read-write so token refresh writes back to the host dir (acceptable;
+    # it is the host's directory). Uncomment whichever CLI configs you use.
+    # volumes:
+    #   - ${HOME}/.claude:/home/vscode/.claude
+    #   - ${HOME}/.codex:/home/vscode/.codex
+    #   - ${HOME}/.gemini:/home/vscode/.gemini
+    #
+    # --- GPG commit-signing key (READ-ONLY side-mount — FR-25) ---------------
+    # Required when teammates make signed commits from inside the container.
+    # The key is never copied into an IMAGE layer; the host's keyring is
+    # SIDE-mounted (NOT at /home/vscode/.gnupg) read-only, and `bin/dev setup`
+    # populates a fresh container-side `~/.gnupg` from it on first run.
+    #
+    # Why side-mount + copy (not direct mount): host gpg-agent and Linux
+    # gpg-agent use platform-specific UNIX socket files (e.g. `S.gpg-agent`).
+    # A direct `${HOME}/.gnupg:/home/vscode/.gnupg` mount leaks the host's
+    # socket files into the Linux agent's startup path — agent fails with
+    # `gpg: can't connect to the gpg-agent: General error`, and `git commit -S`
+    # SILENTLY FAILS. The side-mount carries the keyring files in read-only;
+    # `bin/dev setup` copies just the key material (`private-keys-v1.d/`,
+    # `pubring.kbx`, `trustdb.gpg`) into a fresh container-side `~/.gnupg`
+    # where the Linux agent can run cleanly. The host's keyring stays
+    # immutable from the container (`:ro` on the side mount).
+    #
+    # Pair with `GPG_TTY` (already exported in the base image) and the
+    # `pinentry-curses` non-interactive pinentry. For non-TTY one-shot calls
+    # (`docker compose exec -T`, CI) configure git to pass
+    # `gpg --pinentry-mode loopback` so signing does not block on a missing
+    # controlling terminal.
+    # volumes:
+    #   - ${HOME}/.gnupg:/host-gnupg:ro
+    #
+    # --- Per-project env overrides (in addition to anything in `.env`) -------
+    # environment:
+    #   FOO_FEATURE_FLAG: "enabled"
+    #
+    # --- Build-arg toggles (alternative to setting in `.env`) ----------------
+    # build:
+    #   args:
+    #     INCLUDE_RUST: "true"   # adds the Rust toolchain (`cargo` / `rustc`)
+    #     INCLUDE_ML:   "true"   # opt-in heavy ML/Align stack (multi-GB)
+    #
+    # --- Project APT overlay (advanced — uses Dockerfile.user) ---------------
+    # Opt in by pointing the build at `Dockerfile.user` instead of the base.
+    # The base must be built first (so `kailash-coc-rs-workspace` exists as a
+    # local image) — `./bin/dev` does that on first run.
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.user
+
+# --- Add YOUR project's services here (NOT in `docker-compose.yml`) ----------
+# Example: project Redis on the internal compose network (no host port).
+#
+#   redis:
+#     image: redis:7
+#     restart: unless-stopped
+#     # Reach it from `workspace` as `redis:6379` on the internal compose net.

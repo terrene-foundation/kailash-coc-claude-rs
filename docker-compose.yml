@@ -1,0 +1,72 @@
+# loom dev-container distribution source (rs) — generated INTO consumer templates by /sync-to-use; do not hand-edit the consumer copy.
+# =============================================================================
+# Kailash COC (rs) — dev environment compose stack
+# `workspace` (the dev container) + `db` (Postgres, internal-only, throwaway creds).
+# Entry: `./bin/dev`  |  editor "Reopen in Container"  |  `docker compose up -d && \
+#   docker compose exec workspace bash`. See specs/container-topology.md + services.md.
+#
+# Host-login carry-in (~/.claude, ~/.codex, ~/.gemini) + the read-only GPG signing-key
+# mount are OPT-IN via `compose.override.yml` (see compose.override.yml.example,
+# delivered in Milestone 2) — kept out of the base so hosts without those dirs get a
+# clean default. The base auth path is `.env` API keys (always on).
+# =============================================================================
+name: kailash-coc-rs
+
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Opt-in toggles (dependency-agnostic). Enable via .env or inline:
+        #   INCLUDE_ML=true docker compose build       # heavy ML/Align (multi-GB)
+        #   INCLUDE_RUST=true docker compose build     # Rust toolchain (source builds)
+        INCLUDE_RUST: ${INCLUDE_RUST:-false}
+        INCLUDE_ML: ${INCLUDE_ML:-false}
+    # Keep the container alive; bin/dev / the editor exec an interactive shell into it.
+    command: ["sleep", "infinity"]
+    init: true
+    env_file:
+      # API keys (gitignored). Optional so plain `docker compose up` works before
+      # the user fills it in; CLIs fail at USE with a clear message if a key is missing.
+      - path: .env
+        required: false
+    environment:
+      # Dev-only throwaway DB creds on the internal compose network (NFR-09).
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/kailash_dev
+      GPG_TTY: /dev/console
+    volumes:
+      # Repo source — host edits reflect live (and shadow in-repo build artifacts,
+      # which is why guard node_modules + overlay deps install at runtime).
+      - .:/workspace:cached
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    # postgres:16 — digest-pin (@sha256:…) in CI hardening per NFR-07 (mirrors the
+    # Dockerfile base-image note); tag is the floor here.
+    image: postgres:16
+    # Deliberately NOT published to a host port — reachable only from `workspace`
+    # on the internal compose network. Creds are obviously-throwaway, dev-only.
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kailash_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kailash_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Opt-in services (uncomment to enable; MUST NOT change DATABASE_URL) -----
+  #   Prefer adding YOUR project's services in compose.override.yml (project-owned),
+  #   not here (template-owned, regenerated on template update).
+  # redis:
+  #   image: redis:7
+  #   # internal only — reachable from workspace as redis:6379
+
+volumes:
+  pgdata:
