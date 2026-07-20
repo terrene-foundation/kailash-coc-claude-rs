@@ -124,6 +124,16 @@ Compare `.coc-sync-marker` timestamps. If already fresh: "Already up to date."
 - `.claude/hooks/*.js` — updated
 - `.claude/hooks/lib/*.js` — updated
 
+### 5.5. Self-heal settings.json deny-rule FORM (MUST — additive, never overwrite)
+
+Run the deterministic reconciler on THIS consumer's OWN `.claude/settings.json`:
+
+```bash
+node .claude/bin/reconcile-settings-deny.mjs --write .claude/settings.json
+```
+
+It rewrites every `permissions.deny` entry of the form `Write(<x>)` / `NotebookEdit(<x>)` to `Edit(<x>)` and collapses `Write(x)`+`Edit(x)`+`NotebookEdit(x)` to one `Edit(x)`. It touches the deny-rule FORM ONLY — it NEVER touches `permissions.allow`, your `hooks[]` (paths included), or any other key, and leaves an already-clean file byte-for-byte unchanged (idempotent). Additive self-healing, not an overwrite. **Why:** Claude Code no longer matches `Write(<path>)` / `NotebookEdit(<path>)` deny rules — only `Edit(<path>)` covers file-editing tools; a consumer still carrying the stale form errors on every CC session init AND leaves its guarded state files un-denied. This is the leg that stops the init errors on already-deployed consumers.
+
 ### 6. Verify integrity
 
 - Every hook in `settings.json` has a corresponding script
