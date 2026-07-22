@@ -1,12 +1,13 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, CC-only-legacy)
-timestamp: 2026-07-20T14:50:00Z
+timestamp: 2026-07-22T04:55:00Z
 source: loom/.claude
-loom_sha: c3791c19ef447d7fd50704a7323b449bc1543ec4
+loom_sha: 08cb86fb48eb7cb21051de27fc144aa1e3561a55
 variant: rs
 visibility: public
 clis: ["claude"]
 stats:
-  engine_changed: 11
-  version_stamp: "loom-tracking already 2.45.0 (no-op); own 2.23.25 preserved"
-  sdk_packages: "already py-parity 2.55.0-era on remote main; kailash-rs 4.38.0 (kailash-enterprise>=4.38.0, 4.39.0 unpublished)"
+  engine_changed: 25   # 5 added, 20 modified, 0 deleted
+  version_stamp: "loom-tracking -> 2.45.0 @ 08cb86fb (own 2.23.25 -> 2.23.26)"
+  sdk_pins: "kailash-enterprise 4.38.0 -> 4.40.0 (BUILD Cargo == PyPI 4.40.0, uv lock exit 0); sdk_packages metadata refreshed to PyPI-latest (7 bumped, 2 held, kailash-rs 4.38.0->4.40.0)"
   baselines_emitted: { cc: 0 }
+  verify_overlays_note: "verify-overlays.sh rs = 12 false positives (both rs live dev checkouts behind origin/main; canon-incorporation set not yet pulled). This origin/main-based worktree's 6 flagged files match loom canonical (byte-verified); engine --verify CONSISTENT."
