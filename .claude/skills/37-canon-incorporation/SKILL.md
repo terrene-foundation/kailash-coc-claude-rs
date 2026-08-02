@@ -36,14 +36,16 @@ The intersection of canon's changed files with the register's file globs IS the 
 ```bash
 NEWBASE=$(git -C "$CANON" rev-parse "$(git -C "$CANON" rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main)")  # origin/main tip, NOT FETCH_HEAD
 # bring the new canon commit into the fork's object store (fetch from the canon remote/path), then:
-git worktree add -b canon-rebase/<newver> .claude/worktrees/canon-build "$NEWBASE"
+# SIBLING worktree, OUTSIDE the repo — never .claude/worktrees/ (`worktree-isolation.md` Rule 7)
+main_top=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+git worktree add -b canon-rebase/<newver> "$(dirname "$main_top")/.kailash-rs-wt/canon-build" "$NEWBASE"
 ```
 
 The COC-artifact overlay (`.claude`/docs/workspaces) is usually a fast-forward from the prior fork line — overlay it onto the new base (zero code, so the SDK build stays canon-green by construction).
 
 ## Step 2 — Shard the delta re-apply (parallel worktree agents)
 
-Walk the register (rule § Preserve-Set Register — the fork populates it; canon ships it empty). Group by disposition into shards (one worktree agent each, per `worktree-isolation.md` + `agents.md`):
+Walk the register (rule § Preserve-Set Register — the fork populates it; canon ships it empty). Group by disposition into shards — one SIBLING worktree agent each, per `worktree-isolation.md` + `agents.md`. Pin each shard's absolute worktree path in its prompt AND require the STEP 0 assertion — `cd <wt>` first, then `[ "$(git rev-parse --show-toplevel)" = "$(pwd -P)" ]` plus an explicit main-checkout exclusion, else STOP (compare RESOLVED paths, never the passed string; never `git -C <wt> …`, which leaves the agent in MAIN — `worktree-isolation.md` Rule 1(b)). Nothing sets the agent's cwd, so a pinned path alone still lets it edit the main checkout:
 
 - `fork-only-copy`: `git show <fork-line>:<path> > <path>` verbatim.
 - `merge-3way`: `git show <pre-update-base>:<F> > base; git show <fork-line>:<F> > ours; git merge-file <F> base ours` (incorporates fork `ours` INTO the new-canon current `<F>`). Hand-resolve conflicts keeping BOTH sides.

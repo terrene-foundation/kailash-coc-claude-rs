@@ -50,8 +50,10 @@ cargo test -p kailash-governance  # Same tests, 3-5x slower
 ## MUST: Use Worktrees for Parallel Agents
 
 ```bash
-# DO: Each agent gets its own worktree (independent target/ dir)
-git worktree add /tmp/agent-pact feat/pact-work
+# DO: Each agent gets its own SIBLING worktree, OUTSIDE the repo (independent target/ dir)
+main_top=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+wt="$(dirname "$main_top")/.kailash-rs-wt/agent-pact"
+git worktree add -b feat/pact-work "$wt" origin/main
 # Agent compiles without blocking main workspace
 
 # DO NOT: Multiple cargo processes in same directory
@@ -61,7 +63,7 @@ cargo check -p bar &  # Waits for lock, wastes time
 
 **Why:** Cargo uses a filesystem lock on `target/`. Two cargo processes in the same directory serialize completely. Worktrees have independent `target/` dirs.
 
-When using the Agent tool, set `isolation: "worktree"` for any agent that will compile code.
+**Create the worktree yourself; do NOT pass `isolation: "worktree"` to the Agent tool.** The flag creates the worktree NESTED at `<repo>/.claude/worktrees/<id>`, inside the repo's own `.claude/`. `rules/worktree-isolation.md` Rule 1(a) is what BLOCKS the flag; Rule 7 is where the SIBLING placement that replaces it is specified. Pre-create a sibling outside the repo (above), pin its ABSOLUTE path in the prompt, and require a STEP 0 assertion in the agent's own instructions — `cd <wt>` FIRST, then assert `[ "$(git rev-parse --show-toplevel)" = "$(pwd -P)" ]` and that it is NOT the main checkout, else STOP. Compare RESOLVED paths, never the passed string (`--show-toplevel` resolves symlinks, so a symlinked `<wt>` false-refuses); exclude MAIN explicitly (MAIN is a valid worktree root too); never `git -C <wt> …` (it never establishes cwd, leaving the agent in MAIN). The flag was what set cwd, so the prompt is now the only thing keeping the agent out of the main checkout (`rules/worktree-isolation.md` Rule 1(b)). The `target/`-lock reason is unchanged: a sibling worktree gives an independent `target/` exactly as the flag did. Rationale for the placement lives in `rules/worktree-isolation.md` — do not restate it here.
 
 ## MUST: Stream Output, Never Pipe-Buffer
 

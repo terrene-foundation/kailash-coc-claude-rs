@@ -1,6 +1,6 @@
 # ci-runners Operator-Local Values — Schema / Template
 
-Operator-local concrete values for the kailash-rs self-hosted CI runbook
+Operator-local concrete values for the Rust SDK self-hosted CI runbook
 (`.claude/variants/rs/rules/ci-runners.md`, rules §4/§6/§7/§11).
 
 Copy this file to `ci-runners.operator.local.md` (same directory) and fill in
@@ -25,7 +25,7 @@ key → value table below is the load-bearing content.
 | Placeholder in `ci-runners.md` | What it is                                                                                                                                                                                                                                                 | Example value        |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `<org>`                        | GitHub org/enterprise slug that owns the self-hosted runners (used in `gh api orgs/<org>/...` and `gh api repos/<org>/<repo>/...`). NOT the Foundation slug.                                                                                               | `example-org`        |
-| `<repo>`                       | Repository name under `<org>` (the kailash-rs repo on this deployment).                                                                                                                                                                                    | `kailash-rs`         |
+| `<repo>`                       | Repository name under `<org>` (the Rust SDK repo on this deployment).                                                                                                                                                                                      | `example-repo`       |
 | `<runner-host-1>`              | Hostname/registered name of the first self-hosted runner (largest / primary build host).                                                                                                                                                                   | `example-runner-1`   |
 | `<runner-host-2>`              | Hostname/registered name of the second self-hosted runner.                                                                                                                                                                                                 | `example-runner-2`   |
 | `<runner-host-3>`              | Hostname/registered name of the third self-hosted runner.                                                                                                                                                                                                  | `example-runner-3`   |

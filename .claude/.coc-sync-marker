@@ -1,13 +1,12 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, CC-only-legacy)
-timestamp: 2026-07-22T04:55:00Z
+timestamp: 2026-08-02T00:00:00Z
 source: loom/.claude
-loom_sha: 08cb86fb48eb7cb21051de27fc144aa1e3561a55
+loom_sha: 43167a54921f7454a3eb2573af0252ca7d16df2a
 variant: rs
 visibility: public
 clis: ["claude"]
 stats:
-  engine_changed: 25   # 5 added, 20 modified, 0 deleted
-  version_stamp: "loom-tracking -> 2.45.0 @ 08cb86fb (own 2.23.25 -> 2.23.26)"
-  sdk_pins: "kailash-enterprise 4.38.0 -> 4.40.0 (BUILD Cargo == PyPI 4.40.0, uv lock exit 0); sdk_packages metadata refreshed to PyPI-latest (7 bumped, 2 held, kailash-rs 4.38.0->4.40.0)"
+  engine_changed: 497   # 368 added, 129 modified, 0 deleted
+  version_stamp: "loom-tracking -> 2.45.0 @ 43167a54 (own 2.23.26 -> 2.24.0)"
+  sdk_pins: "HELD at kailash-enterprise>=4.40.0 — BUILD kailash-rs is 4.43.0 but PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist, so admitting it fails uv sync on darwin-arm64 (verified rc=2); baseline pin verified uv sync rc=0. sdk_packages metadata refreshed to PyPI-latest (5 bumped; kailash-rs held at 4.40.0)"
   baselines_emitted: { cc: 0 }
-  verify_overlays_note: "verify-overlays.sh rs = 12 false positives (both rs live dev checkouts behind origin/main; canon-incorporation set not yet pulled). This origin/main-based worktree's 6 flagged files match loom canonical (byte-verified); engine --verify CONSISTENT."
