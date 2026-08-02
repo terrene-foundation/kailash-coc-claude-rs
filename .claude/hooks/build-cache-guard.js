@@ -2,6 +2,16 @@
 /**
  * Hook: build-cache-guard
  * Event: SessionStart
+ * @settings-registration: optional-consumer — an rs-VARIANT-ONLY hook (no global
+ *   counterpart), so it inherits no adjudication from a global sibling. loom has no
+ *   variant-hook lifecycle-registration mechanism (the hook-delivery validator scopes
+ *   to the GLOBAL tree only), and loom is not an rs build target, so it is registered
+ *   in NO loom settings.json and the Gate-2 reconciler therefore never propagates it.
+ *   The SessionStart wiring is a CONSUMER-side concern: the rs USE template registers
+ *   it in its OWN .claude/settings.json on pull, mirroring the py template's
+ *   detect-package-manager.js precedent. This marker is the Gate-2 disposition
+ *   sync-manifest.yaml FLAGGED for it (#1336/#1371) — the point is that an
+ *   unregistered variant hook is now DECLARED inert rather than silently inert.
  * Purpose: Detect runaway Rust/build-cache bloat and emit a LOUD, non-blocking
  *          warning with the exact reclaim commands, so disk usage can NEVER
  *          again silently grow to hundreds of GB unnoticed.

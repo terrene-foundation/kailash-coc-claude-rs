@@ -42,11 +42,25 @@ cargo td                    # doc-tests
 
 ## Parallel Agent Builds
 
-When launching agents that compile code, use worktree isolation to avoid build lock contention:
+When launching agents that compile code, give each one its own worktree to avoid build lock contention. Create it yourself as a SIBLING outside the repo — do NOT pass `isolation: "worktree"`, which nests it at `<repo>/.claude/worktrees/<id>` inside the repo's own `.claude/`. `rules/worktree-isolation.md` Rule 1(a) is what BLOCKS the flag; Rule 7 specifies the SIBLING placement that replaces it:
+
+```bash
+main_top=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+wt="$(dirname "$main_top")/.kailash-rs-wt/shard-a"
+git worktree add -b feat/shard-a "$wt" origin/main   # sibling, OUTSIDE the repo
+```
 
 ```
-Agent(isolation: "worktree", ...)  # Gets independent target/ dir
+Agent(prompt: "Working directory: <wt>
+STEP 0 (before any edit) — cd FIRST, then assert you are at a worktree ROOT:
+  cd <wt>
+  [ \"$(git rev-parse --show-toplevel)\" = \"$(pwd -P)\" ] || STOP
+  ...and confirm it is NOT the main checkout. Any mismatch → STOP.
+All paths MUST be absolute under <wt>. ...")
+# Independent target/ dir
 ```
+
+STEP 0 is not optional. Compare RESOLVED paths (`pwd -P`) — never the passed string, since `--show-toplevel` returns the symlink-resolved path and a symlinked `<wt>` would false-refuse a correct worktree. The main-checkout exclusion matters because MAIN is itself a valid worktree root, so a root check alone passes there. Do NOT use `git -C <wt> …`: it never establishes cwd, so the agent stays in MAIN and every later relative path resolves there. Retiring the flag retired the cwd guarantee — the prompt is now the ONLY thing pointing the agent at its worktree. Full four-case form: `rules/worktree-isolation.md` Rule 1(b).
 
 Never run multiple `cargo` processes in the same workspace directory.
 

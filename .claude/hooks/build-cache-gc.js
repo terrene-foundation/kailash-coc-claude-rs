@@ -2,6 +2,13 @@
 /**
  * Hook: build-cache-gc
  * Event: SessionEnd  (also runnable standalone: `node build-cache-gc.js --sweep`)
+ * @settings-registration: optional-consumer — an rs-VARIANT-ONLY hook (no global
+ *   counterpart), so it inherits no adjudication from a global sibling. Registered in
+ *   NO loom settings.json (loom is not an rs build target, and loom has no
+ *   variant-hook registration mechanism), so the Gate-2 reconciler never propagates
+ *   it; the rs USE template wires SessionEnd in its OWN settings.json on pull. The
+ *   standalone `--sweep` path means it is still usable un-wired. Gate-2 disposition
+ *   for the sync-manifest.yaml FLAG (#1336/#1371): DECLARED inert, not silently inert.
  * Purpose: Auto-reclaim the UNAMBIGUOUSLY-SAFE class of regenerable build cache
  *          at session teardown, so orphaned build trees can never accumulate.
  *          Surfaced + measured at SessionStart by `build-cache-guard.js`.
