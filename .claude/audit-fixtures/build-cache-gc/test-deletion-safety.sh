@@ -39,8 +39,15 @@ mkdir -p "$TMP/escape"; ln -s "$SENTINEL/escape-target" "$TMP/escape/target"    
 
 echo "{\"cwd\":\"$REPO\",\"session_id\":\"fixture\"}" | node "$HOOK" >/dev/null 2>&1
 
-chk() { if [ -d "$1" ]; then [ "$2" = 1 ] && echo "ok: $3" || { echo "FAIL: $3 should be DELETED"; fail=1; }
-        else [ "$2" = 0 ] && echo "ok: $3" || { echo "FAIL: $3 should be PRESERVED"; fail=1; }; fi; }
+# `if/then/else`, not `A && B || C` — the latter runs C when B fails (SC2015),
+# which would turn a passing predicate into a spurious REGRESSION DETECTED.
+chk() {
+  if [ -d "$1" ]; then
+    if [ "$2" = 1 ]; then echo "ok: $3"; else echo "FAIL: $3 should be DELETED"; fail=1; fi
+  else
+    if [ "$2" = 0 ]; then echo "ok: $3"; else echo "FAIL: $3 should be PRESERVED"; fail=1; fi
+  fi
+}
 chk "$TMP/stray-old/target"      0 "(A) stray-proven-cache deleted"
 chk "$TMP/realco/target"         1 "(B) .git-checkout preserved"
 chk "$TMP/stray-recent/target"   1 "(C) recent preserved (active guard)"
@@ -50,4 +57,9 @@ chk "$TMP/mavenish/target"       1 "(F) no-cache-marker target preserved [HIGH-1
 chk "$SENTINEL/escape-target"    1 "(G) confinement-escape target preserved [CRIT-1]"
 
 rm -rf "$TMP" "$SENTINEL"
-[ "$fail" = 0 ] && echo "PASS: all deletion-safety predicates hold" || { echo "REGRESSION DETECTED"; exit 1; }
+if [ "$fail" = 0 ]; then
+  echo "PASS: all deletion-safety predicates hold"
+else
+  echo "REGRESSION DETECTED"
+  exit 1
+fi
