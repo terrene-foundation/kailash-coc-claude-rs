@@ -1,3 +1,8 @@
+---
+name: release
+description: "SDK release for the BUILD repo: crate publish, maturin wheels, CLI binaries, CI management."
+---
+
 # /release - SDK Release Command
 
 Standalone SDK release command for the BUILD repo. Not a workspace phase -- runs independently after any number of implement/redteam cycles. Handles crate publishing, Python wheel building (maturin), CLI binary distribution, and CI management for the Kailash Rust SDK.

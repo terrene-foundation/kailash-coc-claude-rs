@@ -1,12 +1,14 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, CC-only-legacy)
-timestamp: 2026-08-02T00:00:00Z
+timestamp: 2026-08-13T07:36:05Z
 source: loom/.claude
-loom_sha: 43167a54921f7454a3eb2573af0252ca7d16df2a
+loom_sha: 216682045beb3d5297f2cb11bf4e3f1939d74713
 variant: rs
 visibility: public
 clis: ["claude"]
 stats:
-  engine_changed: 497   # 368 added, 129 modified, 0 deleted
-  version_stamp: "loom-tracking -> 2.45.0 @ 43167a54 (own 2.23.26 -> 2.24.0)"
-  sdk_pins: "HELD at kailash-enterprise>=4.40.0 — BUILD kailash-rs is 4.43.0 but PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist, so admitting it fails uv sync on darwin-arm64 (verified rc=2); baseline pin verified uv sync rc=0. sdk_packages metadata refreshed to PyPI-latest (5 bumped; kailash-rs held at 4.40.0)"
+  delivered_files: 319   # 127 added, 190 modified, 2 deleted — PER FILE (`git status --porcelain -uall`). Includes the 5 enrichment writes below. A default `git status` reports 245/250 because it COLLAPSES untracked directories (58 dir-entries stand for 127 real files); the per-file figure is the honest one. Full path list: ../.coc-sync-marker::files
+  enrichment_files: [".claude/VERSION", ".claude/.coc-sync-marker", ".coc-sync-marker", "pyproject.toml", "uv.lock"]
+  engine_applied_loom_sha: 139843f48fe4265afb7312ad49af81846ef363d7   # SKEW: the engine staged this worktree at 139843f4 (15:22 +0800); loom main advanced to 21668204 (merge of #1676, 15:29 +0800) before the deterministic VERSION stamp ran. 26 files differ between the two, 2 of them under distributed .claude/{rules,hooks}: rules/state-file-write-guard.md + hooks/lib/violation-patterns.js. loom_sha above matches .claude/VERSION (deterministic, stamper-owned); this field records the SHA the CONTENT actually came from.
+  version_stamp: "loom-tracking -> 2.45.0 @ 21668204 (own 2.24.0 unchanged; repo=terrene-foundation/kailash-coc-claude-rs already current)"
+  sdk_pins: "kailash-enterprise >=4.40.0 -> >=4.43.0 — ADMITTED this cycle. The 2026-08-02 HOLD reason ('PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist') is REFUTED by re-measurement: PyPI now serves 20 files for 4.43.0 incl. macosx_11_0_arm64 wheels for cp310-cp314, v4.43.0 is the newest kailash-rs tag, and `uv sync` installed kailash-enterprise==4.43.0 on darwin-arm64 (rc=0). sdk_packages: kailash-rs 4.40.0->4.43.0 (BUILD Cargo.toml [workspace.package]), kailash-mcp 0.4.3->0.5.1 (BUILD pin == PyPI latest); kailash HELD at 2.62.0 — BUILD working version reads 2.63.0 but the newest tag is v2.62.0 and PyPI latest is 2.62.0, so 2.63.0 is in-development and pinning it would break consumer installs."
   baselines_emitted: { cc: 0 }

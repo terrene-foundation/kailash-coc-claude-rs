@@ -312,8 +312,8 @@ fn test_database_connection_with_invalid_credentials_returns_error() { }
 
 ### Primary Sources
 
-- [`CLAUDE.md`](../../../../CLAUDE.md) - Development quick reference and test commands
-- [`rules/testing.md`](../../../../rules/testing.md) - Testing rules
+- [`CLAUDE.md`](../../../CLAUDE.md) - Development quick reference and test commands
+- [`rules/testing.md`](../../rules/testing.md) - Testing rules
 
 ## Related Patterns
 

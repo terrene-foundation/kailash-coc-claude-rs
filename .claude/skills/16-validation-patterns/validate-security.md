@@ -151,7 +151,7 @@ grep -rn "unsafe" crates/kailash-dataflow/ --include="*.rs"
 ## Documentation
 
 - **Security rules**: `rules/security.md`
-- **CLAUDE.md security section**: [`CLAUDE.md`](../../../../CLAUDE.md)
+- **CLAUDE.md security section**: [`CLAUDE.md`](../../../CLAUDE.md)
 - **Security reviewer**: `.claude/agents/security-reviewer.md`
 
 <!-- Trigger Keywords: security validation, check security, security audit, secrets management, cargo audit, unsafe -->

@@ -91,7 +91,7 @@ match builder.build(&registry) {
 
 ## Documentation
 
-- **Workflow Building**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Essential Patterns section
+- **Workflow Building**: [`CLAUDE.md`](../../../CLAUDE.md) -- Essential Patterns section
 - **WorkflowBuilder**: `crates/kailash-core/src/workflow/builder.rs`
 
 <!-- Trigger Keywords: validate workflow, check connections, workflow validation, connection errors, builder.connect -->

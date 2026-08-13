@@ -1,3 +1,8 @@
+---
+name: test
+description: "Testing strategies quick reference: 3-tier, Tier 2/3 real infra (NO mocking), regression, coverage."
+---
+
 # /test - Testing Strategies Quick Reference
 
 ## Purpose

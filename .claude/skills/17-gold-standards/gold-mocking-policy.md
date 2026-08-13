@@ -270,8 +270,8 @@ async fn test_workflow() {
 
 ### Primary Sources
 
-- [`rules/testing.md`](../../../../rules/testing.md) - Testing rules
-- [`CLAUDE.md`](../../../../CLAUDE.md) - Development quick reference
+- [`rules/testing.md`](../../rules/testing.md) - Testing rules
+- [`CLAUDE.md`](../../../CLAUDE.md) - Development quick reference
 
 ## Related Patterns
 

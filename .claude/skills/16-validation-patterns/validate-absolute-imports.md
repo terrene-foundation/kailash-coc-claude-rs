@@ -99,7 +99,7 @@ kailash-kaizen = { path = "../kailash-kaizen", features = ["trust"] }
 
 ## Documentation
 
-- **Crate dependency graph**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Crate Dependency Graph section
-- **Workspace structure**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Workspace Architecture section
+- **Crate dependency graph**: [`CLAUDE.md`](../../../CLAUDE.md) -- Crate Dependency Graph section
+- **Workspace structure**: [`CLAUDE.md`](../../../CLAUDE.md) -- Workspace Architecture section
 
 <!-- Trigger Keywords: check imports, import validation, use statements, crate paths, absolute imports -->

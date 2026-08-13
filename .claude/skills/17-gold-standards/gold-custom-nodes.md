@@ -236,8 +236,8 @@ impl NodeExecute for MyTransformNode {
 
 ## Documentation
 
-- **Node Trait**: [`crates/kailash-core/src/node.rs`](../../../../crates/kailash-core/src/node.rs)
-- **Existing Nodes**: [`crates/kailash-nodes/src/`](../../../../crates/kailash-nodes/src/)
-- **Proc-Macro**: [`crates/kailash-macros/src/`](../../../../crates/kailash-macros/src/)
+- **Node Trait**: [`crates/kailash-core/src/node.rs`](../../../crates/kailash-core/src/node.rs)
+- **Existing Nodes**: [`crates/kailash-nodes/src/`](../../../crates/kailash-nodes/src/)
+- **Proc-Macro**: [`crates/kailash-macros/src/`](../../../crates/kailash-macros/src/)
 
 <!-- Trigger Keywords: create custom node, custom node standard, node development, custom node gold standard -->
