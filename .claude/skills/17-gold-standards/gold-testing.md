@@ -228,8 +228,8 @@ async fn test_workflow_with_resources() {
 
 ### Primary Sources
 
-- [`CLAUDE.md`](../../../../CLAUDE.md) - Workspace architecture and testing commands
-- [`rules/testing.md`](../../../../rules/testing.md) - Testing rules
+- [`CLAUDE.md`](../../../CLAUDE.md) - Workspace architecture and testing commands
+- [`rules/testing.md`](../../rules/testing.md) - Testing rules
 
 ## Related Patterns
 

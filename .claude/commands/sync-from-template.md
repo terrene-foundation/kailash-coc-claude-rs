@@ -24,15 +24,45 @@ The "Project-specific" preservation rule below applies only to downstream USE re
 
 ## Merge Semantics
 
-This is a **merge**, not an overwrite. Three categories of files:
+**A CATEGORY-BASED REPLACE, NOT A PER-FILE MERGE.** The word "merge" names the repo-level
+outcome (your project keeps its own artifacts while shared ones advance); it does NOT describe
+what happens to an individual file. No file is ever line-merged. Each path is classified into
+exactly one category and that category alone decides its fate:
 
-| Category                              | Examples                                          | Behavior                      |
-| ------------------------------------- | ------------------------------------------------- | ----------------------------- |
-| **Shared artifacts**                  | agents/analyst.md, rules/security.md              | **Updated** from template     |
-| **Project-specific** (USE repos only) | agents/project/\*, skills/project/\*, workspaces/ | **Preserved** — never touched |
-| **Per-repo data**                     | learning/\*, .proposals/                          | **Preserved** — never touched |
+| Category                              | Examples                                                                                         | Behavior                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Shared artifacts**                  | agents/analyst.md, rules/security.md                                                             | **REPLACED WHOLE** from the template — local edits are LOST |
+| **Project-specific** (USE repos only) | agents/project/\*, skills/project/\*, **rules/project/\***, **commands/project/\***, workspaces/ | **Preserved** — never touched                               |
+| **Per-repo data**                     | learning/\*, .proposals/, **team-memory/\*\***                                                   | **Preserved** — never touched                               |
 
-**Rule**: If a file exists in BOTH the template and this repo, the template version wins (it's the upstream source). If a file exists ONLY in this repo, it's preserved. If a file exists ONLY in the template, it's added.
+**Rule**: a path in the SHARED category is REPLACED WHOLE by the template's copy — it is not
+reconciled, and any local modification to it is discarded without a conflict marker. A path in a
+PRESERVED category is never touched, whether or not the template also carries it. A path only
+this repo has, in no shared category, stays.
+
+**The consequence the old "the template version wins" wording hid:** if you edited a shared
+artifact locally, that edit is destroyed by the next sync with no diff to review. That is why
+the preflight below is a MUST, not a nicety.
+
+**Preflight (MUST — run BEFORE the sync writes anything).**
+
+```bash
+node .claude/bin/sync-preflight-local-mods.mjs
+```
+
+Three-valued exit, and the third value is the one that matters:
+
+- **0** — nothing at risk; proceed.
+- **2** — at-risk local modifications found; a HUMAN decides per file before the sync proceeds.
+- **1** — the check DID NOT RUN. Exit 1 MUST NEVER be read as "safe" — it is the absence of a
+  result, not a clean result (`instrument-discipline.md` MUST-1). Fix the invocation and re-run;
+  proceeding on a 1 is BLOCKED.
+
+**Coverage residual, stated rather than assumed away.** The preflight scans a fixed set of six
+shared directories. It does NOT cover `.claude/bin/`, `.claude/hooks/`, `.claude/audit-fixtures/`,
+or files at the `.claude/` root — so a local modification THERE is silently replaced with no
+warning from this tool. Check those by hand (`git status` before the sync) until the scanned set
+widens.
 
 ## Process
 
@@ -138,6 +168,13 @@ It rewrites every `permissions.deny` entry of the form `Write(<x>)` / `NotebookE
 
 - Every hook in `settings.json` has a corresponding script
 - Every `require("./lib/...")` has a matching lib file
+- **Post-merge source gate (MUST — before reporting success).** A fresh emission being valid does
+  NOT prove this repo's PRESERVED local overlays are still loadable: the merge can leave a
+  preserved `rules/project/*.md` or `commands/project/*.md` whose frontmatter no longer parses
+  under the refreshed loader. Parse-load every preserved overlay in the INSTALLED tree; on any
+  parser-invalid file **HALT** and report it as metadata-only local `/codify` remediation (the fix
+  is the file's own frontmatter, not a re-sync). Reporting the sync successful while a preserved
+  overlay fails to parse is BLOCKED — the artifact sits on disk and silently never loads.
 
 ### 7. Update tracking
 

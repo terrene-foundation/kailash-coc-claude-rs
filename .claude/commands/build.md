@@ -1,3 +1,8 @@
+---
+name: build
+description: "Cargo build patterns for the Kailash Rust workspace. Speed rules are mandatory per rules/build-speed.md."
+---
+
 # /build - Cargo Build Patterns
 
 ## Purpose

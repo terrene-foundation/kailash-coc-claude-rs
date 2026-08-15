@@ -197,7 +197,7 @@ match builder.build(&registry) {
 
 ## Related Patterns
 
-- **For workflow basics**: See [`CLAUDE.md`](../../../../CLAUDE.md) (Essential Patterns section)
+- **For workflow basics**: See [`CLAUDE.md`](../../../CLAUDE.md) (Essential Patterns section)
 - **For custom nodes**: See [`gold-custom-nodes`](gold-custom-nodes.md)
 - **For error handling**: See [`gold-error-handling`](gold-error-handling.md)
 

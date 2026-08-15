@@ -13,6 +13,7 @@ Mandatory best practices and standards for all Kailash Rust SDK development. The
 
 - **[gold-absolute-imports](gold-absolute-imports.md)** -- Use absolute crate paths (`use kailash_core::...`), group imports (std, external, workspace), no wildcards
 - **[gold-parameter-passing](gold-parameter-passing.md)** -- 4-parameter connection format, result access via `result.results["node_id"]["field"]`
+- **[gold-typescript-phantom-fields](gold-typescript-phantom-fields.md)** -- TypeScript-only (frontend surface): anchor an unused type parameter under `noUnusedLocals` with a `@phantom` field instead of deleting it. Rust's `PhantomData<T>` is a DIFFERENT mechanism -- do not read one as the other
 
 ### Testing Standards
 

@@ -182,7 +182,7 @@ match runtime.execute(&workflow, ValueMap::new()).await {
 
 ### Primary Sources
 
-- [`CLAUDE.md`](../../../../CLAUDE.md) -- kailash-value and kailash-core sections
+- [`CLAUDE.md`](../../../CLAUDE.md) -- kailash-value and kailash-core sections
 - `crates/kailash-core/src/node.rs` -- Node trait, ParamDef
 
 ## Quick Tips

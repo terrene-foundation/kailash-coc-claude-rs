@@ -232,7 +232,7 @@ Use `rust-architect`:
 
 ### Primary Sources
 
-- **Essential Patterns**: [`CLAUDE.md`](../../../../CLAUDE.md) -- Essential Patterns section
+- **Essential Patterns**: [`CLAUDE.md`](../../../CLAUDE.md) -- Essential Patterns section
 - **WorkflowBuilder**: `crates/kailash-core/src/workflow/builder.rs`
 - **Node trait**: `crates/kailash-core/src/node.rs`
 - **Rules**: `rules/zero-tolerance.md`, `rules/security.md`
