@@ -83,7 +83,7 @@ node tools/canon-sync.mjs coc-delta               # the delta + canon's reasonin
 
 ## Step 4 — Holistic /redteam — 3 parallel agents, scoped to the WHOLE delta
 
-Per `agents.md` § Multi-Wave Holistic /redteam: reviewer (merge-correctness: dropped canon evolution? duplicate defs? conflict markers?) + security-reviewer (the fork's fail-closed / hardening surfaces) + closure-parity (every register item landed + wired; deferrals genuine). Converge to zero CRIT/HIGH/MED.
+Per `agents.md` § "MUST: Holistic Post-Multi-Wave Redteam Before Plan Close": reviewer (merge-correctness: dropped canon evolution? duplicate defs? conflict markers?) + security-reviewer (the fork's fail-closed / hardening surfaces) + closure-parity (every register item landed + wired; deferrals genuine). Converge to zero CRIT/HIGH/MED.
 
 ## Step 5 — Cutover (HUMAN-GATED) + advance the anchor
 

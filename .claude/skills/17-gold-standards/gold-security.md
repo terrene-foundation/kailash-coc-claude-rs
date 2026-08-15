@@ -168,7 +168,7 @@ std::process::Command::new("grep")
 
 ## Documentation References
 
-- [`rules/security.md`](../../../../rules/security.md) - Detailed security rules
-- [`CLAUDE.md`](../../../../CLAUDE.md) - Workspace security overview
+- [`rules/security.md`](../../rules/security.md) - Detailed security rules
+- [`CLAUDE.md`](../../../CLAUDE.md) - Workspace security overview
 
 <!-- Trigger Keywords: security standard, security best practices, secure coding, security gold standard, unsafe, cargo audit, sqlx injection -->

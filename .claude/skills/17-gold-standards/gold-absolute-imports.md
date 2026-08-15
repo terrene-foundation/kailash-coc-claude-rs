@@ -141,7 +141,7 @@ use kailash_core::internal::scheduler; // Not part of public API
 
 ## Related Patterns
 
-- **For crate architecture**: See [`CLAUDE.md`](../../../../CLAUDE.md) (Crate Dependency Graph)
+- **For crate architecture**: See [`CLAUDE.md`](../../../CLAUDE.md) (Crate Dependency Graph)
 - **For feature flags**: See Cargo.toml workspace configuration
 
 ## Quick Tips

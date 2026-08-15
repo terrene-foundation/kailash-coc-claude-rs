@@ -107,7 +107,7 @@ let workflow = builder.build(&registry)?;
 
 ## Documentation
 
-- **DataFlow guide**: [`CLAUDE.md`](../../../../CLAUDE.md) -- kailash-dataflow section
+- **DataFlow guide**: [`CLAUDE.md`](../../../CLAUDE.md) -- kailash-dataflow section
 - **DataFlow crate**: `crates/kailash-dataflow/`
 - **DataFlow skills**: `.claude/skills/02-dataflow/`
 

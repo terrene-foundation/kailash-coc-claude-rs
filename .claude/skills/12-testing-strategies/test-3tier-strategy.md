@@ -114,7 +114,7 @@ cargo clippy --workspace -- -D warnings
 
 ## Documentation
 
-- **Testing Rules**: [`rules/testing.md`](../../../../rules/testing.md)
-- **Workspace Root**: [`CLAUDE.md`](../../../../CLAUDE.md)
+- **Testing Rules**: [`rules/testing.md`](../../rules/testing.md)
+- **Workspace Root**: [`CLAUDE.md`](../../../CLAUDE.md)
 
 <!-- Trigger Keywords: 3-tier testing, testing strategy, test tiers, testing pyramid, unit tests, integration tests -->
