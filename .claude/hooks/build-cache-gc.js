@@ -31,7 +31,7 @@
  *   Scope: stray build-only `target/` trees under the temp roots (clone-root has
  *   no .git — the review/redteam clone-to-tmp orphans, the 197GB class) +
  *   sibling-worktree `target/`s (the 51GB N-copies class). Repo-agnostic: synced
- *   into csq/aegis/etc. it self-remediates each repo's pre-existing accumulation
+ *   into each consuming repo it self-remediates that repo's pre-existing accumulation
  *   on its next session. The `--sweep` entrypoint runs the same reclamation
  *   non-session-gated (for `/sweep`, cron, or launchd — the cascade backstop for
  *   repos that rarely open a session).

@@ -90,7 +90,7 @@ accumulated incremental cruft, not a working-set requirement.
 
 This rule is backed by two session-lifecycle hooks that make the discipline
 structural AND carry it to every repo the artifact cascades to (loom → all Rust
-BUILD repos + USE templates → downstream consumers like aegis, csq):
+BUILD repos + USE templates → downstream consumer repos):
 
 - **`build-cache-guard.js` (SessionStart, advisory)** — measures the reclaimable
   footprint (main `target/`, per-worktree `target/`s, stray `/tmp` build trees)
@@ -126,7 +126,7 @@ error never blocks the session) per `hook-output-discipline.md`.
 
 **Why:** Memory + a rule are not enough (the 2026-06-20 incident proves it).
 The auto-GC hook is the teeth; its repo-agnostic design is the cascade — syncing
-it to csq/aegis/etc. means those repos self-clean their orphaned caches the next
+it to every consuming repo means those repos self-clean their orphaned caches the next
 time they run a session, which is the "clear all old mistakes too" the discipline
 requires.
 
@@ -175,4 +175,4 @@ requires.
   filling the disk to 92%. Directive: "introduce absolute discipline so that we
   don't end up with 600GB of garbage … use hooks to conform … ensure the
   enforcement also do surveillance/maintenance so that all old mistakes are
-  cleared too" across all Rust applications (the Rust SDK, csq, aegis, …).
+  cleared too" across all Rust applications (the Rust SDK and its consuming repos).
