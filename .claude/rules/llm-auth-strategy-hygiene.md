@@ -1,4 +1,6 @@
 ---
+priority: 10
+scope: path-scoped
 paths:
   - "crates/kailash-kaizen/**/*.rs"
   - "bindings/**/*.rs"

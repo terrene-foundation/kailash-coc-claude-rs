@@ -1,12 +1,27 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, CC-only-legacy)
-timestamp: 2026-08-02T00:00:00Z
+timestamp: 2026-08-17T15:10:00Z
 source: loom/.claude
-loom_sha: 43167a54921f7454a3eb2573af0252ca7d16df2a
+loom_sha: a44083a5261ed162bc456715d4b73e7e506566a4
+corpus_sha: a44083a5261ed162bc456715d4b73e7e506566a4 # pinned wave corpus, shared with surfaces 4 and 5 (wave-loop.md MUST-8)
+base_sha: f34c0cd9a904bb1443dc0c2dc4d70aee6b848e85
 variant: rs
 visibility: public
 clis: ["claude"]
 stats:
-  engine_changed: 497   # 368 added, 129 modified, 0 deleted
-  version_stamp: "loom-tracking -> 2.45.0 @ 43167a54 (own 2.23.26 -> 2.24.0)"
-  sdk_pins: "HELD at kailash-enterprise>=4.40.0 — BUILD kailash-rs is 4.43.0 but PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist, so admitting it fails uv sync on darwin-arm64 (verified rc=2); baseline pin verified uv sync rc=0. sdk_packages metadata refreshed to PyPI-latest (5 bumped; kailash-rs held at 4.40.0)"
-  baselines_emitted: { cc: 0 }
+  engine_verify: "CONSISTENT — 2850 in-plan files checked, every one matches expected; no obsoleted path present (sync-tier-aware --target rs --template kailash-coc-claude-rs --verify, exit 0)"
+  engine_changed: 272 # +216 added, ~56 modified, -0 deleted; 2534 copied (2466 byte-equal, 68 content-equal after BUILD-internal strip), overlays 142/142 byte-equal, variant_only 174/174 byte-equal, 0 purged
+  changed_paths_total: 273 # git status --porcelain -uall, counted AFTER this marker + VERSION were written
+  version_stamp: "loom-tracking -> 2.45.0 @ a44083a5 (stamp-template-version --write --worktree <wt> --loom-root <src-worktree> --repo terrene-foundation/kailash-coc-claude-rs); own 2.24.0 -> 2.25.0"
+  source_freshness: "DISTRIBUTED FROM A DETACHED loom WORKTREE AT origin/main (sync-flow.md §0b(i)). The operator's main checkout was behind origin/main and check-sync-freshness --loom exited 1; distributing from it would have shipped the pre-#1786 .claude/guides/deterministic-quality/08-cross-sdk-parity.md, which carried an org-qualified slug that #1786 genericized. --loom-root was passed to the stamper per §0b(iii), so loom_sha names THIS source rather than the stale checkout. The corpus is PINNED at a44083a5 for the whole wave: a later sibling merge (#1787) was deliberately NOT chased, because surfaces cut from different SHAs would mean the wave shipped N corpora rather than one (wave-loop.md MUST-8)."
+  derived_cli_trees: "N/A — this template is CC-only (clis: [claude]). No .codex/, .gemini/, .coc/, AGENTS.md or GEMINI.md is owed or present; sync-completeness Rule 8's multi-CLI re-emit does not apply. Verified absent on disk rather than assumed."
+  removal_review: "0 deletions in this delivery (pre-merge delivered-removal review). The check is not vacuous: the same instrument reported 5 deletions on the py surface in this same wave, so an empty removal set here is a real empty set."
+  hooks_resolving: "41/41"
+  settings_pii_scan: "clean — 0 /Users/ or /home/ hits in .claude/settings.json"
+  settings_reconcile: "Gate-2 automatic (in-worktree, post-engine-apply): deny rewrote 0 / deduped 0 / restored 0; hooks pruned 0, ADDED 2 (dispatch-contract-guard.js, delegation-default-guard.js)."
+  baselines_emitted: { cc: 0 } # CLAUDE.md is template-owned, preserved not emitted
+  disclosure_gate: "scan-synced-disclosure.mjs --check — loom SOURCE tree 4330 files scanned / 0 findings, exit 0; staged worktree 2848 files scanned / 0 findings, exit 0. Both counts are NON-ZERO, so neither run is a vacuous no-op pass."
+  sdk_pins:
+    disposition: "HELD at kailash-enterprise>=4.40.0."
+    reason: "TWO independent grounds. (1) The BUILD half of a pin refresh reads kailash-rs, and this session holds NO cross-repo authorization for it (receipts cover only the three USE templates), so whether BUILD has moved was NOT determined — a DECLARED GAP, not a verified no-op. (2) The prior cycle recorded a substantive reason to hold regardless: BUILD kailash-rs 4.43.0 exists but PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist, so admitting it fails resolution on darwin-arm64."
+    install_verify: "uv lock --check -> exit 0, 74 packages resolved, CPython 3.14.3. CONTROL: mutating the pin to kailash-enterprise>=99.99.99 makes the same command exit 1 ('requirements are unsatisfiable'), so exit 0 is a real resolution and not an instrument that cannot fail. pyproject.toml was restored byte-for-byte after the control (verified clean in git status)."
+  inbox: ".claude/.proposals/inbox/ already present (README.md) — additive ensure-exists produced zero diff."

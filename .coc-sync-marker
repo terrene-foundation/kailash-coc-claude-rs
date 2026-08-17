@@ -1,3 +1,4 @@
-synced_at: "2026-08-02T00:00:00Z"
-source: loom@43167a54
-fixes: ["#814"]
+synced_at: "2026-08-17T15:10:00Z"
+source: loom@a44083a5
+corpus_sha: "a44083a5261ed162bc456715d4b73e7e506566a4"
+fixes: ["#1786"]
