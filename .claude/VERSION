@@ -8,21 +8,21 @@
     "type": "coc-source",
     "version": "2.45.0",
     "build_version": "2.45.0",
-    "synced_at": "2026-08-17T15:04:51.389Z",
+    "synced_at": "2026-08-19T00:44:22.065Z",
     "sdk_packages": {
       "kailash": "2.62.0",
       "kailash-dataflow": "2.19.1",
       "kailash-nexus": "2.15.0",
       "kailash-kaizen": "2.45.0",
       "kailash-pact": "0.18.0",
-      "kailash-mcp": "0.4.3",
+      "kailash-mcp": "0.5.1",
       "kailash-ml": "2.2.2",
       "kailash-align": "0.7.4",
       "kaizen-agents": "0.12.0",
       "kailash-rs": "4.40.0"
     },
-    "loom_sha": "a44083a5",
-    "source_commit": "a44083a5",
+    "loom_sha": "0c663306",
+    "source_commit": "0c663306",
     "template_version": "2.45.0"
   },
   "changelog": [
@@ -338,7 +338,7 @@
       "summary": "loom 2.28.0 sync (rs CC-only legacy): probe-driven verification Phase 2 — agent + command body integration."
     }
   ],
-  "updated": "2026-08-17",
+  "updated": "2026-08-19",
   "released": "2026-08-02",
   "_note": "loom 2.45.0 @ a674718 redistribution (Gate-2 /sync-to-use rs; SAFR S1 MUST-8 merge, PR #814). SDK pins REFRESHED to BUILD-current/PyPI-resolvable: kailash-rs 4.24.0->4.24.2; py family kailash 2.45.3 / dataflow 2.13.16 / nexus 2.11.0 / kaizen 2.28.0 / pact 0.14.3 / mcp 0.2.15 / ml 2.2.2 / align 0.7.4 / kaizen-agents 0.9.11. pyproject kailash-enterprise>=4.24.2, uv.lock relocked.",
   "repo": "terrene-foundation/kailash-coc-claude-rs"
