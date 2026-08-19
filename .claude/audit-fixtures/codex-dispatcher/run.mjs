@@ -25,6 +25,24 @@ import { mkdtempSync, writeFileSync, chmodSync, rmSync, existsSync } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { requireRepoClass } from "../_lib/repo-class.mjs";
+
+// `.claude/codex-templates/` is loom-internal emitter SOURCE and is deliberately
+// NOT distributed — `sync-manifest.yaml` lists the whole tree under `obsoleted:`
+// ("loom-internal Codex emitter SOURCE tree … NEVER belongs on a consumer
+// surface"), so every consumer is actively purged of it. The dispatcher is
+// EMITTED from here into each USE template's `.codex/bin/coc` at Gate 2; no
+// consumer repo hosts the source this suite exercises.
+//
+// Gated on repo CLASS, not on dispatcher existence — at loom, a missing
+// dispatcher must still fail loudly rather than skip. (Unlike its sibling
+// suites this one would not ERR_MODULE_NOT_FOUND: it spawns the dispatcher
+// rather than importing it, so a consumer got eight bash-not-found FAILs — a
+// false regression report, which is the same defect wearing a louder mask.)
+requireRepoClass(
+  ["coc-source"],
+  "the Codex phase dispatcher lives in .claude/codex-templates/, loom-internal emitter source that is declared obsoleted for every consumer and never synced.",
+);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..", "..");

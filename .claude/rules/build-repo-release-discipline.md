@@ -12,6 +12,8 @@ paths:
   - ".github/workflows/publish-*.yml"
   - ".github/workflows/release*.yml"
   - "deploy/deployment-config.md"
+  - "Cargo.toml"
+  - "**/Cargo.toml"
 ---
 
 # BUILD Repo Release Discipline

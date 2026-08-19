@@ -5,6 +5,8 @@ paths:
   - "packages/**"
   - "src/**"
   - "**/tests/**"
+  - "crates/**"
+  - "**/src/**"
 ---
 
 # Orphan Detection Rules

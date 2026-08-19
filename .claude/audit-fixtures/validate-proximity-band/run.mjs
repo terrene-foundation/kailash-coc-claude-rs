@@ -33,9 +33,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { readRepoClass } from "../_lib/repo-class.mjs";
 
 let passed = 0;
 let failed = 0;
+let skipped = 0;
 
 function check(name, condition, details) {
   if (condition) {
@@ -46,6 +48,40 @@ function check(name, condition, details) {
     process.stderr.write(`  FAIL  ${name}\n`);
     if (details) process.stderr.write(`        ${details}\n`);
   }
+}
+
+// ── Loom-class gating for the integration fixtures ───────────────────────
+// This suite is PARTIALLY portable, so it takes a per-fixture flag rather than
+// the whole-suite `requireRepoClass()` its sibling suites use. Both of its
+// static imports SHIP (`bin/emit.mjs` + `bin/validate-proximity-band.mjs` are
+// both on `sync-tier-aware.mjs::ALWAYS_INCLUDE`), so the module LOADS anywhere
+// and seven fixtures have real regression value in a consumer repo: five call
+// `getProximityBandAdvisory()` directly (pure arithmetic, no filesystem) and two
+// exercise the CLI surface (--help, unknown-flag).
+//
+// The other thirteen build a temp repo via `buildTempLoomRepo()` and spawn the
+// validator, which spawns `emit.mjs --all --dry-run`. That path is loom-class by
+// construction: the builder copies `.claude/sync-manifest.yaml` out of the live
+// tree, and emit.mjs reads the per-rule budgets, tolerance, block threshold and
+// CLI caps out of that same manifest. The manifest is a loom-only artifact, so
+// those thirteen cannot run anywhere else.
+//
+// They are SKIPPED, not deleted and not loosened. Seeding a synthetic manifest
+// would be WORSE than loosening an assertion: emit.mjs would compute headroom
+// against invented budgets, and fixtures 02/03/13 assert on near-breach lanes,
+// so they would be asserting a property of a fiction.
+//
+// The gate is repo CLASS, not manifest existence. At loom all thirteen run, and
+// a missing manifest there is a loud failure — which is the whole point.
+const IS_LOOM_CLASS = readRepoClass() === "coc-source";
+const LOOM_ONLY_REASON =
+  "requires a loom-class checkout: the fixture builds a temp tree from " +
+  ".claude/sync-manifest.yaml and spawns emit.mjs, which reads budgets/caps " +
+  "from that same loom-only artifact";
+
+function skip(name, reason) {
+  skipped++;
+  process.stdout.write(`  SKIP  ${name} — ${reason}\n`);
 }
 
 function gitInit(repoDir) {
@@ -340,7 +376,11 @@ function runValidator(repoRoot, extraArgs = []) {
 // 13.54% gemini against a 61440 cap). loom#1650 raised the cap to 65536, both
 // lanes moved to 17.48%, and this fixture failed — the assertion was coupled to
 // canon's incidental headroom rather than to anything this fixture built.
-{
+fixture_02: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-02-near-breach-no-diff", LOOM_ONLY_REASON);
+    break fixture_02;
+  }
   const tmp = buildTempLoomRepo("fix-02", { nearBreach: true });
   try {
     const result = runValidator(tmp, ["--base", "HEAD", "--head", "HEAD", "--json"]);
@@ -374,7 +414,11 @@ function runValidator(repoRoot, extraArgs = []) {
 // Subprocess integration: create a SECOND commit that adds a NEW MUST
 // clause to a known baseline rule. Diff main..HEAD now shows a
 // baseline addition; emit lanes are still near-breach → Rule 10 fires.
-{
+fixture_03: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-03-near-breach-with-diff", LOOM_ONLY_REASON);
+    break fixture_03;
+  }
   const tmp = buildTempLoomRepo("fix-03", { nearBreach: true });
   try {
     // Identify a known baseline rule (priority: 0, scope: baseline).
@@ -496,7 +540,11 @@ function runValidator(repoRoot, extraArgs = []) {
 // NOT contribute to Rule 10's trigger (per Rule 10 Trigger scope:
 // fires on priority:0 + scope:baseline rules ONLY). Even with near-
 // breach lanes present, rule_10_fires=false because baseline_additions=0.
-{
+fixture_06: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-06-diff-only-path-scoped", LOOM_ONLY_REASON);
+    break fixture_06;
+  }
   const tmp = buildTempLoomRepo("fix-06");
   try {
     // Create a NEW path-scoped rule (no priority:0) so the diff only
@@ -566,7 +614,11 @@ function runValidator(repoRoot, extraArgs = []) {
 // No commits beyond main → diff HEAD..HEAD is empty; additions_total=0.
 // Verdict is either advisory_only_no_diff (near-breach lanes exist) or
 // clean (no near-breach). Either way exit 0.
-{
+fixture_07: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-07-empty-diff", LOOM_ONLY_REASON);
+    break fixture_07;
+  }
   const tmp = buildTempLoomRepo("fix-07");
   try {
     const result = runValidator(tmp, [
@@ -714,7 +766,12 @@ function runValidator(repoRoot, extraArgs = []) {
 // statically imports getProximityBandAdvisory from it. A wrapper that
 // re-exports the real module and exits 2 as main produces exactly the
 // `exit=2, 0 lane(s) scanned` shape #1537 reports.
-{
+fixture_11: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-11-unrun-zero-lanes-exits-nonzero", LOOM_ONLY_REASON);
+    skip("fixture-11b-unrun-json-coverage-asserted-false", LOOM_ONLY_REASON);
+    break fixture_11;
+  }
   const repo = buildTempLoomRepo("unrun");
   const emitPath = join(repo, ".claude", "bin", "emit.mjs");
   copyFileSync(emitPath, join(repo, ".claude", "bin", "emit.real.mjs"));
@@ -775,7 +832,12 @@ function runValidator(repoRoot, extraArgs = []) {
 // statically) down with it. This fixture pins that emit.mjs LOADS with no
 // codex surface present, and that the extractor still fails AT USE with a
 // message naming the missing surface rather than an opaque loader error.
-{
+fixture_12: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-12-precondition-no-codex-surface", LOOM_ONLY_REASON);
+    skip("fixture-12-emit-loads-without-codex-surface", LOOM_ONLY_REASON);
+    break fixture_12;
+  }
   const repo = buildTempLoomRepo("nocodex");
   rmSync(join(repo, ".claude", "codex-mcp-guard"), {
     recursive: true,
@@ -842,7 +904,12 @@ function runValidator(repoRoot, extraArgs = []) {
 //   13b  drift BOTH carriers and the lane has no measurement at all — that
 //        must be UNRUN (exit 3), never "above band". Reds if the
 //        headroom_pct===null clause is dropped from the coverage floor.
-{
+fixture_13: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-13-headroom-survives-advisory-line-drift", LOOM_ONLY_REASON);
+    skip("fixture-13b-no-headroom-carrier-is-unrun-not-clean", LOOM_ONLY_REASON);
+    break fixture_13;
+  }
   const repo = buildTempLoomRepo("advdrift", { nearBreach: true });
   const emitPath = join(repo, ".claude", "bin", "emit.mjs");
   const original = readFileSync(emitPath, "utf8");
@@ -947,7 +1014,12 @@ function runValidator(repoRoot, extraArgs = []) {
 //        deterministically with a ref pointing at a BLOB: `rev-parse --verify`
 //        succeeds, `git diff` exits 129. Must be UNRUN, not clean. Reds if
 //        `!diff.ok` is dropped from the coverage floor.
-{
+fixture_14: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-14-unresolvable-head-ref-exit-2", LOOM_ONLY_REASON);
+    skip("fixture-14b-failed-diff-scan-is-unrun-not-clean", LOOM_ONLY_REASON);
+    break fixture_14;
+  }
   const repo = buildTempLoomRepo("difffloor");
 
   const badHead = runValidator(repo, [
@@ -1025,7 +1097,11 @@ function runValidator(repoRoot, extraArgs = []) {
 // unmeasured near-breach hides. The expected count is derived from the shared
 // axis declaration (EMIT_CLIS × langs), so this reds if that derivation is
 // replaced by a restated literal that drifts, or removed.
-{
+fixture_15: {
+  if (!IS_LOOM_CLASS) {
+    skip("fixture-15-partial-lane-set-is-unrun-not-clean", LOOM_ONLY_REASON);
+    break fixture_15;
+  }
   const repo = buildTempLoomRepo("partial");
   const emitPath = join(repo, ".claude", "bin", "emit.mjs");
   const original = readFileSync(emitPath, "utf8");
@@ -1067,5 +1143,26 @@ function runValidator(repoRoot, extraArgs = []) {
 }
 
 // ------------------------------------------------------------------
-process.stdout.write(`\n${passed}/${passed + failed} fixtures pass\n`);
+// Skips are reported in a SEPARATE tally and are NEVER counted as passes. A
+// "20/20 fixtures pass" obtained by silently skipping thirteen would be a lie;
+// "7/7 portable fixtures pass, 13 skipped (loom-class only)" is not.
+//
+// The degenerate case is called out explicitly rather than left to arithmetic:
+// if EVERY fixture skipped, `0/0 pass` is vacuously true and would read as
+// success to any human or grep scanning for a green line. That run asserted
+// nothing about the subject, so it must not print an unqualified one.
+if (passed + failed === 0) {
+  process.stdout.write(
+    `\nNO fixture ran — all ${skipped} skipped (loom-class only, see SKIP lines ` +
+      `above). This run asserted NOTHING about the subject.\n`,
+  );
+} else {
+  process.stdout.write(`\n${passed}/${passed + failed} portable fixtures pass`);
+  if (skipped) {
+    process.stdout.write(
+      `, ${skipped} skipped (loom-class only — see SKIP lines above)`,
+    );
+  }
+  process.stdout.write("\n");
+}
 process.exit(failed === 0 ? 0 : 1);

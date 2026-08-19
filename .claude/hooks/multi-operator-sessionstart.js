@@ -1003,6 +1003,42 @@ function runParent() {
     if (cached.ok) {
       base = cached.banner;
     } else {
+      // TEST-ONLY structural observable (#866): record that the parent took the
+      // MISS branch, i.e. did NOT skip the bounded fold worker. The property
+      // under test is exactly which branch ran, so the branch is where it is
+      // recorded. It exists because that property has no sound TIMING proxy:
+      // WORKER_BUDGET_MS is a spawnSync `timeout:`, a CAP rather than a cost,
+      // so the miss pole pays the fold's ACTUAL duration — on a fast idle host
+      // that finishes well inside the cap and the poles converge, while on a
+      // loaded host the worker is killed at the cap and they diverge. A latency
+      // assertion therefore reports on the machine, not on the fast path.
+      //
+      // The flag is a BOOLEAN and the destination is DERIVED from PROJECT_DIR,
+      // never named by the caller: an env-var-supplied path would be an
+      // arbitrary-write primitive in a hook that runs in every consumer
+      // session, and resolving it would not close the class — the final
+      // component stays a symlink sink unless the write itself refuses to
+      // follow. `wx` (O_CREAT|O_EXCL) is that refusal, and 0600 keeps the
+      // marker unreadable to other users; this mirrors the same guarantee
+      // runBoundedWorker's own banner file documents and relies on.
+      // Fail-open per cc-artifacts.md Rule 7 — a trace failure never changes
+      // what the hook does, and in production the flag is unset.
+      if (process.env.COC_TEST_WORKER_SPAWN_TRACE === "1") {
+        try {
+          fs.writeFileSync(
+            path.join(
+              PROJECT_DIR,
+              ".claude",
+              "learning",
+              ".worker-spawn.trace",
+            ),
+            "spawn\n",
+            { flag: "wx", mode: 0o600 },
+          );
+        } catch (_) {
+          // observability only — never blocks or alters session start
+        }
+      }
       const r = coordBg.runBoundedWorker(__filename, WORKER_BUDGET_MS);
       base = r.ok ? r.stdout : buildLightweightBanner(identity, operativeRes);
     }

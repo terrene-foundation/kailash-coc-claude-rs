@@ -121,18 +121,76 @@ match result {
 Register model nodes with automatic validation before database operations:
 
 ```rust
-use kailash_dataflow::nodes::register_model_nodes_validated;
+use kailash_dataflow::deployment_classification::DeploymentClassificationPolicy;
+use kailash_dataflow::nodes::register_model_nodes_validated_checked;
 use std::sync::Arc;
 
 let validation = Arc::new(layer);
 
-// Registers 11 nodes (7 CRUD + 4 bulk) with validation on CRUD operations
-register_model_nodes_validated(&mut registry, model, pool, validation);
+// Registers 11 nodes (7 CRUD + 4 bulk) with validation on CRUD operations.
+// The `*_checked` variant runs BOTH model-definition refusal families for you
+// — `validate()` AND `validate_deployment_classification()` — before any
+// factory is registered, so you no longer call either yourself. Pass
+// `&DeploymentClassificationPolicy::new()` when the deployment has no policy.
+register_model_nodes_validated_checked(
+    &mut registry,
+    model,
+    pool,
+    validation,
+    &DeploymentClassificationPolicy::new(),
+)?;
 
-// Validation failures return DataFlowError::ValidationFailed
+// A refused model registers ZERO factories.
+// Validation failures at EXECUTION time return DataFlowError::ValidationFailed
 ```
 
+**The `*_checked` variants VALIDATE against the deployment policy; they do not
+APPLY it.** Applying the tier is one third of `DataFlow::bind_model_to_connection`,
+alongside the dialect and the `PgTypeMode`, and these free functions bind none of
+the three — so read masking, which consults `FieldDef::effective_classification`,
+will not see the tier. If you want classification masking actually enforced on
+the generated Read/List nodes — and the right dialect emitted — bind first, or
+use `DataFlow::register_model` / `DataFlowEngine::register_model`, which bind,
+validate and register in one call:
+
+```rust
+let model = Arc::new(df.bind_model_to_connection(Arc::unwrap_or_clone(model)));
+register_model_nodes_validated_checked(&mut registry, model, pool, validation, &policy)?;
+```
+
+An EMPTY policy (`DeploymentClassificationPolicy::new()`) skips the
+deployment-classification refusal family entirely — `validate_deployment_classification`
+early-returns on it. It is a required parameter rather than an `Option` so that
+"this deployment has no policy" is a decision made at the call site; pass the
+deployment's real policy whenever one exists.
+
 The validated CRUD nodes run `ValidationLayer::validate_all()` BEFORE executing the SQL statement. If validation fails, no database query is executed.
+
+Note the two distinct layers: `ValidationLayer` checks FIELD VALUES on each write, while `ModelDefinition::validate` checks the MODEL DEFINITION once at registration. The `*_checked` variants wire BOTH; so do `DataFlow::register_model` and `DataFlowEngine::register_model`.
+
+### The four UNCHECKED names are deprecated (#2319 / #2468)
+
+`register_model_nodes`, `register_model_nodes_with_read_pool`,
+`register_model_nodes_validated` and `register_model_nodes_full` do NOT validate
+the model definition and are `#[deprecated(since = "4.44.0")]`. A caller on one
+of them registers all 11 factories for a model `DataFlow::register_model` would
+refuse. They keep that behaviour for one minor cycle (the compiler warning is
+the migration signal) and emit a `tracing::warn!` when a model would have been
+refused. Removal is scheduled for 4.45.0. Migrate:
+
+```rust
+// before — two manual calls the caller had to remember, and no Result
+model.validate()?;
+model.validate_deployment_classification(&policy)?;
+register_model_nodes_validated(&mut registry, model, pool, validation);
+
+// after — one call, both families enforced in the callee
+register_model_nodes_validated_checked(&mut registry, model, pool, validation, &policy)?;
+```
+
+Source: `crates/kailash-dataflow/src/nodes/mod.rs:256-672` (the shared
+`register_model_nodes_inner` leaf runs both refusal families before any factory
+is installed; the VALIDATE-vs-APPLY contract is stated at `:431-453`).
 
 ## Gotchas
 

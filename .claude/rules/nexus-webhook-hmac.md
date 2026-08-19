@@ -6,6 +6,7 @@ paths:
   - "**/webhook*"
   - "**/*hmac*"
   - "**/signature*"
+  - "**/*nexus*/**"
 ---
 
 # Nexus Webhook HMAC Rules

@@ -3,6 +3,7 @@ priority: 10
 scope: path-scoped
 paths:
   - "**/trust/**"
+  - "**/*trust*/**"
 ---
 
 # Trust-Plane Security Rules

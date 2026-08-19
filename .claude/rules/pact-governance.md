@@ -4,6 +4,8 @@ scope: path-scoped
 paths:
   - "**/pact/**"
   - "**/governance/**"
+  - "**/*pact*/**"
+  - "**/*governance*/**"
 ---
 
 # PACT Governance Rules

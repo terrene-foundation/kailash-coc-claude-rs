@@ -6,6 +6,9 @@ paths:
   - "**/pool*"
   - "**/database*"
   - "**/infrastructure/**"
+  - "**/*dataflow*/**"
+  - "**/*pool*/**"
+  - "**/*connection*"
 ---
 
 # Connection Pool Safety Rules
