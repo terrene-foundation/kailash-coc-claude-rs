@@ -21,12 +21,7 @@ let config = RuntimeConfig {
     debug: false,                                        // verbose node logging
     enable_cycles: false,                                // default: DAG only
     conditional_execution: ConditionalMode::SkipBranches,// or EvaluateAll
-    connection_validation: ValidationMode::Strict,       // or Warn, Off
-    enable_monitoring: false,
-    enable_resource_limits: false,
     max_concurrent_nodes: 16,                            // semaphore-controlled
-    enable_security: false,
-    enable_audit: false,
     node_timeout: None,
     workflow_timeout: None,
     max_workflow_duration: Some(Duration::from_secs(300)),
@@ -36,6 +31,39 @@ let config = RuntimeConfig {
     ..RuntimeConfig::default()
 };
 ```
+
+### Five fields that appeared to be here and are not
+
+`connection_validation`, `enable_monitoring`, `enable_resource_limits`,
+`enable_security` and `enable_audit` were declared on this struct from the commit
+that introduced it until #2509 removed them. None ever had a reader — no code
+path in the workspace branched on any of them — so setting one changed nothing
+while reading as an operator control. What each appeared to select is
+unconditional or lives elsewhere: connection validation runs in
+`WorkflowBuilder::build`; metrics are unconditional and zero-cost with no
+collector installed, and OpenTelemetry export is selected at compile time by the
+`telemetry` cargo feature; classification redaction of DLQ payloads plus tenant
+scoping of the recovery loop are unconditional and fail-closed; the resource
+limits are the `max_*` fields above, each enforced whenever it is `Some`; and the
+runtime has never written to `AuditLog`. The current field list is
+`crates/kailash-core/src/runtime.rs:358-558` (16 fields) and the per-field
+removal rationale is `crates/kailash-core/src/runtime.rs:292-344`. JSON config
+(Node.js, C ABI, any `serde` caller) still accepts the key and silently discards
+it — there is no `deny_unknown_fields` — so old configs keep parsing; the Python
+and Ruby bindings retain the keyword and accessors for one minor cycle,
+round-tripping the value on their own wrapper and warning on every read and
+write.
+
+`enable_monitoring` still exists as a LIVE field on a **different** struct —
+`NexusConfig` (`crates/kailash-nexus/src/config.rs:270`), which is read at
+`crates/kailash-nexus/src/nexus.rs:1363`. Sharing the name is the trap; a
+`RuntimeConfig` is not what gates Nexus monitoring.
+
+There is no `impl RuntimeConfig` block, so there are no `with_*` builder methods
+on the config itself; construct it as a struct literal with
+`..RuntimeConfig::default()`, or configure through `RuntimeBuilder`
+(`RuntimeBuilder::config`, `::checkpoint_after_each_node`,
+`::checkpoint_after_each_level`).
 
 ## ExecutionResult and Access
 

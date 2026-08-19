@@ -3,6 +3,7 @@ priority: 10
 scope: path-scoped
 paths:
   - "**/dataflow/**"
+  - "**/*dataflow*/**"
 ---
 
 # DataFlow Pool Configuration Rules

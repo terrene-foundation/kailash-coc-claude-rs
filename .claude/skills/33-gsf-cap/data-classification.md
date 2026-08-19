@@ -29,8 +29,15 @@ let engine = DataFlowEngine::builder("sqlite::memory:")
     .build()
     .await?;
 
-// Registers all 11 nodes with validation (writes) + masking (reads)
-engine.register_model(&mut registry, model);
+// Registers all 11 nodes with validation (writes) + masking (reads).
+// Returns Result<(), DataFlowError>: it binds, then runs BOTH refusal families
+// for you — `ModelDefinition::validate` and `validate_deployment_classification`
+// — and REFUSES a model that would register unsafely (e.g. one declaring a
+// tenant column its table does not have, or naming its primary key as the
+// tenant discriminator). A refused model registers ZERO factories.
+// Discarding the Result discards that refusal.
+// Source: crates/kailash-dataflow/src/engine.rs:148-189.
+engine.register_model(&mut registry, model)?;
 ```
 
 When classification is set, `ReadNode` and `ListNode` automatically call `mask_row()` after fetching data. When `None`, reads return unmasked (backward compatible).

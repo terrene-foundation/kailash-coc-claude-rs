@@ -106,15 +106,30 @@ Callers previously received complete `AgentResult`/`TaodResult`. Now they can co
 pub enum CallerEvent {
     TextDelta(String),                                    // Incremental text chunk
     ToolCallStart { name, id, arguments },                // Tool execution started
+    ToolCallDelta { index, name, id, arguments_delta },   // Streaming argument fragment
     ToolCallDone { name, id, result, is_error },          // Tool execution completed
     IterationStart { iteration: u32 },                    // TAOD loop iteration
     Done(TaodResult),                                     // Terminal: success
+    BudgetExhausted { budget_usd, consumed_usd },         // Terminal: cost limit hit
     Error(AgentError),                                    // Terminal: failure
 }
 pub type CallerEventStream = Pin<Box<dyn Stream<Item = CallerEvent> + Send>>;
 ```
 
-Streams always terminate with `Done` or `Error`. Concatenating all `TextDelta` payloads reconstructs the full response.
+Streams always terminate with `Done`, `BudgetExhausted`, or `Error`. Concatenating all `TextDelta` payloads reconstructs the full response. Concatenating all `ToolCallDelta` payloads for a given `index` reconstructs the full tool-call arguments JSON.
+
+The enum is defined in `crates/kaizen-executor-core/src/caller_event.rs:72-153`
+(`kaizen_agents::streaming::caller_event` is an 11-line re-export shim), and the
+authoritative terminal set is the `is_terminal()` predicate at `:181-189` —
+`Done | BudgetExhausted | Error`. Note the enum-level doc comment at `:74-76`
+still says "terminates with either `Done` or `Error`" and is itself stale
+against that predicate; the per-variant docs, the cross-SDK mapping table and
+all three language bindings agree on the three-way set.
+
+`BudgetExhausted` is DECLARED terminal but is currently constructed NOWHERE in
+the workspace — no producer emits it, so a handler for it will not fire today.
+Handle it anyway (the bindings' terminality predicates already do); do not
+assume it cannot arrive.
 
 ### Three Streaming Entry Points
 
@@ -131,8 +146,19 @@ Single-shot, real per-token streaming. Best for UI display.
 ```rust
 use futures_util::StreamExt;
 use kaizen_agents::streaming::{StreamingAgent, CallerEvent};
+use kailash_kaizen::agent::BaseAgent;
+use std::sync::Arc;
 
-let streaming = StreamingAgent::new(agent, handler);
+// `StreamingAgent::new` NO LONGER EXISTS — removed in 4.44.0 by #2542.
+// `wrap` is the only constructor, and it ALONE is not enough for real
+// per-token streaming: it sets `concrete: None`, and `run_stream` BRANCHES
+// on that field. The `None` arm calls `inner.run()` and emits exactly one
+// `TextDelta` plus `Done` — a single-chunk fallback — instead of driving
+// `stream_completion_deltas` through the concrete agent's LLM client.
+// Attach the concrete handle explicitly to get SSE.
+let agent = Arc::new(agent);
+let streaming = StreamingAgent::wrap(Arc::clone(&agent) as Arc<dyn BaseAgent>, handler)
+    .with_concrete_agent(agent);
 let mut stream = streaming.run_stream("Explain quantum computing");
 
 while let Some(event) = stream.next().await {

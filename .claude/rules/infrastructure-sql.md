@@ -4,6 +4,10 @@ scope: path-scoped
 paths:
   - "**/db/**"
   - "**/infrastructure/**"
+  - "**/*dataflow*/**"
+  - "**/*sql*/**"
+  - "**/migrations/**"
+  - "**/*dialect*"
 ---
 
 # Infrastructure SQL Rules

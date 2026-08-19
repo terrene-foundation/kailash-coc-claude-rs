@@ -138,9 +138,29 @@ Constructor: `GovernanceHooks::new(lifecycle, accountability, ...)` with default
 ### bypass.rs -- Emergency Bypass
 
 - `BypassManager`: hold/approve/reject flow for actions exceeding governance thresholds
-- **Invariant**: `approve()` REQUIRES non-empty `approved_by` (human approval)
-- **Invariant**: expired holds cannot be approved
-- **Invariant**: rejected holds cannot be later approved
+- **Invariant**: `approve()` REQUIRES an `approved_by` that NAMES A PRINCIPAL — strictly
+  stronger than non-empty. Two layers, both must pass: (1) at least one
+  `char::is_alphanumeric` codepoint, which refuses `""`, `"   "`, `"---"`, `"@@@"`,
+  `"\u{00A0}"` and any all-invisible string; (2) NO control character, `U+2028`,
+  `U+2029`, or invisible-formatting codepoint anywhere, which refuses the embedded
+  case layer 1 passes (`"ad\u{200B}min"`, `"admin\u{202E}!"`, `"admin\n"`).
+  Unicode-aware, so `José`, `李明`, `svc:deployer-7` and `0` all pass. Validation
+  runs on the UNTRIMMED input; the record then stores the TRIMMED value. Rejection
+  is `OrchestrationError::GovernanceViolation`, and `approved_by` is deliberately
+  never echoed back in the message. Ground truth:
+  `crates/kaizen-agents/src/governance/bypass.rs:226-285` (predicate at `:235-239`,
+  trim at `:242`); the shared helper is defined at
+  `crates/eatp/src/principal.rs:128-146` and reached from `bypass.rs` through the
+  `kailash_pact::verdict` re-export, not the `eatp::` path directly.
+- **Invariant**: expired holds cannot be approved (`bypass.rs:262-268`)
+- **Invariant**: rejected holds cannot be later approved — enforced mechanically:
+  `reject()` removes the hold from `pending` (`bypass.rs:325`), so `approve()`'s
+  position lookup misses
+- **NOT an invariant**: `reject()` did NOT get this tightening. It still uses the
+  bare `rejected_by.trim().is_empty()` check (`bypass.rs:303-308`), so a
+  zero-width `rejected_by` is ACCEPTED and writes a `RejectionRecord` attributed to
+  an identity that renders blank. Its in-code comment claims it "mirrors approve()
+  validation"; that comment is false as written.
 - Dual-lock pattern: both `pending` and `approved` locks held during `approve()` (TOCTOU fix)
 
 ### vacancy.rs -- Orphaned Resource Detection

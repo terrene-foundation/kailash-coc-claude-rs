@@ -54,27 +54,67 @@ import { fileURLToPath } from "node:url";
 // `workspaces/acme-cust-engagement-q3/`) is NOT in the set and ships verbatim.
 // This is the "provably scoped to loom-internal workspaces" guarantee: BUILD
 // repos (kailash-py/rs) do not contain loom workspaces, so a derived match is
-// always strip-eligible. The fallback (workspaces/ unreadable — e.g. a synced
-// consumer running `--selftest` without a workspaces/ dir) keeps the long-lived
-// canonical names so the shipped fixtures + proven-leak classes still strip;
-// it NEVER under-strips to zero (an empty alternation would over-match).
-function deriveLoomWorkspaceDirs() {
-  const FALLBACK = ["multi-cli-coc", "multi-operator-coc"];
+// always strip-eligible.
+//
+// The canonical loom-internal workspace names. These are the long-lived set the
+// selftest fixtures pin as strip-eligible (and the #673-A2 proven-leak classes).
+// They are ALWAYS in the alternation, in EVERY repo, so the shipped fixtures and
+// the known-leak classes can never silently stop stripping.
+const CANONICAL_LOOM_WS = [
+  "multi-cli-coc",
+  "multi-operator-coc",
+  "ecosystem-operating-model",
+  "sync-upflow",
+];
+
+/**
+ * Read `.claude/VERSION::type`. Returns null when it cannot be determined —
+ * callers MUST treat null as "not loom" (fail closed toward the canonical set).
+ */
+function readRepoClass(repoRoot) {
   try {
-    const wsRoot = path.resolve(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "..",
-      "..",
-      "..",
-      "workspaces",
+    const parsed = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, ".claude", "VERSION"), "utf8"),
     );
+    return typeof parsed.type === "string" ? parsed.type : null;
+  } catch {
+    return null;
+  }
+}
+
+// Derivation from the live `workspaces/` dir is only VALID AT LOOM, where every
+// name in `workspaces/` is by construction a loom-internal workspace. This module
+// SHIPS (`action: copy, reason: always_include` on the py / rs / base lanes), so
+// it also runs at BUILD repos and downstream consumers — and THERE that directory
+// holds the CONSUMER's own workspaces, whose names are not loom-internal at all.
+// Deriving there both over-stripped the consumer's real paths (rewriting them to
+// "(loom-internal reference)") and, because the old `dirs.length > 0 ? dirs :
+// FALLBACK` REPLACED the canonical names rather than adding to them, silently
+// under-stripped every canonical loom name to zero. That inverted this module's
+// own stated guarantee ("it NEVER under-strips to zero") in exactly the repos the
+// strip exists to protect.
+//
+// So: derive only where derivation means what it claims, and always UNION the
+// canonical set so the floor can never be lost.
+function deriveLoomWorkspaceDirs() {
+  const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+  );
+  if (readRepoClass(repoRoot) !== "coc-source") return [...CANONICAL_LOOM_WS];
+
+  try {
     const dirs = fs
-      .readdirSync(wsRoot, { withFileTypes: true })
+      .readdirSync(path.join(repoRoot, "workspaces"), { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name);
-    return dirs.length > 0 ? dirs : FALLBACK;
+    // Union, never replace — an archived/renamed loom workspace must not drop
+    // its name out of the alternation.
+    return [...new Set([...CANONICAL_LOOM_WS, ...dirs])];
   } catch {
-    return FALLBACK;
+    return [...CANONICAL_LOOM_WS];
   }
 }
 const LOOM_WS_ALT = deriveLoomWorkspaceDirs()

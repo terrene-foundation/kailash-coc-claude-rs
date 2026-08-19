@@ -767,7 +767,7 @@ export function getCritBaseline() {
   // baseline rules are composed SEPARATELY (getLocalBaselineRules, below) so the
   // add-only overlay is additive, never a canon-baseline mutation.
   const rulesDir = path.join(REPO, ".claude", "rules");
-  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
+  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md") && !f.endsWith(".example.md"));
   const crit = [];
   for (const f of files) {
     const content = safeReadFileSync(path.join(rulesDir, f), "utf8");
@@ -1808,7 +1808,7 @@ export async function validateMcpBijectionAgainstFixtures() {
 // pre-existing path-scoped Rule 7 violations this way.
 export function validateRuleFrontmatter() {
   const rulesDir = path.join(REPO, ".claude", "rules");
-  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
+  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md") && !f.endsWith(".example.md"));
   const failures = [];
 
   for (const f of files) {
@@ -1884,7 +1884,7 @@ export function validateRuleFrontmatter() {
 // each rule into the report by its resolved lane.
 export function validateCliDelivery() {
   const rulesDir = path.join(REPO, ".claude", "rules");
-  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md")).sort();
+  const files = fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md") && !f.endsWith(".example.md")).sort();
   // SHARED canonical parser + glob matcher from the emitter (no divergent mirror):
   // the validator's cc-only verdict is computed from the SAME exclusion read the
   // real emit uses, so a future manifest-parse change cannot drift the two apart.
@@ -2132,7 +2132,7 @@ export function validateTierCompleteness() {
   );
 
   const failures = [];
-  for (const f of fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md"))) {
+  for (const f of fs.readdirSync(rulesDir).filter((f) => f.endsWith(".md") && !f.endsWith(".example.md"))) {
     if (!tiered.has(f) && !obsoleted.has(f) && !excluded.has(f)) {
       failures.push(
         `${f}: unmanaged — declare its distribution fate in ` +

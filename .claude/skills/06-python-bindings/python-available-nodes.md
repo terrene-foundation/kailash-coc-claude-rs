@@ -192,7 +192,7 @@ Kubernetes, Docker, and cloud operations.
 | `KubernetesNode`       | Kubernetes API operations (kube-rs)   |
 | `DockerNode`           | Docker container operations (bollard) |
 | `CloudNode`            | Cloud provider API calls              |
-| `ResourceAnalyzerNode` | System resource analysis (sysinfo)    |
+| `ResourceAnalyzerNode` | Trend analysis over caller-supplied resource samples (NOT a host probe; `kailash-nodes` has no `sysinfo` dependency) |
 | `EdgeStateMachineNode` | State machine for edge logic          |
 
 ### Transaction (5 nodes)

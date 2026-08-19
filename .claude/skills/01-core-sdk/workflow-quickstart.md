@@ -120,10 +120,14 @@ let config = RuntimeConfig {
     enable_cycles: false,                                 // Allow cyclic workflows
     max_concurrent_nodes: 8,                              // Semaphore-controlled parallelism
     conditional_execution: ConditionalMode::SkipBranches, // Skip unmet branches
-    connection_validation: ValidationMode::Strict,         // Strict connection checking
     ..RuntimeConfig::default()
 };
 ```
+
+There is no `connection_validation` field to set. Connection validation is
+unconditional in `WorkflowBuilder::build`; the field that appeared to select it
+was one of five removed in #2509 because nothing read them. Current field list:
+`crates/kailash-core/src/runtime.rs:358-558`.
 
 ## Common Node Types (Quick Reference)
 

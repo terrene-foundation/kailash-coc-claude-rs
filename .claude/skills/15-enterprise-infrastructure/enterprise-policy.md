@@ -92,6 +92,51 @@ assert!(decision.is_allowed());
 let decision = engine.evaluate_all(&ctx);
 ```
 
+### Three decision states, not two (#2712)
+
+`PolicyDecision` is `Allow` / `Deny(String)` / `NoDecision(NoDecisionReason)`
+(`crates/kailash-enterprise/src/policy/types.rs:338-353`). `NoDecision` means
+**no policy evaluated the request** — the authorization control was inert. It is
+fail-closed (`is_denied()` is `true`, `is_allowed()` is `false`, and
+`is_allowed` is an equality against `Allow` alone) but reported separately, so a
+caller can tell an inert control from a working one without substring-matching
+the denial prose.
+
+`NoDecisionReason` has **THREE** variants
+(`crates/kailash-enterprise/src/policy/types.rs:248-275`), not two:
+
+| Variant | Produced when | Constructed at |
+| --- | --- | --- |
+| `NoPoliciesConfigured` | the engine holds no policies at all | `engine.rs:168` |
+| `PolicyNotFound(String)` | the id passed to `evaluate` is not registered | `engine.rs:146-148` |
+| `PolicyHasNoRules(String)` | the policy IS registered but carries zero rules | `engine.rs:335-337` |
+
+`PolicyHasNoRules` is the one that changed behaviour, and the reason to care:
+a rules-less policy **previously returned `Allow`** — "vacuously true for
+AllMustPass" — which made it an UNCONDITIONAL GRANT for every subject, resource
+and action. `Policy` derives `Deserialize` with a bare `Vec<PolicyRule>` and
+registration validates only expression syntax and duplicate ids, so a config
+whose rules failed to load registered successfully and then permitted
+everything. It now fails closed.
+
+```rust
+let decision = engine.evaluate_all(&ctx);
+
+if decision.is_no_decision() {
+    // The control is inert — nothing ran. Alert; do NOT report this as
+    // "policy enforcement denied N requests".
+} else if decision.is_policy_denial() {
+    // A policy ran and refused.
+}
+```
+
+`PolicyDecision::denial_reason()` reproduces the pre-4.44.0 `Deny(String)`
+payload for one deprecation window. It is `#[deprecated(since = "4.44.0")]` and
+scheduled for removal in 4.46.0 — a schedule enforced in CI by
+`scripts/ci/deprecation-window-registry.d/enterprise-policy-decision-denial-reason-removal.json`,
+not just asserted in prose. Recovering the distinction from prose is the defect
+the third state closes.
+
 ### Versioning and Hot-Reload
 
 ```rust
@@ -176,8 +221,14 @@ result = engine.evaluate("admin-access", {
     "action": "write",
     "environment": {},
 })
-# Returns "allow" or {"deny": "reason"}
+# Returns the STRING "allow", or {"deny": reason}, or -- when nothing evaluated
+# the request -- {"deny": reason, "no_decision": tag} where tag is one of
+# "no_policies_configured" / "policy_not_found" / "policy_has_no_rules".
+# The "deny" key is present on BOTH denial shapes, so `if "deny" in result`
+# stays fail-closed; "no_decision" is the additive discriminator.
 assert result == "allow"
+if isinstance(result, dict) and "no_decision" in result:
+    ...  # the authorization control is inert -- alert, do not count as enforcement
 ```
 
 ### CRUD Operations
@@ -242,7 +293,7 @@ Expressions are validated at policy add time -- invalid expressions are rejected
 ## Source Files
 
 - `crates/kailash-enterprise/src/policy/engine.rs` -- `PolicyEngine`
-- `crates/kailash-enterprise/src/policy/types.rs` -- `Policy`, `PolicyRule`, `CombineStrategy`, `PolicyDecision`, `AccessContext`, `UserContext`
+- `crates/kailash-enterprise/src/policy/types.rs` -- `Policy`, `PolicyRule`, `CombineStrategy`, `PolicyDecision`, `NoDecisionReason`, `AccessContext`, `UserContext`
 - `crates/kailash-enterprise/src/policy/expression.rs` -- `evaluate_expression`, `validate_expression`
 - `bindings/kailash-python/src/enterprise.rs` -- `PyPolicyEngine`
 

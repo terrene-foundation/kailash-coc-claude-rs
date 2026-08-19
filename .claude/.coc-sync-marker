@@ -1,27 +1,32 @@
 # COC Sync Marker — kailash-coc-claude-rs (rs lane, CC-only-legacy)
-timestamp: 2026-08-17T15:10:00Z
+timestamp: 2026-08-19T09:08:20Z
 source: loom/.claude
-loom_sha: a44083a5261ed162bc456715d4b73e7e506566a4
-corpus_sha: a44083a5261ed162bc456715d4b73e7e506566a4 # pinned wave corpus, shared with surfaces 4 and 5 (wave-loop.md MUST-8)
-base_sha: f34c0cd9a904bb1443dc0c2dc4d70aee6b848e85
+loom_sha: 319083d60cabf74e7310a5c6504aaec604c48f35
+corpus_sha: 319083d60cabf74e7310a5c6504aaec604c48f35
+base_sha: 282002940777cebca853011bfa8440b0044bfab9
 variant: rs
-visibility: public
+visibility: public # PRESERVED from the prior marker, not re-derived (coc-sync Step 9)
 clis: ["claude"]
 stats:
-  engine_verify: "CONSISTENT — 2850 in-plan files checked, every one matches expected; no obsoleted path present (sync-tier-aware --target rs --template kailash-coc-claude-rs --verify, exit 0)"
-  engine_changed: 272 # +216 added, ~56 modified, -0 deleted; 2534 copied (2466 byte-equal, 68 content-equal after BUILD-internal strip), overlays 142/142 byte-equal, variant_only 174/174 byte-equal, 0 purged
-  changed_paths_total: 273 # git status --porcelain -uall, counted AFTER this marker + VERSION were written
-  version_stamp: "loom-tracking -> 2.45.0 @ a44083a5 (stamp-template-version --write --worktree <wt> --loom-root <src-worktree> --repo terrene-foundation/kailash-coc-claude-rs); own 2.24.0 -> 2.25.0"
-  source_freshness: "DISTRIBUTED FROM A DETACHED loom WORKTREE AT origin/main (sync-flow.md §0b(i)). The operator's main checkout was behind origin/main and check-sync-freshness --loom exited 1; distributing from it would have shipped the pre-#1786 .claude/guides/deterministic-quality/08-cross-sdk-parity.md, which carried an org-qualified slug that #1786 genericized. --loom-root was passed to the stamper per §0b(iii), so loom_sha names THIS source rather than the stale checkout. The corpus is PINNED at a44083a5 for the whole wave: a later sibling merge (#1787) was deliberately NOT chased, because surfaces cut from different SHAs would mean the wave shipped N corpora rather than one (wave-loop.md MUST-8)."
-  derived_cli_trees: "N/A — this template is CC-only (clis: [claude]). No .codex/, .gemini/, .coc/, AGENTS.md or GEMINI.md is owed or present; sync-completeness Rule 8's multi-CLI re-emit does not apply. Verified absent on disk rather than assumed."
-  removal_review: "0 deletions in this delivery (pre-merge delivered-removal review). The check is not vacuous: the same instrument reported 5 deletions on the py surface in this same wave, so an empty removal set here is a real empty set."
-  hooks_resolving: "41/41"
+  engine_verify: "CONSISTENT — 2996 in-plan files checked, every one matches expected; no obsoleted path present (sync-tier-aware --target rs --template kailash-coc-claude-rs --verify, exit 0). Re-run on the ENRICHED tree, not only the staged one. The green discriminates: the same command against a nonexistent --out exits 1 and explicitly refuses to report clean, so exit 0 is a real verdict rather than an instrument that cannot fail."
+  changed_paths_total: 200 # git status --porcelain -uall, counted AFTER this marker + VERSION were written
+  delivery: "+146 added, ~53 modified, -0 deleted (199 paths pre-marker; this marker is the 200th)"
+  version_stamp: "loom-tracking -> 2.45.0 @ 319083d6 (stamp-template-version --write --worktree <wt> --loom-root /Users/esperie/repos/loom --repo terrene-foundation/kailash-coc-claude-rs); --check exit 0, and the check is discriminating — the same --check with a wrong --repo exits 1 naming the drift. Own version 2.25.0 -> 2.26.0 (MINOR, content redistribution), authored via the Edit tool per the state-file write guard."
+  source_freshness: "loom local main measured 1 AHEAD / 0 BEHIND origin/main (git rev-list --left-right --count origin/main...HEAD -> '0\t1'; origin/main IS an ancestor of HEAD). The source is a SUPERSET of the published corpus, so the Step-0 failure mode (a BEHIND loom silently shipping stale artifacts) is measured absent rather than assumed. The single local commit is 319083d6, a session-notes commit. Reported to the orchestrator rather than silently accepted, because Step 0 halts loom on any divergence and this one was resolved by measuring its DIRECTION."
+  derived_cli_trees: "N/A — DERIVED from this target's own contract, not inherited from the multi-CLI sibling. sync-manifest repos.rs.templates[0] declares clis:[claude] / baseline_files:[CLAUDE.md]; multi_cli_overlays.cc-only-legacy declares paths:[] preserved:[] symlinks:[] manifest_distribute:false and carries NO dev_container_ownership key. Verified ABSENT on disk rather than assumed: .codex/, .gemini/, .codex-mcp-guard/, .coc/, AGENTS.md, GEMINI.md, .claude/sync-manifest.yaml. Steps 6.5/6.6/6.7 and the 4.6 symlink+manifest scaffold are all NO-OPS on this surface."
+  dev_container: "N/A — cc-only-legacy declares no dev_container_ownership key, so the preserve-union and the D6 distribute step both resolve EMPTY here. The rs D6 activation (loom_distributed, registry_substitution:false) applies to the multi-cli sibling kailash-coc-rs, not to this template."
+  removal_review: "0 deletions in this delivery (pre-merge delivered-removal review). Not vacuous: the deletion matcher was fired at a synthetic known-positive line and returned it, so the empty removal set is a real empty set rather than a matcher that cannot match here."
+  purge_and_orphans: "Every non-comment path in .claude/.coc-obsoleted verified ABSENT from the tree — the engine purge landed. The rs rename-orphan .claude/skills/10-deployment-git/python-version-bump.md is recorded at .coc-obsoleted:113, so downstream /sync-from-template purges the globally-named file the rs overlay renamed."
+  hooks_resolving: "58/58"
   settings_pii_scan: "clean — 0 /Users/ or /home/ hits in .claude/settings.json"
-  settings_reconcile: "Gate-2 automatic (in-worktree, post-engine-apply): deny rewrote 0 / deduped 0 / restored 0; hooks pruned 0, ADDED 2 (dispatch-contract-guard.js, delegation-default-guard.js)."
+  settings_description: "already 'Kailash COC Claude (Rust) …' — parenthetical matches the rs variant key (Step 6b post-condition)"
+  settings_reconcile: "Gate-2 automatic (in-worktree, post-engine-apply): 3 hook registrations ADDED (burndown-quote-stop-guard.js, burndown-quote-write-guard.js, fleet-drain-guard.js), 0 pruned. Verified from the settings.json diff in this worktree rather than restated from the handoff."
   baselines_emitted: { cc: 0 } # CLAUDE.md is template-owned, preserved not emitted
-  disclosure_gate: "scan-synced-disclosure.mjs --check — loom SOURCE tree 4330 files scanned / 0 findings, exit 0; staged worktree 2848 files scanned / 0 findings, exit 0. Both counts are NON-ZERO, so neither run is a vacuous no-op pass."
+  sdk_refs_allowlist: "no-op — 12 files under .claude/ carry py-SDK source-path references, all already covered by the 17 entries in .github/coc-sdk-refs-allowlist.txt, so 0 new entries appended. The scanning grep was shown to fire on this tree (2 hits under .claude/rules/), so the empty drift set is real and not a silent no-match."
+  disclosure_gate: "scan-synced-disclosure.mjs --check --root <worktree> — verbatim: 'Scanned: 2994 files on the synced surface — 0 findings', exit 0. (2994 is the scanner's synced-surface walk; the engine's 2996 is its in-plan set — different instruments, different scopes, both correct.) The pass is not vacuous: the scanner's own audit-fixture suite passes, including root-without-synced-surface-is-2-not-0, so a run that walked nothing would have exited 2 rather than reporting a clean 0."
   sdk_pins:
-    disposition: "HELD at kailash-enterprise>=4.40.0."
-    reason: "TWO independent grounds. (1) The BUILD half of a pin refresh reads kailash-rs, and this session holds NO cross-repo authorization for it (receipts cover only the three USE templates), so whether BUILD has moved was NOT determined — a DECLARED GAP, not a verified no-op. (2) The prior cycle recorded a substantive reason to hold regardless: BUILD kailash-rs 4.43.0 exists but PyPI kailash-enterprise 4.43.0 ships no macosx_11_0_arm64 wheel and no sdist, so admitting it fails resolution on darwin-arm64."
-    install_verify: "uv lock --check -> exit 0, 74 packages resolved, CPython 3.14.3. CONTROL: mutating the pin to kailash-enterprise>=99.99.99 makes the same command exit 1 ('requirements are unsatisfiable'), so exit 0 is a real resolution and not an instrument that cannot fail. pyproject.toml was restored byte-for-byte after the control (verified clean in git status)."
-  inbox: ".claude/.proposals/inbox/ already present (README.md) — additive ensure-exists produced zero diff."
+    disposition: "HELD at kailash-enterprise>=4.40.0 (pyproject.toml:32); upstream.sdk_packages held byte-unchanged."
+    reason: "Instructed to hold, and independently grounded. (1) The BUILD half of any pin refresh reads kailash-rs, which is out of this enrichment step's scope and unauthorized here, so whether BUILD has moved was NOT determined — a DECLARED GAP, not a verified no-op. (2) The prior cycle's substantive hold reason still stands: kailash-enterprise 4.43.0 publishes no macosx_11_0_arm64 wheel and no sdist, so any floor admitting it breaks resolution on darwin-arm64."
+    install_verify: "NOT re-run this cycle — pyproject.toml and uv.lock are both unchanged from base 28200294, so the prior cycle's verified resolution (uv lock --check exit 0, 74 packages, CPython 3.14.3, with a >=99.99.99 control proving the check can fail) still describes this tree. Re-running would have measured an unchanged input."
+  not_completed:
+    - "Root-level .coc-sync-marker (a SECOND, minimal marker at the repo root carrying synced_at/source/corpus_sha/fixes) was left UNCHANGED at loom@a44083a5. It is not named anywhere in the coc-sync Step-9 contract, which owns .claude/.coc-sync-marker only, and its `fixes:` field requires this cycle's issue set, which this step was not given. Refreshing it would have been a guess; surfaced to the orchestrator instead."

@@ -10,6 +10,7 @@ paths:
   - "**/.test-results*"
   - "**/02-plans/**"
   - "**/04-validate/**"
+  - "crates/**"
 ---
 
 # Testing Rules

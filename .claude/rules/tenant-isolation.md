@@ -7,6 +7,8 @@ paths:
   - "**/dataflow/**"
   - "**/cache/**"
   - "**/audit/**"
+  - "**/*tenant*/**"
+  - "**/*dataflow*/**"
 ---
 
 # Tenant Isolation Rules

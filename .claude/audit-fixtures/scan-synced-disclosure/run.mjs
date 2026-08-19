@@ -517,6 +517,80 @@ const CASES = [
   },
 ];
 
+// ── Fixture-INPUT inventory ──────────────────────────────────────────────
+// Per-case count of the payload files the case's directory MUST contain
+// (everything except README.md, recursively). Checked BEFORE the scanner is
+// invoked for that case.
+//
+// WHY A COUNT, AND WHY BEFORE THE SCAN. This guards a measured incident: a
+// commit deleted two fixture input payloads, the two affected cases scanned an
+// emptied directory, found nothing, and reported CLEAN — and the suite's
+// failure message blamed the SCANNER, which had not changed by a byte. The
+// session then went looking for a detector regression that did not exist.
+//
+// A missing payload and a broken detector are indistinguishable from the
+// scanner's output alone: both produce zero findings. So the discrimination
+// has to happen upstream of the verdict, on the INPUT, and the two outcomes
+// have to be reported in different words. `[FIXTURE INPUT MISSING]` is that
+// word.
+//
+// It is an EQUALITY check, not a floor, and deliberately so: an ADDED payload
+// is also a corpus change that silently shifts every `expectFindingCount` lock
+// in that case. Either direction is a reviewed registry edit, not a drift.
+//
+// Counts MEASURED against this tree — they are not inherited from the origin
+// repo, whose corpus is a subset of this one.
+const EXPECTED_PAYLOADS = {
+  "flag-each-shape": 1,
+  "clean-foundation-placeholder": 1,
+  "container-internal-home-allowlisted": 1,
+  "excluded-accepted-history": 2,
+  "own-org-allowed": 1,
+  "nonown-still-flagged": 1,
+  "r2-org-forms": 1,
+  "r2-allowlist-anchor": 1,
+  "r2-hostname-runner": 1,
+  "r2-exclusion-scoping": 2,
+  "r3-variant-surface": 2,
+  "operator-local-md-destination-flip": 1,
+  "r3-smuggle-closed": 2,
+  "r4-sdk-allowlist-anchor": 1,
+  "r5-refs-allowlist": 1,
+  "destination-local-json": 1,
+  "test-mjs-destination-flip": 1,
+  "f77-settings-good": 1,
+  "f77-settings-bad": 1,
+  "f77-settings-own-coords-still-flagged": 1,
+  "customer-identity-token": 3,
+  "gapc-guide-security-history": 3,
+  "sync-preserve-local-skipped": 1,
+  "cross-repo-authz-guard-source-only": 1,
+  "cross-repo-authz-arbitrary-org": 5,
+  "sync-preserve-yaml-scanned": 1,
+  "ecosystem-bare-org-slug": 1,
+  "ecosystem-example-clean": 1,
+};
+
+/** Recursively count payload files (everything but README.md) under a dir. */
+function countPayloads(dir) {
+  let n = 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return -1; // the directory itself is gone
+  }
+  for (const e of entries) {
+    if (e.isDirectory()) {
+      const sub = countPayloads(path.join(dir, e.name));
+      if (sub > 0) n += sub;
+    } else if (e.name !== "README.md") {
+      n++;
+    }
+  }
+  return n;
+}
+
 function runScanner(root) {
   try {
     const out = execFileSync("node", [SCANNER, "--check", "--root", root], {
@@ -619,8 +693,40 @@ function runTrackingScenario() {
 }
 
 let failed = 0;
+let inputsMissing = 0;
 for (const c of CASES) {
   const root = path.join(HERE, c.dir);
+
+  // Precondition: the case's own INPUT must be present before any verdict is
+  // read off the scanner. A missing payload is a fixture-corpus defect, not a
+  // detector regression, and must never be reported as one.
+  const expectedPayloads = EXPECTED_PAYLOADS[c.name];
+  if (typeof expectedPayloads !== "number") {
+    failed++;
+    console.log(`FAIL  ${c.name}`);
+    console.log(
+      `        - no EXPECTED_PAYLOADS entry — every case must declare its input inventory`,
+    );
+    continue;
+  }
+  const actualPayloads = countPayloads(root);
+  if (actualPayloads !== expectedPayloads) {
+    failed++;
+    inputsMissing++;
+    console.log(`FAIL  ${c.name}  [FIXTURE INPUT MISSING]`);
+    console.log(
+      `        - payload files: ${actualPayloads === -1 ? "directory absent" : actualPayloads} ` +
+        `(expected ${expectedPayloads})`,
+    );
+    console.log(
+      `        - this is a MISSING-INPUT defect, NOT a scanner regression: the ` +
+        `scanner cannot flag what it was never given. Restore the payload ` +
+        `(git log --diff-filter=D -- ${path.posix.join(".claude/audit-fixtures/scan-synced-disclosure", c.dir)}) ` +
+        `before drawing any conclusion about the detector.`,
+    );
+    continue;
+  }
+
   const { exit, out } = runScanner(root);
   const findingMatches = [...out.matchAll(/\[SHAPE:([a-z-]+)\]/g)];
   const shapesSeen = new Set(findingMatches.map((m) => m[1]));
@@ -770,9 +876,42 @@ for (const c of CASES) {
   }
 }
 
+// Cross-check the inventory in the other direction: a case dir present on disk
+// but absent from CASES is an orphan that no assertion covers. The
+// EXPECTED_PAYLOADS check above closes "declared but gone"; this closes
+// "present but undeclared" — without it the corpus can grow surface that looks
+// covered and is not.
+let orphanDirs = 0;
+{
+  const declaredDirs = new Set(CASES.map((c) => c.dir));
+  for (const entry of fs.readdirSync(HERE, { withFileTypes: true })) {
+    if (!entry.isDirectory() || declaredDirs.has(entry.name)) continue;
+    failed++;
+    orphanDirs++;
+    console.log(`FAIL  ${entry.name}  [ORPHAN FIXTURE DIR]`);
+    console.log(
+      `        - present on disk but declared in no CASES entry — it asserts nothing`,
+    );
+  }
+}
+
 console.log("");
 if (failed) {
-  console.log(`${failed} fixture(s) FAILED — scanner regressed`);
+  // Attribute precisely. Reporting a corpus defect as "scanner regressed" is
+  // the exact mis-attribution the EXPECTED_PAYLOADS inventory exists to remove,
+  // so the summary must not re-introduce it one line further down.
+  const corpus = inputsMissing + orphanDirs;
+  if (corpus) {
+    const parts = [];
+    if (inputsMissing) parts.push(`${inputsMissing} for MISSING INPUT`);
+    if (orphanDirs) parts.push(`${orphanDirs} for an ORPHAN FIXTURE DIR`);
+    console.log(
+      `${failed} fixture(s) FAILED — ${parts.join(" and ")}, i.e. a FIXTURE-CORPUS ` +
+        `defect, NOT a scanner regression. Fix the corpus first, then re-read the rest.`,
+    );
+  } else {
+    console.log(`${failed} fixture(s) FAILED — scanner regressed`);
+  }
   process.exit(1);
 }
 console.log("all fixtures passed");
